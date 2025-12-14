@@ -1,40 +1,45 @@
 import redis
 import sqlalchemy
 from redis import Redis
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
-from src.backup.mysql import local_mysql_config, remote_mysql_config
-from src.common.common import SourceType, console, settings
+from src.backup.mysql import MysqlClient, mysql_configs
+from src.common.common import ENV, console, settings
 
 HASH_PATTERN = "injection:algorithms"
 STREAM_PATTERN = "trace:*:log"
 TRACE_LOG_KEY = "trace:{}:log"
 
-local_redis_url = f"redis://{settings.redis.host}:{settings.redis.port}"
-settings.setenv("remote")
-remote_redis_url = f"redis://{settings.redis.host}:{settings.redis.port}"
+redis_urls: dict[ENV, str] = {}
+
+
+def _init_redis_urls():
+    for env in ENV:
+        settings.setenv(env.value)
+        redis_url = f"redis://{settings.redis.host}:{settings.redis.port}"
+        redis_urls[env] = redis_url
+
+
+_init_redis_urls()
 
 
 class RedisClient:
-    def __init__(self, src: SourceType):
-        if src == SourceType.LOCAL:
-            self.dst = SourceType.REMOTE
-            self.src_mysql_config = local_mysql_config
-            self.dst_mysql_config = remote_mysql_config
-            src_redis_url = local_redis_url
-            dst_redis_url = remote_redis_url
-        elif src == SourceType.REMOTE:
-            self.dst = SourceType.LOCAL
-            self.src_mysql_config = remote_mysql_config
-            self.dst_mysql_config = local_mysql_config
-            src_redis_url = remote_redis_url
-            dst_redis_url = local_redis_url
+    def __init__(self, src: ENV, dst: ENV):
+        self.src = src
+        self.dst = dst
+
+        self.src_mysql_config = mysql_configs[self.src]
+        self.dst_mysql_config = mysql_configs[self.dst]
+
+        src_redis_url = redis_urls[self.src]
+        dst_redis_url = redis_urls[self.dst]
 
         self.source_redis, self.target_redis = self._connect_redis(
             src_redis_url, dst_redis_url
         )
-        self.db_session = self.src_mysql_config.connect_database()
+        self.mysql_client = MysqlClient(self.src_mysql_config)
+        self.db_session = self.mysql_client.get_session()
 
     def _connect_redis(self, source_url: str, target_url: str) -> tuple[Redis, Redis]:
         """
@@ -102,7 +107,7 @@ class RedisClient:
 
         query = """
         SELECT DISTINCT t.trace_id
-        FROM fault_injection fis
+        FROM fault_injections fis
         INNER JOIN tasks t ON fis.task_id = t.id
         WHERE fis.task_id IS NOT NULL;
         """
@@ -127,7 +132,7 @@ class RedisClient:
             )
             return streams
 
-        except sqlalchemy.except_all.SQLAlchemyError as e:
+        except SQLAlchemyError as e:
             console.print(f"[red]❌ Database query failed: {e}[/red]")
             raise SystemExit(1)
 
@@ -181,7 +186,7 @@ class RedisClient:
             )
             return
 
-        console.print("[bold blueStarting batch copy...[/bold blue]")
+        console.print("[bold blue]Starting batch copy...[/bold blue]")
 
         success_count = 0
         failed_count = 0

@@ -13,8 +13,8 @@ from sqlalchemy.orm import Session, sessionmaker
 from src.common.command import run_command, run_pipeline
 from src.common.common import (
     DATAPACK_ROOT_PATH,
+    ENV,
     PROJECT_ROOT,
-    SourceType,
     console,
     settings,
 )
@@ -31,23 +31,6 @@ class MysqlConfig(BaseModel):
     host: str = Field(default="127.0.0.1")
     port: str = Field(default="3306")
     db: str = Field(default="rcabench")
-
-    @model_validator(mode="before")
-    @classmethod
-    def strip_prefix(cls, data: dict[str, Any]) -> Any:
-        if isinstance(data, dict):
-            cleaned_data = {}
-            prefix = "mysql_"
-
-            for key, value in data.items():
-                if key.startswith(prefix):
-                    new_key = key[len(prefix) :]
-                    cleaned_data[new_key] = value
-                else:
-                    cleaned_data[key] = value
-            return cleaned_data
-
-        return data
 
     @field_validator("host", mode="after")
     def resolve_localhost(cls, v: str) -> str:
@@ -70,20 +53,23 @@ class MysqlConfig(BaseModel):
         ]
 
 
-local_mysql_config = MysqlConfig.model_validate(settings["database"])
-settings.setenv("remote")
-remote_mysql_config = MysqlConfig.model_validate(settings.database.to_dict())
+mysql_configs: dict[ENV, MysqlConfig] = {}
 
-mysql_configs: dict[SourceType, MysqlConfig] = {
-    SourceType.LOCAL: local_mysql_config,
-    SourceType.REMOTE: remote_mysql_config,
-}
+
+def _init_mysql_configs():
+    for env in ENV:
+        settings.setenv(env.value)
+        config = MysqlConfig.model_validate(settings.database.mysql.to_dict())
+        mysql_configs[env] = config
+
+
+_init_mysql_configs()
 
 
 class MysqlClient:
     def __init__(self, config: MysqlConfig):
-        self.config = config
-        self.session = self._connect_database()
+        self._config = config
+        self._session = self._connect_database()
 
     def _connect_database(self) -> Session:
         """
@@ -96,7 +82,7 @@ class MysqlClient:
             SystemExit: If connection fails
         """
         try:
-            db_url = f"mysql+pymysql://{self.config.user}:{self.config.password}@{self.config.host}:{self.config.port}/{self.config.db}"
+            db_url = f"mysql+pymysql://{self._config.user}:{self._config.password}@{self._config.host}:{self._config.port}/{self._config.db}"
             engine = create_engine(db_url, echo=False, pool_pre_ping=True)
 
             Session = sessionmaker(bind=engine)
@@ -113,6 +99,10 @@ class MysqlClient:
         except Exception as e:
             console.print(f"[bold red]❌ Database connection failed: {e}[/bold red]")
             raise SystemExit(1)
+
+    def get_session(self) -> Session:
+        """Get the current database session."""
+        return self._session
 
     def sync_datapacks_to_database(self):
         """
@@ -151,7 +141,7 @@ class MysqlClient:
         try:
             # Get all fault_injections from database
             query = text("SELECT id, name FROM fault_injections ORDER BY id DESC")
-            result = self.session.execute(query)
+            result = self._session.execute(query)
             db_records = result.fetchall()
             console.print(
                 f"[bold green]✅ Found {len(db_records)} records in database[/bold green]"
@@ -166,7 +156,7 @@ class MysqlClient:
             added_count = 0
             skipped_count = 0
 
-            benchmark_results = self.session.execute(
+            benchmark_results = self._session.execute(
                 text("""
                     SELECT cv.id, c.name FROM container_versions cv
                     JOIN containers c ON cv.container_id = c.id
@@ -181,7 +171,7 @@ class MysqlClient:
                 )
                 return
 
-            pedestal_results = self.session.execute(
+            pedestal_results = self._session.execute(
                 text("""
                     SELECT cv.id, c.name FROM container_versions cv
                     JOIN containers c ON cv.container_id = c.id
@@ -289,7 +279,7 @@ class MysqlClient:
 
                     try:
                         # Insert fault_injection
-                        result = self.session.execute(
+                        result = self._session.execute(
                             text("""
                                 INSERT INTO fault_injections (
                                     name, fault_type, display_config, engine_config, groundtruth,
@@ -338,7 +328,7 @@ class MysqlClient:
                         )
 
                         inserted_id = result.lastrowid  # type: ignore
-                        self.session.commit()
+                        self._session.commit()
 
                         datapack_id_mapping[datapack_name] = inserted_id
 
@@ -348,7 +338,7 @@ class MysqlClient:
                         added_count += 1
 
                     except Exception as e:
-                        self.session.rollback()
+                        self._session.rollback()
                         console.print(
                             f"[bold red]❌ Failed to add {datapack_name}: {e}[/bold red]"
                         )
@@ -380,7 +370,7 @@ class MysqlClient:
 
             with open(dir / "metadata.json", "w", encoding="utf-8") as f:
                 metadata = {
-                    "host": self.config.host,
+                    "host": self._config.host,
                     "finished_at": datetime.now().strftime(settings.time_format),
                 }
                 json.dump(metadata, f, indent=2, ensure_ascii=False)
@@ -389,24 +379,21 @@ class MysqlClient:
             console.print(
                 f"[bold red]❌ Datapack synchronization failed: {e}[/bold red]"
             )
-            self.session.rollback()
+            self._session.rollback()
             dir.rmdir()
         finally:
-            self.session.close()
+            self._session.close()
 
 
 class MysqlBackupManager:
-    def __init__(self, src: SourceType):
-        self.src = src
+    """Manage MySQL database backup and restore operations."""
 
-        if self.src == SourceType.LOCAL:
-            self.dst = SourceType.REMOTE
-            self.src_mysql_config = mysql_configs[SourceType.LOCAL]
-            self.dst_mysql_config = mysql_configs[SourceType.REMOTE]
-        elif self.src == SourceType.REMOTE:
-            self.dst = SourceType.LOCAL
-            self.src_mysql_config = mysql_configs[SourceType.REMOTE]
-            self.dst_mysql_config = mysql_configs[SourceType.LOCAL]
+    def __init__(self, src: ENV, dst: ENV):
+        self.src = src
+        self.dst = dst
+
+        self.src_mysql_config = mysql_configs[self.src]
+        self.dst_mysql_config = mysql_configs[self.dst]
 
         self.target_dir = BACKUP_DIR / self.src.value / self.src_mysql_config.db
         if not self.target_dir.exists():
@@ -494,7 +481,7 @@ class MysqlBackupManager:
         )
 
     def backup(self):
-        """Backup remote MySQL database to local file."""
+        """Backup MySQL database from src to dst local files."""
         backup_file = (
             self.target_dir
             / f"mysql_backup_{datetime.now().strftime(settings.time_format)}.sql"

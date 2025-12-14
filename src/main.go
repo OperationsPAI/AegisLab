@@ -117,7 +117,7 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			logrus.Println("Running as producer")
 			database.InitDB()
-			service.InitializeData(ctx)
+			service.InitializeData()
 
 			utils.InitValidator()
 			client.InitTraceProvider()
@@ -160,7 +160,7 @@ func main() {
 
 			k8slogger.SetLogger(stdr.New(log.New(os.Stdout, "", log.LstdFlags)))
 			database.InitDB()
-			service.InitializeData(ctx)
+			service.InitializeData()
 			service.InitConcurrencyLock(ctx)
 
 			consts.InitialTime = utils.TimePtr(time.Now())

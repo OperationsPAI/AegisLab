@@ -2,7 +2,7 @@ import typer
 
 from src.backup.mysql import MysqlBackupManager
 from src.backup.redis_ import RedisClient
-from src.common.common import SourceType, console, settings
+from src.common.common import ENV, console, settings
 
 app = typer.Typer()
 
@@ -15,11 +15,17 @@ app.add_typer(reids_app, name="redis")
 
 @mysql_app.command(name="migrate")
 def mysql_migrate(
-    src: str = typer.Option(
-        "remote",
+    src: ENV = typer.Option(
+        ENV.PROD,
         "--src",
         "-s",
-        help="Source of the backup to restore from (local or remote).",
+        help="Source of the backup to restore from.",
+    ),
+    dst: ENV = typer.Option(
+        ENV.DEV,
+        "--dst",
+        "-d",
+        help="Destination environment to restore the backup to.",
     ),
     force: bool = typer.Option(
         False,
@@ -38,17 +44,16 @@ def mysql_migrate(
     MysqlBackupManager.install_tools()
     console.print()
 
-    source_type = SourceType.LOCAL if src.lower() == "local" else SourceType.REMOTE
-    client = MysqlBackupManager(source_type)
+    client = MysqlBackupManager(src, dst)
 
     console.print(
-        f"[bold blue]Step 2: Creating backup from {source_type} server...[/bold blue]"
+        f"[bold blue]Step 2: Creating backup from {src.value} server...[/bold blue]"
     )
     client.backup()
     console.print()
 
     console.print(
-        f"[bold blue]Step 3: Restoring backup to {client.dst} server...[/bold blue]"
+        f"[bold blue]Step 3: Restoring backup to {dst.value} server...[/bold blue]"
     )
     client.restore(force)
     console.print()
@@ -58,11 +63,17 @@ def mysql_migrate(
 
 @reids_app.command(name="migrate")
 def redis_migrate(
-    src: SourceType = typer.Option(
-        "local",
+    src: ENV = typer.Option(
+        ENV.PROD,
         "--src",
         "-s",
-        help="Source of the backup to restore from (local or remote).",
+        help="Source of the backup to restore from.",
+    ),
+    dst: ENV = typer.Option(
+        ENV.DEV,
+        "--dst",
+        "-d",
+        help="Destination environment to restore the backup to.",
     ),
     exact_match: bool = typer.Option(
         False,
@@ -87,17 +98,16 @@ def redis_migrate(
 
     console.print("[bold blue]Starting Redis migration...[/bold blue]")
 
-    source_type = SourceType.LOCAL if src.lower() == "local" else SourceType.REMOTE
-    client = RedisClient(source_type)
+    client = RedisClient(src, dst)
 
     console.print(
-        f"[bold blue]Step 1: Restoring hash data from {source_type} server...[/bold blue]"
+        f"[bold blue]Step 1: Restoring hash data from {src.value} server...[/bold blue]"
     )
     client.copy_hashes(force, dry_run=dry_run)
     console.print()
 
     console.print(
-        f"[bold blue]Step 2: Restoring stream data to {client.dst} server...[/bold blue]"
+        f"[bold blue]Step 2: Restoring stream data to {dst.value} server...[/bold blue]"
     )
     client.copy_streams(
         exact_match,

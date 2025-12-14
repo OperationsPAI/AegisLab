@@ -1,12 +1,10 @@
 import json
 import re
-import subprocess
 from typing import Any
 
 from jinja2 import Template
 from pydantic import BaseModel
 
-from src.common.command import run_command
 from src.common.common import ENV, INITIAL_DATA_PATH, console
 from src.common.helm_cli import HelmCLI, HelmRelease
 from src.common.kubernetes_manager import KubernetesManager, with_k8s_manager

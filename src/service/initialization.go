@@ -19,6 +19,8 @@ import (
 	"gorm.io/gorm"
 )
 
+const AdminUsername = "admin"
+
 type InitialDataContainer struct {
 	Type     consts.ContainerType      `json:"type"`
 	Name     string                    `json:"name"`
@@ -176,18 +178,21 @@ func InitConcurrencyLock(ctx context.Context) {
 }
 
 // InitializeData initializes data (roles, permissions, resources)
-func InitializeData(ctx context.Context) {
-	if !repository.IsInitialDataSeeded(ctx) {
-		if err := initialize(); err != nil {
-			logrus.Errorf("Failed to initialize system data: %v", err)
-			logrus.Warn("System will continue running without initial system data")
-		} else {
-			logrus.Info("System data initialized successfully")
-			if markErr := repository.MarkDataSeedingComplete(ctx); markErr != nil {
-				logrus.Fatalf("Failed to mark data seeding as complete: %v", markErr)
+func InitializeData() {
+	user, err := repository.GetUserByUsername(database.DB, AdminUsername)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			logrus.Info("Seeding initial system data...")
+			if err := initialize(); err != nil {
+				logrus.Fatalf("Failed to initialize system data: %v", err)
 			}
+			logrus.Info("Successfully seeded initial system data")
+		} else {
+			logrus.Fatalf("Failed to check for %s: %v", AdminUsername, err)
 		}
-	} else {
+	}
+
+	if user != nil {
 		logrus.Info("Initial system data already seeded, skipping initialization")
 	}
 }

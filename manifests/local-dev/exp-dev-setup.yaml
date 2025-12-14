@@ -1,0 +1,129 @@
+---
+# Namespace for local development environment
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: exp-dev
+  labels:
+    environment: development
+    managed-by: manual
+
+---
+# JuiceFS Secret for RCABench
+apiVersion: v1
+kind: Secret
+metadata:
+  name: rcabench-juicefs-secret
+  namespace: exp-dev
+  labels:
+    app: rcabench
+    environment: development
+type: Opaque
+stringData:
+  name: "jfs"
+  metaurl: "redis://10.10.10.119:6379/1"
+  cache-size: "1024"
+
+---
+# StorageClass for JuiceFS
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: juicefs-sc
+  labels:
+    app: rcabench
+    environment: development
+provisioner: csi.juicefs.com
+parameters:
+  csi.storage.k8s.io/provisioner-secret-name: rcabench-juicefs-secret
+  csi.storage.k8s.io/provisioner-secret-namespace: exp-dev
+  csi.storage.k8s.io/node-publish-secret-name: rcabench-juicefs-secret
+  csi.storage.k8s.io/node-publish-secret-namespace: exp-dev
+reclaimPolicy: Retain
+volumeBindingMode: Immediate
+allowVolumeExpansion: true
+
+---
+# ServiceAccount for RCABench
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rcabench-sa
+  namespace: exp-dev
+  labels:
+    app: rcabench
+    environment: development
+
+---
+# ClusterRole with full permissions (same as production)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: rcabench-dev-role
+  labels:
+    app: rcabench
+    environment: development
+rules:
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["*"]
+
+---
+# ClusterRoleBinding to bind ServiceAccount to ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: rcabench-dev-rolebinding
+  labels:
+    app: rcabench
+    environment: development
+subjects:
+  - kind: ServiceAccount
+    name: rcabench-sa
+    namespace: exp-dev
+roleRef:
+  kind: ClusterRole
+  name: rcabench-dev-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# PVC for JuiceFS Dataset
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rcabench-juicefs-dataset
+  namespace: exp-dev
+  labels:
+    app: rcabench
+    environment: development
+    pvc-type: dataset
+  annotations:
+    description: "JuiceFS PVC for dataset storage in exp-dev environment"
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: "juicefs-sc"
+  resources:
+    requests:
+      storage: 100Gi
+
+---
+# PVC for JuiceFS Experiment Storage
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rcabench-juicefs-experiment-storage
+  namespace: exp-dev
+  labels:
+    app: rcabench
+    environment: development
+    pvc-type: experiment-storage
+  annotations:
+    description: "JuiceFS PVC for experiment storage in exp-dev environment"
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: "juicefs-sc"
+  resources:
+    requests:
+      storage: 100Gi

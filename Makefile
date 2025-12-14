@@ -206,7 +206,7 @@ local-debug:  ## 🐛 Start local debugging environment
 	cd $(SRC_DIR) && go run main.go both --port 8082
 
 local-deploy: ## 🛠️  Setup local development environment with basic services
-	@$(MAKE) run-command ARGS="rcabench local-deploy -e $(ENV_MODE)"
+	@$(MAKE) run-command ARGS="rcabench local-deploy -e $(ENV_MODE) -s prod -f"
 
 update-dependencies: ## 📦 Update latest version of dependencies
 	@printf "$(BLUE)📦 Updating latest version of chaos-experiment library...$(RESET)\n"

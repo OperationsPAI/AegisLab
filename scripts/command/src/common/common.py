@@ -30,6 +30,7 @@ DATAPACK_ROOT_PATH = Path("/mnt/jfs/rcabench_dataset")
 class ENV(str, Enum):
     DEV = "dev"
     PROD = "prod"
+    STAGING = "staging"
     TEST = "test"
 
 
@@ -43,11 +44,6 @@ class ScopeType(str, Enum):
     Modified = "modified"
     SDK = "sdk"
     STAGED = "staged"
-
-
-class SourceType(str, Enum):
-    LOCAL = "local"
-    REMOTE = "remote"
 
 
 settings = Dynaconf(

@@ -9,7 +9,7 @@ env_mode = "dev"
 timezone = "Asia/Shanghai"
 
 [initialization]
-data_path = "/home/nn/workspace/Aegislab/data/initial_data"
+data_path = "/home/nn/workspace/AegisLab/data/initial_data"
 
 [debugging]
 enabled = true
@@ -21,10 +21,10 @@ target_label_key = "app"
 count = 1
 
 [database.clickhouse]
-port = "8123"
 host = "10.10.10.58"
-user = "app"
-password = "hyperdx"
+port = "8123"
+user = "default"
+password = "password"
 db = "default"
 timezone = "Asia/Shanghai"
 
@@ -48,7 +48,7 @@ username = "admin"
 password = "Harbor12345"
 
 [k8s]
-namespace = "exp-debug"
+namespace = "exp-dev"
 
 [k8s.service]
 internal_url = "http://10.10.10.161:8082"

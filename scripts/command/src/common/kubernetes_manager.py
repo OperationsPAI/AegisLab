@@ -127,16 +127,14 @@ class KubernetesManager:
         target_context = self.get_context_mapping().get(self.env)
         if target_context:
             console.print(
-                f"[bold blue]Switching to context: {target_context}[/bold blue]..."
+                f"[bold blue]Switching to context: {target_context}[/bold blue]"
             )
             if not self.switch_context(target_context):
                 console.print(
                     f"[bold red]Failed to switch to context: {target_context}[/bold red]"
                 )
                 raise RuntimeError(f"Failed to switch to context: {target_context}")
-
-            current_ctx = self.get_current_context()
-            console.print(f"[bold green]Current context: {current_ctx}\n[/bold green]")
+            console.print(f"[bold green]✓ Switched to: {target_context}[/bold green]\n")
 
         # Store session information
         self._sessions[self.env] = K8sSessionData(
@@ -205,8 +203,18 @@ class KubernetesManager:
         label_selector: str,
         field_selector: str,
         output_error: bool = False,
+        prefix_match: bool = False,
     ) -> bool:
-        """Check if a pod with specific criteria is running in the cluster."""
+        """Check if a pod with specific criteria is running in the cluster.
+
+        Args:
+            name: Pod name to match (exact match or prefix based on prefix_match)
+            namespace: Namespace to search in
+            label_selector: Label selector for filtering pods
+            field_selector: Field selector for filtering pods
+            output_error: Whether to output error messages
+            prefix_match: If True, match pods whose names start with 'name' (useful for StatefulSets)
+        """
         assert self._core_api is not None, "Kubernetes API is not initialized"
 
         try:
@@ -217,8 +225,15 @@ class KubernetesManager:
             )
 
             for pod in pods.items:
-                if pod.name == name:
-                    return True
+                pod_name = pod.metadata.name
+                if prefix_match:
+                    # For StatefulSet pods like "mysql-0", match with prefix "mysql"
+                    if pod_name.startswith(name):
+                        return True
+                else:
+                    # Exact match
+                    if pod_name == name:
+                        return True
 
             return False
 
@@ -260,7 +275,7 @@ class KubernetesManager:
             return ""
 
     def switch_context(self, context_name: str) -> bool:
-        """Switch to a specific Kubernetes context."""
+        """Switch to a specific Kubernetes context in memory (without modifying kubeconfig file)."""
         try:
             contexts, _ = config.list_kube_config_contexts()
             context_names = [ctx["name"] for ctx in contexts]  # type: ignore
@@ -269,14 +284,22 @@ class KubernetesManager:
                 console.print(
                     f"[bold red]Context '{context_name}' not found[/bold red]"
                 )
-                console.print(f"Available contexts: {', '.join(context_names)}")
+                console.print("[cyan]Available contexts: [/cyan]")
+                for ctx in context_names:
+                    console.print(f"[dim]    - {ctx}[dim]")
                 return False
 
-            # Switch context by reloading config with new context
+            # Load config with specific context (in-memory only, doesn't modify file)
             config.load_kube_config(context=context_name)
 
-            # Reinitialize API client with new context
+            # Reinitialize all API clients with new context
+            self._apps_api = AppsV1Api()
+            self._batch_api = BatchV1Api()
             self._core_api = CoreV1Api()
+
+            # Update session context name if in session mode
+            if self.env is not None and self.env in self._sessions:
+                self._sessions[self.env].context_name = context_name
 
             return True
 

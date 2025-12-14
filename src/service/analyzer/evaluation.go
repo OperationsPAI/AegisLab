@@ -20,11 +20,11 @@ func ListDatapackEvaluationResults(req *dto.BatchEvaluateDatapackReq, userID int
 	}
 
 	algorithms := make([]*dto.ContainerRef, 0, len(req.Specs))
-	for _, spec := range req.Specs {
-		algorithms = append(algorithms, &spec.Algorithm)
+	for i := range req.Specs {
+		algorithms = append(algorithms, &req.Specs[i].Algorithm)
 	}
 
-	containerVersionResults, err := common.MapRefsToContainerVersions(algorithms, consts.ContainerTypeAlgorithm, userID)
+	algorithmVersionResults, err := common.MapRefsToContainerVersions(algorithms, consts.ContainerTypeAlgorithm, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to map container refs to versions: %w", err)
 	}
@@ -32,10 +32,11 @@ func ListDatapackEvaluationResults(req *dto.BatchEvaluateDatapackReq, userID int
 	successItems := make([]dto.EvaluateDatapackItem, 0, len(req.Specs))
 	failedItems := make([]string, 0)
 
-	for i, spec := range req.Specs {
+	for i := range req.Specs {
+		spec := &req.Specs[i]
 		specIdentifier := fmt.Sprintf("spec[%d]: algorithm=%s, datapack=%s", i, spec.Algorithm.Name, spec.Datapack)
 
-		containerVersion, exists := containerVersionResults[&spec.Algorithm]
+		algorithmVersion, exists := algorithmVersionResults[algorithms[i]]
 		if !exists {
 			failedItems = append(failedItems, fmt.Sprintf("%s - algorithm version not found", specIdentifier))
 			continue
@@ -49,7 +50,7 @@ func ListDatapackEvaluationResults(req *dto.BatchEvaluateDatapackReq, userID int
 			})
 		}
 
-		executions, err := repository.ListExecutionsByDatapackFilter(database.DB, containerVersion.ID, spec.Datapack, labelConditions)
+		executions, err := repository.ListExecutionsByDatapackFilter(database.DB, algorithmVersion.ID, spec.Datapack, labelConditions)
 		if err != nil {
 			failedItems = append(failedItems, fmt.Sprintf("%s - failed to query executions: %v", specIdentifier, err))
 			continue
@@ -81,8 +82,8 @@ func ListDatapackEvaluationResults(req *dto.BatchEvaluateDatapackReq, userID int
 		}
 
 		item := dto.EvaluateDatapackItem{
-			Algorithm:           containerVersion.Container.Name,
-			AlgorithmVersion:    containerVersion.Name,
+			Algorithm:           algorithmVersion.Container.Name,
+			AlgorithmVersion:    algorithmVersion.Name,
 			EvaluateDatapackRef: evaluateRef,
 		}
 		successItems = append(successItems, item)
@@ -105,12 +106,12 @@ func ListDatasetEvaluationResults(req *dto.BatchEvaluateDatasetReq, userID int) 
 
 	algorithms := make([]*dto.ContainerRef, 0, len(req.Specs))
 	datasets := make([]*dto.DatasetRef, 0, len(req.Specs))
-	for _, spec := range req.Specs {
-		algorithms = append(algorithms, &spec.Algorithm)
-		datasets = append(datasets, &spec.Dataset)
+	for i := range req.Specs {
+		algorithms = append(algorithms, &req.Specs[i].Algorithm)
+		datasets = append(datasets, &req.Specs[i].Dataset)
 	}
 
-	containerVersionResults, err := common.MapRefsToContainerVersions(algorithms, consts.ContainerTypeAlgorithm, userID)
+	algorithmVersionResults, err := common.MapRefsToContainerVersions(algorithms, consts.ContainerTypeAlgorithm, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to map container refs to versions: %w", err)
 	}
@@ -123,16 +124,17 @@ func ListDatasetEvaluationResults(req *dto.BatchEvaluateDatasetReq, userID int) 
 	successItems := make([]dto.EvaluateDatasetItem, 0, len(req.Specs))
 	failedItems := make([]string, 0)
 
-	for i, spec := range req.Specs {
+	for i := range req.Specs {
+		spec := &req.Specs[i]
 		specIdentifier := fmt.Sprintf("spec[%d]: algorithm=%s, dataset=%s", i, spec.Algorithm.Name, spec.Dataset.Name)
 
-		containerVersion, exists := containerVersionResults[&spec.Algorithm]
+		algorithmVersion, exists := algorithmVersionResults[algorithms[i]]
 		if !exists {
 			failedItems = append(failedItems, fmt.Sprintf("%s - algorithm version not found", specIdentifier))
 			continue
 		}
 
-		datasetVersion, exists := datasetVersionResults[&spec.Dataset]
+		datasetVersion, exists := datasetVersionResults[datasets[i]]
 		if !exists {
 			failedItems = append(failedItems, fmt.Sprintf("%s - dataset version not found", specIdentifier))
 			continue
@@ -140,7 +142,7 @@ func ListDatasetEvaluationResults(req *dto.BatchEvaluateDatasetReq, userID int) 
 
 		labelConditions := dto.ConvertLabelItemsToConditions(spec.FilterLabels)
 
-		executions, err := repository.ListExecutionsByDatasetFilter(database.DB, containerVersion.ID, datasetVersion.ID, labelConditions)
+		executions, err := repository.ListExecutionsByDatasetFilter(database.DB, algorithmVersion.ID, datasetVersion.ID, labelConditions)
 		if err != nil {
 			failedItems = append(failedItems, fmt.Sprintf("%s - failed to query executions: %v", specIdentifier, err))
 			continue
@@ -194,8 +196,8 @@ func ListDatasetEvaluationResults(req *dto.BatchEvaluateDatasetReq, userID int) 
 		}
 
 		item := dto.EvaluateDatasetItem{
-			Algorithm:            containerVersion.Container.Name,
-			AlgorithmVersion:     containerVersion.Name,
+			Algorithm:            algorithmVersion.Container.Name,
+			AlgorithmVersion:     algorithmVersion.Name,
 			Dataset:              datasetVersion.Dataset.Name,
 			DatasetVersion:       datasetVersion.Name,
 			TotalCount:           len(datasetVersion.Datapacks),

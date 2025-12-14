@@ -4,7 +4,7 @@ go 1.23.2
 
 require (
 	github.com/BurntSushi/toml v1.4.0
-	github.com/LGU-SE-Internal/chaos-experiment v0.0.0-20251210090457-cd446b0f48d4
+	github.com/LGU-SE-Internal/chaos-experiment v0.0.0-20251213133029-ba28f276afe0
 	github.com/antonfisher/nested-logrus-formatter v1.3.1
 	github.com/distribution/reference v0.6.0
 	github.com/docker/cli v27.4.1+incompatible
@@ -16,7 +16,6 @@ require (
 	github.com/goharbor/go-client v0.213.1
 	github.com/golang-jwt/jwt/v5 v5.2.3
 	github.com/google/uuid v1.6.0
-	github.com/joho/godotenv v1.5.1
 	github.com/k0kubun/pp/v3 v3.4.1
 	github.com/moby/buildkit v0.18.2
 	github.com/oklog/ulid v1.3.1
