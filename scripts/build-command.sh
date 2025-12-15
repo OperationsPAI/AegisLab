@@ -32,7 +32,7 @@ printf "${BLUE}📦 Checking development environment (ENV_MODE=${ENV_MODE})...${
 if [ -d "$VENV_DIR" ]; then
     printf "${GREEN}✅ Virtual environment found. Skipping setup.${RESET}\n"
     exit $STATUS_SUCCESS
-els
+else
     printf "${BLUE}📦 Virtual environment not found. Setting up now...${RESET}\n"
     
     if ! uv venv; then

@@ -65,9 +65,9 @@ func (req *BatchEvaluateDatapackReq) Validate() error {
 }
 
 type EvaluateDatapackRef struct {
-	Datapack      string            `json:"datapack"`
-	Groundtruth   chaos.Groundtruth `json:"groundtruth"`
-	ExecutionRefs []ExecutionRef    `json:"execution_refs"`
+	Datapack      string              `json:"datapack"`
+	Groundtruths  []chaos.Groundtruth `json:"groundtruths"`
+	ExecutionRefs []ExecutionRef      `json:"execution_refs"`
 }
 
 type EvaluateDatapackItem struct {

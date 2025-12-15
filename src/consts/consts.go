@@ -53,6 +53,8 @@ const (
 	ResourceAdmin
 )
 
+const Hybrid chaos.ChaosType = -1
+
 // String returns the string representation of the resource name
 func (r ResourceName) String() string {
 	return string(r)
@@ -243,7 +245,7 @@ const (
 
 	InjectBenchmark   = "benchmark_version"
 	InjectPreDuration = "pre_duration"
-	InjectNode        = "node"
+	InjectNodes       = "nodes"
 	InjectNamespace   = "namespace"
 	InjectPedestalID  = "pedestal_id"
 	InjectLabels      = "labels"
@@ -364,7 +366,8 @@ const (
 	K8sLabelAppID = "rcabench_app_id"
 
 	// CRD label fields
-	CRDLabelInjectionID = "injection_id"
+	CRDLabelBatchID  = "batch_id"
+	CRDLabelIsHybrid = "is_hybrid"
 
 	// Job label common fields
 	JobLabelName      = "job-name"

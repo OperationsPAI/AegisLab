@@ -271,7 +271,11 @@ class Pedestal(BaseModel, frozen=True):
             value: Value to convert (typically a string)
 
         Returns:
-            Converted value (bool, int, or str)
+            Converted value (bool or str)
+
+        Note:
+            Numeric strings are kept as strings to preserve formatting (e.g., "023" stays "023").
+            Only boolean values are converted from strings.
         """
         if not isinstance(value, str):
             return value
@@ -280,11 +284,8 @@ class Pedestal(BaseModel, frozen=True):
         if value.lower() in ("true", "false"):
             return value.lower() == "true"
 
-        # Try to parse as integer
-        if value.isdigit():
-            return int(value)
-
-        # Keep as string
+        # Keep all other values as strings (including numeric strings like "023")
+        # This preserves leading zeros and allows Helm to handle type conversion
         return value
 
     def to_helm_release(

@@ -157,12 +157,6 @@ func executeRestartPedestal(ctx context.Context, task *dto.UnifiedTask) error {
 			return handleExecutionError(span, logEntry, "failed to read namespace index", err)
 		}
 
-		installFunc, exists := GetInstallerRegistry().Get(nsPrefix)
-		if !exists {
-			toReleased = true
-			return handleExecutionError(span, logEntry, fmt.Sprintf("no install function for namespace prefix: %s", nsPrefix), fmt.Errorf("no install function for namespace prefix: %s", nsPrefix))
-		}
-
 		updateTaskState(
 			ctx,
 			task.TraceID,
@@ -188,6 +182,12 @@ func executeRestartPedestal(ctx context.Context, task *dto.UnifiedTask) error {
 			})
 
 			return handleExecutionError(span, logEntry, "missing extra info in pedestal item", fmt.Errorf("missing extra info in pedestal item"))
+		}
+
+		installFunc, exists := GetInstallerRegistry().Get(nsPrefix)
+		if !exists {
+			toReleased = true
+			return handleExecutionError(span, logEntry, fmt.Sprintf("no install function for namespace prefix: %s", nsPrefix), fmt.Errorf("no install function for namespace prefix: %s", nsPrefix))
 		}
 
 		if err := installFunc(childCtx, namespace, index, payload.pedestal.Extra); err != nil {

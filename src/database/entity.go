@@ -427,7 +427,7 @@ type FaultInjection struct {
 	Description   string          `gorm:"type:text"`                                                                   // Description
 	DisplayConfig *string         `gorm:"type:longtext"`                                                               // User-facing display configuration
 	EngineConfig  string          `gorm:"type:longtext;not null"`                                                      // System-facing runtime configuration
-	Groundtruth   *Groundtruth    `gorm:"type:json;serializer:json"`                                                   // Expected impact groundtruth (service, pod, container, metric, function, span)
+	Groundtruths  []Groundtruth   `gorm:"type:json;serializer:json"`                                                   // Expected impact groundtruth (service, pod, container, metric, function, span)
 	PreDuration   int             `gorm:"not null"`                                                                    // Normal data duration
 	StartTime     *time.Time      `gorm:"index;check:start_time IS NULL OR end_time IS NULL OR start_time < end_time"` // Expected fault start time, nullable with validation
 	EndTime       *time.Time      `gorm:"index"`                                                                       // Expected fault end time, nullable

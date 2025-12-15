@@ -356,15 +356,17 @@ func (req *SearchInjectionReq) ConvertToSearchReq() *SearchReq {
 	return sr
 }
 
+// SubmitInjectionReq represents a request to submit fault injection tasks with parallel fault support
+// Each element in Specs represents a batch of faults to be injected in parallel within a single experiment
 type SubmitInjectionReq struct {
-	ProjectName string          `json:"project_name" binding:"required"`
-	Pedestal    *ContainerSpec  `json:"pedestal" binding:"required"`
-	Benchmark   *ContainerSpec  `json:"benchmark" binding:"required"`
-	Interval    int             `json:"interval" binding:"required,min=1"`
-	PreDuration int             `json:"pre_duration" binding:"required,min=1"`
-	Specs       []chaos.Node    `json:"specs" binding:"required"`
-	Algorithms  []ContainerSpec `json:"algorithms" binding:"omitempty"`
-	Labels      []LabelItem     `json:"labels" binding:"omitempty"`
+	ProjectName string          `json:"project_name" binding:"required"`       // Project name
+	Pedestal    *ContainerSpec  `json:"pedestal" binding:"required"`           // Pedestal (workload) configuration
+	Benchmark   *ContainerSpec  `json:"benchmark" binding:"required"`          // Benchmark (detector) configuration
+	Interval    int             `json:"interval" binding:"required,min=1"`     // Total experiment interval in minutes
+	PreDuration int             `json:"pre_duration" binding:"required,min=1"` // Normal data collection duration before fault injection
+	Specs       [][]chaos.Node  `json:"specs" binding:"required"`              // Fault injection specs - 2D array where each sub-array is a batch of parallel faults
+	Algorithms  []ContainerSpec `json:"algorithms" binding:"omitempty"`        // RCA algorithms to execute (optional)
+	Labels      []LabelItem     `json:"labels" binding:"omitempty"`            // Labels to attach to the injection
 }
 
 func (req *SubmitInjectionReq) Validate() error {
@@ -481,9 +483,9 @@ func NewInjectionResp(injection *database.FaultInjection) *InjectionResp {
 type InjectionDetailResp struct {
 	InjectionResp
 
-	Description  string             `json:"description,omitempty"`
-	EngineConfig map[string]any     `json:"engine_config" swaggertype:"object"`
-	Groundtruth  *chaos.Groundtruth `json:"ground_truth,omitempty"`
+	Description  string              `json:"description,omitempty"`
+	EngineConfig map[string]any      `json:"engine_config" swaggertype:"object"`
+	Groundtruths []chaos.Groundtruth `json:"ground_truth,omitempty"`
 }
 
 func NewInjectionDetailResp(entity *database.FaultInjection) *InjectionDetailResp {
@@ -499,8 +501,11 @@ func NewInjectionDetailResp(entity *database.FaultInjection) *InjectionDetailRes
 		resp.EngineConfig = engineConfigData
 	}
 
-	if entity.Groundtruth != nil {
-		resp.Groundtruth = entity.Groundtruth.ConvertToChaosGroundtruth()
+	resp.Groundtruths = make([]chaos.Groundtruth, 0, len(entity.Groundtruths))
+	if len(entity.Groundtruths) > 0 {
+		for _, gt := range entity.Groundtruths {
+			resp.Groundtruths = append(resp.Groundtruths, *gt.ConvertToChaosGroundtruth())
+		}
 	}
 
 	return resp
@@ -515,9 +520,9 @@ type InjectionMetadataResp struct {
 }
 
 type SubmitInjectionItem struct {
-	TraceID string `json:"trace_id"`
-	TaskID  string `json:"task_id"`
-	Index   int    `json:"index"`
+	BatchIndex int    `json:"batch_index"` // Index of the batch this injection belongs to
+	TraceID    string `json:"trace_id"`
+	TaskID     string `json:"task_id"`
 }
 
 type SubmitInjectionResp struct {

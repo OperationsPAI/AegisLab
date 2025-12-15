@@ -9,7 +9,7 @@ env_mode = "dev"
 timezone = "Asia/Shanghai"
 
 [initialization]
-data_path = "/home/nn/workspace/AegisLab/data/initial_data"
+data_path = "/home/nn/workspace/AegisLab/helm/files/initial_data"
 
 [debugging]
 enabled = true
@@ -85,7 +85,7 @@ dataset_path = "/mnt/jfs/rcabench_dataset"
 experiment_storage_path = "/mnt/jfs/experiment_storage"
 
 [algo]
-detector = "detector_harbor"
+detector = "detector"
 
 [container]
 storage_path = "/home/nn/workspace/AegisLab/containers"

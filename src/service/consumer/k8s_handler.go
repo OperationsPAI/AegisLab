@@ -51,7 +51,8 @@ type taskIdentifiers struct {
 
 type crdLabels struct {
 	taskIdentifiers
-	injectionID int
+	batchID  string
+	IsHybrid bool
 }
 
 type jobLabels struct {
@@ -93,10 +94,6 @@ func (h *K8sHandler) HandleCRDAdd(name string, annotations map[string]string, la
 		consts.TaskRunning,
 		consts.TaskTypeFaultInjection,
 	)
-
-	if err := updateInjectionName(parsedLabels.injectionID, name); err != nil {
-		handleTolerableError(trace.SpanFromContext(taskCtx), logrus.WithField("injection_id", parsedLabels.injectionID), "update injection name failed", err)
-	}
 }
 
 func (h *K8sHandler) HandleCRDDelete(namespace string, annotations map[string]string, labels map[string]string) {
@@ -139,10 +136,6 @@ func (h *K8sHandler) HandleCRDFailed(name string, annotations map[string]string,
 	})
 	taskSpan := trace.SpanFromContext(taskCtx)
 
-	if err := updateInjectionState(name, consts.DatapackInjectFailed); err != nil {
-		handleTolerableError(taskSpan, logEntry, "update injection state failed", err)
-	}
-
 	publishEvent(taskCtx, fmt.Sprintf(consts.StreamLogKey, parsedLabels.traceID), dto.StreamEvent{
 		TaskID:    parsedLabels.taskID,
 		TaskType:  consts.TaskTypeFaultInjection,
@@ -161,6 +154,23 @@ func (h *K8sHandler) HandleCRDFailed(name string, annotations map[string]string,
 		consts.TaskError,
 		consts.TaskTypeFaultInjection,
 	)
+
+	if !parsedLabels.IsHybrid {
+		if err := updateInjectionState(name, consts.DatapackInjectFailed); err != nil {
+			handleTolerableError(taskSpan, logEntry, "update injection state failed", err)
+		}
+	} else {
+		bm := getBatchManager()
+		bm.incrementBatchCount(parsedLabels.batchID)
+
+		// Check if batch is finished and delete if done
+		if bm.isFinished(parsedLabels.batchID) {
+			bm.deleteBatch(parsedLabels.batchID)
+			if err := updateInjectionState(parsedLabels.batchID, consts.DatapackInjectFailed); err != nil {
+				handleTolerableError(taskSpan, logEntry, "update injection state failed", err)
+			}
+		}
+	}
 }
 
 func (h *K8sHandler) HandleCRDSucceeded(namespace, pod, name string, startTime, endTime time.Time, annotations map[string]string, labels map[string]string) {
@@ -185,10 +195,6 @@ func (h *K8sHandler) HandleCRDSucceeded(namespace, pod, name string, startTime, 
 	})
 	taskSpan := trace.SpanFromContext(taskCtx)
 
-	if err := updateInjectionState(name, consts.DatapackInjectSuccess); err != nil {
-		handleTolerableError(taskSpan, logEntry, "update injection state failed", err)
-	}
-
 	logEntry.Info("fault injected successfully")
 	taskSpan.AddEvent("fault injected successfully")
 	publishEvent(taskCtx, fmt.Sprintf(consts.StreamLogKey, parsedLabels.traceID), dto.StreamEvent{
@@ -206,41 +212,57 @@ func (h *K8sHandler) HandleCRDSucceeded(namespace, pod, name string, startTime, 
 		consts.TaskTypeFaultInjection,
 	)
 
-	datapack, err := updateInjectionTimestamp(name, startTime, endTime)
-	if err != nil {
-		logEntry.Errorf("update injection timestamps failed: %v", err)
-		taskSpan.AddEvent("update injection timestamps failed")
-		taskSpan.RecordError(err)
-		return
-	}
+	if !parsedLabels.IsHybrid {
+		if err := updateInjectionState(name, consts.DatapackInjectFailed); err != nil {
+			handleTolerableError(taskSpan, logEntry, "update injection state failed", err)
+		}
+	} else {
+		bm := getBatchManager()
+		bm.incrementBatchCount(parsedLabels.batchID)
 
-	parsedAnnotations.benchmark.EnvVars = []dto.ParameterItem{
-		{Key: "NAMESPACE", Value: namespace},
-	}
+		if bm.isFinished(parsedLabels.batchID) {
+			bm.deleteBatch(parsedLabels.batchID)
+			if err := updateInjectionState(parsedLabels.batchID, consts.DatapackInjectFailed); err != nil {
+				handleTolerableError(taskSpan, logEntry, "update injection state failed", err)
+			}
 
-	payload := map[string]any{
-		consts.BuildBenchmark:        *parsedAnnotations.benchmark,
-		consts.BuildDatapack:         *datapack,
-		consts.BuildDatasetVersionID: consts.DefaultInvalidID,
-	}
+			datapack, err := updateInjectionTimestamp(parsedLabels.batchID, startTime, endTime)
+			if err != nil {
+				logEntry.Errorf("update injection timestamps failed: %v", err)
+				taskSpan.AddEvent("update injection timestamps failed")
+				taskSpan.RecordError(err)
+				return
+			}
 
-	task := &dto.UnifiedTask{
-		Type:      consts.TaskTypeBuildDatapack,
-		Immediate: true,
-		Payload:   payload,
-		TraceID:   parsedLabels.traceID,
-		GroupID:   parsedLabels.groupID,
-		ProjectID: parsedLabels.projectID,
-		UserID:    parsedLabels.userID,
-		State:     consts.TaskPending,
-	}
-	task.SetTraceCtx(traceCtx)
+			parsedAnnotations.benchmark.EnvVars = []dto.ParameterItem{
+				{Key: "NAMESPACE", Value: namespace},
+			}
 
-	err = common.SubmitTask(taskCtx, task)
-	if err != nil {
-		logEntry.Errorf("submit dataset building task failed: %v", err)
-		taskSpan.AddEvent("submit dataset building task failed")
-		taskSpan.RecordError(err)
+			payload := map[string]any{
+				consts.BuildBenchmark:        *parsedAnnotations.benchmark,
+				consts.BuildDatapack:         *datapack,
+				consts.BuildDatasetVersionID: consts.DefaultInvalidID,
+			}
+
+			task := &dto.UnifiedTask{
+				Type:      consts.TaskTypeBuildDatapack,
+				Immediate: true,
+				Payload:   payload,
+				TraceID:   parsedLabels.traceID,
+				GroupID:   parsedLabels.groupID,
+				ProjectID: parsedLabels.projectID,
+				UserID:    parsedLabels.userID,
+				State:     consts.TaskPending,
+			}
+			task.SetTraceCtx(traceCtx)
+
+			err = common.SubmitTask(taskCtx, task)
+			if err != nil {
+				logEntry.Errorf("submit dataset building task failed: %v", err)
+				taskSpan.AddEvent("submit dataset building task failed")
+				taskSpan.RecordError(err)
+			}
+		}
 	}
 }
 
@@ -766,18 +788,24 @@ func parseCRDLabels(labels map[string]string) (*crdLabels, error) {
 		return nil, fmt.Errorf("failed to parse task identifiers: %w", err)
 	}
 
-	injectionIDStr, ok := labels[consts.CRDLabelInjectionID]
-	if !ok || injectionIDStr == "" {
-		return nil, fmt.Errorf(crdLabelsErrMsg, consts.CRDLabelInjectionID)
+	batchID, ok := labels[consts.CRDLabelBatchID]
+	if !ok && batchID == "" {
+		return nil, fmt.Errorf(crdLabelsErrMsg, consts.CRDLabelBatchID)
 	}
-	injectionID, err := strconv.Atoi(injectionIDStr)
+
+	isHybridStr, ok := labels[consts.CRDLabelIsHybrid]
+	if !ok || isHybridStr == "" {
+		return nil, fmt.Errorf(crdLabelsErrMsg, consts.CRDLabelIsHybrid)
+	}
+	isHybrid, err := strconv.ParseBool(isHybridStr)
 	if err != nil {
-		return nil, fmt.Errorf(crdLabelsErrMsg, consts.CRDLabelInjectionID)
+		return nil, fmt.Errorf(crdLabelsErrMsg, consts.CRDLabelIsHybrid)
 	}
 
 	return &crdLabels{
 		taskIdentifiers: *identifiers,
-		injectionID:     injectionID,
+		batchID:         batchID,
+		IsHybrid:        isHybrid,
 	}, nil
 }
 
@@ -800,27 +828,6 @@ func parseJobLabels(labels map[string]string) (*jobLabels, error) {
 	}
 
 	return data, nil
-}
-
-// updateInjectionName updates the name of a fault injection
-func updateInjectionName(injectionID int, newName string) error {
-	return database.DB.Transaction(func(tx *gorm.DB) error {
-		injection, err := repository.GetInjectionByID(tx, injectionID)
-		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return fmt.Errorf("injection %d not found", injectionID)
-			}
-			return fmt.Errorf("failed to get injection %d: %w", injectionID, err)
-		}
-
-		if err = repository.UpdateInjection(tx, injection.ID, map[string]any{
-			"name": newName,
-		}); err != nil {
-			return fmt.Errorf("update injection timestamps failed: %w", err)
-		}
-
-		return nil
-	})
 }
 
 // updateExecutionState updates the state of an execution

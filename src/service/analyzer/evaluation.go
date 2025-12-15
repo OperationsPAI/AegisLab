@@ -6,7 +6,6 @@ import (
 	"aegis/dto"
 	"aegis/repository"
 	"aegis/service/common"
-	"encoding/json"
 	"fmt"
 
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
@@ -73,11 +72,11 @@ func ListDatapackEvaluationResults(req *dto.BatchEvaluateDatapackReq, userID int
 
 		datapack := executions[0].Datapack
 		if datapack != nil {
-			groundTruth, err := getGroundtruth(datapack)
+			groundtruths, err := getGroundtruths(datapack)
 			if err != nil {
 				logrus.Warnf("failed to get groundtruth for datapack %s: %v", spec.Datapack, err)
 			} else {
-				evaluateRef.Groundtruth = *groundTruth
+				evaluateRef.Groundtruths = groundtruths
 			}
 		}
 
@@ -184,11 +183,11 @@ func ListDatasetEvaluationResults(req *dto.BatchEvaluateDatasetReq, userID int) 
 
 			datapack := groupedExecutions[0].Datapack
 			if datapack != nil {
-				groundTruth, err := getGroundtruth(datapack)
+				groundtruths, err := getGroundtruths(datapack)
 				if err != nil {
 					logrus.Warnf("failed to get groundtruth for datapack %s: %v", datapack_name, err)
 				} else {
-					evaluateRef.Groundtruth = *groundTruth
+					evaluateRef.Groundtruths = groundtruths
 				}
 			}
 
@@ -217,22 +216,11 @@ func ListDatasetEvaluationResults(req *dto.BatchEvaluateDatasetReq, userID int) 
 	return &resp, nil
 }
 
-// getGroundtruth extracts the ground truth from a datapack's engine configuration
-func getGroundtruth(datapack *database.FaultInjection) (*chaos.Groundtruth, error) {
-	var node chaos.Node
-	if err := json.Unmarshal([]byte(datapack.EngineConfig), &node); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal chaos-experiment node for datapack %s: %v", datapack.Name, err)
+// getGroundtruths extracts the ground truth from a datapack's engine configuration
+func getGroundtruths(datapack *database.FaultInjection) ([]chaos.Groundtruth, error) {
+	chaosGroundtruths := make([]chaos.Groundtruth, 0, len(datapack.Groundtruths))
+	for _, gt := range datapack.Groundtruths {
+		chaosGroundtruths = append(chaosGroundtruths, *gt.ConvertToChaosGroundtruth())
 	}
-
-	conf, err := chaos.NodeToStruct[chaos.InjectionConf](&node)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert chaos-experiment node to InjectionConf for datapack %s: %v", datapack.Name, err)
-	}
-
-	groundtruth, err := conf.GetGroundtruth()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get ground truth for datapack %s: %v", datapack.Name, err)
-	}
-
-	return &groundtruth, nil
+	return chaosGroundtruths, nil
 }

@@ -20,11 +20,12 @@ import (
 	"gorm.io/gorm"
 )
 
+// injectionProcessItem represents a batch of parallel fault injections
 type injectionProcessItem struct {
-	index         int
-	faultDuration int
-	node          *chaos.Node
-	executeTime   time.Time
+	index         int          // Batch index in the original request
+	faultDuration int          // Maximum duration among all faults in this batch
+	nodes         []chaos.Node // Multiple fault nodes to be injected in parallel
+	executeTime   time.Time    // Execution time for this batch
 }
 
 // BatchDeleteInjectionsByIDs deletes fault injections based on their IDs
@@ -564,7 +565,7 @@ func BatchManageInjectionLabels(req *dto.BatchManageInjectionLabelReq) (*dto.Bat
 	})
 }
 
-// ProduceRestartPedestalTasks produces pedestal restart tasks into Redis based on the request specifications
+// ProduceRestartPedestalTasks produces pedestal restart tasks with support for parallel fault injection
 func ProduceRestartPedestalTasks(ctx context.Context, req *dto.SubmitInjectionReq, groupID string, userID int) (*dto.SubmitInjectionResp, error) {
 	project, err := repository.GetProjectByName(database.DB, req.ProjectName)
 	if err != nil {
@@ -592,15 +593,14 @@ func ProduceRestartPedestalTasks(ctx context.Context, req *dto.SubmitInjectionRe
 		return nil, fmt.Errorf("failed to get helm config: %w", err)
 	}
 
-	pedestalInfo := dto.NewPedestalInfo(helmConfig)
-	if len(req.Pedestal.Payload) > 0 {
-		params := flattenYAMLToParameters(req.Pedestal.Payload, "")
-		helmValues, err := common.ListHelmConfigValues(params, helmConfig)
-		if err != nil {
-			return nil, fmt.Errorf("failed to render pedestal helm values: %w", err)
-		}
-		pedestalInfo.HelmConfig.Values = helmValues
+	params := flattenYAMLToParameters(req.Pedestal.Payload, "")
+	helmValues, err := common.ListHelmConfigValues(params, helmConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to render pedestal helm values: %w", err)
 	}
+
+	pedestalInfo := dto.NewPedestalInfo(helmConfig)
+	pedestalInfo.HelmConfig.Values = helmValues
 
 	pedestalItem := dto.NewContainerVersionItem(&pedestalVersion)
 	pedestalItem.Extra = pedestalInfo
@@ -623,13 +623,24 @@ func ProduceRestartPedestalTasks(ctx context.Context, req *dto.SubmitInjectionRe
 
 	benchmarkVersionItem.EnvVars = envVars
 
-	processedItems, err := parseInjectionSpecs(req.Specs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse injection specs: %w", err)
+	// Parse each batch and collect items
+	processedItems := make([]injectionProcessItem, 0, len(req.Specs))
+	for i := range req.Specs {
+		item, err := parseBatchInjectionSpecs(i, req.Specs[i])
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse injection spec batch %d: %w", i, err)
+		}
+		processedItems = append(processedItems, *item)
 	}
 
-	injectionItems := make([]dto.SubmitInjectionItem, 0, len(processedItems))
-	for _, item := range processedItems {
+	// Remove duplicated batches
+	uniqueItems, err := removeDuplicated(processedItems)
+	if err != nil {
+		return nil, fmt.Errorf("failed to remove duplicated batches: %w", err)
+	}
+
+	injectionItems := make([]dto.SubmitInjectionItem, 0, len(uniqueItems))
+	for _, item := range uniqueItems {
 		payload := map[string]any{
 			consts.RestartPedestal:      pedestalItem,
 			consts.RestartHelmConfig:    helmConfig,
@@ -638,7 +649,7 @@ func ProduceRestartPedestalTasks(ctx context.Context, req *dto.SubmitInjectionRe
 			consts.RestartInjectPayload: map[string]any{
 				consts.InjectBenchmark:   benchmarkVersionItem,
 				consts.InjectPreDuration: req.PreDuration,
-				consts.InjectNode:        item.node,
+				consts.InjectNodes:       item.nodes,
 				consts.InjectLabels:      req.Labels,
 			},
 		}
@@ -661,12 +672,11 @@ func ProduceRestartPedestalTasks(ctx context.Context, req *dto.SubmitInjectionRe
 		}
 
 		injectionItems = append(injectionItems, dto.SubmitInjectionItem{
-			Index:   item.index,
-			TraceID: task.TraceID,
-			TaskID:  task.TaskID,
+			BatchIndex: item.index,
+			TraceID:    task.TraceID,
+			TaskID:     task.TaskID,
 		})
 	}
-
 	refs := make([]*dto.ContainerRef, 0, len(req.Algorithms))
 	for i := range req.Algorithms {
 		refs = append(refs, &req.Algorithms[i].ContainerRef)
@@ -704,8 +714,8 @@ func ProduceRestartPedestalTasks(ctx context.Context, req *dto.SubmitInjectionRe
 	return &dto.SubmitInjectionResp{
 		GroupID:         groupID,
 		Items:           injectionItems,
-		DuplicatedCount: len(req.Specs) - len(processedItems),
-		OriginalCount:   len(req.Specs),
+		DuplicatedCount: len(processedItems) - len(uniqueItems),
+		OriginalCount:   len(processedItems),
 	}, nil
 }
 
@@ -847,47 +857,108 @@ func batchDeleteInjectionsCore(db *gorm.DB, injectionIDs []int) error {
 	return nil
 }
 
-func parseInjectionSpecs(specs []chaos.Node) ([]injectionProcessItem, error) {
-	items := make([]injectionProcessItem, 0, len(specs))
+// parseBatchInjectionSpecs parses a single batch of fault injection specifications for parallel execution
+func parseBatchInjectionSpecs(batchIndex int, specs []chaos.Node) (*injectionProcessItem, error) {
+	if len(specs) == 0 {
+		return nil, fmt.Errorf("empty fault injection batch at index %d", batchIndex)
+	}
+
+	// Extract fault duration - use the maximum duration among all faults in the batch
+	maxDuration := 0
+	nodes := make([]chaos.Node, 0, len(specs))
+
 	for idx, spec := range specs {
 		childNode, exists := spec.Children[strconv.Itoa(spec.Value)]
 		if !exists {
-			return nil, fmt.Errorf("failed to find key %d in the children", spec.Value)
+			return nil, fmt.Errorf("failed to find key %d in the children at batch %d at index %d", spec.Value, batchIndex, idx)
+		}
+
+		if len(childNode.Children) < 3 {
+			return nil, fmt.Errorf("no child nodes found for fault spec at batch %d at index %d", batchIndex, idx)
 		}
 
 		faultDuration := childNode.Children[consts.DurationNodeKey].Value
-
-		items = append(items, injectionProcessItem{
-			index:         idx,
-			faultDuration: faultDuration,
-			node:          &spec,
-		})
-	}
-
-	if len(items) != 0 {
-		newItems, err := removeDuplicated(items)
-		if err != nil {
-			return nil, fmt.Errorf("failed to remove duplicated injection specs: %w", err)
+		if faultDuration > maxDuration {
+			maxDuration = faultDuration
 		}
-		return newItems, nil
+
+		nodes = append(nodes, spec)
 	}
 
-	return items, nil
+	uniqueKeys := make(map[string]int, len(nodes))
+	for idx, node := range nodes {
+		childNode := node.Children[strconv.Itoa(node.Value)]
+		nsIdx := childNode.Children["1"].Value
+		resourceIdx := childNode.Children["2"].Value
+
+		key := fmt.Sprintf("%d-%d-%d", node.Value, nsIdx, resourceIdx)
+		if oldIdx, exists := uniqueKeys[key]; exists {
+			return nil, fmt.Errorf("duplicated fault injection point found in batch %d at index %d and %d", batchIndex, oldIdx, idx)
+		}
+
+		uniqueKeys[key] = idx
+	}
+
+	// Sort nodes to ensure consistent ordering
+	nodes = sortNodes(nodes)
+
+	return &injectionProcessItem{
+		index:         batchIndex,
+		faultDuration: maxDuration,
+		nodes:         nodes,
+	}, nil
 }
 
-// Filter out items that already exist in DB, using engine_config as uniqueness key,
-// and drop duplicates within the incoming request while preserving order.
+// flattenYAMLToParameters converts nested YAML map to flat parameter specs
+func flattenYAMLToParameters(data map[string]any, prefix string) []dto.ParameterSpec {
+	var params []dto.ParameterSpec
+
+	for key, value := range data {
+		fullKey := key
+		if prefix != "" {
+			fullKey = prefix + "." + key
+		}
+
+		switch v := value.(type) {
+		case map[string]any:
+			// Recursively flatten nested structures
+			params = append(params, flattenYAMLToParameters(v, fullKey)...)
+		case []any:
+			// Convert array to JSON string
+			jsonBytes, err := json.Marshal(v)
+			if err != nil {
+				logrus.Warnf("Failed to marshal array for key %s: %v", fullKey, err)
+				continue
+			}
+			params = append(params, dto.ParameterSpec{
+				Key:   fullKey,
+				Value: string(jsonBytes),
+			})
+		default:
+			// Primitive values (string, int, bool, etc.)
+			params = append(params, dto.ParameterSpec{
+				Key:   fullKey,
+				Value: v,
+			})
+		}
+	}
+
+	return params
+}
+
+// removeDuplicated filters out batches that already exist in DB and removes duplicates within the request
 func removeDuplicated(items []injectionProcessItem) ([]injectionProcessItem, error) {
 	engineConfigStrs := make([]string, len(items))
 	for i, item := range items {
-		if item.node == nil {
+		if len(item.nodes) == 0 {
 			engineConfigStrs[i] = ""
 			continue
 		}
 
-		b, err := json.Marshal(item.node)
+		// Marshal the entire batch of nodes as the engine config
+		b, err := json.Marshal(item.nodes)
 		if err != nil {
-			return nil, fmt.Errorf("failed to marshal engine config at index %d: %w", i, err)
+			return nil, fmt.Errorf("failed to marshal engine config at batch index %d: %w", i, err)
 		}
 
 		engineConfigStrs[i] = string(b)
@@ -949,39 +1020,36 @@ func removeDuplicated(items []injectionProcessItem) ([]injectionProcessItem, err
 	return out, nil
 }
 
-// flattenYAMLToParameters converts nested YAML map to flat parameter specs
-func flattenYAMLToParameters(data map[string]any, prefix string) []dto.ParameterSpec {
-	var params []dto.ParameterSpec
+// sortNodes sorts chaos nodes by their Value field and then by their JSON representation for consistency
+func sortNodes(nodes []chaos.Node) []chaos.Node {
+	if len(nodes) <= 1 {
+		return nodes
+	}
 
-	for key, value := range data {
-		fullKey := key
-		if prefix != "" {
-			fullKey = prefix + "." + key
-		}
+	// Create a copy to avoid modifying the original slice
+	sortedNodes := make([]chaos.Node, len(nodes))
+	copy(sortedNodes, nodes)
 
-		switch v := value.(type) {
-		case map[string]any:
-			// Recursively flatten nested structures
-			params = append(params, flattenYAMLToParameters(v, fullKey)...)
-		case []any:
-			// Convert array to JSON string
-			jsonBytes, err := json.Marshal(v)
-			if err != nil {
-				logrus.Warnf("Failed to marshal array for key %s: %v", fullKey, err)
+	// Sort nodes by their Value field first, then by serialized representation for consistency
+	// Using a stable sort to maintain relative order for equal elements
+	for i := 0; i < len(sortedNodes)-1; i++ {
+		for j := i + 1; j < len(sortedNodes); j++ {
+			// Primary sort: by Value field
+			if sortedNodes[i].Value > sortedNodes[j].Value {
+				sortedNodes[i], sortedNodes[j] = sortedNodes[j], sortedNodes[i]
 				continue
 			}
-			params = append(params, dto.ParameterSpec{
-				Key:   fullKey,
-				Value: string(jsonBytes),
-			})
-		default:
-			// Primitive values (string, int, bool, etc.)
-			params = append(params, dto.ParameterSpec{
-				Key:   fullKey,
-				Value: v,
-			})
+
+			// Secondary sort: if Values are equal, sort by JSON representation for consistency
+			if sortedNodes[i].Value == sortedNodes[j].Value {
+				iJSON, _ := json.Marshal(sortedNodes[i])
+				jJSON, _ := json.Marshal(sortedNodes[j])
+				if string(iJSON) > string(jJSON) {
+					sortedNodes[i], sortedNodes[j] = sortedNodes[j], sortedNodes[i]
+				}
+			}
 		}
 	}
 
-	return params
+	return sortedNodes
 }

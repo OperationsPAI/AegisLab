@@ -25,45 +25,30 @@ help:  ## 📖 Display all available commands
 		printf "  $(CYAN)%-25s$(RESET) $(GRAY)%s$(RESET)\n", $$1, $$2; \
 	}' $(MAKEFILE_LIST)
 
-install-openebs:  ## 🗄️  Deploy OpenEBS storage provisioner
-	@echo "Deploying OpenEBS..."
-	helm install openebs openebs/openebs --namespace openebs \
-		--create-namespace \
-		--values ./manifests/openebs.yaml
-
-install-redis:  ## 🔴 Deploy Redis for JuiceFS metadata
-	@echo "Deploying Redis for JuiceFS metadata..."
-	helm install juicefs-redis bitnami/redis --namespace juicefs \
-		--create-namespace \
-		--values ./manifests/redis.yaml \
-		--wait --timeout 5m0s
-
-install-juicefs:  ## 💾 Deploy JuiceFS CSI driver
-	@echo "Deploying JuiceFS CSI driver..."
-	helm install juicefs-csi-driver juicefs/juicefs-csi-driver --namespace juicefs \
-		--create-namespace \
-		--values ./manifests/juicefs-csi-driver.yaml \
-		--set storageClasses[0].enabled=false
-
-install-otel-kube-stack:  ## 📈 Deploy OpenTelemetry Kube Stack for monitoring
-	@echo "Deploying OpenTelemetry Kube Stack..."
-	helm install opentelemetry-kube-stack open-telemetry/opentelemetry-kube-stack --namespace monitoring \
-		--create-namespace \
-		--values ./opentelemetry-kube-stack/values.yaml
-
 install-clickhouse:  ## 📊 Deploy ClickHouse monitoring stack
 	@echo "Deploying ClickHouse monitoring stack..."
 	helm install clickstack clickstack/clickstack --namespace monitoring \
 		--create-namespace \
 		--values ./manifests/click-stack.yaml
 
+install-otel-kube-stack:  ## 📈 Deploy OpenTelemetry Kube Stack for monitoring
+	@echo "Deploying OpenTelemetry Kube Stack..."
+	helm install opentelemetry-kube-stack open-telemetry/opentelemetry-kube-stack --namespace monitoring \
+		--create-namespace \
+		--values ./manifests/otel-kube-stack.yaml
+
+install-chaos-mesh:
+	@echo "Deploying Chaos Mesh..."
+	helm install chaos-mesh chaos-mesh/chaos-mesh --namespace chaos-mesh \
+		--create-namespace \
+		--values ./manifests/chaos-mesh.yaml \
+		--version 2.8.0
+
 install-rcabench:  ## 🔧 Deploy RCABench application
 	@echo "Deploying RCABench application..."
-	helm install rcabench ./helm --namespace exp \
+	helm install rcabench ../helm --namespace exp \
 		--create-namespace \
-		--set image.repository=pair-diagnose-cn-guangzhou.cr.volces.com/opspai \
-		--set image.tag=latest \
-		--set image.pullPolicy=IfNotPresent
+		--set persistence.storageType=volcengine
 
 install-trainticket:  ## 🚄 Deploy Train-Ticket workload
 	@echo "Deploying Train-Ticket workload..."
@@ -77,8 +62,6 @@ clean-all:  ## 🧹 Uninstall all deployed components
 	@echo "Uninstalling all components..."
 	-helm uninstall ts0 --namespace ts0
 	-helm uninstall rcabench --namespace exp
+	-helm uninstall opentelemetry-kube-stack --namespace monitoring
 	-helm uninstall clickstack --namespace monitoring
-	-helm uninstall juicefs-csi-driver --namespace juicefs
-	-helm uninstall juicefs-redis --namespace juicefs
-	-helm uninstall openebs --namespace openebs
 	@echo "All components uninstalled!"
