@@ -431,10 +431,17 @@ type InjectionResp struct {
 }
 
 func NewInjectionResp(injection *database.FaultInjection) *InjectionResp {
+	var faultTypeName string
+	if injection.FaultType == consts.Hybrid {
+		faultTypeName = "hybrid"
+	} else {
+		faultTypeName = chaos.ChaosTypeMap[injection.FaultType]
+	}
+
 	resp := &InjectionResp{
 		ID:          injection.ID,
 		Name:        injection.Name,
-		FaultType:   chaos.ChaosTypeMap[injection.FaultType],
+		FaultType:   faultTypeName,
 		PreDuration: injection.PreDuration,
 		StartTime:   injection.StartTime,
 		EndTime:     injection.EndTime,
@@ -463,7 +470,7 @@ func NewInjectionResp(injection *database.FaultInjection) *InjectionResp {
 		}
 	}
 
-	if injection.Task != nil {
+	if injection.TaskID != nil {
 		resp.TaskID = *injection.TaskID
 	}
 
@@ -484,7 +491,7 @@ type InjectionDetailResp struct {
 	InjectionResp
 
 	Description  string              `json:"description,omitempty"`
-	EngineConfig map[string]any      `json:"engine_config" swaggertype:"object"`
+	EngineConfig []map[string]any    `json:"engine_config" swaggertype:"array,object"`
 	Groundtruths []chaos.Groundtruth `json:"ground_truth,omitempty"`
 }
 
@@ -496,7 +503,7 @@ func NewInjectionDetailResp(entity *database.FaultInjection) *InjectionDetailRes
 	}
 
 	if entity.EngineConfig != "" {
-		var engineConfigData map[string]any
+		var engineConfigData []map[string]any
 		_ = json.Unmarshal([]byte(entity.EngineConfig), &engineConfigData)
 		resp.EngineConfig = engineConfigData
 	}
