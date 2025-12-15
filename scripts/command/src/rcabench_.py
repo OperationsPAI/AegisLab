@@ -11,13 +11,13 @@ DOCKER_COMPOSE_FILE = PROJECT_ROOT / "docker-compose.yaml"
 SKAFFOLD_FILE = PROJECT_ROOT / "skaffold.yaml"
 
 
-@with_k8s_manager
+@with_k8s_manager()
 def check_db(env: ENV, k8s_manager: KubernetesManager):
     """Checks the health of the RCABench database."""
     _check_pod_health(k8s_manager, "RCABench MySQL Database", "rcabench-mysql")
 
 
-@with_k8s_manager
+@with_k8s_manager()
 def check_redis(env: ENV, k8s_manager: KubernetesManager):
     """Checks the health of the RCABench Redis cache."""
     _check_pod_health(k8s_manager, "RCABench Redis Cache", "rcabench-redis")
@@ -48,7 +48,7 @@ def _check_pod_health(
     raise SystemExit(1)
 
 
-@with_k8s_manager
+@with_k8s_manager()
 def local_deploy(env: ENV, k8s_manager: KubernetesManager):
     services = ["redis", "mysql", "jaeger", "buildkitd"]
 
@@ -76,7 +76,7 @@ def local_deploy(env: ENV, k8s_manager: KubernetesManager):
     k8s_manager.delete_jobs(settings.k8s_namespace, output_err=True)
 
 
-@with_k8s_manager
+@with_k8s_manager()
 def execute_release_workflow(env: ENV, k8s_manager: KubernetesManager):
     console.print("[bold blue]🚀 Executing RCAbench release workflow...[/bold blue]")
     settings.setenv(env.value)

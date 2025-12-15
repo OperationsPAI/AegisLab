@@ -16,7 +16,7 @@ CHAOS_TYPES = [
 ]
 
 
-@with_k8s_manager
+@with_k8s_manager()
 def _execute_k8s_task(
     env: ENV,
     ns_prefix: str,

@@ -71,7 +71,7 @@ def _install_minikube(nodes: int, cpus: int, memory: str, skip_minikube: bool):
         console.print("[bold green]✅ Minikube is up and running[/bold green]")
 
 
-@with_k8s_manager
+@with_k8s_manager()
 def _install_helm_releases(env: ENV, k8s_manager: KubernetesManager, is_ci: bool):
     helm_cli = HelmCLI()
 
@@ -166,7 +166,7 @@ def _install_helm_releases(env: ENV, k8s_manager: KubernetesManager, is_ci: bool
             )
 
 
-@with_k8s_manager
+@with_k8s_manager()
 def teardown_env(
     env: ENV, k8s_manager: KubernetesManager, delete_cluster: bool = False
 ):

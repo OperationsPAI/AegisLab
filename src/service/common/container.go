@@ -205,7 +205,7 @@ func processParameterConfig(config database.ParameterConfig, userValue any, cont
 			return nil, fmt.Errorf("dynamic parameter %s is missing a template string", config.Key)
 		}
 
-		templateVars := utils.ExtractTemplateVars(*config.TemplateString)
+		templateVars := extractTemplateVars(*config.TemplateString)
 		if len(templateVars) == 0 {
 			return &dto.ParameterItem{
 				Key:            config.Key,
@@ -213,7 +213,7 @@ func processParameterConfig(config database.ParameterConfig, userValue any, cont
 			}, nil
 		}
 
-		renderedValue, err := utils.RenderTemplate(*config.TemplateString, templateVars, contextCfg)
+		renderedValue, err := renderTemplate(*config.TemplateString, templateVars, contextCfg)
 		if err != nil {
 			return nil, fmt.Errorf("failed to render dynamic parameter %s: %w", config.Key, err)
 		}

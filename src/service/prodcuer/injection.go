@@ -592,21 +592,17 @@ func ProduceRestartPedestalTasks(ctx context.Context, req *dto.SubmitInjectionRe
 		return nil, fmt.Errorf("failed to get helm config: %w", err)
 	}
 
+	pedestalInfo := dto.NewPedestalInfo(helmConfig)
+	if len(req.Pedestal.Payload) > 0 {
+		params := flattenYAMLToParameters(req.Pedestal.Payload, "")
+		helmValues, err := common.ListHelmConfigValues(params, helmConfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to render pedestal helm values: %w", err)
+		}
+		pedestalInfo.HelmConfig.Values = helmValues
+	}
+
 	pedestalItem := dto.NewContainerVersionItem(&pedestalVersion)
-	envVars, err := common.ListContainerVersionEnvVars(req.Pedestal.EnvVars, &pedestalVersion)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list pedestal env vars: %w", err)
-	}
-
-	pedestalItem.EnvVars = envVars
-
-	helmValues, err := common.ListHelmConfigValues(nil, helmConfig)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list pedestal helm values: %w", err)
-	}
-
-	pedestalInfo := dto.NewPedestalInfo(&pedestalVersion, helmConfig)
-	pedestalInfo.HelmConfig.Values = helmValues
 	pedestalItem.Extra = pedestalInfo
 
 	benchmarkVersionResults, err := common.MapRefsToContainerVersions([]*dto.ContainerRef{&req.Benchmark.ContainerRef}, consts.ContainerTypeBenchmark, userID)
@@ -620,7 +616,7 @@ func ProduceRestartPedestalTasks(ctx context.Context, req *dto.SubmitInjectionRe
 	}
 
 	benchmarkVersionItem := dto.NewContainerVersionItem(&benchmarkVersion)
-	envVars, err = common.ListContainerVersionEnvVars(req.Benchmark.EnvVars, &benchmarkVersion)
+	envVars, err := common.ListContainerVersionEnvVars(req.Benchmark.EnvVars, &benchmarkVersion)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list benchmark env vars: %w", err)
 	}
@@ -951,4 +947,41 @@ func removeDuplicated(items []injectionProcessItem) ([]injectionProcessItem, err
 	}
 
 	return out, nil
+}
+
+// flattenYAMLToParameters converts nested YAML map to flat parameter specs
+func flattenYAMLToParameters(data map[string]any, prefix string) []dto.ParameterSpec {
+	var params []dto.ParameterSpec
+
+	for key, value := range data {
+		fullKey := key
+		if prefix != "" {
+			fullKey = prefix + "." + key
+		}
+
+		switch v := value.(type) {
+		case map[string]any:
+			// Recursively flatten nested structures
+			params = append(params, flattenYAMLToParameters(v, fullKey)...)
+		case []any:
+			// Convert array to JSON string
+			jsonBytes, err := json.Marshal(v)
+			if err != nil {
+				logrus.Warnf("Failed to marshal array for key %s: %v", fullKey, err)
+				continue
+			}
+			params = append(params, dto.ParameterSpec{
+				Key:   fullKey,
+				Value: string(jsonBytes),
+			})
+		default:
+			// Primitive values (string, int, bool, etc.)
+			params = append(params, dto.ParameterSpec{
+				Key:   fullKey,
+				Value: v,
+			})
+		}
+	}
+
+	return params
 }

@@ -32,7 +32,7 @@ type HelmConfigItem struct {
 	RepoName  string          `json:"repo_name"`
 	ChartName string          `json:"chart_name"`
 	FullChart string          `json:"full_chart"`
-	NsPrefix  string          `json:"ns_prefix"`
+	NsPattern string          `json:"ns_pattern"`
 	Values    []ParameterItem `json:"values,omitempty"`
 }
 
@@ -42,22 +42,16 @@ func NewHelmConfigItem(cfg *database.HelmConfig) *HelmConfigItem {
 		RepoName:  cfg.RepoName,
 		ChartName: cfg.ChartName,
 		FullChart: cfg.FullChart,
-		NsPrefix:  cfg.NsPrefix,
+		NsPattern: cfg.NsPattern,
 	}
 }
 
 type PedestalInfo struct {
-	Registry   string          `json:"registry"`
-	Namespace  string          `json:"namespace"`
-	Tag        string          `json:"tag"`
 	HelmConfig *HelmConfigItem `json:"helm_config"`
 }
 
-func NewPedestalInfo(version *database.ContainerVersion, helmConfig *database.HelmConfig) *PedestalInfo {
+func NewPedestalInfo(helmConfig *database.HelmConfig) *PedestalInfo {
 	return &PedestalInfo{
-		Registry:   version.Registry,
-		Namespace:  version.Namespace,
-		Tag:        version.Tag,
 		HelmConfig: NewHelmConfigItem(helmConfig),
 	}
 }
@@ -111,6 +105,7 @@ func (ref *ContainerRef) Validate() error {
 type ContainerSpec struct {
 	ContainerRef
 	EnvVars []ParameterSpec `json:"env_vars" binding:"omitempty"`
+	Payload map[string]any  `json:"payload,omitempty" swaggertype:"object"` // Additional payload data
 }
 
 func (item *ContainerSpec) Validate() error {
@@ -262,7 +257,7 @@ type CreateHelmConfigReq struct {
 	ChartName string                     `json:"chart_name" binding:"required"`
 	RepoName  string                     `json:"repo_name" binding:"required"`
 	RepoURL   string                     `json:"repo_url" binding:"required"`
-	NsPrefix  string                     `json:"ns_prefix" binding:"required"`
+	NsPattern string                     `json:"ns_pattern" binding:"required"`
 	Values    []CreateParameterConfigReq `json:"values" binding:"omitempty" swaggertype:"object"`
 }
 
@@ -270,7 +265,7 @@ func (req *CreateHelmConfigReq) Validate() error {
 	req.ChartName = strings.TrimSpace(req.ChartName)
 	req.RepoName = strings.TrimSpace(req.RepoName)
 	req.RepoURL = strings.TrimSpace(req.RepoURL)
-	req.NsPrefix = strings.TrimSpace(req.NsPrefix)
+	req.NsPattern = strings.TrimSpace(req.NsPattern)
 
 	if req.ChartName == "" {
 		return fmt.Errorf("chart name cannot be empty")
@@ -281,20 +276,20 @@ func (req *CreateHelmConfigReq) Validate() error {
 	if req.RepoURL == "" {
 		return fmt.Errorf("repository URL cannot be empty")
 	}
-	if req.NsPrefix == "" {
-		return fmt.Errorf("namespace prefix cannot be empty")
+	if req.NsPattern == "" {
+		return fmt.Errorf("namespace pattern cannot be empty")
 	}
 
 	if _, err := url.ParseRequestURI(req.RepoURL); err != nil {
-		return fmt.Errorf("invalid repository URL: %s, %v", req.RepoURL, err)
+		return fmt.Errorf("invalid repository URL: %s, %w", req.RepoURL, err)
 	}
-	if !utils.CheckNsPrefixExists(req.NsPrefix) {
-		return fmt.Errorf("invalid namespace prefix: %s", req.NsPrefix)
+	if err := utils.ValidateNsPattern(req.NsPattern); err != nil {
+		return fmt.Errorf("invalid namespace pattern: %s, %w", req.NsPattern, err)
 	}
 
 	for i, val := range req.Values {
 		if err := val.Validate(); err != nil {
-			return fmt.Errorf("invalid parameter config at index %d: %v", i, err)
+			return fmt.Errorf("invalid parameter config at index %d: %w", i, err)
 		}
 	}
 
@@ -306,7 +301,7 @@ func (req *CreateHelmConfigReq) ConvertToHelmConfig() *database.HelmConfig {
 		ChartName: req.ChartName,
 		RepoName:  req.RepoName,
 		RepoURL:   req.RepoURL,
-		NsPrefix:  req.NsPrefix,
+		NsPattern: req.NsPattern,
 	}
 
 	if len(req.Values) > 0 {
@@ -324,10 +319,12 @@ type CreateParameterConfigReq struct {
 	Key            string                   `json:"key" binding:"required"`
 	Type           consts.ParameterType     `json:"type" binding:"required"`
 	Category       consts.ParameterCategory `json:"category" binding:"required"`
+	ValueType      consts.ValueDataType     `json:"value_type" binding:"omitempty"`
 	Description    string                   `json:"description" binding:"omitempty"`
 	DefaultValue   *string                  `json:"default_value" binding:"omitempty"`
 	TemplateString *string                  `json:"template_string" binding:"omitempty"`
 	Required       bool                     `json:"required"`
+	Overridable    *bool                    `json:"overridable" binding:"omitempty"`
 }
 
 func (req *CreateParameterConfigReq) Validate() error {
@@ -354,15 +351,24 @@ func (req *CreateParameterConfigReq) Validate() error {
 }
 
 func (req *CreateParameterConfigReq) ConvertToParameterConfig() *database.ParameterConfig {
-	return &database.ParameterConfig{
+	config := &database.ParameterConfig{
 		Key:            req.Key,
 		Type:           req.Type,
 		Category:       req.Category,
+		ValueType:      req.ValueType,
 		Description:    req.Description,
 		DefaultValue:   req.DefaultValue,
 		TemplateString: req.TemplateString,
 		Required:       req.Required,
+		Overridable:    true, // default to true
 	}
+
+	// If overridable is explicitly set, use that value
+	if req.Overridable != nil {
+		config.Overridable = *req.Overridable
+	}
+
+	return config
 }
 
 // ListContainerReq represents container list query parameters
@@ -642,7 +648,7 @@ type UpdateHelmConfigReq struct {
 	RepoURL      *string         `json:"repo_url" binding:"omitempty"`
 	RepoName     *string         `json:"repo_name" binding:"omitempty"`
 	ChartName    *string         `json:"chart_name" binding:"omitempty"`
-	NsPrefix     *string         `json:"ns_prefix" binding:"omitempty"`
+	NsPattern    *string         `json:"ns_pattern" binding:"omitempty"`
 	PortTemplate *string         `json:"port_template" binding:"omitempty"`
 	Values       *map[string]any `json:"values" binding:"omitempty" swaggertype:"object"`
 }
@@ -665,15 +671,15 @@ func (req *UpdateHelmConfigReq) Validate() error {
 	if req.ChartName != nil {
 		*req.ChartName = strings.TrimSpace(*req.ChartName)
 	}
-	if req.NsPrefix != nil {
-		trimmedPrefix := strings.TrimSpace(*req.NsPrefix)
-		*req.NsPrefix = trimmedPrefix
+	if req.NsPattern != nil {
+		trimmedPattern := strings.TrimSpace(*req.NsPattern)
+		*req.NsPattern = trimmedPattern
 
-		if trimmedPrefix == "" {
-			return fmt.Errorf("namespace prefix cannot be empty if provided")
+		if trimmedPattern == "" {
+			return fmt.Errorf("namespace pattern cannot be empty if provided")
 		}
-		if !utils.CheckNsPrefixExists(trimmedPrefix) {
-			return fmt.Errorf("invalid namespace prefix: '%s'. It must exist or adhere to naming rules", trimmedPrefix)
+		if err := utils.ValidateNsPattern(trimmedPattern); err != nil {
+			return fmt.Errorf("invalid namespace pattern: '%s'. Error: %v", trimmedPattern, err)
 		}
 	}
 	if req.PortTemplate != nil {
@@ -701,8 +707,8 @@ func (req *UpdateHelmConfigReq) PatchHelmConfigModel(target *database.HelmConfig
 	if req.ChartName != nil {
 		target.ChartName = *req.ChartName
 	}
-	if req.NsPrefix != nil {
-		target.NsPrefix = *req.NsPrefix
+	if req.NsPattern != nil {
+		target.NsPattern = *req.NsPattern
 	}
 	return nil
 }
@@ -804,7 +810,7 @@ type HelmConfigDetailResp struct {
 	ID           int            `json:"id"`
 	RepoURL      string         `json:"repo_url"`
 	FullChart    string         `json:"full_chart"`
-	NsPrefix     string         `json:"ns_prefix"`
+	NsPattern    string         `json:"ns_pattern"`
 	PortTemplate string         `json:"port_template"`
 	Values       map[string]any `json:"values"`
 }
@@ -814,7 +820,7 @@ func NewHelmConfigDetailResp(cfg *database.HelmConfig) (*HelmConfigDetailResp, e
 		ID:        cfg.ID,
 		RepoURL:   cfg.RepoURL,
 		FullChart: cfg.FullChart,
-		NsPrefix:  cfg.NsPrefix,
+		NsPattern: cfg.NsPattern,
 	}
 
 	return resp, nil

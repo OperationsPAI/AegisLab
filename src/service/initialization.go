@@ -62,7 +62,7 @@ type InitialHelmConfig struct {
 	ChartName    string                   `json:"chart_name"`
 	RepoName     string                   `json:"repo_name"`
 	RepoURL      string                   `json:"repo_url"`
-	NsPrefix     string                   `json:"ns_prefix"`
+	NsPattern    string                   `json:"ns_pattern"`
 	PortTemplate string                   `json:"port_template"`
 	Values       []InitialParameterConfig `json:"values"`
 }
@@ -72,7 +72,7 @@ func (hc *InitialHelmConfig) ConvertToDBHelmConfig() *database.HelmConfig {
 		RepoURL:   hc.RepoURL,
 		RepoName:  hc.RepoName,
 		ChartName: hc.ChartName,
-		NsPrefix:  hc.NsPrefix,
+		NsPattern: hc.NsPattern,
 	}
 }
 
@@ -80,20 +80,31 @@ type InitialParameterConfig struct {
 	Key            string                   `json:"key"`
 	Type           consts.ParameterType     `json:"type"`
 	Category       consts.ParameterCategory `json:"category"`
+	ValueType      consts.ValueDataType     `json:"value_type"`
 	DefaultValue   *string                  `json:"default_value"`
 	TemplateString *string                  `json:"template_string"`
 	Required       bool                     `json:"required"`
+	Overridable    *bool                    `json:"overridable"`
 }
 
 func (pc *InitialParameterConfig) ConvertToDBParameterConfig() *database.ParameterConfig {
-	return &database.ParameterConfig{
+	config := &database.ParameterConfig{
 		Key:            pc.Key,
 		Type:           pc.Type,
 		Category:       pc.Category,
+		ValueType:      pc.ValueType,
 		DefaultValue:   pc.DefaultValue,
 		TemplateString: pc.TemplateString,
 		Required:       pc.Required,
+		Overridable:    true, // default to true
 	}
+
+	// If overridable is explicitly set, use that value
+	if pc.Overridable != nil {
+		config.Overridable = *pc.Overridable
+	}
+
+	return config
 }
 
 type InitialDatasaet struct {

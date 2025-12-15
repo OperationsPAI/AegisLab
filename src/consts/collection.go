@@ -51,6 +51,15 @@ var ParameterCategoryMap = map[ParameterCategory]string{
 	ParameterCategoryHelmValues: "helm_values",
 }
 
+var ValueDataTypeMap = map[ValueDataType]string{
+	ValueDataTypeString: "string",
+	ValueDataTypeInt:    "int",
+	ValueDataTypeBool:   "bool",
+	ValueDataTypeFloat:  "float",
+	ValueDataTypeArray:  "array",
+	ValueDataTypeObject: "object",
+}
+
 var ResourceDisplayNameMap = map[ResourceName]string{
 	ResourceSystem:           "System",
 	ResourceAudit:            "Audit",
@@ -216,6 +225,13 @@ func GetParameterTypeName(paramType ParameterType) string {
 
 func GetParameterCategoryName(category ParameterCategory) string {
 	if name, exists := ParameterCategoryMap[category]; exists {
+		return name
+	}
+	return "unknown"
+}
+
+func GetValueDataTypeName(valueType ValueDataType) string {
+	if name, exists := ValueDataTypeMap[valueType]; exists {
 		return name
 	}
 	return "unknown"

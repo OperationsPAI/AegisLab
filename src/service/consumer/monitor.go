@@ -3,8 +3,8 @@ package consumer
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -319,15 +319,26 @@ func (m *Monitor) CheckNamespaceToInject(namespace string, executeTime time.Time
 }
 
 // GetNamespaceToRestart finds an available namespace for restart and acquires it
-func (m *Monitor) GetNamespaceToRestart(endTime time.Time, nsPrefix, traceID string) string {
+func (m *Monitor) GetNamespaceToRestart(endTime time.Time, nsPattern, traceID string) string {
 	namespaces, err := m.redisClient.SMembers(m.ctx, namespacesKey).Result()
 	if err != nil {
 		logrus.Errorf("failed to get namespaces from Redis: %v", err)
 		return ""
 	}
 
+	// Compile the pattern as regex
+	var pattern *regexp.Regexp
+	if nsPattern != "" {
+		pattern, err = regexp.Compile(nsPattern)
+		if err != nil {
+			logrus.Errorf("failed to compile namespace pattern '%s': %v", nsPattern, err)
+			return ""
+		}
+	}
+
 	for _, ns := range namespaces {
-		if nsPrefix != "" && strings.HasPrefix(ns, nsPrefix) {
+		// Match namespace against pattern
+		if pattern != nil && pattern.MatchString(ns) {
 			if err := m.acquireNamespaceLock(ns, endTime, traceID, consts.TaskTypeRestartPedestal); err == nil {
 				return ns
 			}

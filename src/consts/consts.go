@@ -134,6 +134,17 @@ const (
 	ParameterCategoryHelmValues
 )
 
+type ValueDataType int
+
+const (
+	ValueDataTypeString ValueDataType = iota
+	ValueDataTypeInt
+	ValueDataTypeBool
+	ValueDataTypeFloat
+	ValueDataTypeArray
+	ValueDataTypeObject
+)
+
 type DatapackState int
 
 const (

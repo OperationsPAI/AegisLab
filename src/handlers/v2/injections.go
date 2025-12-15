@@ -10,7 +10,6 @@ import (
 	"aegis/handlers"
 	"aegis/middleware"
 	producer "aegis/service/prodcuer"
-	"aegis/utils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
@@ -127,10 +126,6 @@ func GetInjection(c *gin.Context) {
 //	@x-api-type		{"sdk":"true"}
 func GetInjectionMetadata(c *gin.Context) {
 	nsPrefix := c.Query("namespace")
-	if !utils.CheckNsPrefixExists(nsPrefix) {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid namespace prefix")
-		return
-	}
 
 	confNode, err := chaos.StructToNode[chaos.InjectionConf](nsPrefix)
 	if err != nil {

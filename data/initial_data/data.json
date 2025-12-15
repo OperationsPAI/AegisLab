@@ -67,8 +67,10 @@
                             "key": "NAMESPACE",
                             "type": 0,
                             "category": 0,
+                            "value_type": 0,
                             "default_value": "ts0",
-                            "required": true
+                            "required": true,
+                            "overridable": true
                         }
                     ]
                 }
@@ -89,8 +91,10 @@
                             "key": "NAMESPACE",
                             "type": 0,
                             "category": 0,
+                            "value_type": 0,
                             "default_value": "ts0",
-                            "required": true
+                            "required": true,
+                            "overridable": true
                         }
                     ]
                 }
@@ -116,29 +120,37 @@
                                 "key": "global.image.repository",
                                 "type": 1,
                                 "category": 1,
-                                "template_string": "{{ .Registry }}/{{ .Namespace }}"
+                                "value_type": 0,
+                                "template_string": "{{ .Registry }}/{{ .Namespace }}",
+                                "overridable": false
                             },
                             {
                                 "key": "global.image.tag",
                                 "type": 1,
                                 "category": 1,
-                                "template_string": "{{ .Tag }}"
+                                "value_type": 0,
+                                "template_string": "{{ .Tag }}",
+                                "overridable": false
                             },
                             {
                                 "key": "global.security.allowInsecureImages",
                                 "type": 0,
                                 "category": 1,
+                                "value_type": 2,
                                 "default_value": "true",
-                                "required": true
+                                "required": true,
+                                "overridable": false
                             },
                             {
                                 "key": "services.tsUiDashboard.nodePort",
                                 "type": 1,
                                 "category": 1,
-                                "template_string": "31%03d"
+                                "value_type": 1,
+                                "template_string": "31%03d",
+                                "overridable": false
                             }
                         ],
-                        "ns_prefix": "ts",
+                        "ns_pattern": "^ts\\d+$",
                         "status": 1
                     }
                 }
@@ -164,60 +176,78 @@
                                 "key": "global.image.repository",
                                 "type": 1,
                                 "category": 1,
-                                "template_string": "{{ .Registry }}/{{ .Namespace }}"
+                                "value_type": 0,
+                                "template_string": "{{ .Registry }}/{{ .Namespace }}",
+                                "overridable": false
                             },
                             {
                                 "key": "global.image.tag",
                                 "type": 1,
                                 "category": 1,
-                                "template_string": "{{ .Tag }}"
+                                "value_type": 0,
+                                "template_string": "{{ .Tag }}",
+                                "overridable": false
                             },
                             {
                                 "key": "global.security.allowInsecureImages",
                                 "type": 0,
                                 "category": 1,
+                                "value_type": 2,
                                 "default_value": "true",
-                                "required": true
+                                "required": true,
+                                "overridable": false
                             },
                             {
                                 "key": "services.tsUiDashboard.nodePort",
                                 "type": 1,
                                 "category": 1,
-                                "template_string": "31%03d"
+                                "value_type": 1,
+                                "template_string": "31%03d",
+                                "overridable": false
                             },
                             {
                                 "key": "mysql.image.repository",
                                 "type": 1,
                                 "category": 1,
-                                "template_string": "{{ .Registry }}/library/mysql"
+                                "value_type": 0,
+                                "template_string": "{{ .Registry }}/library/mysql",
+                                "overridable": false
                             },
                             {
                                 "key": "rabbitmq.image.registry",
                                 "type": 1,
                                 "category": 1,
-                                "template_string": "{{ .Registry }}"
+                                "value_type": 0,
+                                "template_string": "{{ .Registry }}",
+                                "overridable": false
                             },
                             {
                                 "key": "rabbitmq.image.repository",
                                 "type": 0,
                                 "category": 1,
+                                "value_type": 0,
                                 "default_value": "bitnamilegacy/rabbitmq",
-                                "required": true
+                                "required": true,
+                                "overridable": false
                             },
                             {
                                 "key": "loadgenerator.image.repository",
                                 "type": 1,
                                 "category": 1,
-                                "template_string": "{{ .Registry }}/{{ .Namespace }}/loadgenerator"
+                                "value_type": 0,
+                                "template_string": "{{ .Registry }}/{{ .Namespace }}/loadgenerator",
+                                "overridable": false
                             },
                             {
                                 "key": "loadgenerator.initContainer.image",
                                 "type": 1,
                                 "category": 1,
-                                "template_string": "{{ .Registry }}/nicolaka/netshoot:v0.14"
+                                "value_type": 0,
+                                "template_string": "{{ .Registry }}/nicolaka/netshoot:v0.14",
+                                "overridable": false
                             }
                         ],
-                        "ns_prefix": "ts",
+                        "ns_pattern": "^ts\\d+$",
                         "status": 1
                     }
                 }
@@ -243,54 +273,70 @@
                                 "key": "global.image.repository",
                                 "type": 1,
                                 "category": 1,
-                                "template_string": "{{ .Registry }}/{{ .Namespace }}"
+                                "value_type": 0,
+                                "template_string": "{{ .Registry }}/{{ .Namespace }}",
+                                "overridable": false
                             },
                             {
                                 "key": "global.image.tag",
                                 "type": 1,
                                 "category": 1,
-                                "template_string": "{{ .Tag }}"
+                                "value_type": 0,
+                                "template_string": "{{ .Tag }}",
+                                "overridable": false
                             },
                             {
                                 "key": "global.security.allowInsecureImages",
                                 "type": 0,
                                 "category": 1,
+                                "value_type": 2,
                                 "default_value": "true",
-                                "required": true
+                                "required": true,
+                                "overridable": false
                             },
                             {
                                 "key": "services.tsUiDashboard.nodePort",
                                 "type": 1,
                                 "category": 1,
-                                "template_string": "31%03d"
+                                "value_type": 1,
+                                "template_string": "31%03d",
+                                "overridable": false
                             },
                             {
                                 "key": "mysql.image.repository",
                                 "type": 1,
                                 "category": 1,
-                                "template_string": "{{ .Registry }}/{{ .Namespace }}/mysql"
+                                "value_type": 0,
+                                "template_string": "{{ .Registry }}/{{ .Namespace }}/mysql",
+                                "overridable": false
                             },
                             {
                                 "key": "rabbitmq.image.registry",
                                 "type": 1,
                                 "category": 1,
-                                "template_string": "{{ .Registry }}"
+                                "value_type": 0,
+                                "template_string": "{{ .Registry }}",
+                                "overridable": false
                             },
                             {
                                 "key": "rabbitmq.image.repository",
                                 "type": 0,
                                 "category": 1,
+                                "value_type": 0,
                                 "default_value": "library/rabbitmq",
-                                "required": true
+                                "required": true,
+                                "overridable": false
                             },
                             {
                                 "key": "loadgenerator.image.repository",
                                 "type": 1,
                                 "category": 1,
-                                "template_string": "{{ .Registry }}/{{ .Namespace }}/loadgenerator"
+                                "value_type": 0,
+                                "template_string": "{{ .Registry }}/{{ .Namespace }}/loadgenerator",
+                                "overridable": false
                             }
                         ],
-                        "ns_prefix": "ts",
+                        "ns_pattern": "^ts\\d+$",
                         "status": 1
                     }
                 }

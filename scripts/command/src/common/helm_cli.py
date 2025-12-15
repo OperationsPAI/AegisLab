@@ -84,6 +84,7 @@ class HelmCLI:
         timeout: str = "5m0s",
         max_retries: int = DEFAULT_MAX_RETRIES,
         retry_delay: int = DEFAULT_RETRY_DELAY,
+        dry_run: bool = False,
     ) -> bool:
         """Install a Helm release with retry mechanism.
 
@@ -127,6 +128,9 @@ class HelmCLI:
 
         if wait:
             cmd.extend(["--wait", "--timeout", timeout])
+
+        if dry_run:
+            cmd.append("--dry-run")
 
         cmd.extend(release.extra_args)
 

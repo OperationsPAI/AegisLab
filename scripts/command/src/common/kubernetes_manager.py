@@ -692,44 +692,47 @@ def kubectl_apply(manifest: str | Path) -> bool:
         return False
 
 
-def with_k8s_manager(func: Callable) -> Callable:
+def with_k8s_manager():
     """Decorator to ensure KubernetesManager is available for the decorated function.
 
     The decorator will automatically create or reuse a singleton KubernetesManager instance
     for the given environment and pass it to the decorated function.
     """
 
-    @wraps(func)
-    def wrapper(*args, **kwargs) -> Any:
-        env = None
-        if "env" in kwargs:
-            env = kwargs["env"]
-        elif args:
-            env = args[0]
+    def decorator(func: Callable):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            env = None
+            if "env" in kwargs:
+                env = kwargs["env"]
+            elif args:
+                env = args[0]
 
-        if env is None:
-            console.print(
-                "[red]❌ Decorator error: Function must accept 'env' argument.[/red]"
-            )
-            raise SystemExit(1)
+            if env is None:
+                console.print(
+                    "[red]❌ Decorator error: Function must accept 'env' argument.[/red]"
+                )
+                raise SystemExit(1)
 
-        # If k8s_manager is already provided, use it directly
-        if "k8s_manager" in kwargs:
-            return func(*args, **kwargs)
+            # If k8s_manager is already provided, use it directly
+            if "k8s_manager" in kwargs:
+                return func(*args, **kwargs)
 
-        try:
-            with KubernetesManager(env=env) as k8s_manager:
-                if k8s_manager is None:
-                    console.print(
-                        "[red]❌ Kubernetes is not available or not configured properly. (Check context/config)[/red]"
-                    )
-                    raise SystemExit(1)
+            try:
+                with KubernetesManager(env=env) as k8s_manager:
+                    if k8s_manager is None:
+                        console.print(
+                            "[red]❌ Kubernetes is not available or not configured properly. (Check context/config)[/red]"
+                        )
+                        raise SystemExit(1)
 
-                return func(*args, k8s_manager=k8s_manager, **kwargs)
-        except RuntimeError as e:
-            console.print(
-                f"[bold red]Error initializing KubernetesManager: {e}[/bold red]"
-            )
-            raise SystemExit(1)
+                    return func(*args, k8s_manager=k8s_manager, **kwargs)
+            except RuntimeError as e:
+                console.print(
+                    f"[bold red]Error initializing KubernetesManager: {e}[/bold red]"
+                )
+                raise SystemExit(1)
 
-    return wrapper
+        return wrapper
+
+    return decorator

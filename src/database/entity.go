@@ -110,7 +110,7 @@ type HelmConfig struct {
 	RepoURL            string `gorm:"not null;size:512"`        // Repository URL
 	RepoName           string `gorm:"size:128"`                 // Repository name
 	ChartName          string `gorm:"not null;size:128"`        // Helm chart name
-	NsPrefix           string `gorm:"not null;size:64"`         // Namespace prefix for deployments
+	NsPattern          string `gorm:"not null;size:64"`         // Namespace pattern
 	ContainerVersionID int    `gorm:"not null;index"`           // Associated ContainerVersion ID (one-to-one relationship)
 
 	FullChart string `gorm:"-"` // Full chart reference (not stored in DB, used for display)
@@ -122,10 +122,10 @@ type HelmConfig struct {
 	Values []ParameterConfig `gorm:"many2many:helm_config_values"`
 }
 
-// BeforeCreate GORM hook - validate NsPrefix before creating a new record
+// BeforeCreate GORM hook - validate NsPattern before creating a new HelmConfig
 func (h *HelmConfig) BeforeCreate(tx *gorm.DB) error {
-	if !utils.CheckNsPrefixExists(h.NsPrefix) {
-		return fmt.Errorf("invalid namespace prefix: %s", h.NsPrefix)
+	if err := utils.ValidateNsPattern(h.NsPattern); err != nil {
+		return fmt.Errorf("invalid namespace prefix %s: %w", h.NsPattern, err)
 	}
 
 	return nil
@@ -138,13 +138,15 @@ func (h *HelmConfig) AfterFind(tx *gorm.DB) error {
 
 type ParameterConfig struct {
 	ID             int                      `gorm:"primaryKey;autoIncrement"`
-	Key            string                   `gorm:"column:config_key;not null;size:64;uniqueIndex:idx_unique_config"`
+	Key            string                   `gorm:"column:config_key;not null;size:128;uniqueIndex:idx_unique_config"`
 	Type           consts.ParameterType     `gorm:"not null;default:0;index;uniqueIndex:idx_unique_config"`
 	Category       consts.ParameterCategory `gorm:"not null;index;uniqueIndex:idx_unique_config"`
+	ValueType      consts.ValueDataType     `gorm:"not null;default:0;index"`
 	Description    string                   `gorm:"type:text"`
 	DefaultValue   *string                  `gorm:"type:text"`
 	TemplateString *string                  `gorm:"type:text"`
 	Required       bool                     `gorm:"not null;default:false;index"`
+	Overridable    bool                     `gorm:"not null;default:true"`
 }
 
 func (p *ParameterConfig) BeforeCreate(tx *gorm.DB) error {

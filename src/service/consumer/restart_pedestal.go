@@ -12,9 +12,8 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
-	"regexp"
-	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -30,8 +29,47 @@ type restartPayload struct {
 
 type installRelease = func(ctx context.Context, releaseName string, namespaceIdx int, info *dto.PedestalInfo) error
 
-var installReleaseMap = map[string]installRelease{
-	"ts": installTS,
+type InstallerRegistry struct {
+	lock       sync.RWMutex
+	installers map[string]installRelease
+}
+
+var (
+	installRegistry     *InstallerRegistry
+	installRegistryOnce sync.Once
+)
+
+func GetInstallerRegistry() *InstallerRegistry {
+	installRegistryOnce.Do(func() {
+		installRegistry = &InstallerRegistry{
+			installers: make(map[string]installRelease),
+		}
+		// Register default installers
+		if err := installRegistry.Register("ts", installTS); err != nil {
+			logrus.Errorf("Failed to register ts installer: %v", err)
+		}
+	})
+	return installRegistry
+}
+
+func (r *InstallerRegistry) Register(name string, installer installRelease) error {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+
+	if _, exists := r.installers[name]; exists {
+		return fmt.Errorf("Installer '%s' already registered", name)
+	}
+	r.installers[name] = installer
+	logrus.Infof("Registered installer: %s", name)
+	return nil
+}
+
+func (r *InstallerRegistry) Get(name string) (installRelease, bool) {
+	r.lock.RLock()
+	defer r.lock.RUnlock()
+
+	installer, ok := r.installers[name]
+	return installer, ok
 }
 
 // executeRestartPedestal handles the execution of a restart pedestal task
@@ -94,8 +132,8 @@ func executeRestartPedestal(ctx context.Context, task *dto.UnifiedTask) error {
 
 		t := time.Now()
 		deltaTime := time.Duration(payload.interval) * consts.DefaultTimeUnit
-		nsPrefix := payload.pedestal.Extra.HelmConfig.NsPrefix
-		namespace = monitor.GetNamespaceToRestart(t.Add(deltaTime), nsPrefix, task.TraceID)
+		nsPattern := payload.pedestal.Extra.HelmConfig.NsPattern
+		namespace = monitor.GetNamespaceToRestart(t.Add(deltaTime), nsPattern, task.TraceID)
 		if namespace == "" {
 			// Failed to acquire namespace lock, immediately release rate limit token
 			if releaseErr := rateLimiter.ReleaseToken(ctx, task.TaskID, task.TraceID); releaseErr != nil {
@@ -113,16 +151,16 @@ func executeRestartPedestal(ctx context.Context, task *dto.UnifiedTask) error {
 		deltaTime = time.Duration(payload.interval-payload.faultDuration) * consts.DefaultTimeUnit
 		injectTime := t.Add(deltaTime)
 
-		installFunc, exists := installReleaseMap[nsPrefix]
-		if !exists {
-			toReleased = true
-			return handleExecutionError(span, logEntry, fmt.Sprintf("no install function for namespace prefix: %s", nsPrefix), fmt.Errorf("no install function for namespace prefix: %s", nsPrefix))
-		}
-
-		_, index, err := extractNamespace(namespace)
+		nsPrefix, index, err := utils.ExtractNsPrefixAndNumber(namespace)
 		if err != nil {
 			toReleased = true
 			return handleExecutionError(span, logEntry, "failed to read namespace index", err)
+		}
+
+		installFunc, exists := GetInstallerRegistry().Get(nsPrefix)
+		if !exists {
+			toReleased = true
+			return handleExecutionError(span, logEntry, fmt.Sprintf("no install function for namespace prefix: %s", nsPrefix), fmt.Errorf("no install function for namespace prefix: %s", nsPrefix))
 		}
 
 		updateTaskState(
@@ -273,24 +311,6 @@ func parseRestartPayload(payload map[string]any) (*restartPayload, error) {
 		faultDuration: faultDuration,
 		injectPayload: injectPayload,
 	}, nil
-}
-
-// extractNamespace extracts the prefix and index from a namespace string
-func extractNamespace(namespace string) (string, int, error) {
-	pattern := `^([a-zA-Z]+)(\d+)$`
-	re := regexp.MustCompile(pattern)
-	match := re.FindStringSubmatch(namespace)
-
-	if len(match) < 3 {
-		return "", 0, fmt.Errorf("failed to extract index from namespace %s", namespace)
-	}
-
-	num, err := strconv.Atoi(match[2])
-	if err != nil {
-		return "", 0, fmt.Errorf("failed to convert extracted index to integer: %w", err)
-	}
-
-	return match[1], num, nil
 }
 
 // installTS installs the Train Ticket pedestal using Helm

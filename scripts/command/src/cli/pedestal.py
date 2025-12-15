@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import typer
 
 from src.common.common import ENV, settings
@@ -26,6 +28,18 @@ def install(
         "-c",
         help="Number of pedestal releases to install.",
     ),
+    values_file: str | None = typer.Option(
+        None,
+        "--values-file",
+        "-v",
+        help="Path to a custom values.yaml file for the Helm chart.",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        "-d",
+        help="Simulate the installation without making any changes.",
+    ),
     force: bool = typer.Option(
         False,
         "--force",
@@ -37,4 +51,12 @@ def install(
 
     settings.reload()
 
-    install_pedestals(env, name=name, count=count, force=force)
+    values_file_path = Path(values_file) if values_file else None
+    install_pedestals(
+        env,
+        name=name,
+        count=count,
+        values_file=values_file_path,
+        dry_run=dry_run,
+        force=force,
+    )
