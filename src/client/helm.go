@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"aegis/config"
 	"aegis/tracing"
 
 	"github.com/sirupsen/logrus"
@@ -33,6 +34,7 @@ type HelmClient struct {
 func NewHelmClient(namespace string) (*HelmClient, error) {
 	settings := cli.New()
 	settings.SetNamespace(namespace)
+	settings.Debug = config.GetBool("helm.debug")
 
 	actionConfig := new(action.Configuration)
 	configFlags := genericclioptions.NewConfigFlags(true)

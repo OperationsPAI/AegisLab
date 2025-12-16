@@ -8,19 +8,6 @@
             "versions": [
                 {
                     "name": "1.0.0",
-                    "image_ref": "pair-diagnose-cn-guangzhou.cr.volces.com/opspai/detector:latest",
-                    "command": "bash /entrypoint.sh"
-                }
-            ]
-        },
-        {
-            "type": 0,
-            "name": "detector_harbor",
-            "is_public": true,
-            "status": 1,
-            "versions": [
-                {
-                    "name": "1.0.0",
                     "image_ref": "10.10.10.240/library/detector:latest",
                     "command": "bash /entrypoint.sh"
                 }
@@ -34,19 +21,6 @@
             "versions": [
                 {
                     "name": "1.0.0",
-                    "image_ref": "pair-diagnose-cn-guangzhou.cr.volces.com/opspai/rca-algo-traceback:latest",
-                    "command": "bash /entrypoint.sh"
-                }
-            ]
-        },
-        {
-            "type": 0,
-            "name": "traceback_harbor",
-            "is_public": true,
-            "status": 1,
-            "versions": [
-                {
-                    "name": "1.0.0",
                     "image_ref": "10.10.10.240/library/rca-algo-traceback:latest",
                     "command": "bash /entrypoint.sh"
                 }
@@ -55,30 +29,6 @@
         {
             "type": 1,
             "name": "clickhouse",
-            "is_public": true,
-            "status": 1,
-            "versions": [
-                {
-                    "name": "1.0.0",
-                    "image_ref": "pair-diagnose-cn-guangzhou.cr.volces.com/opspai/clickhouse_dataset:latest",
-                    "command": "bash /entrypoint.sh",
-                    "env_vars": [
-                        {
-                            "key": "NAMESPACE",
-                            "type": 0,
-                            "category": 0,
-                            "value_type": 0,
-                            "default_value": "ts0",
-                            "required": true,
-                            "overridable": true
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "type": 1,
-            "name": "clickhouse_harbor",
             "is_public": true,
             "status": 1,
             "versions": [
@@ -109,160 +59,7 @@
                 {
                     "name": "1.0.0",
                     "github_link": "LGU-SE-Internal/train-ticket",
-                    "image_ref": "docker.io/opspai/ts-train-service:v1.1.0",
-                    "status": 1,
-                    "helm_config": {
-                        "repo_name": "train-ticket",
-                        "chart_name": "trainticket",
-                        "repo_url": "https://lgu-se-internal.github.io/train-ticket",
-                        "values": [
-                            {
-                                "key": "global.image.repository",
-                                "type": 1,
-                                "category": 1,
-                                "value_type": 0,
-                                "template_string": "{{ .Registry }}/{{ .Namespace }}",
-                                "overridable": false
-                            },
-                            {
-                                "key": "global.image.tag",
-                                "type": 1,
-                                "category": 1,
-                                "value_type": 0,
-                                "template_string": "{{ .Tag }}",
-                                "overridable": false
-                            },
-                            {
-                                "key": "global.security.allowInsecureImages",
-                                "type": 0,
-                                "category": 1,
-                                "value_type": 2,
-                                "default_value": "true",
-                                "required": true,
-                                "overridable": false
-                            },
-                            {
-                                "key": "services.tsUiDashboard.nodePort",
-                                "type": 1,
-                                "category": 1,
-                                "value_type": 1,
-                                "template_string": "31%03d",
-                                "overridable": false
-                            }
-                        ],
-                        "ns_pattern": "^ts\\d+$",
-                        "status": 1
-                    }
-                }
-            ]
-        },
-        {
-            "type": 2,
-            "name": "ts_cn",
-            "is_public": true,
-            "status": 1,
-            "versions": [
-                {
-                    "name": "1.0.0",
-                    "github_link": "LGU-SE-Internal/train-ticket",
-                    "image_ref": "pair-diagnose-cn-guangzhou.cr.volces.com/opspai/ts-train-service:v1.1.0",
-                    "status": 1,
-                    "helm_config": {
-                        "repo_name": "train-ticket",
-                        "chart_name": "trainticket",
-                        "repo_url": "https://lgu-se-internal.github.io/train-ticket",
-                        "values": [
-                            {
-                                "key": "global.image.repository",
-                                "type": 1,
-                                "category": 1,
-                                "value_type": 0,
-                                "template_string": "{{ .Registry }}/{{ .Namespace }}",
-                                "overridable": false
-                            },
-                            {
-                                "key": "global.image.tag",
-                                "type": 1,
-                                "category": 1,
-                                "value_type": 0,
-                                "template_string": "{{ .Tag }}",
-                                "overridable": false
-                            },
-                            {
-                                "key": "global.security.allowInsecureImages",
-                                "type": 0,
-                                "category": 1,
-                                "value_type": 2,
-                                "default_value": "true",
-                                "required": true,
-                                "overridable": false
-                            },
-                            {
-                                "key": "services.tsUiDashboard.nodePort",
-                                "type": 1,
-                                "category": 1,
-                                "value_type": 1,
-                                "template_string": "31%03d",
-                                "overridable": false
-                            },
-                            {
-                                "key": "mysql.image.repository",
-                                "type": 1,
-                                "category": 1,
-                                "value_type": 0,
-                                "template_string": "{{ .Registry }}/library/mysql",
-                                "overridable": false
-                            },
-                            {
-                                "key": "rabbitmq.image.registry",
-                                "type": 1,
-                                "category": 1,
-                                "value_type": 0,
-                                "template_string": "{{ .Registry }}",
-                                "overridable": false
-                            },
-                            {
-                                "key": "rabbitmq.image.repository",
-                                "type": 0,
-                                "category": 1,
-                                "value_type": 0,
-                                "default_value": "bitnamilegacy/rabbitmq",
-                                "required": true,
-                                "overridable": false
-                            },
-                            {
-                                "key": "loadgenerator.image.repository",
-                                "type": 1,
-                                "category": 1,
-                                "value_type": 0,
-                                "template_string": "{{ .Registry }}/{{ .Namespace }}/loadgenerator",
-                                "overridable": false
-                            },
-                            {
-                                "key": "loadgenerator.initContainer.image",
-                                "type": 1,
-                                "category": 1,
-                                "value_type": 0,
-                                "template_string": "{{ .Registry }}/nicolaka/netshoot:v0.14",
-                                "overridable": false
-                            }
-                        ],
-                        "ns_pattern": "^ts\\d+$",
-                        "status": 1
-                    }
-                }
-            ]
-        },
-        {
-            "type": 2,
-            "name": "ts_harbor",
-            "is_public": true,
-            "status": 1,
-            "versions": [
-                {
-                    "name": "1.0.0",
-                    "github_link": "LGU-SE-Internal/train-ticket",
-                    "image_ref": "10.10.10.240/library/ts-train-service:v1.2.0",
+                    "image_ref": "10.10.10.240/library/ts-train-service:v1.2.9",
                     "status": 1,
                     "helm_config": {
                         "repo_name": "train-ticket",
@@ -315,7 +112,7 @@
                                 "type": 1,
                                 "category": 1,
                                 "value_type": 0,
-                                "template_string": "{{ .Registry }}",
+                                "template_string": "{{ .Registry }}/{{ .Namespace }}",
                                 "overridable": false
                             },
                             {
@@ -323,7 +120,7 @@
                                 "type": 0,
                                 "category": 1,
                                 "value_type": 0,
-                                "default_value": "library/rabbitmq",
+                                "default_value": "rabbitmq",
                                 "required": true,
                                 "overridable": false
                             },
@@ -333,6 +130,23 @@
                                 "category": 1,
                                 "value_type": 0,
                                 "template_string": "{{ .Registry }}/{{ .Namespace }}/loadgenerator",
+                                "overridable": false
+                            },
+                            {
+                                "key": "loadgenerator.image.tag",
+                                "type": 0,
+                                "category": 1,
+                                "value_type": 0,
+                                "default_value": "023",
+                                "required": true,
+                                "overridable": true
+                            },
+                            {
+                                "key": "loadgenerator.initContainer.image",
+                                "type": 1,
+                                "category": 1,
+                                "value_type": 0,
+                                "template_string": "{{ .Registry }}/{{ .Namespace }}/netshoot:v0.14",
                                 "overridable": false
                             }
                         ],

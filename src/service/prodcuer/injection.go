@@ -672,9 +672,9 @@ func ProduceRestartPedestalTasks(ctx context.Context, req *dto.SubmitInjectionRe
 		}
 
 		injectionItems = append(injectionItems, dto.SubmitInjectionItem{
-			BatchIndex: item.index,
-			TraceID:    task.TraceID,
-			TaskID:     task.TaskID,
+			Index:   item.index,
+			TraceID: task.TraceID,
+			TaskID:  task.TaskID,
 		})
 	}
 	refs := make([]*dto.ContainerRef, 0, len(req.Algorithms))
@@ -885,18 +885,26 @@ func parseBatchInjectionSpecs(batchIndex int, specs []chaos.Node) (*injectionPro
 		nodes = append(nodes, spec)
 	}
 
-	uniqueKeys := make(map[string]int, len(nodes))
+	uniqueServices := make(map[string]int, len(nodes))
 	for idx, node := range nodes {
-		childNode := node.Children[strconv.Itoa(node.Value)]
-		nsIdx := childNode.Children["1"].Value
-		resourceIdx := childNode.Children["2"].Value
-
-		key := fmt.Sprintf("%d-%d-%d", node.Value, nsIdx, resourceIdx)
-		if oldIdx, exists := uniqueKeys[key]; exists {
-			return nil, fmt.Errorf("duplicated fault injection point found in batch %d at index %d and %d", batchIndex, oldIdx, idx)
+		conf, err := chaos.NodeToStruct[chaos.InjectionConf](&node)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert node to InjectionConf at batch %d at index %d: %w", batchIndex, idx, err)
 		}
 
-		uniqueKeys[key] = idx
+		groundtruth, err := conf.GetGroundtruth()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get groundtruth from InjectionConf at batch %d at index %d: %w", batchIndex, idx, err)
+		}
+
+		for _, service := range groundtruth.Service {
+			if service != "" {
+				if oldIdx, exists := uniqueServices[service]; exists {
+					return nil, fmt.Errorf("duplicated service %s found in batch %d at indexes %d and %d", service, batchIndex, oldIdx, idx)
+				}
+				uniqueServices[service] = idx
+			}
+		}
 	}
 
 	// Sort nodes to ensure consistent ordering

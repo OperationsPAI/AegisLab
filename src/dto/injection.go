@@ -527,9 +527,9 @@ type InjectionMetadataResp struct {
 }
 
 type SubmitInjectionItem struct {
-	BatchIndex int    `json:"batch_index"` // Index of the batch this injection belongs to
-	TraceID    string `json:"trace_id"`
-	TaskID     string `json:"task_id"`
+	Index   int    `json:"index"` // Index of the batch this injection belongs to
+	TraceID string `json:"trace_id"`
+	TaskID  string `json:"task_id"`
 }
 
 type SubmitInjectionResp struct {

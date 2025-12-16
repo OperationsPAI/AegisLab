@@ -3,7 +3,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: exp-dev
+  name: exp
   labels:
     environment: development
     managed-by: manual
@@ -14,7 +14,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: rcabench-juicefs-secret
-  namespace: exp-dev
+  namespace: exp
   labels:
     app: rcabench
     environment: development
@@ -36,9 +36,9 @@ metadata:
 provisioner: csi.juicefs.com
 parameters:
   csi.storage.k8s.io/provisioner-secret-name: rcabench-juicefs-secret
-  csi.storage.k8s.io/provisioner-secret-namespace: exp-dev
+  csi.storage.k8s.io/provisioner-secret-namespace: exp
   csi.storage.k8s.io/node-publish-secret-name: rcabench-juicefs-secret
-  csi.storage.k8s.io/node-publish-secret-namespace: exp-dev
+  csi.storage.k8s.io/node-publish-secret-namespace: exp
 reclaimPolicy: Retain
 volumeBindingMode: Immediate
 allowVolumeExpansion: true
@@ -49,7 +49,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rcabench-sa
-  namespace: exp-dev
+  namespace: exp
   labels:
     app: rcabench
     environment: development
@@ -80,11 +80,41 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: rcabench-sa
-    namespace: exp-dev
+    namespace: exp
 roleRef:
   kind: ClusterRole
   name: rcabench-dev-role
   apiGroup: rbac.authorization.k8s.io
+
+---
+# Static PV for JuiceFS Dataset
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: rcabench-juicefs-dataset-pv
+  labels:
+    app: rcabench
+    environment: development
+spec:
+  capacity:
+    storage: 100Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  csi:
+    driver: csi.juicefs.com
+    volumeHandle: rcabench-juicefs-dataset-pv
+    fsType: juicefs
+    nodePublishSecretRef:
+      name: rcabench-juicefs-secret
+      namespace: exp
+    volumeAttributes:
+      juicefs/mount-cpu-limit: "5000m"
+      juicefs/mount-memory-limit: "5Gi"
+      juicefs/mount-cpu-request: "100m"
+      juicefs/mount-memory-request: "512Mi"
+      subPath: "rcabench_dataset"
 
 ---
 # PVC for JuiceFS Dataset
@@ -92,7 +122,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: rcabench-juicefs-dataset
-  namespace: exp-dev
+  namespace: exp
   labels:
     app: rcabench
     environment: development
@@ -102,10 +132,41 @@ metadata:
 spec:
   accessModes:
     - ReadWriteMany
-  storageClassName: "juicefs-sc"
+  storageClassName: ""
+  volumeName: rcabench-juicefs-dataset-pv
   resources:
     requests:
       storage: 100Gi
+
+---
+# Static PV for JuiceFS Experiment Storage
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: rcabench-juicefs-experiment-storage-pv
+  labels:
+    app: rcabench
+    environment: development
+spec:
+  capacity:
+    storage: 100Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  csi:
+    driver: csi.juicefs.com
+    volumeHandle: rcabench-juicefs-experiment-storage-pv
+    fsType: juicefs
+    nodePublishSecretRef:
+      name: rcabench-juicefs-secret
+      namespace: exp
+    volumeAttributes:
+      juicefs/mount-cpu-limit: "5000m"
+      juicefs/mount-memory-limit: "5Gi"
+      juicefs/mount-cpu-request: "100m"
+      juicefs/mount-memory-request: "512Mi"
+      subPath: "experiment_storage"
 
 ---
 # PVC for JuiceFS Experiment Storage
@@ -113,7 +174,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: rcabench-juicefs-experiment-storage
-  namespace: exp-dev
+  namespace: exp
   labels:
     app: rcabench
     environment: development
@@ -123,7 +184,8 @@ metadata:
 spec:
   accessModes:
     - ReadWriteMany
-  storageClassName: "juicefs-sc"
+  storageClassName: ""
+  volumeName: rcabench-juicefs-experiment-storage-pv
   resources:
     requests:
       storage: 100Gi

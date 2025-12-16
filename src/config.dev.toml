@@ -9,7 +9,7 @@ env_mode = "dev"
 timezone = "Asia/Shanghai"
 
 [initialization]
-data_path = "/home/nn/workspace/AegisLab/helm/files/initial_data"
+data_path = "/home/nn/workspace/AegisLab/data/initial_data"
 
 [debugging]
 enabled = true
@@ -47,8 +47,11 @@ namespace = "library"
 username = "admin"
 password = "Harbor12345"
 
+[helm]
+debug = false
+
 [k8s]
-namespace = "exp-dev"
+namespace = "exp"
 
 [k8s.service]
 internal_url = "http://10.10.10.161:8082"
