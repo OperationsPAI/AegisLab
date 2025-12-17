@@ -28,18 +28,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-type eventPublishOptions struct {
-	callerLevel int
-}
-
-type eventPublishOption func(*eventPublishOptions)
-
-func withCallerLevel(level int) eventPublishOption {
-	return func(opts *eventPublishOptions) {
-		opts.callerLevel = level
-	}
-}
-
 // -----------------------------------------------------------------------------
 // Constants and Global Variables
 // -----------------------------------------------------------------------------
@@ -76,6 +64,79 @@ var (
 	taskCancelFuncs      = make(map[string]context.CancelFunc) // Maps task IDs to their cancel functions
 	taskCancelFuncsMutex sync.RWMutex                          // Mutex to protect the map
 )
+
+// -----------------------------------------------------------------------------
+// Event Publishing Options
+// -----------------------------------------------------------------------------
+
+type eventPublishOptions struct {
+	callerLevel int
+}
+
+type eventPublishOption func(*eventPublishOptions)
+
+func withCallerLevel(level int) eventPublishOption {
+	return func(opts *eventPublishOptions) {
+		opts.callerLevel = level
+	}
+}
+
+// -----------------------------------------------------------------------------
+// Task State Update Notification
+// -----------------------------------------------------------------------------
+
+// taskStateUpdate encapsulates all information needed to update and notify task state changes
+type taskStateUpdate struct {
+	traceID   string
+	taskID    string
+	taskType  consts.TaskType
+	taskState consts.TaskState
+	message   string
+	event     *dto.StreamEvent // Optional: custom event to publish
+}
+
+// newTaskStateUpdate creates a basic TaskStateUpdate with required fields
+func newTaskStateUpdate(traceID, taskID string, taskType consts.TaskType, taskState consts.TaskState, message string) *taskStateUpdate {
+	return &taskStateUpdate{
+		traceID:   traceID,
+		taskID:    taskID,
+		taskType:  taskType,
+		taskState: taskState,
+		message:   message,
+	}
+}
+
+// taskCompleted creates a TaskStateUpdate for completed tasks with standard message
+func taskCompleted(task *dto.UnifiedTask) *taskStateUpdate {
+	return newTaskStateUpdate(
+		task.TraceID,
+		task.TaskID,
+		task.Type,
+		consts.TaskCompleted,
+		fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
+	)
+}
+
+// taskCompletedWithEvent creates a TaskStateUpdate for completed tasks with custom event
+func taskCompletedWithEvent(task *dto.UnifiedTask, eventType consts.EventType, payload any) *taskStateUpdate {
+	return taskCompleted(task).withEvent(eventType, payload)
+}
+
+// withEvent adds a custom event to the TaskStateUpdate
+func (u *taskStateUpdate) withEvent(eventType consts.EventType, payload any) *taskStateUpdate {
+	u.event = &dto.StreamEvent{
+		TaskID:    u.taskID,
+		TaskType:  u.taskType,
+		EventName: eventType,
+		Payload:   payload,
+	}
+	return u
+}
+
+// withSimpleEvent adds a simple event with just an event type (no payload)
+func (u *taskStateUpdate) withSimpleEvent(eventType consts.EventType) *taskStateUpdate {
+	return u.withEvent(eventType, nil)
+}
 
 // StartScheduler starts the scheduler that moves tasks from delayed to ready queue
 func StartScheduler(ctx context.Context) {
@@ -304,14 +365,15 @@ func executeTaskWithRetry(ctx context.Context, task *dto.UnifiedTask) {
 
 	message := fmt.Sprintf("Task failed after %d attempts, errors: [%v]", task.RetryPolicy.MaxAttempts, errs)
 	handleFinalFailure(ctx, task, message)
-	updateTaskState(
-		ctx,
+
+	// Simple usage: no custom event needed
+	updateTaskState(ctx, newTaskStateUpdate(
 		task.TraceID,
 		task.TaskID,
-		message,
-		consts.TaskError,
 		task.Type,
-	)
+		consts.TaskError,
+		message,
+	))
 }
 
 // -----------------------------------------------------------------------------
@@ -426,39 +488,39 @@ func publishEvent(ctx context.Context, stream string, event dto.StreamEvent, opt
 }
 
 // updateTaskState updates the task states and publishes the update
-func updateTaskState(ctx context.Context, traceID, taskID, message string, taskState consts.TaskState, taskType consts.TaskType) {
-	err := tracing.WithSpan(ctx, func(ctx context.Context) error {
-		span := trace.SpanFromContext(ctx)
-		logEntry := logrus.WithField("trace_id", traceID).WithField("task_id", taskID)
-		span.AddEvent(message)
+func updateTaskState(ctx context.Context, update *taskStateUpdate) {
+	err := tracing.WithSpan(ctx, func(childCtx context.Context) error {
+		span := trace.SpanFromContext(childCtx)
+		logEntry := logrus.WithField("trace_id", update.traceID).WithField("task_id", update.taskID)
+		span.AddEvent(update.message)
 
-		description := fmt.Sprintf(consts.SpanStatusDescription, taskID, consts.GetTaskStateName(taskState))
-		if taskState == consts.TaskCompleted {
+		description := fmt.Sprintf(consts.SpanStatusDescription, update.taskID, consts.GetTaskStateName(update.taskState))
+		if update.taskState == consts.TaskCompleted {
 			span.SetStatus(codes.Ok, description)
 		}
 
-		if taskState == consts.TaskError {
+		if update.taskState == consts.TaskError {
 			span.SetStatus(codes.Error, description)
 		}
 
-		publishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, traceID), dto.StreamEvent{
-			TaskID:    taskID,
-			TaskType:  taskType,
-			EventName: consts.EventTaskStateUpdate,
-			Payload: dto.InfoPayloadTemplate{
-				State: consts.GetTaskStateName(taskState),
-				Msg:   message,
-			},
-		}, withCallerLevel(5))
+		stream := fmt.Sprintf(consts.StreamLogKey, update.traceID)
 
-		err := repository.UpdateTaskState(database.DB, ctx, taskID, taskState)
-		if err != nil {
-			logEntry.Errorf("failed to update database: %v", err)
+		// Publish custom event or default state update event
+		if update.event != nil {
+			publishEvent(childCtx, stream, *update.event, withCallerLevel(5))
 		}
-		return err
+
+		if err := repository.UpdateTaskState(database.DB, childCtx, update.taskID, update.taskState); err != nil {
+			logEntry.Errorf("failed to update database: %v", err)
+			return err
+		}
+
+		updateTraceState(update.traceID, update.taskID, update.taskState, update.event)
+
+		return nil
 	})
 
 	if err != nil {
-		logrus.WithField("task_id", taskID).Errorf("failed to update task state: %v", err)
+		logrus.WithField("task_id", update.taskID).Errorf("failed to update task state: %v", err)
 	}
 }

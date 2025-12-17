@@ -37,8 +37,6 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 			return err
 		}
 
-		stream := fmt.Sprintf(consts.StreamLogKey, task.TraceID)
-
 		if collectPayload.algorithm.ContainerName == config.GetString(consts.DetectorKey) {
 			results, err := repository.ListDetectorResultsByExecutionID(database.DB, collectPayload.executionID)
 			if err != nil {
@@ -48,61 +46,33 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 				return fmt.Errorf("failed to get detector results by execution ID: %w", err)
 			}
 
-			if len(results) == 0 {
-				publishEvent(childCtx, stream, dto.StreamEvent{
-					TaskID:    task.TaskID,
-					TaskType:  consts.TaskTypeCollectResult,
-					EventName: consts.EventDatapackNoDetectorData,
-				})
+			hasResults := len(results) >= 0
 
-				updateTaskState(
-					childCtx,
-					task.TraceID,
-					task.TaskID,
-					fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
-					consts.TaskCompleted,
-					task.Type,
-				)
-
-				logEntry.Info("no detector results found for the execution ID")
-				span.AddEvent("no detector results found for the execution ID")
-				return nil
+			eventName := consts.EventDatapackResultCollection
+			if !hasResults {
+				eventName = consts.EventDatapackNoDetectorData
+				message := fmt.Sprintf("no detector results found for the execution ID %d", collectPayload.executionID)
+				logEntry.Warn(message)
+				span.AddEvent(message)
 			}
 
 			hasIssues := false
-			for _, v := range results {
-				if v.Issues != "{}" {
-					hasIssues = true
+			if hasResults {
+				for _, v := range results {
+					if v.Issues != "{}" {
+						hasIssues = true
+					}
 				}
 			}
 
 			if !hasIssues {
-				publishEvent(childCtx, stream, dto.StreamEvent{
-					TaskID:    task.TaskID,
-					TaskType:  consts.TaskTypeCollectResult,
-					EventName: consts.EventDatapackNoAnomaly,
-					Payload:   results,
-				})
-
-				span.AddEvent("the detector result has no issues")
-				logEntry.Info("the detector result has no issues")
-			} else {
-				publishEvent(childCtx, stream, dto.StreamEvent{
-					TaskID:    task.TaskID,
-					TaskType:  consts.TaskTypeCollectResult,
-					EventName: consts.EventDatapackResultCollection,
-					Payload:   results,
-				})
+				eventName = consts.EventDatapackNoAnomaly
+				message := "the detector result has no issues"
+				logEntry.Warn(message)
+				span.AddEvent(message)
 			}
 
-			updateTaskState(
-				childCtx,
-				task.TraceID,
-				task.TaskID,
-				fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
-				consts.TaskCompleted,
-				task.Type,
-			)
+			updateTaskState(childCtx, taskCompletedWithEvent(task, eventName, results))
 
 			logEntry.Info("Collect detector result task completed successfully")
 
@@ -115,13 +85,13 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 					return fmt.Errorf("failed to get algorithms from redis: %w", err)
 				}
 
-				for _, algorithm := range algorithms {
+				for idx, algorithm := range algorithms {
 					payload := map[string]any{
 						consts.ExecuteAlgorithm: algorithm,
 						consts.ExecuteDatapack:  collectPayload.datapack,
 					}
 
-					if err := produceAlgorithmExeuctionTask(childCtx, task, payload); err != nil {
+					if err := produceAlgorithmExeuctionTask(childCtx, task, payload, idx); err != nil {
 						span.AddEvent("failed to submit algorithm execution task")
 						span.RecordError(err)
 						return fmt.Errorf("failed to submit algorithm execution task: %w", err)
@@ -141,31 +111,15 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 			return fmt.Errorf("failed to get detector results by execution ID: %w", err)
 		}
 
+		eventName := consts.EventAlgoResultCollection
 		if len(results) == 0 {
-			publishEvent(childCtx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
-				TaskID:    task.TaskID,
-				TaskType:  consts.TaskTypeCollectResult,
-				EventName: consts.EventAlgoNoResultData,
-			})
-			span.AddEvent("no granularity results found for the execution ID")
-			return fmt.Errorf("no granularity results found for the execution ID")
+			eventName = consts.EventAlgoNoResultData
+			message := fmt.Sprintf("no granularity results found for the execution ID %d", collectPayload.executionID)
+			logEntry.Warn(message)
+			span.AddEvent(message)
 		}
 
-		publishEvent(childCtx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
-			TaskID:    task.TaskID,
-			TaskType:  consts.TaskTypeCollectResult,
-			EventName: consts.EventAlgoResultCollection,
-			Payload:   results,
-		})
-
-		updateTaskState(
-			childCtx,
-			task.TraceID,
-			task.TaskID,
-			fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
-			consts.TaskCompleted,
-			task.Type,
-		)
+		updateTaskState(childCtx, taskCompletedWithEvent(task, eventName, results))
 
 		logEntry.Info("Collect algorithm result task completed successfully")
 		return nil
@@ -198,11 +152,13 @@ func parseCollectPayload(payload map[string]any) (*collectionPayload, error) {
 }
 
 // produceAlgorithmExeuctionTask produces an algorithm execution task into Redis
-func produceAlgorithmExeuctionTask(ctx context.Context, task *dto.UnifiedTask, payload map[string]any) error {
+func produceAlgorithmExeuctionTask(ctx context.Context, task *dto.UnifiedTask, payload map[string]any, index int) error {
 	newTask := &dto.UnifiedTask{
 		Type:         consts.TaskTypeRunAlgorithm,
 		Immediate:    true,
 		Payload:      payload,
+		Sequence:     index,
+		ParentTaskID: utils.StringPtr(task.TaskID),
 		TraceID:      task.TraceID,
 		GroupID:      task.GroupID,
 		ProjectID:    task.ProjectID,

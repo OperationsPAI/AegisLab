@@ -5,7 +5,6 @@ import (
 	"aegis/consts"
 	"aegis/dto"
 	"aegis/service/common"
-	producer "aegis/service/prodcuer"
 	"aegis/tracing"
 	"aegis/utils"
 	"context"
@@ -116,7 +115,7 @@ func executeRestartPedestal(ctx context.Context, task *dto.UnifiedTask) error {
 		var namespace string
 		defer func() {
 			if acquired {
-				if releaseErr := rateLimiter.ReleaseToken(ctx, task.TaskID, task.TraceID); releaseErr != nil {
+				if releaseErr := rateLimiter.ReleaseToken(childCtx, task.TaskID, task.TraceID); releaseErr != nil {
 					logEntry.Errorf("failed to release restart pedestal token: %v", releaseErr)
 				}
 			}
@@ -136,7 +135,7 @@ func executeRestartPedestal(ctx context.Context, task *dto.UnifiedTask) error {
 		namespace = monitor.GetNamespaceToRestart(t.Add(deltaTime), nsPattern, task.TraceID)
 		if namespace == "" {
 			// Failed to acquire namespace lock, immediately release rate limit token
-			if releaseErr := rateLimiter.ReleaseToken(ctx, task.TaskID, task.TraceID); releaseErr != nil {
+			if releaseErr := rateLimiter.ReleaseToken(childCtx, task.TaskID, task.TraceID); releaseErr != nil {
 				logEntry.Errorf("failed to release restart pedestal token after namespace lock failure: %v", releaseErr)
 			}
 
@@ -157,20 +156,15 @@ func executeRestartPedestal(ctx context.Context, task *dto.UnifiedTask) error {
 			return handleExecutionError(span, logEntry, "failed to read namespace index", err)
 		}
 
-		updateTaskState(
-			ctx,
-			task.TraceID,
-			task.TaskID,
-			fmt.Sprintf("Restarting pedestal in namespace %s", namespace),
-			consts.TaskRunning,
-			consts.TaskTypeRestartPedestal,
+		updateTaskState(childCtx,
+			newTaskStateUpdate(
+				task.TraceID,
+				task.TaskID,
+				consts.TaskTypeRestartPedestal,
+				consts.TaskRunning,
+				fmt.Sprintf("Restarting pedestal in namespace %s", namespace),
+			).withSimpleEvent(consts.EventRestartPedestalStarted),
 		)
-
-		publishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
-			TaskID:    task.TaskID,
-			TaskType:  consts.TaskTypeRestartPedestal,
-			EventName: consts.EventRestartPedestalStarted,
-		})
 
 		if payload.pedestal.Extra == nil {
 			toReleased = true
@@ -203,28 +197,22 @@ func executeRestartPedestal(ctx context.Context, task *dto.UnifiedTask) error {
 		}
 
 		message := fmt.Sprintf("Injection start at %s, duration %dm", injectTime.Local().String(), payload.faultDuration)
-		publishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
-			TaskID:    task.TaskID,
-			TaskType:  consts.TaskTypeRestartPedestal,
-			EventName: consts.EventRestartPedestalCompleted,
-			Payload:   message,
-		})
-
-		updateTaskState(
-			ctx,
-			task.TraceID,
-			task.TaskID,
-			message,
-			consts.TaskCompleted,
-			consts.TaskTypeRestartPedestal,
+		updateTaskState(childCtx,
+			newTaskStateUpdate(
+				task.TraceID,
+				task.TaskID,
+				consts.TaskTypeRestartPedestal,
+				consts.TaskCompleted,
+				message,
+			).withEvent(consts.EventRestartPedestalCompleted, message),
 		)
 
-		tracing.SetSpanAttribute(ctx, consts.TaskStateKey, consts.GetTaskStateName(consts.TaskCompleted))
+		tracing.SetSpanAttribute(childCtx, consts.TaskStateKey, consts.GetTaskStateName(consts.TaskCompleted))
 
 		payload.injectPayload[consts.InjectNamespace] = namespace
 		payload.injectPayload[consts.InjectPedestalID] = payload.pedestal.ID
 
-		if err := producer.ProduceFaultInjectionTasks(childCtx, task, injectTime, payload.injectPayload); err != nil {
+		if err := common.ProduceFaultInjectionTasks(childCtx, task, injectTime, payload.injectPayload); err != nil {
 			toReleased = true
 			return handleExecutionError(span, logEntry, "failed to submit inject task", err)
 		}
@@ -252,20 +240,14 @@ func rescheduleRestartPedestalTask(ctx context.Context, task *dto.UnifiedTask, r
 
 		tracing.SetSpanAttribute(ctx, consts.TaskStateKey, consts.GetTaskStateName(consts.TaskPending))
 
-		publishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
-			TaskID:    task.TaskID,
-			TaskType:  consts.TaskTypeRestartPedestal,
-			EventName: consts.EventNoNamespaceAvailable,
-			Payload:   executeTime.String(),
-		})
-
-		updateTaskState(
-			ctx,
-			task.TraceID,
-			task.TaskID,
-			reason,
-			consts.TaskRescheduled,
-			consts.TaskTypeRestartPedestal,
+		updateTaskState(ctx,
+			newTaskStateUpdate(
+				task.TraceID,
+				task.TaskID,
+				consts.TaskTypeRestartPedestal,
+				consts.TaskRescheduled,
+				reason,
+			).withEvent(consts.EventNoNamespaceAvailable, executeTime.String()),
 		)
 
 		task.Reschedule(executeTime)

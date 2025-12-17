@@ -33,6 +33,9 @@ type UnifiedTask struct {
 	ReStartNum   int                    `json:"restart_num"`                  // Number of restarts for the task
 	RetryPolicy  RetryPolicy            `json:"retry_policy"`                 // Policy for retrying failed tasks
 	Payload      map[string]any         `json:"payload" swaggertype:"object"` // Task-specific data
+	Level        int                    `json:"level"`                        // Task level in the trace
+	Sequence     int                    `json:"sequence"`                     // Task sequence in the trace
+	ParentTaskID *string                `json:"parent_task_id,omitempty"`     // Parent task ID for sub-tasks
 	TraceID      string                 `json:"trace_id"`                     // ID for tracing related tasks
 	GroupID      string                 `json:"group_id"`                     // ID for grouping tasks
 	ProjectID    int                    `json:"project_id"`                   // ID for the project (optional)
@@ -49,19 +52,52 @@ func (t *UnifiedTask) ConvertToTask() (*database.Task, error) {
 	}
 
 	task := &database.Task{
-		ID:          t.TaskID,
-		Type:        t.Type,
-		Immediate:   t.Immediate,
-		ExecuteTime: t.ExecuteTime,
-		CronExpr:    t.CronExpr,
-		Payload:     string(jsonPayload),
-		State:       t.State,
-		Status:      consts.CommonEnabled,
-		TraceID:     t.TraceID,
-		GroupID:     t.GroupID,
-		ProjectID:   t.ProjectID,
+		ID:           t.TaskID,
+		Type:         t.Type,
+		Immediate:    t.Immediate,
+		ExecuteTime:  t.ExecuteTime,
+		CronExpr:     t.CronExpr,
+		Payload:      string(jsonPayload),
+		Level:        t.Level,
+		State:        t.State,
+		Status:       consts.CommonEnabled,
+		ParentTaskID: t.ParentTaskID,
+		TraceID:      t.TraceID,
+		GroupID:      t.GroupID,
+		ProjectID:    t.ProjectID,
 	}
 	return task, nil
+}
+
+func (t *UnifiedTask) ConvertToTrace(withAlgorithms bool, leafNum int) (*database.Trace, error) {
+	var traceType consts.TraceType
+	switch t.Type {
+	case consts.TaskTypeRestartPedestal:
+		if withAlgorithms {
+			traceType = consts.TraceTypeFullPipeline
+		} else {
+			traceType = consts.TraceTypeDatapackBuild
+		}
+	case consts.TaskTypeBuildDatapack:
+		traceType = consts.TraceTypeDatapackBuild
+	case consts.TaskTypeRunAlgorithm:
+		traceType = consts.TraceTypeAlgorithmRun
+	default:
+		return nil, fmt.Errorf("unsupported task type for trace conversion: %s", consts.GetTaskTypeName(t.Type))
+	}
+
+	trace := &database.Trace{
+		ID:        t.TraceID,
+		Type:      traceType,
+		StartTime: time.Now(),
+		LeafNum:   leafNum,
+		GroupID:   t.GroupID,
+		ProjectID: t.ProjectID,
+		State:     consts.TracePending,
+		Status:    consts.CommonEnabled,
+	}
+
+	return trace, nil
 }
 
 // GetAnnotations generates the annotations for trace and group carriers

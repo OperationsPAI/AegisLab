@@ -31,6 +31,69 @@ const (
 	jobLabelsErrMsg = "missing or invalid '%s' key in k8s job labels"
 )
 
+// errorContext holds common context for error handling
+type errorContext struct {
+	ctx      context.Context
+	span     trace.Span
+	logEntry *logrus.Entry
+	labels   *taskIdentifiers
+}
+
+// NewErrorContext creates an ErrorContext from parsed labels
+func NewErrorContext(ctx context.Context, span trace.Span, labels *taskIdentifiers) *errorContext {
+	return &errorContext{
+		ctx:  ctx,
+		span: span,
+		logEntry: logrus.WithFields(logrus.Fields{
+			"task_id":  labels.taskID,
+			"trace_id": labels.traceID,
+		}),
+		labels: labels,
+	}
+}
+
+// Fatal handles a fatal error and updates task state
+func (e *errorContext) Fatal(logEntry *logrus.Entry, message string, err error) {
+	if logEntry == nil {
+		logEntry = e.logEntry
+	}
+
+	if err != nil {
+		logEntry.Errorf("%s: %v", message, err)
+		e.span.RecordError(err)
+	} else {
+		logEntry.Error(message)
+	}
+
+	e.span.AddEvent(message)
+
+	updateTaskState(e.ctx,
+		newTaskStateUpdate(
+			e.labels.traceID,
+			e.labels.taskID,
+			e.labels.taskType,
+			consts.TaskError,
+			message,
+		),
+	)
+}
+
+// Warn handles a tolerable error without updating task state
+func (e *errorContext) Warn(logEntry *logrus.Entry, message string, err error) {
+	if logEntry == nil {
+		logEntry = e.logEntry
+	}
+
+	if err != nil {
+		logEntry.Warnf("%s (non-fatal): %v", message, err)
+		e.span.RecordError(err)
+	} else {
+		logEntry.Warn(message)
+	}
+
+	e.span.AddEvent(fmt.Sprintf("%s (continuing)", message))
+}
+
 type k8sAnnotationData struct {
 	taskCarrier  propagation.MapCarrier
 	traceCarrier propagation.MapCarrier
@@ -86,13 +149,14 @@ func (h *K8sHandler) HandleCRDAdd(name string, annotations map[string]string, la
 	}
 
 	taskCtx := otel.GetTextMapPropagator().Extract(context.Background(), parsedAnnotations.taskCarrier)
-	updateTaskState(
-		taskCtx,
-		parsedLabels.traceID,
-		parsedLabels.taskID,
-		"injecting",
-		consts.TaskRunning,
-		consts.TaskTypeFaultInjection,
+	updateTaskState(taskCtx,
+		newTaskStateUpdate(
+			parsedLabels.traceID,
+			parsedLabels.taskID,
+			parsedLabels.taskType,
+			consts.TaskRunning,
+			fmt.Sprintf("injecting fault for task %s", parsedLabels.taskID),
+		).withSimpleEvent(consts.EventFaultInjectionStarted),
 	)
 }
 
@@ -129,36 +193,33 @@ func (h *K8sHandler) HandleCRDFailed(name string, annotations map[string]string,
 	}
 
 	taskCtx := otel.GetTextMapPropagator().Extract(context.Background(), parsedAnnotations.taskCarrier)
-
-	logEntry := logrus.WithFields(logrus.Fields{
-		"task_id":  parsedLabels.taskID,
-		"trace_id": parsedLabels.traceID,
-	})
 	taskSpan := trace.SpanFromContext(taskCtx)
 
-	publishEvent(taskCtx, fmt.Sprintf(consts.StreamLogKey, parsedLabels.traceID), dto.StreamEvent{
-		TaskID:    parsedLabels.taskID,
-		TaskType:  consts.TaskTypeFaultInjection,
-		EventName: consts.EventFaultInjectionFailed,
-		Payload: dto.InfoPayloadTemplate{
-			State: consts.GetTaskStateName(consts.TaskError),
-			Msg:   errMsg,
-		},
-	})
-
-	updateTaskState(
-		taskCtx,
-		parsedLabels.traceID,
-		parsedLabels.taskID,
-		errMsg,
-		consts.TaskError,
-		consts.TaskTypeFaultInjection,
+	updateTaskState(taskCtx,
+		newTaskStateUpdate(
+			parsedLabels.traceID,
+			parsedLabels.taskID,
+			parsedLabels.taskType,
+			consts.TaskError,
+			errMsg,
+		).withEvent(consts.EventFaultInjectionFailed,
+			dto.InfoPayloadTemplate{
+				State: consts.GetTaskStateName(consts.TaskError),
+				Msg:   errMsg,
+			},
+		),
 	)
 
-	if !parsedLabels.IsHybrid {
-		if err := updateInjectionState(name, consts.DatapackInjectFailed); err != nil {
-			handleTolerableError(taskSpan, logEntry, "update injection state failed", err)
+	errCtx := NewErrorContext(taskCtx, taskSpan, &parsedLabels.taskIdentifiers)
+
+	postprocess := func(injectionName string) {
+		if err := updateInjectionState(injectionName, consts.DatapackInjectFailed); err != nil {
+			errCtx.Warn(nil, "update injection state failed", err)
 		}
+	}
+
+	if !parsedLabels.IsHybrid {
+		postprocess(name)
 	} else {
 		bm := getBatchManager()
 		bm.incrementBatchCount(parsedLabels.batchID)
@@ -166,9 +227,7 @@ func (h *K8sHandler) HandleCRDFailed(name string, annotations map[string]string,
 		// Check if batch is finished and delete if done
 		if bm.isFinished(parsedLabels.batchID) {
 			bm.deleteBatch(parsedLabels.batchID)
-			if err := updateInjectionState(parsedLabels.batchID, consts.DatapackInjectFailed); err != nil {
-				handleTolerableError(taskSpan, logEntry, "update injection state failed", err)
-			}
+			postprocess(parsedLabels.batchID)
 		}
 	}
 }
@@ -197,71 +256,67 @@ func (h *K8sHandler) HandleCRDSucceeded(namespace, pod, name string, startTime, 
 
 	logEntry.Info("fault injected successfully")
 	taskSpan.AddEvent("fault injected successfully")
-	publishEvent(taskCtx, fmt.Sprintf(consts.StreamLogKey, parsedLabels.traceID), dto.StreamEvent{
-		TaskID:    parsedLabels.taskID,
-		TaskType:  consts.TaskTypeFaultInjection,
-		EventName: consts.EventFaultInjectionCompleted,
-	}, withCallerLevel(4))
 
-	updateTaskState(
-		taskCtx,
-		parsedLabels.traceID,
-		parsedLabels.taskID,
-		fmt.Sprintf(consts.TaskMsgCompleted, parsedLabels.taskID),
-		consts.TaskCompleted,
-		consts.TaskTypeFaultInjection,
+	updateTaskState(taskCtx,
+		newTaskStateUpdate(
+			parsedLabels.traceID,
+			parsedLabels.taskID,
+			parsedLabels.taskType,
+			consts.TaskCompleted,
+			fmt.Sprintf(consts.TaskMsgCompleted, parsedLabels.taskID),
+		).withSimpleEvent(consts.EventFaultInjectionCompleted),
 	)
 
-	if !parsedLabels.IsHybrid {
-		if err := updateInjectionState(name, consts.DatapackInjectFailed); err != nil {
-			handleTolerableError(taskSpan, logEntry, "update injection state failed", err)
+	errCtx := NewErrorContext(taskCtx, taskSpan, &parsedLabels.taskIdentifiers)
+
+	postProcess := func(injectionName string) {
+		if err := updateInjectionState(injectionName, consts.DatapackInjectFailed); err != nil {
+			errCtx.Warn(nil, "update injection state failed", err)
 		}
+
+		datapack, err := updateInjectionTimestamp(injectionName, startTime, endTime)
+		if err != nil {
+			errCtx.Warn(nil, "update injection timestamps failed", err)
+			return
+		}
+
+		parsedAnnotations.benchmark.EnvVars = []dto.ParameterItem{
+			{Key: "NAMESPACE", Value: namespace},
+		}
+
+		payload := map[string]any{
+			consts.BuildBenchmark:        *parsedAnnotations.benchmark,
+			consts.BuildDatapack:         *datapack,
+			consts.BuildDatasetVersionID: consts.DefaultInvalidID,
+		}
+
+		task := &dto.UnifiedTask{
+			Type:         consts.TaskTypeBuildDatapack,
+			Immediate:    true,
+			Payload:      payload,
+			ParentTaskID: utils.StringPtr(parsedLabels.taskID),
+			TraceID:      parsedLabels.traceID,
+			GroupID:      parsedLabels.groupID,
+			ProjectID:    parsedLabels.projectID,
+			UserID:       parsedLabels.userID,
+			State:        consts.TaskPending,
+		}
+		task.SetTraceCtx(traceCtx)
+
+		if err = common.SubmitTask(taskCtx, task); err != nil {
+			errCtx.Fatal(nil, "failed to submit datapack build task", err)
+		}
+	}
+
+	if !parsedLabels.IsHybrid {
+		postProcess(name)
 	} else {
 		bm := getBatchManager()
 		bm.incrementBatchCount(parsedLabels.batchID)
 
 		if bm.isFinished(parsedLabels.batchID) {
 			bm.deleteBatch(parsedLabels.batchID)
-			if err := updateInjectionState(parsedLabels.batchID, consts.DatapackInjectFailed); err != nil {
-				handleTolerableError(taskSpan, logEntry, "update injection state failed", err)
-			}
-
-			datapack, err := updateInjectionTimestamp(parsedLabels.batchID, startTime, endTime)
-			if err != nil {
-				logEntry.Errorf("update injection timestamps failed: %v", err)
-				taskSpan.AddEvent("update injection timestamps failed")
-				taskSpan.RecordError(err)
-				return
-			}
-
-			parsedAnnotations.benchmark.EnvVars = []dto.ParameterItem{
-				{Key: "NAMESPACE", Value: namespace},
-			}
-
-			payload := map[string]any{
-				consts.BuildBenchmark:        *parsedAnnotations.benchmark,
-				consts.BuildDatapack:         *datapack,
-				consts.BuildDatasetVersionID: consts.DefaultInvalidID,
-			}
-
-			task := &dto.UnifiedTask{
-				Type:      consts.TaskTypeBuildDatapack,
-				Immediate: true,
-				Payload:   payload,
-				TraceID:   parsedLabels.traceID,
-				GroupID:   parsedLabels.groupID,
-				ProjectID: parsedLabels.projectID,
-				UserID:    parsedLabels.userID,
-				State:     consts.TaskPending,
-			}
-			task.SetTraceCtx(traceCtx)
-
-			err = common.SubmitTask(taskCtx, task)
-			if err != nil {
-				logEntry.Errorf("submit dataset building task failed: %v", err)
-				taskSpan.AddEvent("submit dataset building task failed")
-				taskSpan.RecordError(err)
-			}
+			postProcess(parsedLabels.batchID)
 		}
 	}
 }
@@ -280,21 +335,25 @@ func (h *K8sHandler) HandleJobAdd(annotations map[string]string, labels map[stri
 	}
 
 	var message string
+	var eventType consts.EventType
 	switch parsedLabels.taskType {
 	case consts.TaskTypeBuildDatapack:
 		message = fmt.Sprintf("building dataset for task %s", parsedLabels.taskID)
+		eventType = consts.EventDatapackBuildStarted
 	case consts.TaskTypeRunAlgorithm:
 		message = fmt.Sprintf("running algorithm for task %s", parsedLabels.taskID)
+		eventType = consts.EventAlgoRunStarted
 	}
 
 	taskCtx := otel.GetTextMapPropagator().Extract(context.Background(), parsedAnnotations.taskCarrier)
-	updateTaskState(
-		taskCtx,
-		parsedLabels.traceID,
-		parsedLabels.taskID,
-		message,
-		consts.TaskRunning,
-		parsedLabels.taskType,
+	updateTaskState(taskCtx,
+		newTaskStateUpdate(
+			parsedLabels.traceID,
+			parsedLabels.taskID,
+			parsedLabels.taskType,
+			consts.TaskRunning,
+			message,
+		).withSimpleEvent(eventType),
 	)
 }
 
@@ -311,8 +370,6 @@ func (h *K8sHandler) HandleJobFailed(job *batchv1.Job, annotations map[string]st
 		return
 	}
 
-	stream := fmt.Sprintf(consts.StreamLogKey, parsedLabels.traceID)
-
 	logEntry := logrus.WithFields(logrus.Fields{
 		"task_id":  parsedLabels.taskID,
 		"trace_id": parsedLabels.traceID,
@@ -320,21 +377,23 @@ func (h *K8sHandler) HandleJobFailed(job *batchv1.Job, annotations map[string]st
 	taskCtx := otel.GetTextMapPropagator().Extract(context.Background(), parsedAnnotations.taskCarrier)
 	taskSpan := trace.SpanFromContext(taskCtx)
 
+	errCtx := NewErrorContext(taskCtx, taskSpan, &parsedLabels.taskIdentifiers)
+
 	if parsedAnnotations.datapack == nil {
-		handleFatalError(taskCtx, taskSpan, logEntry, parsedLabels.traceID, parsedLabels.taskID, "missing datapack information in annotations", parsedLabels.taskType, nil)
+		errCtx.Fatal(nil, "missing datapack information in annotations", nil)
 		return
 	}
 
 	logMap, err := k8s.GetJobPodLogs(taskCtx, job.Namespace, job.Name)
 	if err != nil {
-		handleTolerableError(taskSpan, logrus.WithField("job_name", job.Name), "failed to get job logs", err)
+		errCtx.Warn(logrus.WithField("job_name", job.Name), "failed to get job logs", err)
 	}
 
 	var filePath string
 	if len(logMap) > 0 {
 		jobLogBytes, err := json.Marshal(logMap)
 		if err != nil {
-			handleTolerableError(taskSpan, logrus.WithField("job_name", job.Name), "failed to marshal job logs", err)
+			errCtx.Warn(logrus.WithField("job_name", job.Name), "failed to marshal job logs", err)
 		}
 
 		jobLog := string(jobLogBytes)
@@ -347,7 +406,7 @@ func (h *K8sHandler) HandleJobFailed(job *batchv1.Job, annotations map[string]st
 
 		filePath, err = writeJobLogs(job, parsedLabels.traceID, logMap)
 		if err != nil {
-			handleTolerableError(taskSpan, logrus.WithFields(logrus.Fields{
+			errCtx.Warn(logrus.WithFields(logrus.Fields{
 				"job_name":  job.Name,
 				"pod_count": len(logMap),
 			}), "job failed - logs available but file writing failed", err)
@@ -382,76 +441,72 @@ func (h *K8sHandler) HandleJobFailed(job *batchv1.Job, annotations map[string]st
 		},
 	}, withCallerLevel(4))
 
+	var eventName consts.EventType
+	var payload any
 	switch parsedLabels.taskType {
 	case consts.TaskTypeBuildDatapack:
 		logEntry.Error("datapack build failed")
 		taskSpan.AddEvent("datapack build failed")
-		publishEvent(taskCtx, stream, dto.StreamEvent{
-			TaskID:    parsedLabels.taskID,
-			TaskType:  parsedLabels.taskType,
-			EventName: consts.EventDatapackBuildFailed,
-			Payload: dto.DatapackResult{
-				Datapack:  parsedAnnotations.datapack,
-				Timestamp: time.Now().Format(time.RFC3339),
-			},
-		}, withCallerLevel(4))
+
+		eventName = consts.EventDatapackBuildFailed
+		payload = dto.DatapackResult{
+			Datapack:  parsedAnnotations.datapack,
+			Timestamp: time.Now().Format(time.RFC3339),
+		}
 
 		if err := updateInjectionState(parsedAnnotations.datapack.Name, consts.DatapackBuildFailed); err != nil {
-			handleTolerableError(taskSpan, logEntry, "update injection state failed", err)
+			errCtx.Warn(nil, "update injection state failed", err)
 		}
 
 	case consts.TaskTypeRunAlgorithm:
 		rateLimiter := GetAlgoExecutionRateLimiter()
 		if releaseErr := rateLimiter.ReleaseToken(taskCtx, parsedLabels.taskID, parsedLabels.traceID); releaseErr != nil {
-			handleTolerableError(taskSpan, logEntry, "failed to release algorithm execution token on job failure", releaseErr)
+			errCtx.Warn(nil, "failed to release algorithm execution token on job failure", releaseErr)
 		} else {
 			logEntry.Info("successfully released algorithm execution token on job failure")
 			taskSpan.AddEvent("successfully released algorithm execution token on job failure")
 		}
 
 		if parsedAnnotations.algorithm == nil {
-			handleFatalError(taskCtx, taskSpan, logEntry, parsedLabels.traceID, parsedLabels.taskID, "missing algorithm information in annotations", parsedLabels.taskType, nil)
+			errCtx.Fatal(nil, "missing algorithm information in annotations", nil)
 			return
 		}
-
 		if parsedLabels.ExecutionID == nil {
-			handleFatalError(taskCtx, taskSpan, logEntry, parsedLabels.traceID, parsedLabels.taskID, "missing execution ID in job labels", parsedLabels.taskType, nil)
+			errCtx.Fatal(nil, "missing execution ID in job labels", nil)
 			return
 		}
 
 		logEntry.Error("algorithm execute failed")
 		taskSpan.AddEvent("algorithm execute failed")
-		publishEvent(taskCtx, stream, dto.StreamEvent{
-			TaskID:    parsedLabels.taskID,
-			TaskType:  parsedLabels.taskType,
-			EventName: consts.EventAlgoRunFailed,
-			Payload: dto.ExecutionResult{
-				Algorithm:   parsedAnnotations.algorithm,
-				Datapack:    parsedAnnotations.datapack,
-				ExecutionID: *parsedLabels.ExecutionID,
-				Timestamp:   time.Now().Format(time.RFC3339),
-			},
-		}, withCallerLevel(4))
+
+		eventName = consts.EventAlgoRunFailed
+		payload = dto.ExecutionResult{
+			Algorithm:   parsedAnnotations.algorithm,
+			Datapack:    parsedAnnotations.datapack,
+			ExecutionID: *parsedLabels.ExecutionID,
+			Timestamp:   time.Now().Format(time.RFC3339),
+		}
 
 		if parsedAnnotations.algorithm.ContainerName == config.GetString(consts.DetectorKey) {
 			if err := updateInjectionState(parsedAnnotations.datapack.Name, consts.DatapackDetectorFailed); err != nil {
-				handleTolerableError(taskSpan, logEntry, "update injection state failed", err)
+				errCtx.Warn(nil, "update injection state failed", err)
 			}
 		}
 
 		if err := updateExecutionState(*parsedLabels.ExecutionID, consts.ExecutionFailed); err != nil {
-			handleFatalError(taskCtx, taskSpan, logEntry, parsedLabels.traceID, parsedLabels.taskID, "update execution state failed", parsedLabels.taskType, err)
+			errCtx.Fatal(nil, "update execution state failed", err)
 			return
 		}
 	}
 
-	updateTaskState(
-		taskCtx,
-		parsedLabels.traceID,
-		parsedLabels.taskID,
-		fmt.Sprintf(consts.TaskMsgFailed, parsedLabels.taskID),
-		consts.TaskError,
-		parsedLabels.taskType,
+	updateTaskState(taskCtx,
+		newTaskStateUpdate(
+			parsedLabels.traceID,
+			parsedLabels.taskID,
+			parsedLabels.taskType,
+			consts.TaskError,
+			fmt.Sprintf(consts.TaskMsgFailed, parsedLabels.taskID),
+		).withEvent(eventName, payload),
 	)
 }
 
@@ -479,8 +534,10 @@ func (h *K8sHandler) HandleJobSucceeded(job *batchv1.Job, annotations map[string
 	})
 	taskSpan := trace.SpanFromContext(taskCtx)
 
+	errCtx := NewErrorContext(taskCtx, taskSpan, &parsedLabels.taskIdentifiers)
+
 	if parsedAnnotations.datapack == nil {
-		handleFatalError(taskCtx, taskSpan, logEntry, parsedLabels.traceID, parsedLabels.taskID, "missing datapack information in annotations", parsedLabels.taskType, nil)
+		errCtx.Fatal(nil, "missing datapack information in annotations", nil)
 		return
 	}
 
@@ -498,27 +555,26 @@ func (h *K8sHandler) HandleJobSucceeded(job *batchv1.Job, annotations map[string
 	case consts.TaskTypeBuildDatapack:
 		logEntry.Info("datapack build successfully")
 		taskSpan.AddEvent("datapack build successfully")
-		publishEvent(taskCtx, stream, dto.StreamEvent{
-			TaskID:    parsedLabels.taskID,
-			TaskType:  parsedLabels.taskType,
-			EventName: consts.EventDatapackBuildSucceed,
-			Payload: dto.DatapackResult{
-				Datapack:  parsedAnnotations.datapack,
-				Timestamp: time.Now().Format(time.RFC3339),
-			},
-		}, withCallerLevel(4))
 
 		if err := updateInjectionState(parsedAnnotations.datapack.Name, consts.DatapackBuildSuccess); err != nil {
-			handleTolerableError(taskSpan, logEntry, "update datapack state failed", err)
+			errCtx.Fatal(nil, "update injection state failed", err)
+			return
 		}
 
-		updateTaskState(
-			taskCtx,
-			parsedLabels.traceID,
-			parsedLabels.taskID,
-			fmt.Sprintf(consts.TaskMsgCompleted, parsedLabels.taskID),
-			consts.TaskCompleted,
-			parsedLabels.taskType,
+		updateTaskState(taskCtx,
+			newTaskStateUpdate(
+				parsedLabels.traceID,
+				parsedLabels.taskID,
+				parsedLabels.taskType,
+				consts.TaskCompleted,
+				fmt.Sprintf(consts.TaskMsgCompleted, parsedLabels.taskID),
+			).withEvent(
+				consts.EventDatapackBuildSucceed,
+				dto.DatapackResult{
+					Datapack:  parsedAnnotations.datapack,
+					Timestamp: time.Now().Format(time.RFC3339),
+				},
+			),
 		)
 
 		ref := &dto.ContainerRef{
@@ -527,17 +583,17 @@ func (h *K8sHandler) HandleJobSucceeded(job *batchv1.Job, annotations map[string
 
 		algorithmVersionResults, err := common.MapRefsToContainerVersions([]*dto.ContainerRef{ref}, consts.ContainerTypeAlgorithm, parsedLabels.userID)
 		if err != nil {
-			handleFatalError(taskCtx, taskSpan, logEntry, parsedLabels.traceID, parsedLabels.taskID, "failed to map container refs to versions", parsedLabels.taskType, err)
+			errCtx.Fatal(nil, "failed to map container refs to versions", err)
 			return
 		}
 		if len(algorithmVersionResults) == 0 {
-			handleFatalError(taskCtx, taskSpan, logEntry, parsedLabels.traceID, parsedLabels.taskID, "no valid algorithm versions found", parsedLabels.taskType, nil)
+			errCtx.Fatal(nil, "no valid algorithm versions found", nil)
 			return
 		}
 
 		algorithmVersion, exists := algorithmVersionResults[ref]
 		if !exists {
-			handleFatalError(taskCtx, taskSpan, logEntry, parsedLabels.traceID, parsedLabels.taskID, "algorithm version not found for item", parsedLabels.taskType, nil)
+			errCtx.Fatal(nil, "algorithm version not found for item", nil)
 			return
 		}
 
@@ -548,71 +604,71 @@ func (h *K8sHandler) HandleJobSucceeded(job *batchv1.Job, annotations map[string
 		}
 
 		task := &dto.UnifiedTask{
-			Type:      consts.TaskTypeRunAlgorithm,
-			Immediate: true,
-			Payload:   payload,
-			TraceID:   parsedLabels.traceID,
-			GroupID:   parsedLabels.groupID,
-			ProjectID: parsedLabels.projectID,
-			UserID:    parsedLabels.userID,
+			Type:         consts.TaskTypeRunAlgorithm,
+			Immediate:    true,
+			Payload:      payload,
+			ParentTaskID: utils.StringPtr(parsedLabels.taskID),
+			TraceID:      parsedLabels.traceID,
+			GroupID:      parsedLabels.groupID,
+			ProjectID:    parsedLabels.projectID,
+			UserID:       parsedLabels.userID,
 		}
 		task.SetTraceCtx(traceCtx)
 
 		if err := common.SubmitTask(taskCtx, task); err != nil {
-			handleTolerableError(taskSpan, logEntry, "submit algorithm execution task failed", err)
+			errCtx.Warn(nil, "submit algorithm execution task failed", err)
 		}
 
 	case consts.TaskTypeRunAlgorithm:
 		rateLimiter := GetAlgoExecutionRateLimiter()
 		if releaseErr := rateLimiter.ReleaseToken(taskCtx, parsedLabels.taskID, parsedLabels.traceID); releaseErr != nil {
-			handleTolerableError(taskSpan, logEntry, "failed to release algorithm execution token on job success", releaseErr)
+			errCtx.Warn(nil, "failed to release algorithm execution token on job success", releaseErr)
 		} else {
 			logEntry.Info("successfully released algorithm execution token on job success")
 			taskSpan.AddEvent("successfully released algorithm execution token on job success")
 		}
 
 		if parsedAnnotations.algorithm == nil {
-			handleFatalError(taskCtx, taskSpan, logEntry, parsedLabels.traceID, parsedLabels.taskID, "missing algorithm information in annotations", parsedLabels.taskType, nil)
+			errCtx.Fatal(nil, "missing algorithm information in annotations", nil)
 			return
 		}
 
 		if parsedLabels.ExecutionID == nil {
-			handleFatalError(taskCtx, taskSpan, logEntry, parsedLabels.traceID, parsedLabels.taskID, "missing execution ID in job labels", parsedLabels.taskType, nil)
+			errCtx.Fatal(nil, "missing execution ID in job labels", nil)
 			return
 		}
 
 		logEntry.Info("algorithm execute successfully")
 		taskSpan.AddEvent("algorithm execute successfully")
-		publishEvent(taskCtx, fmt.Sprintf(consts.StreamLogKey, parsedLabels.traceID), dto.StreamEvent{
-			TaskID:    parsedLabels.taskID,
-			TaskType:  parsedLabels.taskType,
-			EventName: consts.EventAlgoRunSucceed,
-			Payload: dto.ExecutionResult{
-				Algorithm:   parsedAnnotations.algorithm,
-				Datapack:    parsedAnnotations.datapack,
-				ExecutionID: *parsedLabels.ExecutionID,
-				Timestamp:   time.Now().Format(time.RFC3339),
-			},
-		}, withCallerLevel(4))
 
 		if parsedAnnotations.algorithm.ContainerName == config.GetString(consts.DetectorKey) {
 			if err := updateInjectionState(parsedAnnotations.datapack.Name, consts.DatapackDetectorSuccess); err != nil {
-				handleTolerableError(taskSpan, logEntry, "update injection state failed", err)
+				errCtx.Fatal(nil, "update injection state failed", err)
+				return
 			}
 		}
 
 		if err := updateExecutionState(*parsedLabels.ExecutionID, consts.ExecutionSuccess); err != nil {
-			handleFatalError(taskCtx, taskSpan, logEntry, parsedLabels.traceID, parsedLabels.taskID, "update execution state failed", parsedLabels.taskType, err)
+			errCtx.Fatal(nil, "update execution state failed", err)
 			return
 		}
 
-		updateTaskState(
-			taskCtx,
-			parsedLabels.traceID,
-			parsedLabels.taskID,
-			fmt.Sprintf(consts.TaskMsgCompleted, parsedLabels.taskID),
-			consts.TaskCompleted,
-			parsedLabels.taskType,
+		updateTaskState(taskCtx,
+			newTaskStateUpdate(
+				parsedLabels.traceID,
+				parsedLabels.taskID,
+				parsedLabels.taskType,
+				consts.TaskCompleted,
+				fmt.Sprintf(consts.TaskMsgCompleted, parsedLabels.taskID),
+			).withEvent(
+				consts.EventAlgoRunSucceed,
+				dto.ExecutionResult{
+					Algorithm:   parsedAnnotations.algorithm,
+					Datapack:    parsedAnnotations.datapack,
+					ExecutionID: *parsedLabels.ExecutionID,
+					Timestamp:   time.Now().Format(time.RFC3339),
+				},
+			),
 		)
 
 		payload := map[string]any{
@@ -622,56 +678,21 @@ func (h *K8sHandler) HandleJobSucceeded(job *batchv1.Job, annotations map[string
 		}
 
 		task := &dto.UnifiedTask{
-			Type:      consts.TaskTypeCollectResult,
-			Immediate: true,
-			Payload:   payload,
-			TraceID:   parsedLabels.traceID,
-			GroupID:   parsedLabels.groupID,
-			ProjectID: parsedLabels.projectID,
-			UserID:    parsedLabels.userID,
+			Type:         consts.TaskTypeCollectResult,
+			Immediate:    true,
+			Payload:      payload,
+			ParentTaskID: utils.StringPtr(parsedLabels.taskID),
+			TraceID:      parsedLabels.traceID,
+			GroupID:      parsedLabels.groupID,
+			ProjectID:    parsedLabels.projectID,
+			UserID:       parsedLabels.userID,
 		}
 		task.SetTraceCtx(traceCtx)
 
 		if err := common.SubmitTask(taskCtx, task); err != nil {
-			handleTolerableError(taskSpan, logEntry, "submit result collection task failed", err)
+			errCtx.Warn(nil, "submit result collection task failed", err)
 		}
 	}
-}
-
-// handleFatalError is a helper function to handle fatal errors consistently
-//
-// It logs the error, adds span events, updates task state, and returns true to indicate the caller should return
-func handleFatalError(ctx context.Context, span trace.Span, logEntry *logrus.Entry, traceID, taskID, message string, taskType consts.TaskType, err error) {
-	if err != nil {
-		logEntry.Errorf("%s: %v", message, err)
-		span.RecordError(err)
-	} else {
-		logEntry.Error(message)
-	}
-
-	span.AddEvent(message)
-
-	updateTaskState(
-		ctx,
-		traceID,
-		taskID,
-		message,
-		consts.TaskError,
-		taskType,
-	)
-}
-
-// handleTolerableError is a helper function to handle tolerable errors consistently
-// It logs a warning and adds span events but doesn't update task state
-func handleTolerableError(span trace.Span, logEntry *logrus.Entry, message string, err error) {
-	if err != nil {
-		logEntry.Warnf("%s (non-fatal): %v", message, err)
-		span.RecordError(err)
-	} else {
-		logEntry.Warn(message)
-	}
-
-	span.AddEvent(fmt.Sprintf("%s (continuing)", message))
 }
 
 func parseAnnotations(annotations map[string]string) (*k8sAnnotationData, error) {

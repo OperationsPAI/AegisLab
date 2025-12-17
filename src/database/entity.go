@@ -394,6 +394,30 @@ type AuditLog struct {
 // Business Entities
 // =====================================================================
 
+// Trace model - Represents execution flow of related tasks
+type Trace struct {
+	ID        string           `gorm:"primaryKey;size:64"`                  // Trace ID (unique identifier for a workflow)
+	Type      consts.TraceType `gorm:"not null;index:idx_trace_type_state"` // Trace type (datapack_build, algorithm_run, full_pipeline)
+	LastEvent consts.EventType `gorm:"size:128;index"`                      // Last event type received (for quick status check)
+	StartTime time.Time        `gorm:"not null;index:idx_trace_start_time"` // Trace start time
+	EndTime   *time.Time       `gorm:"index"`                               // Trace end time (null if not completed)
+	GroupID   string           `gorm:"index;size:64"`                       // Group ID for batch operations
+	ProjectID int              `gorm:"index:idx_trace_project_state"`       // Associated project (optional)
+
+	LeafNum int `gorm:"not null;default:1"` // Number of leaf nodes in the trace DAG
+
+	State     consts.TraceState `gorm:"not null;default:0;index:idx_trace_type_state;index:idx_trace_project_state"` // Trace state (pending, running, completed, failed)
+	Status    consts.StatusType `gorm:"not null;default:1;index"`                                                    // Status: -1:deleted 0:disabled 1:enabled
+	CreatedAt time.Time         `gorm:"autoCreateTime;index"`                                                        // Creation time
+	UpdatedAt time.Time         `gorm:"autoUpdateTime"`                                                              // Update time
+
+	// Foreign key association
+	Project *Project `gorm:"foreignKey:ProjectID"`
+
+	// One-to-many relationship with tasks
+	Tasks []Task `gorm:"foreignKey:TraceID;references:ID"`
+}
+
 // Task model
 type Task struct {
 	ID          string          `gorm:"primaryKey;size:64"`         // Task ID with size limit
@@ -406,17 +430,26 @@ type Task struct {
 	GroupID     string          `gorm:"index;size:64"`                                              // Group ID with size limit
 	ProjectID   int             `gorm:"index:idx_task_project_state;index:idx_task_project_status"` // Task can belong to a project (optional)
 
+	ParentTaskID *string `gorm:"index;size:64"`                                    // Parent task ID for sub-tasks
+	Level        int     `gorm:"not null;default:0;index:idx_task_trace_level"`    // Task level in the trace
+	Sequence     int     `gorm:"not null;default:0;index:idx_task_trace_sequence"` // Task sequence in the trace
+
 	State     consts.TaskState  `gorm:"not null;default:0;index:idx_task_type_state;index:idx_task_project_state"`   // Event type for the task Running
 	Status    consts.StatusType `gorm:"not null;default:1;index:idx_task_type_status;index:idx_task_project_status"` // Status: -1:deleted 0:disabled 1:enabled
 	CreatedAt time.Time         `gorm:"autoCreateTime;index"`                                                        // Creation time with index
-	UpdatedAt time.Time         `gorm:"autoUpdateTime"`                                                              // Update time
+	UpdatedAt time.Time         `gorm:"autoUpdateTime"`
 
 	// Foreign key association
-	Project *Project `gorm:"foreignKey:ProjectID"`
+	Project    *Project `gorm:"foreignKey:ProjectID"`
+	Trace      *Trace   `gorm:"foreignKey:TraceID;references:ID;constraint:OnDelete:CASCADE"`
+	ParentTask *Task    `gorm:"foreignKey:ParentTaskID;references:ID;constraint:OnDelete:CASCADE"`
 
 	// One-to-one back reference with cascade delete
 	FaultInjection *FaultInjection `gorm:"foreignKey:TaskID;references:ID;constraint:OnDelete:CASCADE"`
 	Execution      *Execution      `gorm:"foreignKey:TaskID;references:ID;constraint:OnDelete:CASCADE"`
+
+	// One-to-many relationship with sub-tasks
+	SubTasks []Task `gorm:"foreignKey:ParentTaskID;references:ID"`
 }
 
 // FaultInjectionSchedule model

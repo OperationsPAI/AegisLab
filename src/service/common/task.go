@@ -1,6 +1,7 @@
 package common
 
 import (
+	"aegis/client"
 	"aegis/consts"
 	"aegis/database"
 	"aegis/dto"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/robfig/cron/v3"
+	"gorm.io/gorm"
 )
 
 // cronNextTime calculates the next execution time from a cron expression
@@ -44,40 +46,87 @@ func CronNextTime(expr string) (time.Time, error) {
 //	               -> Task 3
 //	               -> Task 4
 //	               -> Task 5
-func SubmitTask(ctx context.Context, task *dto.UnifiedTask) error {
-	if task.TaskID == "" {
-		task.TaskID = uuid.NewString()
+func SubmitTask(ctx context.Context, t *dto.UnifiedTask) error {
+	if t.TraceID == "" {
+		t.TraceID = uuid.NewString()
 	}
 
-	if task.TraceID == "" {
-		task.TraceID = uuid.NewString()
+	if t.TaskID == "" {
+		t.TaskID = uuid.NewString()
 	}
 
-	t, err := task.ConvertToTask()
+	if t.ParentTaskID != nil && t.State != consts.TaskRescheduled {
+		parentLevel, err := repository.GetParentTaskLevelByID(database.DB, *t.ParentTaskID)
+		if err != nil {
+			return fmt.Errorf("failed to get parent task level: %w", err)
+		}
+		t.Level = parentLevel + 1
+	}
+
+	if !t.Immediate {
+		if err := calculateExecuteTime(t); err != nil {
+			return fmt.Errorf("failed to calculate execute time: %w", err)
+		}
+	}
+
+	var trace *database.Trace
+	var err error
+	if t.ParentTaskID == nil && t.State != consts.TaskRescheduled {
+		withAlgorithms := false
+		leafNum := 1
+		if t.Type == consts.TaskTypeRestartPedestal {
+			var algorithms []dto.ContainerVersionItem
+			if err := client.GetHashField(ctx, consts.InjectionAlgorithmsKey, t.GroupID, &algorithms); err != nil {
+				return fmt.Errorf("failed to get algorithms from redis: %w", err)
+			}
+
+			if len(algorithms) > 0 {
+				withAlgorithms = true
+				leafNum = len(algorithms)
+			}
+		}
+
+		trace, err = t.ConvertToTrace(withAlgorithms, leafNum)
+		if err != nil {
+			return fmt.Errorf("failed to convert to trace: %w", err)
+		}
+	}
+
+	task, err := t.ConvertToTask()
 	if err != nil {
 		return fmt.Errorf("failed to convert to task: %w", err)
 	}
 
-	if err := repository.UpsertTask(database.DB, t); err != nil {
-		return fmt.Errorf("failed to upsert task to database: %w", err)
+	err = database.DB.Transaction(func(tx *gorm.DB) error {
+		if trace != nil {
+			if err := repository.UpsertTrace(tx, trace); err != nil {
+				return fmt.Errorf("failed to upsert trace to database: %w", err)
+			}
+		}
+
+		if err := repository.UpsertTask(tx, task); err != nil {
+			return fmt.Errorf("failed to upsert task to database: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
 	}
 
-	taskData, err := json.Marshal(task)
+	taskData, err := json.Marshal(t)
 	if err != nil {
 		return fmt.Errorf("failed to marshal task data: %w", err)
 	}
 
-	if task.Immediate {
-		err = repository.SubmitImmediateTask(ctx, taskData, task.TaskID)
+	if t.Immediate {
+		err = repository.SubmitImmediateTask(ctx, taskData, t.TaskID)
 	} else {
-		if err = calculateExecuteTime(task); err != nil {
-			return err
-		}
-		err = repository.SubmitDelayedTask(ctx, taskData, task.TaskID, task.ExecuteTime)
+		err = repository.SubmitDelayedTask(ctx, taskData, t.TaskID, t.ExecuteTime)
 	}
 
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to submit task to queue (task saved in DB): %w", err)
 	}
 
 	return nil

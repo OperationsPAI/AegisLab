@@ -24,19 +24,19 @@ import (
 
 var payloadTypeRegistry = map[consts.EventType]reflect.Type{
 	// Algorithm execution events
-	consts.EventAlgoRunSucceed: reflect.TypeOf(dto.ExecutionResult{}),
-	consts.EventAlgoRunFailed:  reflect.TypeOf(dto.ExecutionResult{}),
+	consts.EventAlgoRunSucceed: reflect.TypeFor[dto.ExecutionResult](),
+	consts.EventAlgoRunFailed:  reflect.TypeFor[dto.ExecutionResult](),
 
 	// Dataset Build events
-	consts.EventDatapackBuildSucceed: reflect.TypeOf(dto.DatapackResult{}),
-	consts.EventDatapackBuildFailed:  reflect.TypeOf(dto.DatapackResult{}),
+	consts.EventDatapackBuildSucceed: reflect.TypeFor[dto.DatapackResult](),
+	consts.EventDatapackBuildFailed:  reflect.TypeFor[dto.DatapackResult](),
 
 	// Task status events
-	consts.EventTaskStateUpdate: reflect.TypeOf(dto.InfoPayloadTemplate{}),
+	consts.EventTaskStateUpdate: reflect.TypeFor[dto.InfoPayloadTemplate](),
 
 	// K8s Job events
-	consts.EventJobSucceed: reflect.TypeOf(dto.JobMessage{}),
-	consts.EventJobFailed:  reflect.TypeOf(dto.JobMessage{}),
+	consts.EventJobSucceed: reflect.TypeFor[dto.JobMessage](),
+	consts.EventJobFailed:  reflect.TypeFor[dto.JobMessage](),
 }
 
 type traceEventData struct {

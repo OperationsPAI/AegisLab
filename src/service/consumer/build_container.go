@@ -72,7 +72,7 @@ func executeBuildContainer(ctx context.Context, task *dto.UnifiedTask) error {
 
 		defer func() {
 			if acquired {
-				if releaseErr := rateLimiter.ReleaseToken(ctx, task.TaskID, task.TraceID); releaseErr != nil {
+				if releaseErr := rateLimiter.ReleaseToken(childCtx, task.TaskID, task.TraceID); releaseErr != nil {
 					logEntry.Error("Failed to release build container token")
 				}
 			}
@@ -83,33 +83,18 @@ func executeBuildContainer(ctx context.Context, task *dto.UnifiedTask) error {
 			return handleExecutionError(span, logEntry, "failed to parse build payload", err)
 		}
 
-		updateTaskState(
-			childCtx,
-			task.TraceID,
-			task.TaskID,
-			fmt.Sprintf("building image for task %s", task.TaskID),
-			consts.TaskRunning,
-			task.Type,
-		)
-
 		if err := buildImageAndPush(childCtx, payload, logEntry); err != nil {
 			return err
 		}
 
-		publishEvent(childCtx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
-			TaskID:    task.TaskID,
-			TaskType:  task.Type,
-			EventName: consts.EventImageBuildSucceed,
-			Payload:   payload.imageRef,
-		})
-
-		updateTaskState(
-			childCtx,
-			task.TraceID,
-			task.TaskID,
-			fmt.Sprintf(consts.TaskMsgCompleted, task.TaskID),
-			consts.TaskCompleted,
-			task.Type,
+		updateTaskState(childCtx,
+			newTaskStateUpdate(
+				task.TraceID,
+				task.TaskID,
+				task.Type,
+				consts.TaskCompleted,
+				fmt.Sprintf("Container image %s built and pushed successfully", payload.imageRef),
+			).withEvent(consts.EventImageBuildSucceed, payload.imageRef),
 		)
 
 		if err := os.RemoveAll(payload.sourcePath); err != nil {
@@ -139,24 +124,18 @@ func rescheduleContainerBuildingTask(ctx context.Context, task *dto.UnifiedTask,
 
 		tracing.SetSpanAttribute(childCtx, consts.TaskStateKey, consts.GetTaskStateName(consts.TaskRescheduled))
 
-		publishEvent(childCtx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
-			TaskID:    task.TaskID,
-			TaskType:  consts.TaskTypeBuildContainer,
-			EventName: consts.EventNoTokenAvailable,
-			Payload:   executeTime.String(),
-		})
-
-		updateTaskState(
-			childCtx,
-			task.TraceID,
-			task.TaskID,
-			reason,
-			consts.TaskRescheduled,
-			consts.TaskTypeBuildContainer,
+		updateTaskState(childCtx,
+			newTaskStateUpdate(
+				task.TraceID,
+				task.TaskID,
+				task.Type,
+				consts.TaskRescheduled,
+				reason,
+			).withEvent(consts.EventNoTokenAvailable, executeTime.String()),
 		)
 
 		task.Reschedule(executeTime)
-		if err := common.SubmitTask(ctx, task); err != nil {
+		if err := common.SubmitTask(childCtx, task); err != nil {
 			span.RecordError(err)
 			span.AddEvent("failed to submit rescheduled task")
 			return fmt.Errorf("failed to submit rescheduled container building task: %v", err)
@@ -311,12 +290,12 @@ func buildImageAndPush(ctx context.Context, payload *containerPayload, logEntry 
 			)
 			logrus.Info("Build finished")
 			if err != nil {
-				bklog.G(ctx).Errorf("build failed: %v", err)
+				bklog.G(childCtx).Errorf("build failed: %v", err)
 				return err
 			}
 
 			for k, v := range resp.ExporterResponse {
-				bklog.G(ctx).Debugf("exporter response: %s=%s", k, v)
+				bklog.G(childCtx).Debugf("exporter response: %s=%s", k, v)
 			}
 			return err
 		})

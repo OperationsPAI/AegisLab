@@ -639,6 +639,42 @@ func ProduceRestartPedestalTasks(ctx context.Context, req *dto.SubmitInjectionRe
 		return nil, fmt.Errorf("failed to remove duplicated batches: %w", err)
 	}
 
+	if len(req.Algorithms) > 0 {
+		refs := make([]*dto.ContainerRef, 0, len(req.Algorithms))
+		for i := range req.Algorithms {
+			refs = append(refs, &req.Algorithms[i].ContainerRef)
+		}
+
+		algorithmVersionsResults, err := common.MapRefsToContainerVersions(refs, consts.ContainerTypeAlgorithm, userID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to map container refs to versions: %w", err)
+		}
+
+		var algorithmVersionItems []dto.ContainerVersionItem
+		for i := range req.Algorithms {
+			spec := &req.Algorithms[i]
+			algorithmVersion, exists := algorithmVersionsResults[&spec.ContainerRef]
+			if !exists {
+				return nil, fmt.Errorf("algorithm version not found for %v", spec)
+			}
+
+			algorithmVersionItem := dto.NewContainerVersionItem(&algorithmVersion)
+			envVars, err := common.ListContainerVersionEnvVars(spec.EnvVars, &algorithmVersion)
+			if err != nil {
+				return nil, fmt.Errorf("failed to list algorithm env vars: %w", err)
+			}
+
+			algorithmVersionItem.EnvVars = envVars
+			algorithmVersionItems = append(algorithmVersionItems, algorithmVersionItem)
+		}
+
+		if len(algorithmVersionItems) > 0 {
+			if err := client.SetHashField(ctx, consts.InjectionAlgorithmsKey, groupID, algorithmVersionItems); err != nil {
+				return nil, fmt.Errorf("failed to store injection algorithms: %w", err)
+			}
+		}
+	}
+
 	injectionItems := make([]dto.SubmitInjectionItem, 0, len(uniqueItems))
 	for _, item := range uniqueItems {
 		payload := map[string]any{
@@ -677,39 +713,6 @@ func ProduceRestartPedestalTasks(ctx context.Context, req *dto.SubmitInjectionRe
 			TaskID:  task.TaskID,
 		})
 	}
-	refs := make([]*dto.ContainerRef, 0, len(req.Algorithms))
-	for i := range req.Algorithms {
-		refs = append(refs, &req.Algorithms[i].ContainerRef)
-	}
-
-	algorithmVersionsResults, err := common.MapRefsToContainerVersions(refs, consts.ContainerTypeAlgorithm, userID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to map container refs to versions: %w", err)
-	}
-
-	var algorithmVersionItems []dto.ContainerVersionItem
-	for i := range req.Algorithms {
-		spec := &req.Algorithms[i]
-		algorithmVersion, exists := algorithmVersionsResults[&spec.ContainerRef]
-		if !exists {
-			return nil, fmt.Errorf("algorithm version not found for %v", spec)
-		}
-
-		algorithmVersionItem := dto.NewContainerVersionItem(&algorithmVersion)
-		envVars, err := common.ListContainerVersionEnvVars(spec.EnvVars, &algorithmVersion)
-		if err != nil {
-			return nil, fmt.Errorf("failed to list algorithm env vars: %w", err)
-		}
-
-		algorithmVersionItem.EnvVars = envVars
-		algorithmVersionItems = append(algorithmVersionItems, algorithmVersionItem)
-	}
-
-	if len(algorithmVersionItems) > 0 {
-		if err := client.SetHashField(ctx, consts.InjectionAlgorithmsKey, groupID, algorithmVersionItems); err != nil {
-			return nil, fmt.Errorf("failed to store injection algorithms: %w", err)
-		}
-	}
 
 	return &dto.SubmitInjectionResp{
 		GroupID:         groupID,
@@ -717,28 +720,6 @@ func ProduceRestartPedestalTasks(ctx context.Context, req *dto.SubmitInjectionRe
 		DuplicatedCount: len(processedItems) - len(uniqueItems),
 		OriginalCount:   len(processedItems),
 	}, nil
-}
-
-// ProduceFaultInjectionTasks produces fault injection tasks into Redis based on the request specifications
-func ProduceFaultInjectionTasks(ctx context.Context, task *dto.UnifiedTask, injectTime time.Time, payload map[string]any) error {
-	newTask := &dto.UnifiedTask{
-		Type:         consts.TaskTypeFaultInjection,
-		Immediate:    false,
-		ExecuteTime:  injectTime.Unix(),
-		Payload:      payload,
-		TraceID:      task.TraceID,
-		GroupID:      task.GroupID,
-		ProjectID:    task.ProjectID,
-		UserID:       task.UserID,
-		State:        consts.TaskPending,
-		TraceCarrier: task.TraceCarrier,
-		GroupCarrier: task.GroupCarrier,
-	}
-	err := common.SubmitTask(ctx, newTask)
-	if err != nil {
-		return fmt.Errorf("failed to submit fault injection task: %w", err)
-	}
-	return nil
 }
 
 // ProduceDatapackBuildingTasks produces datapack building tasks into Redis based on the request specifications

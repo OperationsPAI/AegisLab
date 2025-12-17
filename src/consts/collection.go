@@ -108,9 +108,30 @@ var TaskTypeMap = map[TaskType]string{
 	TaskTypeRestartPedestal: "RestartPedestal",
 	TaskTypeFaultInjection:  "FaultInjection",
 	TaskTypeRunAlgorithm:    "RunAlgorithm",
-	TaskTypeBuildDatapack:   "BuildDataset",
+	TaskTypeBuildDatapack:   "BuildDatapack",
 	TaskTypeCollectResult:   "CollectResult",
 	TaskTypeCronJob:         "CronJob",
+}
+
+var TraceTypeMap = map[TraceType]string{
+	TraceTypeFullPipeline:   "FullPipeline",
+	TraceTypeFaultInjection: "FaultInjection",
+	TraceTypeDatapackBuild:  "DatapackBuild",
+	TraceTypeAlgorithmRun:   "AlgorithmRun",
+}
+
+var TraceTypeHeightMap = map[TraceType]int{
+	TraceTypeFullPipeline:   7,
+	TraceTypeFaultInjection: 5,
+	TraceTypeDatapackBuild:  3,
+	TraceTypeAlgorithmRun:   2,
+}
+
+var TraceStateMap = map[TraceState]string{
+	TracePending:   "Pending",
+	TraceRunning:   "Running",
+	TraceCompleted: "Completed",
+	TraceFailed:    "Failed",
 }
 
 // SystemRoleDisplayNames maps system role names to their display names
@@ -305,4 +326,18 @@ func GetTaskTypeByName(name string) *TaskType {
 	}
 
 	return nil
+}
+
+func GetTraceTypeName(traceType TraceType) string {
+	if name, exists := TraceTypeMap[traceType]; exists {
+		return name
+	}
+	return "Unknown"
+}
+
+func GetTraceStateName(state TraceState) string {
+	if name, exists := TraceStateMap[state]; exists {
+		return name
+	}
+	return "Unknown"
 }

@@ -162,20 +162,14 @@ func rescheduleAlgoExecutionTask(ctx context.Context, task *dto.UnifiedTask, rea
 
 		tracing.SetSpanAttribute(childCtx, consts.TaskStateKey, consts.GetTaskStateName(consts.TaskPending))
 
-		publishEvent(childCtx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
-			TaskID:    task.TaskID,
-			TaskType:  consts.TaskTypeRunAlgorithm,
-			EventName: consts.EventNoTokenAvailable,
-			Payload:   executeTime.String(),
-		})
-
-		updateTaskState(
-			childCtx,
-			task.TraceID,
-			task.TaskID,
-			reason,
-			consts.TaskRescheduled,
-			consts.TaskTypeRunAlgorithm,
+		updateTaskState(childCtx,
+			newTaskStateUpdate(
+				task.TraceID,
+				task.TaskID,
+				consts.TaskTypeRunAlgorithm,
+				consts.TaskRescheduled,
+				reason,
+			).withEvent(consts.EventNoTokenAvailable, executeTime.String()),
 		)
 
 		task.Reschedule(executeTime)

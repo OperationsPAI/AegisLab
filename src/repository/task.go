@@ -267,6 +267,30 @@ func GetTaskByID(db *gorm.DB, taskID string) (*database.Task, error) {
 	return &result, nil
 }
 
+// GetTaskWithParentByID retrieves a task along with its parent task by ID
+func GetTaskWithParentByID(db *gorm.DB, taskID string) (*database.Task, error) {
+	var result database.Task
+	if err := db.
+		Preload("ParentTask").
+		Where("id = ? AND status != ?", taskID, consts.CommonDeleted).
+		First(&result).Error; err != nil {
+		return nil, fmt.Errorf("failed to find task with id %s: %w", taskID, err)
+	}
+	return &result, nil
+}
+
+// GetParentTaskLevelByID retrieves the level of a parent task by its ID
+func GetParentTaskLevelByID(db *gorm.DB, parentTaskID string) (int, error) {
+	var result database.Task
+	if err := db.
+		Select("level").
+		Where("id = ? AND status != ?", parentTaskID, consts.CommonDeleted).
+		First(&result).Error; err != nil {
+		return 0, fmt.Errorf("failed to find parent task with id %s: %w", parentTaskID, err)
+	}
+	return result.Level, nil
+}
+
 // ListTasks lists tasks based on filter and pagination with preloaded associations
 func ListTasks(db *gorm.DB, limit, offset int, filterOptions *dto.ListTaskFilters) ([]database.Task, int64, error) {
 	var tasks []database.Task

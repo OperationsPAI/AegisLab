@@ -199,6 +199,24 @@ const (
 	TaskCompleted   TaskState = 3
 )
 
+type TraceType int
+
+const (
+	TraceTypeFullPipeline   TraceType = iota // Complete fault injection + algorithm execution pipeline
+	TraceTypeFaultInjection                  // Fault injection workflow
+	TraceTypeDatapackBuild                   // Datapack building workflow
+	TraceTypeAlgorithmRun                    // Algorithm execution workflow
+)
+
+type TraceState int
+
+const (
+	TracePending   TraceState = iota // Trace is pending/not started
+	TraceRunning                     // Trace is currently running
+	TraceCompleted                   // Trace completed successfully
+	TraceFailed                      // Trace failed with errors
+)
+
 type TaskType int
 
 const (
@@ -315,26 +333,6 @@ const (
 type EventType string
 
 const (
-	// when adding the consts, remember to update the consts in python sdk, const.py
-	EventAlgoRunSucceed       EventType = "algorithm.run.succeed"
-	EventAlgoRunFailed        EventType = "algorithm.run.failed"
-	EventAlgoResultCollection EventType = "algorithm.result.collection"
-	EventAlgoNoResultData     EventType = "algorithm.no_result_data"
-
-	EventDatapackBuildSucceed     EventType = "datapack.build.succeed"
-	EventDatapackBuildFailed      EventType = "datapack.build.failed"
-	EventDatapackResultCollection EventType = "datapack.result.collection"
-	EventDatapackNoAnomaly        EventType = "datapack.no_anomaly"
-	EventDatapackNoDetectorData   EventType = "datapack.no_detector_data"
-
-	EventImageBuildSucceed EventType = "image.build.succeed"
-
-	EventTaskStateUpdate EventType = "task.state.update"
-	EventTaskRetryStatus EventType = "task.retry.status"
-	EventTaskStarted     EventType = "task.started"
-
-	EventNoTokenAvailable         EventType = "no.token.available"
-	EventNoNamespaceAvailable     EventType = "no.namespace.available"
 	EventRestartPedestalStarted   EventType = "restart.pedestal.started"
 	EventRestartPedestalCompleted EventType = "restart.pedestal.completed"
 	EventRestartPedestalFailed    EventType = "restart.pedestal.failed"
@@ -342,6 +340,30 @@ const (
 	EventFaultInjectionStarted   EventType = "fault.injection.started"
 	EventFaultInjectionCompleted EventType = "fault.injection.completed"
 	EventFaultInjectionFailed    EventType = "fault.injection.failed"
+
+	EventAlgoRunStarted       EventType = "algorithm.run.started"
+	EventAlgoRunSucceed       EventType = "algorithm.run.succeed"
+	EventAlgoRunFailed        EventType = "algorithm.run.failed"
+	EventAlgoResultCollection EventType = "algorithm.result.collection"
+	EventAlgoNoResultData     EventType = "algorithm.no_result_data"
+
+	EventDatapackBuildStarted     EventType = "datapack.build.started"
+	EventDatapackBuildSucceed     EventType = "datapack.build.succeed"
+	EventDatapackBuildFailed      EventType = "datapack.build.failed"
+	EventDatapackResultCollection EventType = "datapack.result.collection"
+	EventDatapackNoAnomaly        EventType = "datapack.no_anomaly"
+	EventDatapackNoDetectorData   EventType = "datapack.no_detector_data"
+
+	EventImageBUildStarted EventType = "image.build.started"
+	EventImageBuildSucceed EventType = "image.build.succeed"
+	EventImageBuildFailed  EventType = "image.build.failed"
+
+	EventTaskStarted     EventType = "task.started"
+	EventTaskStateUpdate EventType = "task.state.update"
+	EventTaskRetryStatus EventType = "task.retry.status"
+
+	EventNoNamespaceAvailable EventType = "no.namespace.available"
+	EventNoTokenAvailable     EventType = "no.token.available"
 
 	EventAcquireLock EventType = "acquire.lock"
 	EventReleaseLock EventType = "release.lock"
