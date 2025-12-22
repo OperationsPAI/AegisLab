@@ -101,7 +101,7 @@ defaultCRConfig:
     repository: otel/opentelemetry-collector-contrib
     pullPolicy: IfNotPresent
     # By default, the version set for the collector will match the version of the operator being run.
-    tag: "0.134.1-amd64"
+    tag: "0.142.0-amd64"
     # When digest is set to a non-empty value, images will be pulled by digest (regardless of tag value).
     digest: ""
   command:
@@ -619,8 +619,8 @@ collectors:
               to: body
       processors:
         batch:
-          send_batch_size: 10000
-          send_batch_max_size: 20000
+          send_batch_size: 2000
+          send_batch_max_size: 4000
           timeout: 5s
         memory_limiter:
           check_interval: 1s
@@ -696,6 +696,7 @@ collectors:
             exporters:
               - clickhouse
             processors: [memory_limiter,k8sattributes, batch]
+            receivers: [otlp]
   deploy: 
     suffix: deployment
     mode: "deployment"
@@ -741,8 +742,8 @@ collectors:
       processors:
         batch:
           timeout: 5s
-          send_batch_size: 10000
-          send_batch_max_size: 20000
+          send_batch_size: 2000
+          send_batch_max_size: 4000
         memory_limiter:
           check_interval: 5s
           limit_percentage: 80
@@ -786,9 +787,9 @@ collectors:
         otlp:
           protocols:
             grpc:
-              endpoint: ${env:OTEL_K8S_POD_IP}:4317
+              endpoint: 0.0.0.0:4317
             http:
-              endpoint: ${env:OTEL_K8S_POD_IP}:4318
+              endpoint: 0.0.0.0:4318
           ## otel-demo applications start here
         httpcheck/frontend-proxy:
           targets:
@@ -932,11 +933,6 @@ instrumentation:
   propagators:
     - tracecontext
     - baggage
-    - b3
-    - b3multi
-    - jaeger
-    - xray
-    - ottrace
 
   # Sampler configuration
   # sampler: {}
@@ -957,12 +953,14 @@ instrumentation:
   #   value: value2
 
   # Java agent configuration
-  java: {}
-  # image: myregistry/java-agent:latest
+  java: 
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.23.0
   # volumeLimitSize: 200Mi
-  # env:
-  #   - name: JAVA_ENV_VAR
-  #     value: java_value
+    env:
+      - name: OTEL_EXPORTER_OTLP_ENDPOINT
+        value: http://opentelemetry-kube-stack-deployment-collector.monitoring:4317
+      - name: OTEL_EXPORTER_OTLP_PROTOCOL
+        value: grpc
   # resources:
   #   requests:
   #     memory: "64Mi"
