@@ -86,6 +86,7 @@ type LabelCategory int
 
 const (
 	SystemCategory LabelCategory = iota
+	ConfigCategory
 	ContainerCategory
 	DatasetCategory
 	ProjectCategory
@@ -114,12 +115,41 @@ const (
 	BuildSourceTypeHarbor BuildSourceType = "harbor"
 )
 
+type ConfigHistoryChangeType int
+
+const (
+	ChangeTypeUpdate ConfigHistoryChangeType = iota
+	ChangeTypeRollback
+)
+
+type ConfigHistoryChangeField int
+
+const (
+	ChangeFieldValue ConfigHistoryChangeField = iota
+	ChangeFieldDescription
+	ChangeFieldDefaultValue
+	ChangeFieldMinValue
+	ChangeFieldMaxValue
+	ChangeFieldPattern
+	ChangeFieldOptions
+)
+
 type ContainerType int
 
 const (
 	ContainerTypeAlgorithm ContainerType = iota
 	ContainerTypeBenchmark
 	ContainerTypePedestal
+)
+
+type ConfigValueType int
+
+const (
+	ConfigValueTypeString ConfigValueType = iota
+	ConfigValueTypeBool
+	ConfigValueTypeInt
+	ConfigValueTypeFloat
+	ConfigValueTypeStringArray
 )
 
 type ParameterType int
@@ -511,6 +541,7 @@ const (
 	URLPathUserID       = "user_id"
 	URLPathRoleID       = "role_id"
 	URLPathPermissionID = "permission_id"
+	URLPathConfigID     = "config_id"
 	URLPathContainerID  = "container_id"
 	URLPathVersionID    = "version_id"
 	URLPathDatasetID    = "dataset_id"

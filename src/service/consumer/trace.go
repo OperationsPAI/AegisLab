@@ -22,6 +22,13 @@ type levelStatistics struct {
 	Pending   int
 }
 
+var traceTypeHeightMap = map[consts.TraceType]int{
+	consts.TraceTypeFullPipeline:   7,
+	consts.TraceTypeFaultInjection: 5,
+	consts.TraceTypeDatapackBuild:  3,
+	consts.TraceTypeAlgorithmRun:   2,
+}
+
 // -----------------------------------------------------------------------------
 // Trace State Update Functions
 // -----------------------------------------------------------------------------
@@ -247,7 +254,7 @@ func selectBestLastEvent(tasks []database.Task, leafLevel int) consts.EventType 
 
 // inferTraceState infers trace state and last event from all tasks
 func inferTraceState(trace *database.Trace, tasks []database.Task) (consts.TraceState, consts.EventType) {
-	treeHeight := consts.TraceTypeHeightMap[trace.Type]
+	treeHeight := traceTypeHeightMap[trace.Type]
 	stats := buildLevelStatistics(tasks, treeHeight)
 
 	// State inference with priority: Failed > Completed > Running > Pending

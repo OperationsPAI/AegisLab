@@ -111,41 +111,44 @@ func GetInjection(c *gin.Context) {
 // GetInjectionMetadata
 //
 //	@Summary		Get Injection Metadata
-//	@Description	Get injection-related metadata including configuration, field mappings, and namespace resources
+//	@Description	Get injection-related metadata including configuration, field mappings, and system resources
 //	@Tags			Injections
 //	@ID				get_injection_metadata
 //	@Produce		json
-//	@Param			namespace	query		string											true	"Namespace prefix for config and resources metadata"
-//	@Success		200			{object}	dto.GenericResponse[dto.InjectionMetadataResp]	"Successfully returned metadata"
-//	@Failure		400			{object}	dto.GenericResponse[any]						"Invalid namespace prefix"
-//	@Failure		401			{object}	dto.GenericResponse[any]						"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]						"Permission denied"
-//	@Failure		404			{object}	dto.GenericResponse[any]						"Resource not found"
-//	@Failure		500			{object}	dto.GenericResponse[any]						"Internal server error"
+//	@Param			system	query		chaos.SystemType								true	"System for config and resources metadata"
+//	@Success		200		{object}	dto.GenericResponse[dto.InjectionMetadataResp]	"Successfully returned metadata"
+//	@Failure		400		{object}	dto.GenericResponse[any]						"Invalid system"
+//	@Failure		401		{object}	dto.GenericResponse[any]						"Authentication required"
+//	@Failure		403		{object}	dto.GenericResponse[any]						"Permission denied"
+//	@Failure		404		{object}	dto.GenericResponse[any]						"Resource not found"
+//	@Failure		500		{object}	dto.GenericResponse[any]						"Internal server error"
 //	@Router			/api/v2/injections/metadata [get]
 //	@x-api-type		{"sdk":"true"}
 func GetInjectionMetadata(c *gin.Context) {
-	nsPrefix := c.Query("namespace")
+	systemStr := c.Query("system")
 
-	confNode, err := chaos.StructToNode[chaos.InjectionConf](nsPrefix)
+	ctx := context.Background()
+	system := chaos.SystemType(systemStr)
+
+	confNode, err := chaos.StructToNode[chaos.InjectionConf](ctx, system)
 	if err != nil {
 		handlers.HandleServiceError(c, err)
 		return
 	}
 
-	faultResourceMap, err := chaos.GetChaosResourceMap()
+	faultResourceMap, err := chaos.GetChaosTypeResourceMappings()
 	if err != nil {
 		handlers.HandleServiceError(c, err)
 		return
 	}
 
-	resourcesMap, err := chaos.GetNsResources()
+	resourceMap, err := chaos.GetSystemResourceMap(ctx)
 	if err != nil {
 		handlers.HandleServiceError(c, err)
 		return
 	}
 
-	resources, exists := resourcesMap[nsPrefix]
+	resource, exists := resourceMap[system]
 	if !exists {
 		dto.ErrorResponse(c, http.StatusNotFound, "Namespace resources not found")
 		return
@@ -155,7 +158,7 @@ func GetInjectionMetadata(c *gin.Context) {
 		Config:           confNode,
 		FaultTypeMap:     chaos.ChaosTypeMap,
 		FaultResourceMap: faultResourceMap,
-		NsResources:      resources,
+		SystemResource:   resource,
 	})
 }
 

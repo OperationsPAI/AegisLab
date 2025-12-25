@@ -17,7 +17,6 @@ import (
 
 	"aegis/config"
 	"aegis/consts"
-	"aegis/utils"
 
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -73,7 +72,7 @@ type Controller struct {
 }
 
 func NewController() *Controller {
-	namespaces, err := utils.GetAllNamespaces()
+	namespaces, err := config.GetAllNamespaces()
 	if err != nil {
 		logrus.WithField("func", "config.GetAllNamespaces").Error(err)
 		panic(err)

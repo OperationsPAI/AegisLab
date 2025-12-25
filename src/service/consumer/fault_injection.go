@@ -136,17 +136,17 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 		groundtruths := make([]database.Groundtruth, 0, len(payload.nodes))
 
 		for i, node := range payload.nodes {
-			injectionConf, err := chaos.NodeToStruct[chaos.InjectionConf](&node)
+			injectionConf, err := chaos.NodeToStruct[chaos.InjectionConf](childCtx, &node)
 			if err != nil {
 				return handleExecutionError(span, logEntry, fmt.Sprintf("failed to convert node %d to injection conf", i), err)
 			}
 
-			displayMap, err := injectionConf.GetDisplayConfig()
+			displayMap, err := injectionConf.GetDisplayConfig(childCtx)
 			if err != nil {
 				return handleExecutionError(span, logEntry, fmt.Sprintf("failed to get display config for node %d", i), err)
 			}
 
-			chaosGroundtruth, err := injectionConf.GetGroundtruth()
+			chaosGroundtruth, err := injectionConf.GetGroundtruth(childCtx)
 			if err != nil {
 				return handleExecutionError(span, logEntry, fmt.Sprintf("failed to get groundtruth for node %d", i), err)
 			}
@@ -190,7 +190,7 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 		)
 
 		// Batch create all fault injections in parallel
-		names, err := chaos.BatchCreate(childCtx, injectionConfs, payload.namespace, annotations, crdLabels)
+		names, err := chaos.BatchCreate(childCtx, injectionConfs, chaos.SystemTrainTicket, payload.namespace, annotations, crdLabels)
 		if err != nil {
 			toReleased = true
 			return handleExecutionError(span, logEntry, "failed to inject faults", err)

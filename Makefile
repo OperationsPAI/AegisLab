@@ -29,7 +29,7 @@ BUILD_COMMAND_SCRIPT := ./scripts/build-command.sh
 COMMAND := . $(COMMAND_DIR)/.venv/bin/activate && uv run python $(COMMAND_DIR)/main.py
 
 # Directory Configuration
-HUSKY_DIR := .husky
+LEFTHOOK_CONFIG := lefthook.yml
 SRC_DIR := src
 
 SDK_VERSION ?=0.0.0
@@ -161,16 +161,15 @@ setup-dev-env: check-prerequisites ## 🛠️  Setup development environment
 		curl -LsSf https://astral.sh/uv/install.sh | sh; \
 		printf "$(GREEN)✅ 'uv' installed!$(RESET)\n"; \
 	fi
-	@printf "$(GRAY)Installing Git hooks...$(RESET)\n"
-	@printf "$(GRAY)Checking Husky Installation Status...$(RESET)\n"
-	@if test -d $(HUSKY_DIR); then \
-		printf "$(YELLOW)Warning: The $(HUSKY_DIR) directory already exists$(RESET)\n"; \
-		printf "$(YELLOW)If you need to re-install, please remove the directory first$(RESET)\n"; \
-	else \
-		printf "$(BLUE)Directory $(HUSKY_DIR) not found. Running initialization...$(RESET)\n"; \
+	@printf "$(GRAY)Installing Git hooks with Lefthook...$(RESET)\n"
+	@if test -f $(LEFTHOOK_CONFIG); then \
 		devbox run install-hooks; \
-		printf "$(GREEN)✅ Development environment setup completed!$(RESET)\n"; \
+		printf "$(GREEN)✅ Lefthook hooks installed successfully!$(RESET)\n"; \
+	else \
+		printf "$(RED)❌ lefthook.yml not found$(RESET)\n"; \
+		exit 1; \
 	fi
+	@printf "$(GREEN)✅ Development environment setup completed!$(RESET)\n"
 
 # =============================================================================
 # Pedestal Function
@@ -252,6 +251,19 @@ clean-all: ## 🧹 Clean all resources
 # =============================================================================
 # Utilities
 # =============================================================================
+
+changelog: ## 📝 Generate CHANGELOG.md (usage: make changelog)
+	@printf "$(BLUE)📝 Generating CHANGELOG.md...$(RESET)\n"
+	@eval "$$(devbox shellenv)" && git-cliff -o CHANGELOG.md
+	@printf "$(GREEN)✅ CHANGELOG.md generated successfully$(RESET)\n"
+
+changelog-preview: ## 👁️  Preview unreleased changes
+	@printf "$(BLUE)👁️  Previewing unreleased changes...$(RESET)\n"
+	@eval "$$(devbox shellenv)" && git-cliff --unreleased
+
+changelog-latest: ## 📋 Show latest release changes
+	@printf "$(BLUE)📋 Showing latest release changes...$(RESET)\n"
+	@eval "$$(devbox shellenv)" && git-cliff --latest
 
 restart: ## 🔄 Restart application
 	@printf "$(BLUE)🔄 Restarting application...$(RESET)\n"

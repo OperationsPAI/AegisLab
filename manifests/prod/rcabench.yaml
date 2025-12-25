@@ -21,12 +21,6 @@ harbor:
   enabled: false
 
 configmap:
-  database:
-    clickhouse:
-      host: "clickstack-clickhouse.monitoring.svc.cluster.local"
-      user: app
-      password: hyperdx
-      timezone: "UTC"
   k8s:
     init_container:
       busybox_image: "pair-diag-cn-guangzhou.cr.volces.com/pair/busybox:1.35"

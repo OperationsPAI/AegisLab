@@ -29,8 +29,7 @@ func GetRedisClient() *redis.Client {
 			DB:       0,
 		})
 
-		ctx := context.Background()
-		if err := redisClient.Ping(ctx).Err(); err != nil {
+		if err := redisClient.Ping(context.Background()).Err(); err != nil {
 			logrus.Fatalf("Failed to connect to Redis: %v", err)
 		}
 	})

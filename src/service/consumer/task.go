@@ -515,7 +515,10 @@ func updateTaskState(ctx context.Context, update *taskStateUpdate) {
 			return err
 		}
 
-		updateTraceState(update.traceID, update.taskID, update.taskState, update.event)
+		if err := updateTraceState(update.traceID, update.taskID, update.taskState, update.event); err != nil {
+			logEntry.Errorf("failed to update trace state: %v", err)
+			return err
+		}
 
 		return nil
 	})

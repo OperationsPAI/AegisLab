@@ -123,19 +123,16 @@ type jobLabels struct {
 	ExecutionID *int
 }
 
-type K8sHandler struct {
-	Monitor *Monitor
+type k8sHandler struct {
 }
 
-var Handler *K8sHandler
+var Handler *k8sHandler
 
-func NewHandler() *K8sHandler {
-	return &K8sHandler{
-		Monitor: GetMonitor(),
-	}
+func NewHandler() *k8sHandler {
+	return &k8sHandler{}
 }
 
-func (h *K8sHandler) HandleCRDAdd(name string, annotations map[string]string, labels map[string]string) {
+func (h *k8sHandler) HandleCRDAdd(name string, annotations map[string]string, labels map[string]string) {
 	parsedAnnotations, err := parseAnnotations(annotations)
 	if err != nil {
 		logrus.Errorf("HandleCRDAdd: failed to parse annotations: %v", err)
@@ -160,7 +157,7 @@ func (h *K8sHandler) HandleCRDAdd(name string, annotations map[string]string, la
 	)
 }
 
-func (h *K8sHandler) HandleCRDDelete(namespace string, annotations map[string]string, labels map[string]string) {
+func (h *k8sHandler) HandleCRDDelete(namespace string, annotations map[string]string, labels map[string]string) {
 	parsedAnnotations, err := parseAnnotations(annotations)
 	if err != nil {
 		logrus.Errorf("HandleCRDDelete: failed to parse annotations: %v", err)
@@ -179,7 +176,7 @@ func (h *K8sHandler) HandleCRDDelete(namespace string, annotations map[string]st
 	}
 }
 
-func (h *K8sHandler) HandleCRDFailed(name string, annotations map[string]string, labels map[string]string, errMsg string) {
+func (h *k8sHandler) HandleCRDFailed(name string, annotations map[string]string, labels map[string]string, errMsg string) {
 	parsedAnnotations, err := parseAnnotations(annotations)
 	if err != nil {
 		logrus.Errorf("HandleCRDFailed: failed to parse annotations: %v", err)
@@ -232,7 +229,7 @@ func (h *K8sHandler) HandleCRDFailed(name string, annotations map[string]string,
 	}
 }
 
-func (h *K8sHandler) HandleCRDSucceeded(namespace, pod, name string, startTime, endTime time.Time, annotations map[string]string, labels map[string]string) {
+func (h *k8sHandler) HandleCRDSucceeded(namespace, pod, name string, startTime, endTime time.Time, annotations map[string]string, labels map[string]string) {
 	parsedAnnotations, err := parseAnnotations(annotations)
 	if err != nil {
 		logrus.Errorf("HandleCRDSucceeded: failed to parse annotations: %v", err)
@@ -321,7 +318,7 @@ func (h *K8sHandler) HandleCRDSucceeded(namespace, pod, name string, startTime, 
 	}
 }
 
-func (h *K8sHandler) HandleJobAdd(annotations map[string]string, labels map[string]string) {
+func (h *k8sHandler) HandleJobAdd(annotations map[string]string, labels map[string]string) {
 	parsedAnnotations, err := parseAnnotations(annotations)
 	if err != nil {
 		logrus.Errorf("HandleJobAdd: failed to parse annotations: %v", err)
@@ -357,7 +354,7 @@ func (h *K8sHandler) HandleJobAdd(annotations map[string]string, labels map[stri
 	)
 }
 
-func (h *K8sHandler) HandleJobFailed(job *batchv1.Job, annotations map[string]string, labels map[string]string) {
+func (h *k8sHandler) HandleJobFailed(job *batchv1.Job, annotations map[string]string, labels map[string]string) {
 	parsedAnnotations, err := parseAnnotations(annotations)
 	if err != nil {
 		logrus.Errorf("HandleJobFailed: parse annotations failed: %v", err)
@@ -510,7 +507,7 @@ func (h *K8sHandler) HandleJobFailed(job *batchv1.Job, annotations map[string]st
 	)
 }
 
-func (h *K8sHandler) HandleJobSucceeded(job *batchv1.Job, annotations map[string]string, labels map[string]string) {
+func (h *k8sHandler) HandleJobSucceeded(job *batchv1.Job, annotations map[string]string, labels map[string]string) {
 	parsedAnnotations, err := parseAnnotations(annotations)
 	if err != nil {
 		logrus.Errorf("HandleJobSucceeded: failed to parse annotations: %v", err)

@@ -147,9 +147,9 @@ type TriggerFailedDatapackRebuildProgressEvent struct {
 }
 
 type InjectionFieldMappingResp struct {
-	StatusMap        map[int]string                 `json:"status" swaggertype:"object"`
-	FaultTypeMap     map[chaos.ChaosType]string     `json:"fault_type" swaggertype:"object"`
-	FaultResourceMap map[string]chaos.ResourceField `json:"fault_resource" swaggertype:"object"`
+	StatusMap        map[int]string                        `json:"status" swaggertype:"object"`
+	FaultTypeMap     map[chaos.ChaosType]string            `json:"fault_type" swaggertype:"object"`
+	FaultResourceMap map[string]chaos.ChaosResourceMapping `json:"fault_resource" swaggertype:"object"`
 }
 
 type ListInjectionFilters struct {
@@ -221,8 +221,6 @@ type SearchInjectionFilters struct {
 	StartTimeLte    *time.Time
 	EndTimeGte      *time.Time
 	EndTimeLte      *time.Time
-	CreatedAtGte    *time.Time
-	CreatedAtLte    *time.Time
 }
 
 // InjectionV2SearchReq represents the request to search injections with various filters
@@ -520,10 +518,10 @@ func NewInjectionDetailResp(entity *database.FaultInjection) *InjectionDetailRes
 
 // InjectionMetadataResp represents the metadata response for injections
 type InjectionMetadataResp struct {
-	Config           *chaos.Node                    `json:"config"`
-	FaultTypeMap     map[chaos.ChaosType]string     `json:"fault_type_map"`
-	FaultResourceMap map[string]chaos.ResourceField `json:"fault_resource_map"`
-	NsResources      chaos.Resources                `json:"ns_resources"`
+	Config           *chaos.Node                           `json:"config"`
+	FaultTypeMap     map[chaos.ChaosType]string            `json:"fault_type_map"`
+	FaultResourceMap map[string]chaos.ChaosResourceMapping `json:"fault_resource_map"`
+	SystemResource   chaos.SystemResource                  `json:"ns_resources"`
 }
 
 type SubmitInjectionItem struct {

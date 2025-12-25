@@ -150,7 +150,6 @@
                                 "overridable": false
                             }
                         ],
-                        "ns_pattern": "^ts\\d+$",
                         "status": 1
                     }
                 }
@@ -186,5 +185,165 @@
         "full_name": "System Admin",
         "status": 1,
         "is_active": true
-    }
+    },
+    "dynamic_configs": [
+        {
+            "key": "debugging.enabled",
+            "value": "true",
+            "default_value": "false",
+            "value_type": 1,
+            "category": "debugging",
+            "description": "Enable or disable debugging features",
+            "is_secret": false
+        },
+        {
+            "key": "database.clickhouse.host",
+            "value": "clickstack-clickhouse.monitoring.svc.cluster.local",
+            "default_value": "clickstack-clickhouse.monitoring.svc.cluster.local",
+            "value_type": 0,
+            "category": "database",
+            "description": "ClickHouse database host",
+            "is_secret": false
+        },
+        {
+            "key": "database.clickhouse.port",
+            "value": "8123",
+            "default_value": "8123",
+            "value_type": 0,
+            "category": "database",
+            "description": "ClickHouse database port",
+            "is_secret": false
+        },
+        {
+            "key": "database.clickhouse.user",
+            "value": "app",
+            "default_value": "default",
+            "value_type": 0,
+            "category": "database",
+            "description": "ClickHouse database user",
+            "is_secret": false
+        },
+        {
+            "key": "database.clickhouse.password",
+            "value": "hyperdx",
+            "default_value": "",
+            "value_type": 0,
+            "category": "database",
+            "description": "ClickHouse database password",
+            "is_secret": true
+        },
+        {
+            "key": "database.clickhouse.db",
+            "value": "default",
+            "default_value": "default",
+            "value_type": 0,
+            "category": "database",
+            "description": "ClickHouse database name",
+            "is_secret": false
+        },
+        {
+            "key": "database.clickhouse.timezone",
+            "value": "UTC",
+            "default_value": "Asia/Shanghai",
+            "value_type": 0,
+            "category": "database",
+            "description": "ClickHouse timezone",
+            "is_secret": false
+        },
+        {
+            "key": "injection.system.ts.count",
+            "value": "1",
+            "default_value": "1",
+            "value_type": 2,
+            "category": "injection",
+            "description": "Number of system Train Ticket to create",
+            "is_secret": false,
+            "min_value": 1,
+            "max_value": 20
+        },
+        {
+            "key": "injection.system.ts.ns_pattern",
+            "value": "^ts\\d+$",
+            "default_value": "^ts\\d+$",
+            "value_type": 0,
+            "category": "injection",
+            "description": "Namespace pattern for system Train Ticket instances",
+            "is_secret": false,
+            "pattern": "^\\^ts\\\\d\\+\\$$"
+        },
+        {
+            "key": "injection.system.ts.extract_pattern",
+            "value": "^(ts)(\\d+)$",
+            "default_value": "^(ts)(\\d+)$",
+            "value_type": 0,
+            "category": "injection",
+            "description": "Extraction pattern for namespace prefix and number from Train Ticket instances",
+            "is_secret": false,
+            "pattern": "^\\^\\(.+\\)\\(\\\\d\\+\\)\\$$"
+        },
+        {
+            "key": "algo.detector",
+            "value": "detector",
+            "default_value": "detector",
+            "value_type": 0,
+            "category": "algo",
+            "description": "Default detector algorithm name",
+            "is_secret": false
+        },
+        {
+            "key": "logging.job.log_retention_days",
+            "value": "7",
+            "default_value": "7",
+            "value_type": 2,
+            "category": "logging",
+            "description": "Number of days to retain job logs",
+            "is_secret": false,
+            "min_value": 1,
+            "max_value": 365
+        },
+        {
+            "key": "rate_limiting.max_concurrent_builds",
+            "value": "3",
+            "default_value": "3",
+            "value_type": 2,
+            "category": "rate_limiting",
+            "description": "Maximum number of concurrent container builds",
+            "is_secret": false,
+            "min_value": 1,
+            "max_value": 20
+        },
+        {
+            "key": "rate_limiting.max_concurrent_restarts",
+            "value": "2",
+            "default_value": "2",
+            "value_type": 2,
+            "category": "rate_limiting",
+            "description": "Maximum number of concurrent service restarts",
+            "is_secret": false,
+            "min_value": 1,
+            "max_value": 10
+        },
+        {
+            "key": "rate_limiting.max_concurrent_algo_execution",
+            "value": "5",
+            "default_value": "5",
+            "value_type": 2,
+            "category": "rate_limiting",
+            "description": "Maximum number of concurrent algorithm executions",
+            "is_secret": false,
+            "min_value": 1,
+            "max_value": 50
+        },
+        {
+            "key": "rate_limiting.token_wait_timeout",
+            "value": "10",
+            "default_value": "10",
+            "value_type": 2,
+            "category": "rate_limiting",
+            "description": "Token wait timeout in seconds",
+            "is_secret": false,
+            "min_value": 1,
+            "max_value": 300
+        }
+    ]
 }

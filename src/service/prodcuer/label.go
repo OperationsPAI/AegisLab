@@ -80,11 +80,7 @@ func BatchDeleteLabels(labelIDs []int) error {
 				totalDecrement += count
 			}
 
-			label.Usage = label.Usage - int(totalDecrement)
-			if label.Usage < 0 {
-				label.Usage = 0
-			}
-
+			label.Usage = max(label.Usage-int(totalDecrement), 0)
 			toUpdatedLabels = append(toUpdatedLabels, *label)
 		}
 
@@ -278,127 +274,79 @@ func UpdateLabel(req *dto.UpdateLabelReq, labelID int) (*dto.LabelResp, error) {
 	return dto.NewLabelResp(updatedLabel), nil
 }
 
-// removeContainersFromLabels removes container associations from multiple labels and returns the total usage count removed
-func removeContainersFromLabels(db *gorm.DB, labelIDs []int) (map[int]int64, error) {
+// labelRemovalOps defines the operations needed to remove associations for a specific entity type
+type labelRemovalOps struct {
+	countFunc  func(*gorm.DB, []int) (map[int]int64, error)
+	removeFunc func(*gorm.DB, []int) (int64, error)
+	entityName string
+}
+
+// removeAssociationsFromLabels is a generic function to remove entity associations from labels
+func removeAssociationsFromLabels(db *gorm.DB, labelIDs []int, ops labelRemovalOps) (map[int]int64, error) {
 	if len(labelIDs) == 0 {
 		return nil, nil
 	}
 
-	countsMap, err := repository.ListContainerLabelCounts(db, labelIDs)
+	countsMap, err := ops.countFunc(db, labelIDs)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get container-label counts: %w", err)
+		return nil, fmt.Errorf("failed to get %s-label counts: %w", ops.entityName, err)
 	}
 	if len(countsMap) == 0 {
 		return nil, nil
 	}
 
-	rows, err := repository.RemoveContainersFromLabels(db, labelIDs)
+	rows, err := ops.removeFunc(db, labelIDs)
 	if err != nil {
-		return nil, fmt.Errorf("failed to remove containers from labels: %w", err)
+		return nil, fmt.Errorf("failed to remove %ss from labels: %w", ops.entityName, err)
 	}
 	if rows == 0 {
 		return nil, nil
 	}
 
 	return countsMap, nil
+}
+
+// removeContainersFromLabels removes container associations from multiple labels and returns the total usage count removed
+func removeContainersFromLabels(db *gorm.DB, labelIDs []int) (map[int]int64, error) {
+	return removeAssociationsFromLabels(db, labelIDs, labelRemovalOps{
+		countFunc:  repository.ListContainerLabelCounts,
+		removeFunc: repository.RemoveContainersFromLabels,
+		entityName: "container",
+	})
 }
 
 // removeDatasetsFromLabels removes dataset associations from multiple labels and returns the count map
 func removeDatasetsFromLabels(db *gorm.DB, labelIDs []int) (map[int]int64, error) {
-	if len(labelIDs) == 0 {
-		return nil, nil
-	}
-
-	countsMap, err := repository.ListDatasetLabelCounts(db, labelIDs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get dataset-label counts: %w", err)
-	}
-	if len(countsMap) == 0 {
-		return nil, nil
-	}
-
-	rows, err := repository.RemoveDatasetsFromLabels(db, labelIDs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to remove datasets from labels: %w", err)
-	}
-	if rows == 0 {
-		return nil, nil
-	}
-
-	return countsMap, nil
+	return removeAssociationsFromLabels(db, labelIDs, labelRemovalOps{
+		countFunc:  repository.ListDatasetLabelCounts,
+		removeFunc: repository.RemoveDatasetsFromLabels,
+		entityName: "dataset",
+	})
 }
 
 // removeProjectsFromLabels removes project associations from multiple labels and returns the count map
 func removeProjectsFromLabels(db *gorm.DB, labelIDs []int) (map[int]int64, error) {
-	if len(labelIDs) == 0 {
-		return nil, nil
-	}
-
-	countsMap, err := repository.ListProjectLabelCounts(db, labelIDs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get project-label counts: %w", err)
-	}
-	if len(countsMap) == 0 {
-		return nil, nil
-	}
-
-	rows, err := repository.RemoveProjectsFromLabels(db, labelIDs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to remove projects from labels: %w", err)
-	}
-	if rows == 0 {
-		return nil, nil
-	}
-
-	return countsMap, nil
+	return removeAssociationsFromLabels(db, labelIDs, labelRemovalOps{
+		countFunc:  repository.ListProjectLabelCounts,
+		removeFunc: repository.RemoveProjectsFromLabels,
+		entityName: "project",
+	})
 }
 
 // removeInjectionsFromLabels removes injection associations from multiple labels and returns the count map
 func removeInjectionsFromLabels(db *gorm.DB, labelIDs []int) (map[int]int64, error) {
-	if len(labelIDs) == 0 {
-		return nil, nil
-	}
-
-	countsMap, err := repository.ListInjectionLabelCounts(db, labelIDs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get injection-label counts: %w", err)
-	}
-	if len(countsMap) == 0 {
-		return nil, nil
-	}
-
-	rows, err := repository.RemoveInjectionsFromLabels(db, labelIDs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to remove injections from labels: %w", err)
-	}
-	if rows == 0 {
-		return nil, nil
-	}
-
-	return countsMap, nil
+	return removeAssociationsFromLabels(db, labelIDs, labelRemovalOps{
+		countFunc:  repository.ListInjectionLabelCounts,
+		removeFunc: repository.RemoveInjectionsFromLabels,
+		entityName: "injection",
+	})
 }
 
 // removeExecutionsFromLabels removes execution associations from multiple labels and returns the count map
 func removeExecutionsFromLabels(db *gorm.DB, labelIDs []int) (map[int]int64, error) {
-	if len(labelIDs) == 0 {
-		return nil, nil
-	}
-
-	countsMap, err := repository.ListExecutionLabelCounts(db, labelIDs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get execution-label counts: %w", err)
-	}
-	if len(countsMap) == 0 {
-		return nil, nil
-	}
-
-	rows, err := repository.RemoveExecutionsFromLabels(db, labelIDs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to remove executions from labels: %w", err)
-	}
-	if rows == 0 {
-		return nil, nil
-	}
-
-	return countsMap, nil
+	return removeAssociationsFromLabels(db, labelIDs, labelRemovalOps{
+		countFunc:  repository.ListExecutionLabelCounts,
+		removeFunc: repository.RemoveExecutionsFromLabels,
+		entityName: "execution",
+	})
 }

@@ -1,0 +1,52 @@
+# Lefthook Configuration for RCABench
+# https://github.com/evilmartians/lefthook
+
+# Pre-commit hook: Run formatting checks and linters
+pre-commit:
+  parallel: true
+  commands:
+    # Go formatting check
+    go-format:
+      glob: "*.go"
+      run: make run-command ARGS="git pre-commit-go"
+      stage_fixed: true
+
+    # Python formatting check  
+    python-format:
+      glob: "*.py"
+      run: make run-command ARGS="git pre-commit-python"
+      stage_fixed: true
+
+# Commit-msg hook: Lint commit message with git-cliff
+commit-msg:
+  commands:
+    cliff-lint:
+      run: |
+        # Extract commit message
+        COMMIT_MSG_FILE={1}
+        COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+        
+        # Check conventional commit format using git-cliff
+        # git-cliff expects conventional commits format:
+        # <type>[optional scope]: <description>
+        # Examples: feat: add new feature, fix(api): resolve bug
+        
+        echo "$COMMIT_MSG" | grep -qE "^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?: .{1,}" || {
+          echo "❌ Commit message does not follow Conventional Commits format!"
+          echo ""
+          echo "Expected format: <type>[optional scope]: <description>"
+          echo ""
+          echo "Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert"
+          echo ""
+          echo "Examples:"
+          echo "  feat: add new authentication system"
+          echo "  fix(api): resolve null pointer exception"
+          echo "  docs: update installation guide"
+          exit 1
+        }
+
+# Pre-push hook: Run tests before push (optional)
+# pre-push:
+#   commands:
+#     tests:
+#       run: make test

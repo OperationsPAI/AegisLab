@@ -401,15 +401,6 @@ func ClearContainerLabels(db *gorm.DB, containerIDs []int, labelIDs []int) error
 	return nil
 }
 
-// RemoveLabelsFromContainer removes all label associations from a specific container
-func RemoveLabelsFromContainer(db *gorm.DB, containerID int) error {
-	if err := db.Where("container_id = ?", containerID).
-		Delete(&database.ContainerLabel{}).Error; err != nil {
-		return fmt.Errorf("failed to remove all labels from container %d: %w", containerID, err)
-	}
-	return nil
-}
-
 // RemoveContainersFromLabel removes all container associations from a specific label
 func RemoveContainersFromLabel(db *gorm.DB, labelID int) (int64, error) {
 	result := db.Where("label_id = ?", labelID).

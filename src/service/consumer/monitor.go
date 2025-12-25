@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"aegis/client"
+	"aegis/config"
 	"aegis/consts"
 	"aegis/dto"
-	"aegis/utils"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
@@ -87,7 +87,7 @@ func GetMonitor() *Monitor {
 
 // initMonitor creates and initializes a new Monitor instance
 func initMonitor() *Monitor {
-	initialNamespaces, err := utils.GetAllNamespaces()
+	initialNamespaces, err := config.GetAllNamespaces()
 	if err != nil {
 		logrus.Fatalf("Failed to get namespaces for initialization: %v", err)
 	}
@@ -102,15 +102,18 @@ func initMonitor() *Monitor {
 			members[i] = ns
 		}
 		redisClient.SAdd(ctx, namespacesKey, members...)
-	}
 
-	// Initialize namespace data in Redis
-	now := time.Now().Unix()
-	for _, namespace := range initialNamespaces {
-		nsKey := fmt.Sprintf(namespaceKeyPattern, namespace)
+		// Initialize namespace data in Redis
+		now := time.Now().Unix()
+		for _, namespace := range initialNamespaces {
+			nsKey := fmt.Sprintf(namespaceKeyPattern, namespace)
 
-		redisClient.HSetNX(ctx, nsKey, "end_time", now)
-		redisClient.HSetNX(ctx, nsKey, "trace_id", "")
+			redisClient.HSetNX(ctx, nsKey, "end_time", now)
+			redisClient.HSetNX(ctx, nsKey, "trace_id", "")
+		}
+	} else {
+		logrus.Warn("No namespaces found during Monitor initialization")
+		return nil
 	}
 
 	return &Monitor{

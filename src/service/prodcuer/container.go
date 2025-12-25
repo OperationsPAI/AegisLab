@@ -103,6 +103,10 @@ func DeleteContainer(containerID int) error {
 			return fmt.Errorf("failed to remove all users from container: %w", err)
 		}
 
+		if err := repository.ClearContainerLabels(tx, []int{containerID}, nil); err != nil {
+			return fmt.Errorf("failed to clear container labels: %w", err)
+		}
+
 		rows, err := repository.DeleteContainer(tx, containerID)
 		if err != nil {
 			return fmt.Errorf("failed to delete container: %w", err)
@@ -132,7 +136,6 @@ func GetContainerDetail(containerID int) (*dto.ContainerDetailResp, error) {
 	}
 
 	resp := dto.NewContainerDetailResp(container)
-
 	for _, version := range versions {
 		resp.Versions = append(resp.Versions, *dto.NewContainerVersionResp(&version))
 	}
@@ -181,7 +184,9 @@ func UpdateContainer(req *dto.UpdateContainerReq, containerID int) (*dto.Contain
 	err := database.DB.Transaction(func(tx *gorm.DB) error {
 		existingContainer, err := repository.GetContainerByID(tx, containerID)
 		if err != nil {
-			return fmt.Errorf("failed to get container: %w", err)
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return fmt.Errorf("%w: container with id %d not found", consts.ErrNotFound, containerID)
+			}
 		}
 
 		req.PatchContainerModel(existingContainer)

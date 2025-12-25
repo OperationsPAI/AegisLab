@@ -626,7 +626,7 @@ func ProduceRestartPedestalTasks(ctx context.Context, req *dto.SubmitInjectionRe
 	// Parse each batch and collect items
 	processedItems := make([]injectionProcessItem, 0, len(req.Specs))
 	for i := range req.Specs {
-		item, err := parseBatchInjectionSpecs(i, req.Specs[i])
+		item, err := parseBatchInjectionSpecs(ctx, i, req.Specs[i])
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse injection spec batch %d: %w", i, err)
 		}
@@ -839,7 +839,7 @@ func batchDeleteInjectionsCore(db *gorm.DB, injectionIDs []int) error {
 }
 
 // parseBatchInjectionSpecs parses a single batch of fault injection specifications for parallel execution
-func parseBatchInjectionSpecs(batchIndex int, specs []chaos.Node) (*injectionProcessItem, error) {
+func parseBatchInjectionSpecs(ctx context.Context, batchIndex int, specs []chaos.Node) (*injectionProcessItem, error) {
 	if len(specs) == 0 {
 		return nil, fmt.Errorf("empty fault injection batch at index %d", batchIndex)
 	}
@@ -868,12 +868,12 @@ func parseBatchInjectionSpecs(batchIndex int, specs []chaos.Node) (*injectionPro
 
 	uniqueServices := make(map[string]int, len(nodes))
 	for idx, node := range nodes {
-		conf, err := chaos.NodeToStruct[chaos.InjectionConf](&node)
+		conf, err := chaos.NodeToStruct[chaos.InjectionConf](ctx, &node)
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert node to InjectionConf at batch %d at index %d: %w", batchIndex, idx, err)
 		}
 
-		groundtruth, err := conf.GetGroundtruth()
+		groundtruth, err := conf.GetGroundtruth(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get groundtruth from InjectionConf at batch %d at index %d: %w", batchIndex, idx, err)
 		}

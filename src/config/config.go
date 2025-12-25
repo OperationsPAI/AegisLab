@@ -1,8 +1,12 @@
 package config
 
 import (
+	"aegis/consts"
+	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -106,6 +110,52 @@ func GetList(key string) []any {
 	return nil
 }
 
+// SetViperValue sets a value in viper based on the value type
+func SetViperValue(key, value string, valueType consts.ConfigValueType) error {
+	switch valueType {
+	case consts.ConfigValueTypeString:
+		viper.Set(key, value)
+
+	case consts.ConfigValueTypeBool:
+		boolVal, err := strconv.ParseBool(value)
+		if err != nil {
+			return fmt.Errorf("invalid bool value for %s: %w", key, err)
+		}
+		viper.Set(key, boolVal)
+
+	case consts.ConfigValueTypeInt:
+		intVal, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid int value for %s: %w", key, err)
+		}
+		viper.Set(key, intVal)
+
+	case consts.ConfigValueTypeFloat:
+		floatVal, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return fmt.Errorf("invalid float value for %s: %w", key, err)
+		}
+		viper.Set(key, floatVal)
+
+	case consts.ConfigValueTypeStringArray:
+		// Parse JSON array
+		var strSlice []string
+		if err := json.Unmarshal([]byte(value), &strSlice); err != nil {
+			// Fallback to comma-separated values
+			strSlice = strings.Split(value, ",")
+			for i := range strSlice {
+				strSlice[i] = strings.TrimSpace(strSlice[i])
+			}
+		}
+		viper.Set(key, strSlice)
+
+	default:
+		return fmt.Errorf("unsupported value type %d for key %s", valueType, key)
+	}
+
+	return nil
+}
+
 // validate validates the configuration
 func validate() error {
 	// Required fields validation
@@ -122,25 +172,13 @@ func validate() error {
 		}
 	}
 
-	// System configuration
-	if !viper.IsSet("system.env_mode") {
-		return fmt.Errorf("required field 'system.env_mode' is missing")
+	// Validate port range
+	port := viper.GetInt("port")
+	if port <= 0 || port > 65535 {
+		return fmt.Errorf("invalid port number: %d (must be between 1-65535)", port)
 	}
 
 	// Database configuration
-	clickhouseFields := []string{
-		"database.clickhouse.host",
-		"database.clickhouse.port",
-		"database.clickhouse.user",
-		"database.clickhouse.password",
-		"database.clickhouse.db",
-	}
-	for _, field := range clickhouseFields {
-		if !viper.IsSet(field) {
-			return fmt.Errorf("required field '%s' is missing", field)
-		}
-	}
-
 	mysqlFields := []string{
 		"database.mysql.host",
 		"database.mysql.port",
@@ -178,25 +216,6 @@ func validate() error {
 	// BuildKit configuration
 	if !viper.IsSet("buildkit.address") {
 		return fmt.Errorf("required field 'buildkit.address' is missing")
-	}
-
-	// Validate port range
-	port := viper.GetInt("port")
-	if port <= 0 || port > 65535 {
-		return fmt.Errorf("invalid port number: %d (must be between 1-65535)", port)
-	}
-
-	// Validate rate limiting values
-	if viper.IsSet("rate_limiting.max_concurrent_builds") {
-		if viper.GetInt("rate_limiting.max_concurrent_builds") <= 0 {
-			return fmt.Errorf("rate_limiting.max_concurrent_builds must be greater than 0")
-		}
-	}
-
-	if viper.IsSet("rate_limiting.max_concurrent_algo_execution") {
-		if viper.GetInt("rate_limiting.max_concurrent_algo_execution") <= 0 {
-			return fmt.Errorf("rate_limiting.max_concurrent_algo_execution must be greater than 0")
-		}
 	}
 
 	logrus.Debug("All required configuration fields are present and valid")

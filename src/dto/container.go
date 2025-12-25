@@ -32,7 +32,6 @@ type HelmConfigItem struct {
 	RepoName  string          `json:"repo_name"`
 	ChartName string          `json:"chart_name"`
 	FullChart string          `json:"full_chart"`
-	NsPattern string          `json:"ns_pattern"`
 	Values    []ParameterItem `json:"values,omitempty"`
 }
 
@@ -42,7 +41,6 @@ func NewHelmConfigItem(cfg *database.HelmConfig) *HelmConfigItem {
 		RepoName:  cfg.RepoName,
 		ChartName: cfg.ChartName,
 		FullChart: cfg.FullChart,
-		NsPattern: cfg.NsPattern,
 	}
 }
 
@@ -257,7 +255,6 @@ type CreateHelmConfigReq struct {
 	ChartName string                     `json:"chart_name" binding:"required"`
 	RepoName  string                     `json:"repo_name" binding:"required"`
 	RepoURL   string                     `json:"repo_url" binding:"required"`
-	NsPattern string                     `json:"ns_pattern" binding:"required"`
 	Values    []CreateParameterConfigReq `json:"values" binding:"omitempty" swaggertype:"object"`
 }
 
@@ -265,7 +262,6 @@ func (req *CreateHelmConfigReq) Validate() error {
 	req.ChartName = strings.TrimSpace(req.ChartName)
 	req.RepoName = strings.TrimSpace(req.RepoName)
 	req.RepoURL = strings.TrimSpace(req.RepoURL)
-	req.NsPattern = strings.TrimSpace(req.NsPattern)
 
 	if req.ChartName == "" {
 		return fmt.Errorf("chart name cannot be empty")
@@ -276,15 +272,9 @@ func (req *CreateHelmConfigReq) Validate() error {
 	if req.RepoURL == "" {
 		return fmt.Errorf("repository URL cannot be empty")
 	}
-	if req.NsPattern == "" {
-		return fmt.Errorf("namespace pattern cannot be empty")
-	}
 
 	if _, err := url.ParseRequestURI(req.RepoURL); err != nil {
 		return fmt.Errorf("invalid repository URL: %s, %w", req.RepoURL, err)
-	}
-	if err := utils.ValidateNsPattern(req.NsPattern); err != nil {
-		return fmt.Errorf("invalid namespace pattern: %s, %w", req.NsPattern, err)
 	}
 
 	for i, val := range req.Values {
@@ -301,7 +291,6 @@ func (req *CreateHelmConfigReq) ConvertToHelmConfig() *database.HelmConfig {
 		ChartName: req.ChartName,
 		RepoName:  req.RepoName,
 		RepoURL:   req.RepoURL,
-		NsPattern: req.NsPattern,
 	}
 
 	if len(req.Values) > 0 {
@@ -648,7 +637,6 @@ type UpdateHelmConfigReq struct {
 	RepoURL      *string         `json:"repo_url" binding:"omitempty"`
 	RepoName     *string         `json:"repo_name" binding:"omitempty"`
 	ChartName    *string         `json:"chart_name" binding:"omitempty"`
-	NsPattern    *string         `json:"ns_pattern" binding:"omitempty"`
 	PortTemplate *string         `json:"port_template" binding:"omitempty"`
 	Values       *map[string]any `json:"values" binding:"omitempty" swaggertype:"object"`
 }
@@ -670,17 +658,6 @@ func (req *UpdateHelmConfigReq) Validate() error {
 	}
 	if req.ChartName != nil {
 		*req.ChartName = strings.TrimSpace(*req.ChartName)
-	}
-	if req.NsPattern != nil {
-		trimmedPattern := strings.TrimSpace(*req.NsPattern)
-		*req.NsPattern = trimmedPattern
-
-		if trimmedPattern == "" {
-			return fmt.Errorf("namespace pattern cannot be empty if provided")
-		}
-		if err := utils.ValidateNsPattern(trimmedPattern); err != nil {
-			return fmt.Errorf("invalid namespace pattern: '%s'. Error: %v", trimmedPattern, err)
-		}
 	}
 	if req.PortTemplate != nil {
 		trimmedTemplate := strings.TrimSpace(*req.PortTemplate)
@@ -706,9 +683,6 @@ func (req *UpdateHelmConfigReq) PatchHelmConfigModel(target *database.HelmConfig
 	}
 	if req.ChartName != nil {
 		target.ChartName = *req.ChartName
-	}
-	if req.NsPattern != nil {
-		target.NsPattern = *req.NsPattern
 	}
 	return nil
 }
@@ -810,7 +784,6 @@ type HelmConfigDetailResp struct {
 	ID           int            `json:"id"`
 	RepoURL      string         `json:"repo_url"`
 	FullChart    string         `json:"full_chart"`
-	NsPattern    string         `json:"ns_pattern"`
 	PortTemplate string         `json:"port_template"`
 	Values       map[string]any `json:"values"`
 }
@@ -820,7 +793,6 @@ func NewHelmConfigDetailResp(cfg *database.HelmConfig) (*HelmConfigDetailResp, e
 		ID:        cfg.ID,
 		RepoURL:   cfg.RepoURL,
 		FullChart: cfg.FullChart,
-		NsPattern: cfg.NsPattern,
 	}
 
 	return resp, nil
@@ -858,6 +830,7 @@ func (req *ManageContainerLabelReq) Validate() error {
 	return nil
 }
 
+// validateContainerType checks if the provided container type is valid
 func validateContainerType(containerType *consts.ContainerType) error {
 	if containerType != nil {
 		if _, exists := consts.ValidContainerTypes[*containerType]; !exists {

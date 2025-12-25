@@ -19,12 +19,25 @@ var ValidContainerTypes = map[ContainerType]struct{}{
 	ContainerTypePedestal:  {},
 }
 
+var ValidConfigHistoryChanteTypes = map[ConfigHistoryChangeType]struct{}{
+	ChangeTypeUpdate:   {},
+	ChangeTypeRollback: {},
+}
+
 var ValidDatapackStates = map[DatapackState]struct{}{
 	DatapackInitial:       {},
 	DatapackInjectFailed:  {},
 	DatapackInjectSuccess: {},
 	DatapackBuildFailed:   {},
 	DatapackBuildSuccess:  {},
+}
+
+var ValidDynamicConfigTypes = map[ConfigValueType]struct{}{
+	ConfigValueTypeBool:        {},
+	ConfigValueTypeInt:         {},
+	ConfigValueTypeFloat:       {},
+	ConfigValueTypeString:      {},
+	ConfigValueTypeStringArray: {},
 }
 
 var ValidExecutionStates = map[ExecutionState]struct{}{
@@ -40,6 +53,7 @@ var ValidGrantTypes = map[GrantType]struct{}{
 
 var ValidLabelCategories = map[LabelCategory]struct{}{
 	SystemCategory:    {},
+	ConfigCategory:    {},
 	ContainerCategory: {},
 	DatasetCategory:   {},
 	ProjectCategory:   {},

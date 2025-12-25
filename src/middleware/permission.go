@@ -231,6 +231,10 @@ var (
 	// Audit permissions
 	RequireAuditRead = RequirePermission("read", "audit")
 
+	// Configuration management permissions
+	RequireConfigRead  = RequirePermission("read", "config")
+	RequireConfigWrite = RequirePermission("write", "config")
+
 	// Resource ownership middlewares
 	RequireUserOwnership        = RequireOwnership("user", "id")
 	RequireAdminOrUserOwnership = RequireAdminOrOwnership("id")

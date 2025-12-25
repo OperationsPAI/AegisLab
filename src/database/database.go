@@ -90,6 +90,7 @@ func InitDB() {
 		&DatasetVersionInjection{},
 		&FaultInjectionLabel{},
 		&ExecutionInjectionLabel{},
+		&ConfigLabel{},
 
 		&UserContainer{},
 		&UserDataset{},
@@ -97,6 +98,10 @@ func InitDB() {
 		&UserRole{},
 		&RolePermission{},
 		&UserPermission{},
+
+		// Dynamic configuration entities
+		&DynamicConfig{},
+		&ConfigHistory{},
 	); err != nil {
 		logrus.Fatalf("Failed to migrate database: %v", err)
 	}

@@ -5,19 +5,21 @@
     "skaffold@2.13.2",
     "ruff@0.9.3",
     "golangci-lint@latest",
-    "husky@8.0.3",
     "kubectl@1.34.1",
     "minikube@latest",
     "kubernetes-helm@latest",
-    "kubectx@latest"
+    "kubectx@latest",
+    "git-cliff@latest",
+    "lefthook@2.0.12"
   ],
   "shell": {
     "init_hook": [
-      "echo 'Welcome to devbox!'"
+      "echo 'Welcome to devbox!'",
+      "lefthook install"
     ],
     "scripts": {
       "install-hooks": [
-        "husky install && husky add .husky/pre-commit 'make pre-commit' && husky add .husky/pre-push 'make pre-push'"
+        "lefthook install"
       ],
       "pre-commit": [
         "make pre-commit"

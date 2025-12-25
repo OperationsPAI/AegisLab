@@ -432,7 +432,7 @@ func UpdateContainerVersion(c *gin.Context) {
 //	@Summary		Manage container custom labels
 //	@Description	Add or remove custom labels (key-value pairs) for a container
 //	@Tags			Containers
-//	@ID				update_container_labels
+//	@ID				manage_container_labels
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth

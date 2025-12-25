@@ -2,6 +2,28 @@ from src.common.common import LanguageType, ScopeType, console
 from src.formatter.common import Formatter
 
 
+def pre_commit_go():
+    """Run pre-commit checks for Go formatting only."""
+    console.print("[bold blue]Checking Go formatting...[/bold blue]")
+    if Formatter.get_formatter(LanguageType.GO, ScopeType.STAGED).run() != 0:
+        console.print(
+            "[bold red]❌ Go formatting failed. Please fix the issues before committing.[/bold red]"
+        )
+        exit(1)
+    console.print("[bold green]✅ Go formatting check passed.[/bold green]")
+
+
+def pre_commit_python():
+    """Run pre-commit checks for Python formatting only."""
+    console.print("[bold blue]Checking Python formatting...[/bold blue]")
+    if Formatter.get_formatter(LanguageType.PYTHON, ScopeType.STAGED).run() != 0:
+        console.print(
+            "[bold red]❌ Python formatting failed. Please fix the issues before committing.[/bold red]"
+        )
+        exit(1)
+    console.print("[bold green]✅ Python formatting check passed.[/bold green]")
+
+
 def pre_commit():
     """Run pre-commit checks for Go and Python formatting."""
     console.print("[bold blue]Running pre-commit checks...[/bold blue]")

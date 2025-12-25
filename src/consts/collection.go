@@ -1,6 +1,6 @@
 package consts
 
-var AuditLogStateMap = map[AuditLogState]string{
+var auditLogStateMap = map[AuditLogState]string{
 	AuditLogStateFailed:  "failed",
 	AuditLogStateSuccess: "success",
 }
@@ -11,7 +11,20 @@ var containerTypeMap = map[ContainerType]string{
 	ContainerTypePedestal:  "pedestal",
 }
 
-var DatapackStateMap = map[DatapackState]string{
+var configHistoryChangeTypeMap = map[ConfigHistoryChangeType]string{
+	ChangeTypeUpdate:   "update",
+	ChangeTypeRollback: "rollback",
+}
+
+var dynamicConfigTypeMap = map[ConfigValueType]string{
+	ConfigValueTypeBool:        "bool",
+	ConfigValueTypeInt:         "int",
+	ConfigValueTypeFloat:       "float",
+	ConfigValueTypeString:      "string",
+	ConfigValueTypeStringArray: "string_array",
+}
+
+var datapackStateMap = map[DatapackState]string{
 	DatapackInitial:         "initial",
 	DatapackInjectFailed:    "inject_failed",
 	DatapackInjectSuccess:   "inject_success",
@@ -21,19 +34,20 @@ var DatapackStateMap = map[DatapackState]string{
 	DatapackDetectorSuccess: "detector_success",
 }
 
-var ExecuteStateMap = map[ExecutionState]string{
+var executeStateMap = map[ExecutionState]string{
 	ExecutionInitial: "initial",
 	ExecutionFailed:  "failed",
 	ExecutionSuccess: "success",
 }
 
-var GrantTypeMap = map[GrantType]string{
+var grantTypeMap = map[GrantType]string{
 	GrantTypeGrant: "grant",
 	GrantTypeDeny:  "deny",
 }
 
-var LabelCategoryMap = map[LabelCategory]string{
+var labelCategoryMap = map[LabelCategory]string{
 	SystemCategory:    "system",
+	ConfigCategory:    "config",
 	ContainerCategory: "container",
 	DatasetCategory:   "dataset",
 	ProjectCategory:   "project",
@@ -41,17 +55,17 @@ var LabelCategoryMap = map[LabelCategory]string{
 	ExecutionCategory: "execution",
 }
 
-var ParameterTypeMap = map[ParameterType]string{
+var parameterTypeMap = map[ParameterType]string{
 	ParameterTypeFixed:   "fixed",
 	ParameterTypeDynamic: "dynamic",
 }
 
-var ParameterCategoryMap = map[ParameterCategory]string{
+var parameterCategoryMap = map[ParameterCategory]string{
 	ParameterCategoryEnvVars:    "env_vars",
 	ParameterCategoryHelmValues: "helm_values",
 }
 
-var ValueDataTypeMap = map[ValueDataType]string{
+var valueDataTypeMap = map[ValueDataType]string{
 	ValueDataTypeString: "string",
 	ValueDataTypeInt:    "int",
 	ValueDataTypeBool:   "bool",
@@ -60,7 +74,7 @@ var ValueDataTypeMap = map[ValueDataType]string{
 	ValueDataTypeObject: "object",
 }
 
-var ResourceDisplayNameMap = map[ResourceName]string{
+var resourceDisplayNameMap = map[ResourceName]string{
 	ResourceSystem:           "System",
 	ResourceAudit:            "Audit",
 	ResourceContainer:        "Container",
@@ -78,23 +92,23 @@ var ResourceDisplayNameMap = map[ResourceName]string{
 	ResourceExecution:        "Execution",
 }
 
-var ResouceTypeMap = map[ResourceType]string{
+var resouceTypeMap = map[ResourceType]string{
 	ResourceTypeSystem: "system",
 	ResourceTypeTable:  "table",
 }
 
-var ResourceCategoryMap = map[ResourceCategory]string{
+var resourceCategoryMap = map[ResourceCategory]string{
 	ResourceCore:  "core",
 	ResourceAdmin: "admin",
 }
 
-var StatusTypeMap = map[StatusType]string{
+var statusTypeMap = map[StatusType]string{
 	CommonDeleted:  "deleted",
 	CommonDisabled: "disabled",
 	CommonEnabled:  "enabled",
 }
 
-var TaskStateMap = map[TaskState]string{
+var taskStateMap = map[TaskState]string{
 	TaskCancelled:   "Cancelled",
 	TaskError:       "Error",
 	TaskPending:     "Pending",
@@ -103,7 +117,7 @@ var TaskStateMap = map[TaskState]string{
 	TaskCompleted:   "Completed",
 }
 
-var TaskTypeMap = map[TaskType]string{
+var taskTypeMap = map[TaskType]string{
 	TaskTypeBuildContainer:  "BuildContainer",
 	TaskTypeRestartPedestal: "RestartPedestal",
 	TaskTypeFaultInjection:  "FaultInjection",
@@ -113,21 +127,14 @@ var TaskTypeMap = map[TaskType]string{
 	TaskTypeCronJob:         "CronJob",
 }
 
-var TraceTypeMap = map[TraceType]string{
+var traceTypeMap = map[TraceType]string{
 	TraceTypeFullPipeline:   "FullPipeline",
 	TraceTypeFaultInjection: "FaultInjection",
 	TraceTypeDatapackBuild:  "DatapackBuild",
 	TraceTypeAlgorithmRun:   "AlgorithmRun",
 }
 
-var TraceTypeHeightMap = map[TraceType]int{
-	TraceTypeFullPipeline:   7,
-	TraceTypeFaultInjection: 5,
-	TraceTypeDatapackBuild:  3,
-	TraceTypeAlgorithmRun:   2,
-}
-
-var TraceStateMap = map[TraceState]string{
+var traceStateMap = map[TraceState]string{
 	TracePending:   "Pending",
 	TraceRunning:   "Running",
 	TraceCompleted: "Completed",
@@ -196,7 +203,7 @@ var SystemRolePermissions = map[RoleName][]PermissionName{
 // ------------------- Functions to get names ------------------
 
 func GetAuditLogStateName(state AuditLogState) string {
-	if name, exists := AuditLogStateMap[state]; exists {
+	if name, exists := auditLogStateMap[state]; exists {
 		return name
 	}
 	return "unknown"
@@ -209,93 +216,107 @@ func GetContainerTypeName(containerType ContainerType) string {
 	return "unknown"
 }
 
+func GetConfigHistoryChangeTypeName(changeType ConfigHistoryChangeType) string {
+	if name, exists := configHistoryChangeTypeMap[changeType]; exists {
+		return name
+	}
+	return "unknown"
+}
+
 func GetDatapackStateName(state DatapackState) string {
-	if name, exists := DatapackStateMap[state]; exists {
+	if name, exists := datapackStateMap[state]; exists {
+		return name
+	}
+	return "unknown"
+}
+
+func GetDynamicConfigTypeName(configType ConfigValueType) string {
+	if name, exists := dynamicConfigTypeMap[configType]; exists {
 		return name
 	}
 	return "unknown"
 }
 
 func GetExecuteStateName(state ExecutionState) string {
-	if name, exists := ExecuteStateMap[state]; exists {
+	if name, exists := executeStateMap[state]; exists {
 		return name
 	}
 	return "unknown"
 }
 
 func GetGrantTypeName(grantType GrantType) string {
-	if name, exists := GrantTypeMap[grantType]; exists {
+	if name, exists := grantTypeMap[grantType]; exists {
 		return name
 	}
 	return "unknown"
 }
 
 func GetLabelCategoryName(category LabelCategory) string {
-	if name, exists := LabelCategoryMap[category]; exists {
+	if name, exists := labelCategoryMap[category]; exists {
 		return name
 	}
 	return "unknown"
 }
 
 func GetParameterTypeName(paramType ParameterType) string {
-	if name, exists := ParameterTypeMap[paramType]; exists {
+	if name, exists := parameterTypeMap[paramType]; exists {
 		return name
 	}
 	return "unknown"
 }
 
 func GetParameterCategoryName(category ParameterCategory) string {
-	if name, exists := ParameterCategoryMap[category]; exists {
+	if name, exists := parameterCategoryMap[category]; exists {
 		return name
 	}
 	return "unknown"
 }
 
 func GetValueDataTypeName(valueType ValueDataType) string {
-	if name, exists := ValueDataTypeMap[valueType]; exists {
+	if name, exists := valueDataTypeMap[valueType]; exists {
 		return name
 	}
 	return "unknown"
 }
 
 func GetResourceDisplayName(resourceName ResourceName) string {
-	if displayName, exists := ResourceDisplayNameMap[resourceName]; exists {
+	if displayName, exists := resourceDisplayNameMap[resourceName]; exists {
 		return displayName
 	}
 	return "Unknown"
 }
 
 func GetResourceTypeName(resourceType ResourceType) string {
-	if name, exists := ResouceTypeMap[resourceType]; exists {
+	if name, exists := resouceTypeMap[resourceType]; exists {
 		return name
 	}
 	return "unknown"
 }
 
 func GetResourceCategoryName(category ResourceCategory) string {
-	if name, exists := ResourceCategoryMap[category]; exists {
+	if name, exists := resourceCategoryMap[category]; exists {
 		return name
 	}
 	return "unknown"
 }
 
 func GetStatusTypeName(status StatusType) string {
-	if name, exists := StatusTypeMap[status]; exists {
+	if name, exists := statusTypeMap[status]; exists {
 		return name
 	}
 	return "unknown"
 }
 
 func GetTaskStateName(state TaskState) string {
-	if name, exists := TaskStateMap[state]; exists {
+	if name, exists := taskStateMap[state]; exists {
 		return name
 	}
 	return "Unknown"
 }
 
 func GetTaskStateByName(name string) *TaskState {
-	taskStateNameToStateMap := make(map[string]TaskState, len(TaskStateMap))
-	for tState, name := range TaskStateMap {
+	taskStateNameToStateMap := make(map[string]TaskState, len(taskStateMap))
+	for tState, name := range taskStateMap {
 		taskStateNameToStateMap[name] = tState
 	}
 
@@ -308,15 +329,15 @@ func GetTaskStateByName(name string) *TaskState {
 }
 
 func GetTaskTypeName(taskType TaskType) string {
-	if name, exists := TaskTypeMap[taskType]; exists {
+	if name, exists := taskTypeMap[taskType]; exists {
 		return name
 	}
 	return "Unknown"
 }
 
 func GetTaskTypeByName(name string) *TaskType {
-	taskTypeNameToTypeMap := make(map[string]TaskType, len(TaskTypeMap))
-	for tType, name := range TaskTypeMap {
+	taskTypeNameToTypeMap := make(map[string]TaskType, len(taskTypeMap))
+	for tType, name := range taskTypeMap {
 		taskTypeNameToTypeMap[name] = tType
 	}
 
@@ -329,14 +350,14 @@ func GetTaskTypeByName(name string) *TaskType {
 }
 
 func GetTraceTypeName(traceType TraceType) string {
-	if name, exists := TraceTypeMap[traceType]; exists {
+	if name, exists := traceTypeMap[traceType]; exists {
 		return name
 	}
 	return "Unknown"
 }
 
 func GetTraceStateName(state TraceState) string {
-	if name, exists := TraceStateMap[state]; exists {
+	if name, exists := traceStateMap[state]; exists {
 		return name
 	}
 	return "Unknown"

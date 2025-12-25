@@ -56,19 +56,7 @@ configmap:
     timezone: "Asia/Shanghai"
   initialization:
     data_path: "/app/data/initial_data"
-  injection:
-    target_label_key: "app"
-    namespace_config:
-      ts:
-        count: 2
   database:
-    clickhouse:
-      host: "10.10.10.58"
-      port: "8123"
-      user: "default"
-      password: "password"
-      db: "default"
-      timezone: "Asia/Shanghai"
     mysql:
       user: "root"
       port: "3306"
@@ -94,21 +82,11 @@ configmap:
     dir: "/app/logs"
     job:
       dir: "jobs"
-      log_retention_days: 7
   jfs:
     dataset_path: "/var/lib/rcabench/dataset"
     experiment_storage_path: "/var/lib/rcabench/experiment_storage"
-  algo:
-    detector: "detector"
   container:
     storage_path: "/app/containers"
-  debugging:
-    enabled: true
-  rate_limiting:
-    max_concurrent_builds: 3
-    max_concurrent_restarts: 2
-    max_concurrent_algo_execution: 5
-    token_wait_timeout: 10
 
 persistence:
   # Global storage type setting - applies to containers, logs, and juicefs sections

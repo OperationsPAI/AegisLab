@@ -37,9 +37,7 @@ import (
 	"aegis/utils"
 
 	chaosCli "github.com/LGU-SE-Internal/chaos-experiment/client"
-	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 	nested "github.com/antonfisher/nested-logrus-formatter"
-	"github.com/gin-gonic/gin"
 	"github.com/go-logr/stdr"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -67,18 +65,6 @@ func initChaosExperiment() {
 	if err := chaosCli.InitWithConfig(k8sConfig); err != nil {
 		logrus.Fatalf("failed to initialize chaos experiment client: %v", err)
 	}
-
-	nsTargetMap, err := utils.GetNsCountMap()
-	logrus.Infof("initalized nsTargetMap: %v", nsTargetMap)
-	if err != nil {
-		logrus.Fatal(err)
-	}
-
-	targetLabelKey := config.GetString("injection.target_label_key")
-	if err := chaos.InitTargetConfig(nsTargetMap, targetLabelKey); err != nil {
-		logrus.Fatal(err)
-	}
-
 }
 
 func main() {
@@ -103,9 +89,6 @@ func main() {
 	}
 
 	config.Init(viper.GetString("conf"))
-	if env_mode := config.GetString("system.env_mode"); env_mode == "prod" {
-		gin.SetMode(gin.ReleaseMode)
-	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -117,10 +100,11 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			logrus.Println("Running as producer")
 			database.InitDB()
-			service.InitializeData()
+			service.InitializeProducer()
 
 			utils.InitValidator()
 			client.InitTraceProvider()
+			initChaosExperiment()
 
 			engine := router.New()
 			port := viper.GetString("port")
@@ -138,6 +122,7 @@ func main() {
 			logrus.Println("Running as consumer")
 			k8slogger.SetLogger(stdr.New(log.New(os.Stdout, "", log.LstdFlags)))
 			database.InitDB()
+			service.InitializeConsumer()
 			service.InitConcurrencyLock(ctx)
 
 			consts.InitialTime = utils.TimePtr(time.Now())
@@ -160,7 +145,8 @@ func main() {
 
 			k8slogger.SetLogger(stdr.New(log.New(os.Stdout, "", log.LstdFlags)))
 			database.InitDB()
-			service.InitializeData()
+			service.InitializeProducer()
+			service.InitializeConsumer()
 			service.InitConcurrencyLock(ctx)
 
 			consts.InitialTime = utils.TimePtr(time.Now())

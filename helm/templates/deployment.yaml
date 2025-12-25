@@ -60,6 +60,8 @@ spec:
               value: "github.com/LGU-SE-Internal/chaos-experiment"
             - name: ENV
               value: "prod"
+            - name: GIN_MODE
+              value: "release"
           volumeMounts:
             - name: config
               mountPath: /etc/rcabench/config.prod.toml

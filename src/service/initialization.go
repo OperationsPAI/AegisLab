@@ -12,14 +12,47 @@ import (
 	"aegis/consts"
 	"aegis/database"
 	"aegis/repository"
+	"aegis/service/common"
 	producer "aegis/service/prodcuer"
 	"aegis/utils"
 
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
+
+	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 )
 
 const AdminUsername = "admin"
+
+type InitialDynamicConfig struct {
+	Key          string                 `json:"key"`
+	Value        string                 `json:"value"`
+	DefaultValue string                 `json:"default_value"`
+	ValueType    consts.ConfigValueType `json:"value_type"`
+	Category     string                 `json:"category"`
+	Description  string                 `json:"description"`
+	IsSecret     bool                   `json:"is_secret"`
+	MinValue     *float64               `json:"min_value,omitempty"`
+	MaxValue     *float64               `json:"max_value,omitempty"`
+	Pattern      string                 `json:"pattern,omitempty"`
+	Options      string                 `json:"options,omitempty"`
+}
+
+func (c *InitialDynamicConfig) ConvertToDBDynamicConfig() *database.DynamicConfig {
+	return &database.DynamicConfig{
+		Key:          c.Key,
+		Value:        c.Value,
+		DefaultValue: c.DefaultValue,
+		ValueType:    c.ValueType,
+		Category:     c.Category,
+		Description:  c.Description,
+		IsSecret:     c.IsSecret,
+		MinValue:     c.MinValue,
+		MaxValue:     c.MaxValue,
+		Pattern:      c.Pattern,
+		Options:      c.Options,
+	}
+}
 
 type InitialDataContainer struct {
 	Type     consts.ContainerType      `json:"type"`
@@ -62,7 +95,6 @@ type InitialHelmConfig struct {
 	ChartName    string                   `json:"chart_name"`
 	RepoName     string                   `json:"repo_name"`
 	RepoURL      string                   `json:"repo_url"`
-	NsPattern    string                   `json:"ns_pattern"`
 	PortTemplate string                   `json:"port_template"`
 	Values       []InitialParameterConfig `json:"values"`
 }
@@ -72,7 +104,6 @@ func (hc *InitialHelmConfig) ConvertToDBHelmConfig() *database.HelmConfig {
 		RepoURL:   hc.RepoURL,
 		RepoName:  hc.RepoName,
 		ChartName: hc.ChartName,
-		NsPattern: hc.NsPattern,
 	}
 }
 
@@ -173,10 +204,11 @@ func (u *InitialDataUser) ConvertToDBUser() *database.User {
 }
 
 type InitialData struct {
-	Containers []InitialDataContainer `json:"containers"`
-	Datasets   []InitialDatasaet      `json:"datasets"`
-	Projects   []InitialDataProject   `json:"projects"`
-	AdminUser  InitialDataUser        `json:"admin_user"`
+	DynamicConfigs []InitialDynamicConfig `json:"dynamic_configs"`
+	Containers     []InitialDataContainer `json:"containers"`
+	Datasets       []InitialDatasaet      `json:"datasets"`
+	Projects       []InitialDataProject   `json:"projects"`
+	AdminUser      InitialDataUser        `json:"admin_user"`
 }
 
 var ResourceIDMap map[consts.ResourceName]int
@@ -188,28 +220,78 @@ func InitConcurrencyLock(ctx context.Context) {
 	}
 }
 
-// InitializeData initializes data (roles, permissions, resources)
-func InitializeData() {
+// InitializeProducer initializes data (roles, permissions, resources)
+func InitializeProducer() {
 	user, err := repository.GetUserByUsername(database.DB, AdminUsername)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			logrus.Info("Seeding initial system data...")
-			if err := initialize(); err != nil {
-				logrus.Fatalf("Failed to initialize system data: %v", err)
+			logrus.Info("Seeding initial system data for producer...")
+			if err := initializeProducer(); err != nil {
+				logrus.Fatalf("Failed to initialize system data for producer: %v", err)
 			}
-			logrus.Info("Successfully seeded initial system data")
+			logrus.Info("Successfully seeded initial system data for producer")
 		} else {
 			logrus.Fatalf("Failed to check for %s: %v", AdminUsername, err)
 		}
 	}
 
 	if user != nil {
-		logrus.Info("Initial system data already seeded, skipping initialization")
+		logrus.Info("Initial system data for producer already seeded, skipping initialization")
 	}
 }
 
-// InitializeSystemData initializes system data (roles, permissions, resources)
-func initialize() error {
+// InitializeConsumer initializes dynamic configurations
+func InitializeConsumer() {
+	configs, err := repository.ListExistingConfigs(database.DB)
+	if err != nil {
+		logrus.Fatalf("Failed to check existing dynamic configs: %v", err)
+	}
+
+	if len(configs) == 0 {
+		logrus.Info("Seeding initial system data for consumer...")
+		if err := initializeConsumer(); err != nil {
+			logrus.Fatalf("Failed to initialize system data for consumer: %v", err)
+		}
+		logrus.Info("Successfully seeded initial system data for consumer")
+	} else {
+		logrus.Info("Initial system data for consumer already seeded, skipping initialization")
+	}
+
+	loadedCount := 0
+	for _, cfg := range configs {
+		if err := config.SetViperValue(cfg.Key, cfg.Value, cfg.ValueType); err != nil {
+			logrus.Fatalf("Failed to load dynamic config %s into viper: %v", cfg.Key, err)
+		}
+		loadedCount++
+
+		// Log non-secret configs
+		if !cfg.IsSecret {
+			logrus.Debugf("Loaded dynamic config: %s = %s", cfg.Key, cfg.Value)
+		} else {
+			logrus.Debugf("Loaded dynamic config: %s = [REDACTED]", cfg.Key)
+		}
+	}
+
+	registerConfigUpdateCallbacks()
+}
+
+// loadInitialDataFromFile loads initial data from a JSON file
+func loadInitialDataFromFile(filePath string) (*InitialData, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read initial data file: %w", err)
+	}
+
+	var initialData InitialData
+	if err := json.Unmarshal(data, &initialData); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal initial data: %w", err)
+	}
+
+	return &initialData, nil
+}
+
+// initializeProducer initializes system data (roles, permissions, resources)
+func initializeProducer() error {
 	dataPath := config.GetString("initialization.data_path")
 	filePath := filepath.Join(dataPath, consts.InitialFilename)
 	initialData, err := loadInitialDataFromFile(filePath)
@@ -260,8 +342,6 @@ func initialize() error {
 			return fmt.Errorf("failed to create system resources: %w", err)
 		}
 
-		logrus.Info("Fetching resource IDs from database")
-
 		resourceNames := make([]consts.ResourceName, 0, len(resources))
 		for _, res := range resources {
 			resourceNames = append(resourceNames, res.Name)
@@ -275,8 +355,6 @@ func initialize() error {
 		if len(allResourcesInDB) != len(resources) {
 			return fmt.Errorf("mismatch in number of resources created and fetched")
 		}
-
-		logrus.Info("Mapping resource names to IDs")
 
 		resourceMap := make(map[consts.ResourceName]*database.Resource, len(allResourcesInDB))
 		ResourceIDMap = make(map[consts.ResourceName]int, len(allResourcesInDB))
@@ -332,41 +410,22 @@ func initialize() error {
 		if err != nil {
 			return fmt.Errorf("failed to initialize admin user and projects: %w", err)
 		}
-		logrus.Infof("Created admin user with ID: %d", adminUser.ID)
 
 		if err := initializeContainers(tx, initialData, adminUser.ID); err != nil {
 			return fmt.Errorf("failed to initialize containers: %w", err)
 		}
-		logrus.Infof("Successfully initialized containers")
 
 		if err := initializeDatasets(tx, initialData, adminUser.ID); err != nil {
 			return fmt.Errorf("failed to initialize datasets: %w", err)
 		}
-		logrus.Infof("Successfully initialized datasets")
 
 		// Initialize execution result labels
 		if err := initializeExecutionLabels(tx); err != nil {
 			return fmt.Errorf("failed to initialize execution labels: %w", err)
 		}
-		logrus.Infof("Successfully initialized execution labels")
 
 		return nil
 	})
-}
-
-// loadInitialDataFromFile loads initial data from a JSON file
-func loadInitialDataFromFile(filePath string) (*InitialData, error) {
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read initial data file: %w", err)
-	}
-
-	var initialData InitialData
-	if err := json.Unmarshal(data, &initialData); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal initial data: %w", err)
-	}
-
-	return &initialData, nil
 }
 
 // assignSystemRolePermissions assigns permissions to system roles
@@ -483,6 +542,12 @@ func initializeAdminUserAndProjects(tx *gorm.DB, data *InitialData) (*database.U
 func initializeContainers(tx *gorm.DB, data *InitialData, userID int) error {
 	for _, containerData := range data.Containers {
 		container := containerData.ConvertToDBContainer()
+		if container.Type == consts.ContainerTypePedestal {
+			system := chaos.SystemType(container.Name)
+			if !system.IsValid() {
+				return fmt.Errorf("invalid pedestal name: %s", container.Name)
+			}
+		}
 
 		versions := make([]database.ContainerVersion, 0, len(containerData.Versions))
 		for _, versionData := range containerData.Versions {
@@ -569,5 +634,52 @@ func initializeExecutionLabels(tx *gorm.DB) error {
 		}
 	}
 
+	return nil
+}
+
+func initializeConsumer() error {
+	dataPath := config.GetString("initialization.data_path")
+	filePath := filepath.Join(dataPath, consts.InitialFilename)
+	initialData, err := loadInitialDataFromFile(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to load initial data from file: %w", err)
+	}
+
+	err = database.DB.Transaction(func(tx *gorm.DB) error {
+		if err := initializeDynamicConfigs(tx, initialData); err != nil {
+			return fmt.Errorf("failed to initialize dynamic configs for consumer: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to initialize consumer data: %w", err)
+	}
+
+	return nil
+}
+
+// initializeDynamicConfigs initializes dynamic configuration items from initial data
+func initializeDynamicConfigs(tx *gorm.DB, data *InitialData) error {
+	for _, configData := range data.DynamicConfigs {
+		cfg := configData.ConvertToDBDynamicConfig()
+		if err := common.ValidateConfig(cfg); err != nil {
+			return fmt.Errorf("invalid config value for key %s: %w", configData.Key, err)
+		}
+
+		if err := common.CreateConfig(tx, cfg); err != nil {
+			return fmt.Errorf("failed to create dynamic config %s: %w", configData.Key, err)
+		}
+	}
+	return nil
+}
+
+// registerConfigUpdateCallbacks registers callbacks for dynamic config updates
+func registerConfigUpdateCallbacks() {
+	config.GetChaosSystemConfigManager().RegisterCallback(onChaosSystemConfigUpdate)
+}
+
+// onChaosSystemConfigUpdate is called when chaos system config is updated
+func onChaosSystemConfigUpdate() error {
+	logrus.Info("Injection configuration updated, reloading system config manager...")
 	return nil
 }
