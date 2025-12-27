@@ -203,14 +203,13 @@ func processDelayedTasks(ctx context.Context) {
 // -----------------------------------------------------------------------------
 
 // ConsumeTasks starts a consumer that processes tasks from the ready queue
-func ConsumeTasks() {
+func ConsumeTasks(ctx context.Context) {
 	defer func() {
 		if r := recover(); r != nil {
 			logrus.Errorf("consumer panic: %v", r)
 		}
 	}()
 	logrus.Info("Starting consume tasks")
-	ctx := context.Background()
 
 	for {
 		if !repository.AcquireConcurrencyLock(ctx) {

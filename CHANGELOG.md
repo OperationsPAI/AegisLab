@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### Features
+
+- *(config)* Add dynamic configuration
+
 ### Deploy
 
 - *(otel)* Remove `service.namespace` metadata

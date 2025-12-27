@@ -120,19 +120,21 @@ func main() {
 		Short: "Run as a consumer",
 		Run: func(cmd *cobra.Command, args []string) {
 			logrus.Println("Running as consumer")
+			consts.InitialTime = utils.TimePtr(time.Now())
+			consts.AppID = utils.GenerateULID(consts.InitialTime)
+
 			k8slogger.SetLogger(stdr.New(log.New(os.Stdout, "", log.LstdFlags)))
+			initChaosExperiment()
+			go k8s.GetK8sController().Initialize(ctx, cancel, consumer.NewHandler())
+
 			database.InitDB()
 			service.InitializeConsumer()
 			service.InitConcurrencyLock(ctx)
 
-			consts.InitialTime = utils.TimePtr(time.Now())
-			consts.AppID = utils.GenerateULID(consts.InitialTime)
-
 			client.InitTraceProvider()
-			go k8s.Init(ctx, consumer.NewHandler())
+
 			go consumer.StartScheduler(ctx)
-			initChaosExperiment()
-			consumer.ConsumeTasks()
+			consumer.ConsumeTasks(ctx)
 		},
 	}
 
@@ -142,22 +144,23 @@ func main() {
 		Short: "Run as both producer and consumer",
 		Run: func(cmd *cobra.Command, args []string) {
 			logrus.Println("Running as both producer and consumer")
+			consts.InitialTime = utils.TimePtr(time.Now())
+			consts.AppID = utils.GenerateULID(consts.InitialTime)
 
 			k8slogger.SetLogger(stdr.New(log.New(os.Stdout, "", log.LstdFlags)))
+			initChaosExperiment()
+			go k8s.GetK8sController().Initialize(ctx, cancel, consumer.NewHandler())
+
 			database.InitDB()
 			service.InitializeProducer()
 			service.InitializeConsumer()
 			service.InitConcurrencyLock(ctx)
 
-			consts.InitialTime = utils.TimePtr(time.Now())
-			consts.AppID = utils.GenerateULID(consts.InitialTime)
-
 			utils.InitValidator()
 			client.InitTraceProvider()
-			go k8s.Init(ctx, consumer.NewHandler())
+
 			go consumer.StartScheduler(ctx)
-			initChaosExperiment()
-			go consumer.ConsumeTasks()
+			go consumer.ConsumeTasks(ctx)
 
 			engine := router.New()
 			port := viper.GetString("port")

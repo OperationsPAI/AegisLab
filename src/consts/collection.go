@@ -77,6 +77,7 @@ var valueDataTypeMap = map[ValueDataType]string{
 var resourceDisplayNameMap = map[ResourceName]string{
 	ResourceSystem:           "System",
 	ResourceAudit:            "Audit",
+	ResourceConfigruation:    "Configuration",
 	ResourceContainer:        "Container",
 	ResourceContainerVersion: "Container Version",
 	ResourceDataset:          "Dataset",

@@ -17,8 +17,8 @@ import (
 type ListConfigReq struct {
 	PaginationReq
 	ValueType *consts.ConfigValueType `form:"value_type" binding:"omitempty"`
+	Category  *string                 `form:"category" binding:"omitempty"`
 	IsSecret  *bool                   `form:"is_secret" binding:"omitempty"`
-	Status    *consts.StatusType      `form:"status" binding:"omitempty"`
 	UpdatedBy *int                    `form:"updated_by" binding:"omitempty,min_ptr=1"`
 }
 
@@ -29,7 +29,7 @@ func (req *ListConfigReq) Validate() error {
 	if err := validateValuteType(req.ValueType); err != nil {
 		return err
 	}
-	return validateStatusField(req.Status, false)
+	return nil
 }
 
 // RollbackConfigReq represents a request to rollback a configuration

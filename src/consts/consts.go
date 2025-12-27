@@ -24,6 +24,7 @@ type ResourceName string
 const (
 	ResourceSystem           ResourceName = "system"            // system resource
 	ResourceAudit            ResourceName = "audit"             // audit resource
+	ResourceConfigruation    ResourceName = "configuration"     // configuration resource
 	ResourceContainer        ResourceName = "container"         // container resource
 	ResourceContainerVersion ResourceName = "container_version" // container version resource
 	ResourceDataset          ResourceName = "dataset"           // dataset resource

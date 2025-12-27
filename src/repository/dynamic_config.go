@@ -9,27 +9,27 @@ import (
 	"gorm.io/gorm"
 )
 
-const (
-	configOmitFields = "active_key"
-)
-
 // =====================================================================
 // DynamicConfig Repository Functions
 // =====================================================================
 
 // CreateConfig creates a new configuration item
 func CreateConfig(db *gorm.DB, config *database.DynamicConfig) error {
-	if err := db.Omit(configOmitFields).Create(config).Error; err != nil {
+	if err := db.Create(config).Error; err != nil {
 		return fmt.Errorf("failed to create config: %w", err)
 	}
 	return nil
 }
 
 // GetConfigByID retrieves a configuration by its ID
-func GetConfigByID(db *gorm.DB, configID int) (*database.DynamicConfig, error) {
+func GetConfigByID(db *gorm.DB, configID int, includeUser bool) (*database.DynamicConfig, error) {
+	query := db
+	if includeUser {
+		query = query.Preload("UpdatedByUser")
+	}
+
 	var config database.DynamicConfig
-	if err := db.
-		Preload("UpdatedByUser").
+	if err := query.
 		Where("id = ?", configID).
 		First(&config).Error; err != nil {
 		return nil, fmt.Errorf("failed to find config with id %d: %w", configID, err)
@@ -49,13 +49,16 @@ func ListExistingConfigs(db *gorm.DB) ([]database.DynamicConfig, error) {
 }
 
 // ListConfigs lists configs based on filter options
-func ListConfigs(db *gorm.DB, limit, offset int, valueType *consts.ConfigValueType, isSecret *bool, updatedBy *int) ([]database.DynamicConfig, int64, error) {
+func ListConfigs(db *gorm.DB, limit, offset int, valueType *consts.ConfigValueType, category *string, isSecret *bool, updatedBy *int) ([]database.DynamicConfig, int64, error) {
 	var configs []database.DynamicConfig
 	var total int64
 
 	query := db.Model(&database.DynamicConfig{})
 	if valueType != nil {
 		query = query.Where("value_type = ?", *valueType)
+	}
+	if category != nil {
+		query = query.Where("category = ?", *category)
 	}
 	if isSecret != nil {
 		query = query.Where("is_secret = ?", *isSecret)
@@ -68,7 +71,7 @@ func ListConfigs(db *gorm.DB, limit, offset int, valueType *consts.ConfigValueTy
 		return nil, 0, fmt.Errorf("failed to count configs: %w", err)
 	}
 
-	if err := query.Limit(limit).Offset(offset).Order("created DESC").Find(&configs).Error; err != nil {
+	if err := query.Limit(limit).Offset(offset).Order("created_at DESC").Find(&configs).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to list configs: %w", err)
 	}
 
@@ -77,7 +80,7 @@ func ListConfigs(db *gorm.DB, limit, offset int, valueType *consts.ConfigValueTy
 
 // UpdateConfig updates a configuration item
 func UpdateConfig(db *gorm.DB, config *database.DynamicConfig) error {
-	if err := db.Omit(configOmitFields).Save(config).Error; err != nil {
+	if err := db.Save(config).Error; err != nil {
 		return fmt.Errorf("failed to update config: %w", err)
 	}
 	return nil

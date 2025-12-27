@@ -74,6 +74,15 @@ func GetPointerIntFromMap(payload map[string]any, key string) (*int, error) {
 	return nil, fmt.Errorf("value for key '%s' is not a valid integer type (got %T)", key, val)
 }
 
+// MakeSet converts a string slice to a set (map[string]struct{})
+func MakeSet(slice []string) map[string]struct{} {
+	set := make(map[string]struct{}, len(slice))
+	for _, item := range slice {
+		set[item] = struct{}{}
+	}
+	return set
+}
+
 // MapToStruct maps a nested map (or the entire map if key is empty) to a struct of type T
 func MapToStruct[T any](payload map[string]any, key, errorMsgTemplate string) (*T, error) {
 	var rawValue any

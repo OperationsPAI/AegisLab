@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"sync"
 	"time"
 
 	chaosCli "github.com/LGU-SE-Internal/chaos-experiment/client"
@@ -12,7 +13,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	"aegis/config"
@@ -64,48 +64,29 @@ type QueueItem struct {
 }
 
 type Controller struct {
-	callback     Callback
-	crdInformers map[string]map[schema.GroupVersionResource]cache.SharedIndexInformer
-	jobInformer  cache.SharedIndexInformer
-	podInformer  cache.SharedIndexInformer
-	queue        workqueue.TypedRateLimitingInterface[QueueItem]
+	callback         Callback
+	crdInformers     map[string]map[schema.GroupVersionResource]cache.SharedIndexInformer
+	informerMu       sync.RWMutex // Protects crdInformers map
+	activeNamespaces map[string]bool
+	namespaceMu      sync.RWMutex
+	jobInformer      cache.SharedIndexInformer
+	podInformer      cache.SharedIndexInformer
+	queue            workqueue.TypedRateLimitingInterface[QueueItem]
+	chaosGVRs        []schema.GroupVersionResource
+	ctx              context.Context
+	cancelFunc       context.CancelFunc
 }
 
 func NewController() *Controller {
-	namespaces, err := config.GetAllNamespaces()
-	if err != nil {
-		logrus.WithField("func", "config.GetAllNamespaces").Error(err)
-		panic(err)
-	}
-
-	chaosGVRs := make([]schema.GroupVersionResource, 0, len(chaosCli.GetCRDMapping()))
-	for gvr := range chaosCli.GetCRDMapping() {
-		chaosGVRs = append(chaosGVRs, gvr)
-	}
+	crdInformers := make(map[string]map[schema.GroupVersionResource]cache.SharedIndexInformer)
+	activeNamespaces := make(map[string]bool)
 
 	tweakListOptions := func(options *metav1.ListOptions) {
 		options.LabelSelector = fmt.Sprintf("%s=%s", consts.K8sLabelAppID, consts.AppID)
 	}
 
-	crdInformers := make(map[string]map[schema.GroupVersionResource]cache.SharedIndexInformer, len(namespaces))
-	for _, namespace := range namespaces {
-		chaosFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
-			k8sDynamicClient,
-			resyncPeriod,
-			namespace,
-			tweakListOptions,
-		)
-
-		gvrInformers := make(map[schema.GroupVersionResource]cache.SharedIndexInformer, len(chaosGVRs))
-		for _, gvr := range chaosGVRs {
-			gvrInformers[gvr] = chaosFactory.ForResource(gvr).Informer()
-		}
-
-		crdInformers[namespace] = gvrInformers
-	}
-
 	platformFactory := informers.NewSharedInformerFactoryWithOptions(
-		k8sClient,
+		GetK8sClient(),
 		resyncPeriod,
 		informers.WithNamespace(config.GetString("k8s.namespace")),
 		informers.WithTweakListOptions(tweakListOptions),
@@ -115,84 +96,265 @@ func NewController() *Controller {
 		workqueue.DefaultTypedControllerRateLimiter[QueueItem](),
 	)
 
+	jobInformer := platformFactory.Batch().V1().Jobs().Informer()
+	podInformer := platformFactory.Core().V1().Pods().Informer()
+
+	chaosGVRs := make([]schema.GroupVersionResource, 0, len(chaosCli.GetCRDMapping()))
+	for gvr := range chaosCli.GetCRDMapping() {
+		chaosGVRs = append(chaosGVRs, gvr)
+	}
+
 	return &Controller{
-		crdInformers: crdInformers,
-		jobInformer:  platformFactory.Batch().V1().Jobs().Informer(),
-		podInformer:  platformFactory.Core().V1().Pods().Informer(),
-		queue:        queue,
+		crdInformers:     crdInformers,
+		activeNamespaces: activeNamespaces,
+		jobInformer:      jobInformer,
+		podInformer:      podInformer,
+		queue:            queue,
+		chaosGVRs:        chaosGVRs,
 	}
 }
 
-func (c *Controller) Run(ctx context.Context, callback Callback) {
-	defer runtime.HandleCrash()
-	defer c.queue.ShutDown()
+func (c *Controller) Initialize(ctx context.Context, cancelFunc context.CancelFunc, callback Callback) {
+	logrus.Info("Initializing controller...")
 
+	c.ctx = ctx
+	c.cancelFunc = cancelFunc
 	c.callback = callback
-	c.registerEventHandlers(ctx)
 
-	logrus.Info("Starting informer controller")
-
-	for _, gvrInformers := range c.crdInformers {
-		for _, informer := range gvrInformers {
-			go informer.Run(ctx.Done())
-		}
-	}
-	go c.jobInformer.Run(ctx.Done())
-	go c.podInformer.Run(ctx.Done())
-
-	allSyncs := []cache.InformerSynced{c.jobInformer.HasSynced, c.podInformer.HasSynced}
-	for _, gvrInformers := range c.crdInformers {
-		for _, informer := range gvrInformers {
-			allSyncs = append(allSyncs, informer.HasSynced)
-		}
+	if err := c.startJobAndPodInformers(); err != nil {
+		logrus.Fatalf("Failed to start Job and Pod informers: %v", err)
 	}
 
-	if !cache.WaitForCacheSync(ctx.Done(), allSyncs...) {
-		message := "timed out waiting for caches to sync"
-		runtime.HandleError(fmt.Errorf("%s", message))
-		logrus.Error(message)
-		return
-	}
+	go c.startQueueWorker()
 
-	logrus.Info("starting queue worker...")
-	go wait.Until(c.runWorker, time.Second, ctx.Done())
+	logrus.Info("Controller initialized successfully")
 
 	<-ctx.Done()
-	logrus.Info("Stopping informer controller...")
+	c.stop()
+	logrus.Info("Controller shutdown complete")
 }
 
-func (c *Controller) registerEventHandlers(ctx context.Context) {
-	for _, gvrInformers := range c.crdInformers {
-		for gvr, informer := range gvrInformers {
+// AddNamespaceInformers dynamically adds informers for new namespaces
+func (c *Controller) AddNamespaceInformers(namespaces []string) error {
+	if len(namespaces) == 0 {
+		logrus.Debug("No namespaces to add")
+		return nil
+	}
+
+	logrus.Infof("Adding informers for %d namespace(s): %v", len(namespaces), namespaces)
+
+	tweakListOptions := func(options *metav1.ListOptions) {
+		options.LabelSelector = fmt.Sprintf("%s=%s", consts.K8sLabelAppID, consts.AppID)
+	}
+
+	addedCount := 0
+	newInformers := make(map[string][]cache.InformerSynced) // Track new informers for cache sync
+
+	for _, namespace := range namespaces {
+		// Check if informer already exists (with read lock)
+		c.informerMu.RLock()
+		_, exists := c.crdInformers[namespace]
+		c.informerMu.RUnlock()
+
+		if exists {
+			logrus.Infof("Informer for namespace %s already exists, skipping", namespace)
+			// Still mark as active in case it was previously disabled
+			c.namespaceMu.Lock()
+			c.activeNamespaces[namespace] = true
+			c.namespaceMu.Unlock()
+			continue
+		}
+
+		// Create new factory for this namespace
+		logrus.Infof("Creating new CRD informers for namespace: %s", namespace)
+		chaosFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
+			GetK8sDynamicClient(),
+			resyncPeriod,
+			namespace,
+			tweakListOptions,
+		)
+
+		// Create GVR informers
+		gvrInformers := make(map[schema.GroupVersionResource]cache.SharedIndexInformer, len(c.chaosGVRs))
+		syncFuncs := make([]cache.InformerSynced, 0, len(c.chaosGVRs))
+
+		// CRITICAL: Mark namespace as active BEFORE starting informers
+		// This prevents race condition where informer cache sync triggers AddFunc
+		// before namespace is marked active, causing events to be ignored
+		c.namespaceMu.Lock()
+		c.activeNamespaces[namespace] = true
+		c.namespaceMu.Unlock()
+
+		for _, gvr := range c.chaosGVRs {
+			informer := chaosFactory.ForResource(gvr).Informer()
+
+			// Register event handler
+			logrus.Infof("Registering event handler for %s (Group: %s, Version: %s) in namespace %s",
+				gvr.Resource, gvr.Group, gvr.Version, namespace)
 			if _, err := informer.AddEventHandler(c.genCRDEventHandlerFuncs(gvr)); err != nil {
-				logrus.WithFields(logrus.Fields{
-					"gvr":  gvr.Resource,
-					"func": "genCRDEventHandlerFuncs",
-				}).Error("failed to add event handler")
-				return
+				return fmt.Errorf("failed to add event handler for %s in namespace %s: %w",
+					gvr.Resource, namespace, err)
 			}
+
+			gvrInformers[gvr] = informer
+			syncFuncs = append(syncFuncs, informer.HasSynced)
+
+			// Start informer immediately
+			logrus.Infof("Starting informer for %s in namespace %s", gvr.Resource, namespace)
+			go informer.Run(c.ctx.Done())
+		}
+
+		// Update crdInformers map with write lock
+		c.informerMu.Lock()
+		c.crdInformers[namespace] = gvrInformers
+		c.informerMu.Unlock()
+
+		newInformers[namespace] = syncFuncs
+		addedCount++
+		logrus.Infof("Successfully added and started %d CRD informer(s) for namespace: %s", len(gvrInformers), namespace)
+	}
+
+	// Wait for all new informers to sync their caches
+	if len(newInformers) > 0 {
+		allSyncFuncs := make([]cache.InformerSynced, 0)
+		for _, syncFuncs := range newInformers {
+			allSyncFuncs = append(allSyncFuncs, syncFuncs...)
+		}
+
+		logrus.Infof("Waiting for %d new CRD informer(s) to sync caches...", len(allSyncFuncs))
+		if !cache.WaitForCacheSync(c.ctx.Done(), allSyncFuncs...) {
+			return fmt.Errorf("timed out waiting for new CRD informer caches to sync")
+		}
+		logrus.Info("All new CRD informer caches synced successfully")
+	}
+
+	logrus.Infof("Namespace informer addition completed: %d new, %d existing", addedCount, len(namespaces)-addedCount)
+	return nil
+}
+
+// RemoveNamespaceInformers marks namespaces as inactive
+// Note: Kubernetes informers cannot be gracefully stopped, so we keep them running
+// but mark the namespaces as inactive to filter events in handlers
+func (c *Controller) RemoveNamespaceInformers(namespaces []string) {
+	if len(namespaces) == 0 {
+		logrus.Debug("No namespaces to remove")
+		return
+	}
+
+	logrus.Infof("Marking %d namespace(s) as inactive: %v", len(namespaces), namespaces)
+
+	c.namespaceMu.Lock()
+	defer c.namespaceMu.Unlock()
+
+	deactivatedCount := 0
+	for _, ns := range namespaces {
+		wasActive := c.activeNamespaces[ns]
+		c.activeNamespaces[ns] = false
+		if wasActive {
+			deactivatedCount++
+			logrus.Infof("Namespace %s marked as inactive (events will be ignored)", ns)
+		} else {
+			logrus.Debugf("Namespace %s was already inactive", ns)
 		}
 	}
 
-	if _, err := c.jobInformer.AddEventHandler(c.genJobEventHandlerFuncs()); err != nil {
-		logrus.WithField("func", "genJobEventHandlerFuncs").Error("failed to add event handler")
-		return
-	}
-
-	if _, err := c.podInformer.AddEventHandler(c.genPodEventHandlerFuncs(ctx)); err != nil {
-		logrus.WithField("func", "genPodEventHandlerFuncs").Error("failed to add event handler")
-		return
-	}
+	logrus.Infof("Namespace deactivation completed: %d deactivated, %d already inactive",
+		deactivatedCount, len(namespaces)-deactivatedCount)
 }
 
+// stop gracefully stops the controller and cancels all informers
+func (c *Controller) stop() {
+	logrus.Info("Stopping controller and cancelling all informers...")
+	if c.cancelFunc != nil {
+		c.cancelFunc()
+	}
+	c.queue.ShutDown()
+}
+
+// startJobAndPodInformers starts Job and Pod informers with event handlers
+// It should be called after the controller is created but can be called at any time
+func (c *Controller) startJobAndPodInformers() error {
+	if c.callback == nil {
+		return fmt.Errorf("callback must be set before registering Job and Pod informers")
+	}
+
+	logrus.Info("Starting Job and Pod informers...")
+
+	// Register event handlers
+	if c.jobInformer != nil {
+		if _, err := c.jobInformer.AddEventHandler(c.genJobEventHandlerFuncs()); err != nil {
+			return fmt.Errorf("failed to add event handler for Job informer: %w", err)
+		}
+		logrus.Info("Registered event handler for Job informer")
+
+		// Start Job informer
+		go c.jobInformer.Run(c.ctx.Done())
+		logrus.Info("Started Job informer")
+	} else {
+		logrus.Warn("Job informer is nil, skipping registration")
+	}
+
+	if c.podInformer != nil {
+		if _, err := c.podInformer.AddEventHandler(c.genPodEventHandlerFuncs()); err != nil {
+			return fmt.Errorf("failed to add event handler for Pod informer: %w", err)
+		}
+		logrus.Info("Registered event handler for Pod informer")
+
+		// Start Pod informer
+		go c.podInformer.Run(c.ctx.Done())
+		logrus.Info("Started Pod informer")
+	} else {
+		logrus.Warn("Pod informer is nil, skipping registration")
+	}
+
+	// Wait for cache sync
+	syncFuncs := []cache.InformerSynced{}
+	if c.jobInformer != nil {
+		syncFuncs = append(syncFuncs, c.jobInformer.HasSynced)
+	}
+	if c.podInformer != nil {
+		syncFuncs = append(syncFuncs, c.podInformer.HasSynced)
+	}
+
+	if len(syncFuncs) > 0 {
+		logrus.Info("Waiting for Job and Pod informer caches to sync...")
+		if !cache.WaitForCacheSync(c.ctx.Done(), syncFuncs...) {
+			return fmt.Errorf("timed out waiting for Job and Pod informer caches to sync")
+		}
+		logrus.Info("Job and Pod informer caches synced successfully")
+	}
+
+	logrus.Info("Successfully registered and started Job and Pod informers")
+	return nil
+}
+
+// startQueueWorker starts the queue worker for processing delayed tasks
+func (c *Controller) startQueueWorker() {
+	logrus.Info("Starting queue worker...")
+	wait.Until(c.runWorker, time.Second, c.ctx.Done())
+}
+
+// genCRDEventHandlerFuncs generates event handler functions for a given CRD GVR
 func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource) cache.ResourceEventHandlerFuncs {
 	return cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj any) {
 			u := obj.(*unstructured.Unstructured)
 
+			logrus.Infof("CRD AddFunc triggered: resource=%s, namespace=%s, name=%s",
+				gvr.Resource, u.GetNamespace(), u.GetName())
+
+			// Check if namespace is active
+			if !c.isNamespaceActive(u.GetNamespace()) {
+				logrus.Warnf("Ignoring CRD add event for inactive namespace %s: %s/%s",
+					u.GetNamespace(), gvr.Resource, u.GetName())
+				return
+			}
+
 			if consts.InitialTime != nil {
 				creationTime := u.GetCreationTimestamp().Time
 				if creationTime.Before(*consts.InitialTime) {
+					logrus.Debugf("Ignoring CRD add event for object created before initial time: %s/%s in %s",
+						gvr.Resource, u.GetName(), u.GetNamespace())
 					return
 				}
 			}
@@ -207,6 +369,13 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource) ca
 		UpdateFunc: func(oldObj, newObj any) {
 			oldU := oldObj.(*unstructured.Unstructured)
 			newU := newObj.(*unstructured.Unstructured)
+
+			// Check if namespace is active
+			if !c.isNamespaceActive(newU.GetNamespace()) {
+				logrus.Debugf("Ignoring CRD update event for inactive namespace %s: %s/%s",
+					newU.GetNamespace(), gvr.Resource, newU.GetName())
+				return
+			}
 
 			if oldU.GetName() == newU.GetName() {
 				logEntry := logrus.WithFields(logrus.Fields{
@@ -273,6 +442,14 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource) ca
 		},
 		DeleteFunc: func(obj any) {
 			u := obj.(*unstructured.Unstructured)
+
+			// Check if namespace is active
+			if !c.isNamespaceActive(u.GetNamespace()) {
+				logrus.Debugf("Ignoring CRD delete event for inactive namespace %s: %s/%s",
+					u.GetNamespace(), gvr.Resource, u.GetName())
+				return
+			}
+
 			logrus.WithFields(logrus.Fields{
 				"type":      gvr.Resource,
 				"namespace": u.GetNamespace(),
@@ -283,6 +460,7 @@ func (c *Controller) genCRDEventHandlerFuncs(gvr schema.GroupVersionResource) ca
 	}
 }
 
+// genJobEventHandlerFuncs generates event handler functions for Job informer
 func (c *Controller) genJobEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
 	return cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj any) {
@@ -333,7 +511,8 @@ func (c *Controller) genJobEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
 	}
 }
 
-func (c *Controller) genPodEventHandlerFuncs(ctx context.Context) cache.ResourceEventHandlerFuncs {
+// genPodEventHandlerFuncs generates event handler functions for Pod informer
+func (c *Controller) genPodEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
 	return cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(oldObj, newObj any) {
 			newPod := newObj.(*corev1.Pod)
@@ -355,13 +534,13 @@ func (c *Controller) genPodEventHandlerFuncs(ctx context.Context) cache.Resource
 
 				for _, reason := range podReasons {
 					if checkPodReason(newPod, reason) {
-						job, err := GetJob(ctx, newPod.Namespace, jobOwnerRef.Name)
+						job, err := GetJob(c.ctx, newPod.Namespace, jobOwnerRef.Name)
 						if err != nil {
 							logrus.WithField("job_name", jobOwnerRef.Name).Error(err)
 						}
 
 						if job != nil {
-							handlePodError(ctx, newPod, job, reason)
+							handlePodError(c.ctx, newPod, job, reason)
 							// Trigger job failed callback to ensure proper cleanup (e.g., token release)
 							c.callback.HandleJobFailed(job, job.Annotations, job.Labels)
 
@@ -386,11 +565,13 @@ func (c *Controller) genPodEventHandlerFuncs(ctx context.Context) cache.Resource
 	}
 }
 
+// runWorker processes items from the queue
 func (c *Controller) runWorker() {
 	for c.processQueueItem() {
 	}
 }
 
+// processQueueItem processes a single item from the queue
 func (c *Controller) processQueueItem() bool {
 	item, quit := c.queue.Get()
 	if quit {
@@ -445,7 +626,7 @@ func (c *Controller) checkRecoveryStatus(item QueueItem) error {
 		"name":      item.Name,
 	})
 
-	obj, err := k8sDynamicClient.
+	obj, err := GetK8sDynamicClient().
 		Resource(*item.GVR).
 		Namespace(item.Namespace).
 		Get(context.Background(), item.Name, metav1.GetOptions{})
@@ -523,6 +704,16 @@ func (c *Controller) handleCRDFailed(gvr schema.GroupVersionResource, u *unstruc
 			GVR:       &gvr,
 		})
 	}
+}
+
+// isNamespaceActive checks if a namespace is active and should process events
+func (c *Controller) isNamespaceActive(namespace string) bool {
+	c.namespaceMu.RLock()
+	defer c.namespaceMu.RUnlock()
+
+	active, exists := c.activeNamespaces[namespace]
+	logrus.Debugf("Checking namespace %s: exists=%v, active=%v", namespace, exists, active)
+	return exists && active
 }
 
 func getCRDConditionStatus(conditions []any, conditionType string) bool {
@@ -619,7 +810,7 @@ func checkPodReason(pod *corev1.Pod, reason string) bool {
 
 func handlePodError(ctx context.Context, pod *corev1.Pod, job *batchv1.Job, reason string) {
 	// Get Pod events
-	events, err := k8sClient.CoreV1().Events(pod.Namespace).List(ctx, metav1.ListOptions{
+	events, err := GetK8sClient().CoreV1().Events(pod.Namespace).List(ctx, metav1.ListOptions{
 		FieldSelector: fmt.Sprintf("involvedObject.name=%s", pod.Name),
 	})
 	if err != nil {

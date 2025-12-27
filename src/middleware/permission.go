@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"aegis/consts"
 	"aegis/database"
 	"aegis/dto"
 	"aegis/repository"
@@ -225,77 +226,77 @@ type PermissionCheck struct {
 // Common permission middlewares
 var (
 	// System administration permissions
-	RequireSystemAdmin = RequirePermission("admin", "system")
-	RequireSystemRead  = RequirePermission("read", "system")
+	RequireSystemAdmin = RequirePermission("admin", consts.ResourceSystem.String())
+	RequireSystemRead  = RequirePermission("read", consts.ResourceSystem.String())
 
 	// Audit permissions
-	RequireAuditRead = RequirePermission("read", "audit")
+	RequireAuditRead = RequirePermission("read", consts.ResourceAudit.String())
 
 	// Configuration management permissions
-	RequireConfigRead  = RequirePermission("read", "config")
-	RequireConfigWrite = RequirePermission("write", "config")
+	RequireConfigurationRead  = RequirePermission("read", consts.ResourceConfigruation.String())
+	RequireConfigurationWrite = RequirePermission("write", consts.ResourceConfigruation.String())
 
 	// Resource ownership middlewares
 	RequireUserOwnership        = RequireOwnership("user", "id")
 	RequireAdminOrUserOwnership = RequireAdminOrOwnership("id")
 
 	// Container management permissions
-	RequireContainerRead   = RequirePermission("read", "container")
-	RequireContainerWrite  = RequirePermission("write", "container")
-	RequireContainerDelete = RequirePermission("delete", "container")
+	RequireContainerRead   = RequirePermission("read", consts.ResourceContainer.String())
+	RequireContainerWrite  = RequirePermission("write", consts.ResourceContainer.String())
+	RequireContainerDelete = RequirePermission("delete", consts.ResourceContainer.String())
 
 	// Container Version management permissions
-	RequireContainerVersionRead   = RequirePermission("read", "container_version")
-	RequireContainerVersionWrite  = RequirePermission("write", "container_version")
-	RequireContainerVersionDelete = RequirePermission("delete", "container_version")
+	RequireContainerVersionRead   = RequirePermission("read", consts.ResourceContainerVersion.String())
+	RequireContainerVersionWrite  = RequirePermission("write", consts.ResourceContainerVersion.String())
+	RequireContainerVersionDelete = RequirePermission("delete", consts.ResourceContainerVersion.String())
 
 	// Dataset management permissions
-	RequireDatasetRead   = RequirePermission("read", "dataset")
-	RequireDatasetWrite  = RequirePermission("write", "dataset")
-	RequireDatasetDelete = RequirePermission("delete", "dataset")
+	RequireDatasetRead   = RequirePermission("read", consts.ResourceDataset.String())
+	RequireDatasetWrite  = RequirePermission("write", consts.ResourceDataset.String())
+	RequireDatasetDelete = RequirePermission("delete", consts.ResourceDataset.String())
 
 	// Dataset Version management permissions
-	RequireDatasetVersionRead   = RequirePermission("read", "dataset_version")
-	RequireDatasetVersionWrite  = RequirePermission("write", "dataset_version")
-	RequireDatasetVersionDelete = RequirePermission("delete", "dataset_version")
+	RequireDatasetVersionRead   = RequirePermission("read", consts.ResourceDatasetVersion.String())
+	RequireDatasetVersionWrite  = RequirePermission("write", consts.ResourceDatasetVersion.String())
+	RequireDatasetVersionDelete = RequirePermission("delete", consts.ResourceDatasetVersion.String())
 
 	// Project management permissions
-	RequireProjectRead   = RequirePermission("read", "project")
-	RequireProjectWrite  = RequirePermission("write", "project")
-	RequireProjectDelete = RequirePermission("delete", "project")
+	RequireProjectRead   = RequirePermission("read", consts.ResourceProject.String())
+	RequireProjectWrite  = RequirePermission("write", consts.ResourceProject.String())
+	RequireProjectDelete = RequirePermission("delete", consts.ResourceProject.String())
 
 	// Label management permissions
-	RequireLabelRead   = RequirePermission("read", "label")
-	RequireLabelWrite  = RequirePermission("write", "label")
-	RequireLabelDelete = RequirePermission("delete", "label")
+	RequireLabelRead   = RequirePermission("read", consts.ResourceLabel.String())
+	RequireLabelWrite  = RequirePermission("write", consts.ResourceLabel.String())
+	RequireLabelDelete = RequirePermission("delete", consts.ResourceLabel.String())
 
 	// User management permissions
-	RequireUserRead   = RequirePermission("read", "user")
-	RequireUserWrite  = RequirePermission("write", "user")
-	RequireUserDelete = RequirePermission("delete", "user")
+	RequireUserRead   = RequirePermission("read", consts.ResourceUser.String())
+	RequireUserWrite  = RequirePermission("write", consts.ResourceUser.String())
+	RequireUserDelete = RequirePermission("delete", consts.ResourceUser.String())
 
 	// Role management permissions
-	RequireRoleRead   = RequirePermission("read", "role")
-	RequireRoleWrite  = RequirePermission("write", "role")
-	RequireRoleDelete = RequirePermission("delete", "role")
+	RequireRoleRead   = RequirePermission("read", consts.ResourceRole.String())
+	RequireRoleWrite  = RequirePermission("write", consts.ResourceRole.String())
+	RequireRoleDelete = RequirePermission("delete", consts.ResourceRole.String())
 
 	// Permission management permissions
-	RequirePermissionRead   = RequirePermission("read", "permission")
-	RequirePermissionWrite  = RequirePermission("write", "permission")
-	RequirePermissionDelete = RequirePermission("delete", "permission")
+	RequirePermissionRead   = RequirePermission("read", consts.ResourcePermission.String())
+	RequirePermissionWrite  = RequirePermission("write", consts.ResourcePermission.String())
+	RequirePermissionDelete = RequirePermission("delete", consts.ResourcePermission.String())
 
 	// Task management permissions
-	RequireTaskRead   = RequirePermission("read", "task")
-	RequireTaskWrite  = RequirePermission("write", "task")
-	RequireTaskDelete = RequirePermission("delete", "task")
+	RequireTaskRead   = RequirePermission("read", consts.ResourceTask.String())
+	RequireTaskWrite  = RequirePermission("write", consts.ResourceTask.String())
+	RequireTaskDelete = RequirePermission("delete", consts.ResourceTask.String())
 
 	// Injection management permissions
-	RequireInjectionRead   = RequirePermission("read", "injection")
-	RequireInjectionWrite  = RequirePermission("write", "injection")
-	RequireInjectionDelete = RequirePermission("delete", "injection")
+	RequireInjectionRead   = RequirePermission("read", consts.ResourceInjection.String())
+	RequireInjectionWrite  = RequirePermission("write", consts.ResourceInjection.String())
+	RequireInjectionDelete = RequirePermission("delete", consts.ResourceInjection.String())
 
 	// Execution management permissions
-	RequireExecutionRead   = RequirePermission("read", "execution")
-	RequireExecutionWrite  = RequirePermission("write", "execution")
-	RequireExecutionDelete = RequirePermission("delete", "execution")
+	RequireExecutionRead   = RequirePermission("read", consts.ResourceExecution.String())
+	RequireExecutionWrite  = RequirePermission("write", consts.ResourceExecution.String())
+	RequireExecutionDelete = RequirePermission("delete", consts.ResourceExecution.String())
 )

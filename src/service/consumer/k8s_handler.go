@@ -126,8 +126,6 @@ type jobLabels struct {
 type k8sHandler struct {
 }
 
-var Handler *k8sHandler
-
 func NewHandler() *k8sHandler {
 	return &k8sHandler{}
 }

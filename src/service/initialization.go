@@ -8,11 +8,13 @@ import (
 	"os"
 	"path/filepath"
 
+	"aegis/client/k8s"
 	"aegis/config"
 	"aegis/consts"
 	"aegis/database"
 	"aegis/repository"
 	"aegis/service/common"
+	"aegis/service/consumer"
 	producer "aegis/service/prodcuer"
 	"aegis/utils"
 
@@ -211,7 +213,14 @@ type InitialData struct {
 	AdminUser      InitialDataUser        `json:"admin_user"`
 }
 
-var ResourceIDMap map[consts.ResourceName]int
+type ConsumerData struct {
+	configs []database.DynamicConfig
+}
+
+var (
+	consumerData  *ConsumerData
+	resourceIDMap map[consts.ResourceName]int
+)
 
 // InitConcurrencyLock initializes the concurrency lock counter
 func InitConcurrencyLock(ctx context.Context) {
@@ -247,7 +256,11 @@ func InitializeConsumer() {
 		logrus.Fatalf("Failed to check existing dynamic configs: %v", err)
 	}
 
-	if len(configs) == 0 {
+	consumerData = &ConsumerData{
+		configs: configs,
+	}
+
+	if len(consumerData.configs) == 0 {
 		logrus.Info("Seeding initial system data for consumer...")
 		if err := initializeConsumer(); err != nil {
 			logrus.Fatalf("Failed to initialize system data for consumer: %v", err)
@@ -258,7 +271,7 @@ func InitializeConsumer() {
 	}
 
 	loadedCount := 0
-	for _, cfg := range configs {
+	for _, cfg := range consumerData.configs {
 		if err := config.SetViperValue(cfg.Key, cfg.Value, cfg.ValueType); err != nil {
 			logrus.Fatalf("Failed to load dynamic config %s into viper: %v", cfg.Key, err)
 		}
@@ -272,7 +285,9 @@ func InitializeConsumer() {
 		}
 	}
 
-	registerConfigUpdateCallbacks()
+	if err := registerConfigUpdateCallbacks(); err != nil {
+		logrus.Fatalf("Failed to register config update callbacks: %v", err)
+	}
 }
 
 // loadInitialDataFromFile loads initial data from a JSON file
@@ -302,6 +317,7 @@ func initializeProducer() error {
 	resources := []database.Resource{
 		{Name: consts.ResourceSystem, Type: consts.ResourceTypeSystem, Category: consts.ResourceAdmin},
 		{Name: consts.ResourceAudit, Type: consts.ResourceTypeTable, Category: consts.ResourceAdmin},
+		{Name: consts.ResourceConfigruation, Type: consts.ResourceTypeTable, Category: consts.ResourceAdmin},
 		{Name: consts.ResourceContainer, Type: consts.ResourceTypeTable, Category: consts.ResourceAdmin},
 		{Name: consts.ResourceContainerVersion, Type: consts.ResourceTypeTable, Category: consts.ResourceAdmin},
 		{Name: consts.ResourceDataset, Type: consts.ResourceTypeTable, Category: consts.ResourceAdmin},
@@ -357,14 +373,14 @@ func initializeProducer() error {
 		}
 
 		resourceMap := make(map[consts.ResourceName]*database.Resource, len(allResourcesInDB))
-		ResourceIDMap = make(map[consts.ResourceName]int, len(allResourcesInDB))
+		resourceIDMap = make(map[consts.ResourceName]int, len(allResourcesInDB))
 		for _, res := range allResourcesInDB {
-			ResourceIDMap[res.Name] = res.ID
+			resourceIDMap[res.Name] = res.ID
 			resourceMap[res.Name] = &res
 		}
 
-		resourceMap[consts.ResourceContainerVersion].ParentID = utils.IntPtr(ResourceIDMap[consts.ResourceContainer])
-		resourceMap[consts.ResourceDatasetVersion].ParentID = utils.IntPtr(ResourceIDMap[consts.ResourceDataset])
+		resourceMap[consts.ResourceContainerVersion].ParentID = utils.IntPtr(resourceIDMap[consts.ResourceContainer])
+		resourceMap[consts.ResourceDatasetVersion].ParentID = utils.IntPtr(resourceIDMap[consts.ResourceDataset])
 
 		toUpdatedResources := []database.Resource{
 			*resourceMap[consts.ResourceContainerVersion],
@@ -383,7 +399,7 @@ func initializeProducer() error {
 					Name:        producer.GetPermissionName(action, resource.Name),
 					DisplayName: producer.GetPermissionDisplayName(action, resource.DisplayName),
 					Action:      string(action),
-					ResourceID:  ResourceIDMap[resource.Name],
+					ResourceID:  resourceIDMap[resource.Name],
 					IsSystem:    true,
 					Status:      consts.CommonEnabled,
 				}
@@ -411,10 +427,12 @@ func initializeProducer() error {
 			return fmt.Errorf("failed to initialize admin user and projects: %w", err)
 		}
 
+		// Create default containers from initial data
 		if err := initializeContainers(tx, initialData, adminUser.ID); err != nil {
 			return fmt.Errorf("failed to initialize containers: %w", err)
 		}
 
+		// Create default datasets from initial data
 		if err := initializeDatasets(tx, initialData, adminUser.ID); err != nil {
 			return fmt.Errorf("failed to initialize datasets: %w", err)
 		}
@@ -660,6 +678,7 @@ func initializeConsumer() error {
 
 // initializeDynamicConfigs initializes dynamic configuration items from initial data
 func initializeDynamicConfigs(tx *gorm.DB, data *InitialData) error {
+	var configs []database.DynamicConfig
 	for _, configData := range data.DynamicConfigs {
 		cfg := configData.ConvertToDBDynamicConfig()
 		if err := common.ValidateConfig(cfg); err != nil {
@@ -669,17 +688,85 @@ func initializeDynamicConfigs(tx *gorm.DB, data *InitialData) error {
 		if err := common.CreateConfig(tx, cfg); err != nil {
 			return fmt.Errorf("failed to create dynamic config %s: %w", configData.Key, err)
 		}
+
+		configs = append(configs, *cfg)
 	}
+
+	consumerData.configs = configs
 	return nil
 }
 
 // registerConfigUpdateCallbacks registers callbacks for dynamic config updates
-func registerConfigUpdateCallbacks() {
+func registerConfigUpdateCallbacks() error {
 	config.GetChaosSystemConfigManager().RegisterCallback(onChaosSystemConfigUpdate)
+	if err := config.GetChaosSystemConfigManager().Reload(); err != nil {
+		return fmt.Errorf("failed to reload chaos system config: %w", err)
+	}
+
+	return nil
 }
 
 // onChaosSystemConfigUpdate is called when chaos system config is updated
 func onChaosSystemConfigUpdate() error {
-	logrus.Info("Injection configuration updated, reloading system config manager...")
+	logrus.Info("Chaos system configuration updated, refreshing namespaces...")
+
+	// Refresh Monitor namespaces
+	monitor := consumer.GetMonitor()
+	if monitor == nil {
+		logrus.Warn("Monitor not initialized, skipping namespace refresh")
+		return nil
+	}
+
+	result, err := monitor.RefreshNamespaces()
+	if err != nil {
+		return fmt.Errorf("failed to refresh namespaces: %w", err)
+	}
+
+	// Log detailed refresh results
+	totalChanges := len(result.Added) + len(result.Recovered) + len(result.Disabled) + len(result.Deleted)
+	logrus.Infof("Namespace refresh completed: %d total changes", totalChanges)
+
+	if len(result.Added) > 0 {
+		logrus.Infof("Added namespaces: %v", result.Added)
+	}
+	if len(result.Recovered) > 0 {
+		logrus.Infof("Recovered namespaces: %v", result.Recovered)
+	}
+	if len(result.Disabled) > 0 {
+		logrus.Warnf("Disabled namespaces (have active locks): %v", result.Disabled)
+	}
+	if len(result.Deleted) > 0 {
+		logrus.Infof("Deleted namespaces (no active locks): %v", result.Deleted)
+	}
+
+	// Update Controller informers
+	controller := k8s.GetK8sController()
+	if controller == nil {
+		logrus.Warn("Controller not initialized, skipping informer update")
+		return nil
+	}
+
+	// Add informers for newly added and recovered namespaces
+	namespacesToAdd := make([]string, 0, len(result.Added)+len(result.Recovered))
+	namespacesToAdd = append(namespacesToAdd, result.Added...)
+	namespacesToAdd = append(namespacesToAdd, result.Recovered...)
+
+	if len(namespacesToAdd) > 0 {
+		logrus.Infof("Adding informers for active namespaces: %v", namespacesToAdd)
+		if err := controller.AddNamespaceInformers(namespacesToAdd); err != nil {
+			return fmt.Errorf("failed to add namespace informers: %w", err)
+		}
+	}
+
+	// Remove informers for disabled and deleted namespaces
+	namespacesToRemove := make([]string, 0, len(result.Disabled)+len(result.Deleted))
+	namespacesToRemove = append(namespacesToRemove, result.Disabled...)
+	namespacesToRemove = append(namespacesToRemove, result.Deleted...)
+
+	if len(namespacesToRemove) > 0 {
+		logrus.Infof("Marking namespaces as inactive: %v", namespacesToRemove)
+		controller.RemoveNamespaceInformers(namespacesToRemove)
+	}
+
 	return nil
 }

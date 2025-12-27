@@ -18,14 +18,14 @@ func SetupSystemRoutes(router *gin.Engine) {
 	// Dynamic Configuration Management
 	configs := router.Group("/system/configs", middleware.JWTAuth())
 	{
-		configsRead := configs.Group("", middleware.RequireConfigRead)
+		configsRead := configs.Group("", middleware.RequireConfigurationRead)
 		{
 			configsRead.GET("", system.ListConfigs)                              // Search configurations with filters
 			configsRead.GET("/:config_id", system.GetConfig)                     // Get configuration by ID
 			configsRead.GET("/:config_id/histories", system.ListConfigHistories) // Get configuration change history                // Get configuration statistics
 		}
 
-		configsWrite := configs.Group("", middleware.RequireConfigWrite)
+		configsWrite := configs.Group("", middleware.RequireConfigurationWrite)
 		{
 			configsWrite.PATCH("/:config_id", system.UpdateConfig)           // Update configuration
 			configsWrite.POST("/:config_id/rollback", system.RollbackConfig) // Rollback configuration

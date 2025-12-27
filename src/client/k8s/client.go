@@ -1,7 +1,6 @@
 package k8s
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"sync"
@@ -24,12 +23,6 @@ var (
 	k8sDynamicClientOnce sync.Once
 	controllerOnce       sync.Once
 )
-
-func Init(ctx context.Context, callback Callback) {
-	GetK8sClient()
-	GetK8sDynamicClient()
-	go GetK8sController().Run(ctx, callback)
-}
 
 func GetK8sClient() *kubernetes.Clientset {
 	k8sClientOnce.Do(func() {

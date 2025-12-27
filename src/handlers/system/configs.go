@@ -53,15 +53,17 @@ func GetConfig(c *gin.Context) {
 //	@ID				list_configs
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			page		query		int															false	"Page number"	default(1)
-//	@Param			page_size	query		int															false	"Page size"		default(20)
-//	@Param			category	query		string														false	"Filter by configuration category"
-//	@Param			status		query		consts.StatusType											false	"Filter by configuration status"
-//	@Success		200			{object}	dto.GenericResponse[dto.PaginatedResponse[dto.ConfigResp]]	"Configurations retrieved successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]									"Invalid request format or parameters"
-//	@Failure		401			{object}	dto.GenericResponse[any]									"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]									"Permission denied"
-//	@Failure		500			{object}	dto.GenericResponse[any]									"Internal server error"
+//	@Param			page		query		int													false	"Page number"	default(1)
+//	@Param			page_size	query		int													false	"Page size"		default(20)
+//	@Param			category	query		string												false	"Filter by configuration category"
+//	@Param			value_type	query		consts.ConfigValueType								false	"Filter by configuration value type"
+//	@Param			is_secret	query		bool												false	"Filter by secret status"
+//	@Param			updated_by	query		int													false	"Filter by ID of the user who last updated the config"
+//	@Success		200			{object}	dto.GenericResponse[dto.ListResp[dto.ConfigResp]]	"Configurations retrieved successfully"
+//	@Failure		400			{object}	dto.GenericResponse[any]							"Invalid request format or parameters"
+//	@Failure		401			{object}	dto.GenericResponse[any]							"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]							"Permission denied"
+//	@Failure		500			{object}	dto.GenericResponse[any]							"Internal server error"
 //	@Router			/system/configs [get]
 func ListConfigs(c *gin.Context) {
 	var req dto.ListConfigReq

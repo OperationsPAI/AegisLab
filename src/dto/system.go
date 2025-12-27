@@ -25,6 +25,7 @@ type ServiceInfo struct {
 type NamespaceMonitorItem struct {
 	LockedBy string    `json:"locked_by"`
 	EndTime  time.Time `json:"end_time"`
+	Status   string    `json:"status"`
 }
 
 type ListNamespaceLockResp struct {

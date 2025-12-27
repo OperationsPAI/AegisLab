@@ -12,6 +12,7 @@ import (
 	"aegis/service/common"
 	"aegis/utils"
 
+	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
@@ -35,7 +36,7 @@ type configHistoryParams struct {
 
 // GetConfigDetail retrieves detailed information about a configuration by its key
 func GetConfigDetail(containerID int) (*dto.ConfigDetailResp, error) {
-	config, err := repository.GetConfigByID(database.DB, containerID)
+	config, err := repository.GetConfigByID(database.DB, containerID, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get config detail: %w", err)
 	}
@@ -57,7 +58,7 @@ func GetConfigDetail(containerID int) (*dto.ConfigDetailResp, error) {
 func ListConfigs(req *dto.ListConfigReq) (*dto.ListResp[dto.ConfigResp], error) {
 	limit, offset := req.ToGormParams()
 
-	configs, total, err := repository.ListConfigs(database.DB, limit, offset, req.ValueType, req.IsSecret, req.UpdatedBy)
+	configs, total, err := repository.ListConfigs(database.DB, limit, offset, req.ValueType, req.Category, req.IsSecret, req.UpdatedBy)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list configs: %w", err)
 	}
@@ -79,7 +80,7 @@ func UpdateConfig(req *dto.UpdateConfigReq, configID, operatorID int, ipAddress,
 	var updatedConfig *database.DynamicConfig
 
 	err := database.DB.Transaction(func(tx *gorm.DB) error {
-		existingConfig, err := repository.GetConfigByID(tx, configID)
+		existingConfig, err := repository.GetConfigByID(tx, configID, false)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return fmt.Errorf("%w: configuration with id %d not found", consts.ErrNotFound, configID)
@@ -121,6 +122,10 @@ func UpdateConfig(req *dto.UpdateConfigReq, configID, operatorID int, ipAddress,
 		return nil, err
 	}
 
+	if err := config.SetViperValue(updatedConfig.Key, updatedConfig.Value, updatedConfig.ValueType); err != nil {
+		logrus.Fatalf("Failed to load dynamic config %s into viper: %v", updatedConfig.Key, err)
+	}
+
 	// Trigger config reload and callbacks for injection category changes
 	if updatedConfig.Category == "injection" {
 		if err := config.GetChaosSystemConfigManager().Reload(); err != nil {
@@ -136,7 +141,7 @@ func RollbackConfig(req *dto.RollbackConfigReq, configID, operatorID int, ipAddr
 	var rollbackedConfig *database.DynamicConfig
 
 	err := database.DB.Transaction(func(tx *gorm.DB) error {
-		existingConfig, err := repository.GetConfigByID(tx, configID)
+		existingConfig, err := repository.GetConfigByID(tx, configID, false)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return fmt.Errorf("%w: configuration with id %d not found", consts.ErrNotFound, configID)
@@ -187,6 +192,17 @@ func RollbackConfig(req *dto.RollbackConfigReq, configID, operatorID int, ipAddr
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	if err := config.SetViperValue(rollbackedConfig.Key, rollbackedConfig.Value, rollbackedConfig.ValueType); err != nil {
+		logrus.Fatalf("Failed to load dynamic config %s into viper: %v", rollbackedConfig.Key, err)
+	}
+
+	// Trigger config reload and callbacks for injection category changes
+	if rollbackedConfig.Category == "injection" {
+		if err := config.GetChaosSystemConfigManager().Reload(); err != nil {
+			return nil, fmt.Errorf("failed to reload system config after updating injection config: %w", err)
+		}
 	}
 
 	return dto.NewConfigResp(rollbackedConfig), nil
