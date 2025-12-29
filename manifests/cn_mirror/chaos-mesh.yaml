@@ -1,0 +1,13 @@
+images:
+  registry: pair-diag-cn-guangzhou.cr.volces.com/pair
+
+controllerManager:
+  podChaos:
+    podFailure:
+      # Custom Pause Container Image for Pod Failure Chaos
+      pauseImage: pair-diag-cn-guangzhou.cr.volces.com/pair/google-containers/pause:latest
+
+chaosDaemon:
+  hostNetwork: true
+  runtime: containerd
+  socketPath: /run/containerd/containerd.sock

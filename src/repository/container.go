@@ -293,7 +293,7 @@ func UpdateContainerVersion(db *gorm.DB, version *database.ContainerVersion) err
 // =====================================================================
 
 // BatchCreateHelmConfigs creates multiple helm configs
-func BatchCreateHelmConfigs(db *gorm.DB, helmConfigs []database.HelmConfig) error {
+func BatchCreateHelmConfigs(db *gorm.DB, helmConfigs []*database.HelmConfig) error {
 	if len(helmConfigs) == 0 {
 		return fmt.Errorf("no helm configs to create")
 	}

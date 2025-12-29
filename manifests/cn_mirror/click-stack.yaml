@@ -1,5 +1,5 @@
 global:
-  storageClassName: openebs-hostpath
+  storageClassName: standard
   keepPVC: false
 
 hyperdx:
@@ -22,7 +22,7 @@ clickhouse:
     users:
       appUserPassword: hyperdx
       otelUserPassword: otelcollectorpass
-      otelUserName: "otelcollector"
+      otelUserName: otelcollector
   service:
     type: NodePort
 

@@ -189,7 +189,7 @@ func (c *Controller) AddNamespaceInformers(namespaces []string) error {
 			informer := chaosFactory.ForResource(gvr).Informer()
 
 			// Register event handler
-			logrus.Infof("Registering event handler for %s (Group: %s, Version: %s) in namespace %s",
+			logrus.Debugf("Registering event handler for %s (Group: %s, Version: %s) in namespace %s",
 				gvr.Resource, gvr.Group, gvr.Version, namespace)
 			if _, err := informer.AddEventHandler(c.genCRDEventHandlerFuncs(gvr)); err != nil {
 				return fmt.Errorf("failed to add event handler for %s in namespace %s: %w",
@@ -200,7 +200,7 @@ func (c *Controller) AddNamespaceInformers(namespaces []string) error {
 			syncFuncs = append(syncFuncs, informer.HasSynced)
 
 			// Start informer immediately
-			logrus.Infof("Starting informer for %s in namespace %s", gvr.Resource, namespace)
+			logrus.Debugf("Starting informer for %s in namespace %s", gvr.Resource, namespace)
 			go informer.Run(c.ctx.Done())
 		}
 

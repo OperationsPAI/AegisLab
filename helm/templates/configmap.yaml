@@ -107,4 +107,5 @@ metadata:
 data:
   data.json: |
 {{ .Files.Get "files/initial_data/data.json" | indent 4 }}
-
+  ts.yaml: |
+{{ .Files.Get "files/initial_data/ts.yaml" | indent 4 }}

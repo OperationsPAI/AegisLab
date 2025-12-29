@@ -28,11 +28,12 @@ type ParameterItem struct {
 // =====================================================================
 
 type HelmConfigItem struct {
-	RepoURL   string          `json:"repo_url"`
-	RepoName  string          `json:"repo_name"`
-	ChartName string          `json:"chart_name"`
-	FullChart string          `json:"full_chart"`
-	Values    []ParameterItem `json:"values,omitempty"`
+	RepoURL       string          `json:"repo_url"`
+	RepoName      string          `json:"repo_name"`
+	ChartName     string          `json:"chart_name"`
+	FullChart     string          `json:"full_chart"`
+	ValueFile     string          `json:"value_file,omitempty"`
+	DynamicValues []ParameterItem `json:"values,omitempty"`
 }
 
 func NewHelmConfigItem(cfg *database.HelmConfig) *HelmConfigItem {
@@ -41,17 +42,49 @@ func NewHelmConfigItem(cfg *database.HelmConfig) *HelmConfigItem {
 		RepoName:  cfg.RepoName,
 		ChartName: cfg.ChartName,
 		FullChart: cfg.FullChart,
+		ValueFile: cfg.ValueFile,
 	}
 }
 
-type PedestalInfo struct {
-	HelmConfig *HelmConfigItem `json:"helm_config"`
-}
+// GetValuesMap constructs a nested map of Helm values by merging
+func (hci *HelmConfigItem) GetValuesMap() map[string]any {
+	root := make(map[string]any)
 
-func NewPedestalInfo(helmConfig *database.HelmConfig) *PedestalInfo {
-	return &PedestalInfo{
-		HelmConfig: NewHelmConfigItem(helmConfig),
+	// Load values from ValueFile if it exists
+	if hci.ValueFile != "" {
+		if fileValues, err := utils.LoadYAMLFile(hci.ValueFile); err == nil {
+			root = fileValues
+		}
 	}
+
+	// Merge dynamic values (override file values)
+	for _, item := range hci.DynamicValues {
+		value := item.Value
+
+		keys := strings.Split(item.Key, ".")
+		cur := root
+
+		for i, k := range keys {
+			if i == len(keys)-1 {
+				// Last key - set the value
+				cur[k] = value
+				break
+			}
+			if _, exists := cur[k]; !exists {
+				cur[k] = make(map[string]any)
+			}
+			if nextMap, ok := cur[k].(map[string]any); ok {
+				cur = nextMap
+			} else {
+				// If the path exists but is not a map, replace it with a map
+				newMap := make(map[string]any)
+				cur[k] = newMap
+				cur = newMap
+			}
+		}
+	}
+
+	return root
 }
 
 type ContainerVersionItem struct {
@@ -64,7 +97,7 @@ type ContainerVersionItem struct {
 	ContainerName string `json:"container_name"`
 
 	EnvVars []ParameterItem `json:"env_vars,omitempty"`
-	Extra   *PedestalInfo   `json:"extra,omitempty"`
+	Extra   *HelmConfigItem `json:"extra,omitempty"`
 }
 
 func NewContainerVersionItem(version *database.ContainerVersion) ContainerVersionItem {
@@ -252,10 +285,10 @@ func (req *CreateContainerVersionReq) ConvertToContainerVersion() *database.Cont
 }
 
 type CreateHelmConfigReq struct {
-	ChartName string                     `json:"chart_name" binding:"required"`
-	RepoName  string                     `json:"repo_name" binding:"required"`
-	RepoURL   string                     `json:"repo_url" binding:"required"`
-	Values    []CreateParameterConfigReq `json:"values" binding:"omitempty" swaggertype:"object"`
+	ChartName     string                     `json:"chart_name" binding:"required"`
+	RepoName      string                     `json:"repo_name" binding:"required"`
+	RepoURL       string                     `json:"repo_url" binding:"required"`
+	DynamicValues []CreateParameterConfigReq `json:"dynamic_values" binding:"omitempty" swaggertype:"object"`
 }
 
 func (req *CreateHelmConfigReq) Validate() error {
@@ -277,7 +310,7 @@ func (req *CreateHelmConfigReq) Validate() error {
 		return fmt.Errorf("invalid repository URL: %s, %w", req.RepoURL, err)
 	}
 
-	for i, val := range req.Values {
+	for i, val := range req.DynamicValues {
 		if err := val.Validate(); err != nil {
 			return fmt.Errorf("invalid parameter config at index %d: %w", i, err)
 		}
@@ -293,12 +326,12 @@ func (req *CreateHelmConfigReq) ConvertToHelmConfig() *database.HelmConfig {
 		RepoURL:   req.RepoURL,
 	}
 
-	if len(req.Values) > 0 {
-		params := make([]database.ParameterConfig, 0, len(req.Values))
-		for _, val := range req.Values {
+	if len(req.DynamicValues) > 0 {
+		params := make([]database.ParameterConfig, 0, len(req.DynamicValues))
+		for _, val := range req.DynamicValues {
 			params = append(params, *val.ConvertToParameterConfig())
 		}
-		cfg.Values = params
+		cfg.DynamicValues = params
 	}
 
 	return cfg
@@ -634,11 +667,10 @@ func (req *UpdateContainerVersionReq) PatchContainerVersionModel(target *databas
 }
 
 type UpdateHelmConfigReq struct {
-	RepoURL      *string         `json:"repo_url" binding:"omitempty"`
-	RepoName     *string         `json:"repo_name" binding:"omitempty"`
-	ChartName    *string         `json:"chart_name" binding:"omitempty"`
-	PortTemplate *string         `json:"port_template" binding:"omitempty"`
-	Values       *map[string]any `json:"values" binding:"omitempty" swaggertype:"object"`
+	RepoURL       *string         `json:"repo_url" binding:"omitempty"`
+	RepoName      *string         `json:"repo_name" binding:"omitempty"`
+	ChartName     *string         `json:"chart_name" binding:"omitempty"`
+	DynamicValues *map[string]any `json:"dynamic_values" binding:"omitempty" swaggertype:"object"`
 }
 
 func (req *UpdateHelmConfigReq) Validate() error {
@@ -659,18 +691,6 @@ func (req *UpdateHelmConfigReq) Validate() error {
 	if req.ChartName != nil {
 		*req.ChartName = strings.TrimSpace(*req.ChartName)
 	}
-	if req.PortTemplate != nil {
-		trimmedTemplate := strings.TrimSpace(*req.PortTemplate)
-		*req.PortTemplate = trimmedTemplate
-
-		if trimmedTemplate != "" {
-			const placeholder = "{{.port}}"
-			if !strings.Contains(trimmedTemplate, placeholder) {
-				return fmt.Errorf("port template '%s' must contain the dynamic placeholder '%s'", trimmedTemplate, placeholder)
-			}
-		}
-	}
-
 	return nil
 }
 
@@ -796,6 +816,12 @@ func NewHelmConfigDetailResp(cfg *database.HelmConfig) (*HelmConfigDetailResp, e
 	}
 
 	return resp, nil
+}
+
+// UploadHelmValueFileResp represents the response for uploading a Helm values file
+type UploadHelmValueFileResp struct {
+	FilePath string `json:"file_path"` // Saved file path
+	FileName string `json:"file_name"` // Original file name
 }
 
 type SubmitContainerBuildResp struct {

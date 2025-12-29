@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"mime/multipart"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	"aegis/config"
 
 	"github.com/BurntSushi/toml"
+	"github.com/stretchr/testify/assert/yaml"
 )
 
 type ExculdeRule struct {
@@ -51,6 +53,79 @@ func CheckFileExists(filePath string) bool {
 	return !os.IsNotExist(err)
 }
 
+// CopyDir copies a directory from src to dst
+func CopyDir(src, dst string) error {
+	return filepath.WalkDir(src, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		relPath, err := filepath.Rel(src, path)
+		if err != nil {
+			return fmt.Errorf("failed to get relative path: %v", err)
+		}
+
+		dstPath := filepath.Join(dst, relPath)
+
+		if d.IsDir() {
+			info, err := d.Info()
+			if err != nil {
+				return fmt.Errorf("failed to get directory info: %v", err)
+			}
+			return os.MkdirAll(dstPath, info.Mode())
+		} else {
+			return CopyFile(path, dstPath)
+		}
+	})
+}
+
+// CopyFile copies a file from src to dst
+func CopyFile(src, dst string) error {
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return fmt.Errorf("failed to open source file: %v", err)
+	}
+	defer srcFile.Close()
+
+	srcInfo, err := srcFile.Stat()
+	if err != nil {
+		return fmt.Errorf("failed to stat source file: %v", err)
+	}
+
+	dstFile, err := os.OpenFile(dst, os.O_RDWR|os.O_CREATE|os.O_TRUNC, srcInfo.Mode())
+	if err != nil {
+		return fmt.Errorf("failed to create destination file: %v", err)
+	}
+	defer dstFile.Close()
+
+	if _, err = io.Copy(dstFile, srcFile); err != nil {
+		return fmt.Errorf("failed to copy file content: %v", err)
+	}
+
+	return nil
+}
+
+// CopyFileFromFileHeader copies a file from a multipart.FileHeader to a destination path
+func CopyFileFromFileHeader(fileHeader *multipart.FileHeader, dst string) error {
+	srcFile, err := fileHeader.Open()
+	if err != nil {
+		return fmt.Errorf("failed to open uploaded file: %w", err)
+	}
+	defer srcFile.Close()
+
+	dstFile, err := os.Create(dst)
+	if err != nil {
+		return fmt.Errorf("failed to create destination file: %w", err)
+	}
+	defer dstFile.Close()
+
+	if _, err := io.Copy(dstFile, srcFile); err != nil {
+		return fmt.Errorf("failed to save file: %w", err)
+	}
+
+	return nil
+}
+
 func GetAllSubDirectories(root string) ([]string, error) {
 	var directories []string
 
@@ -80,63 +155,27 @@ func IsAllowedPath(path string) bool {
 	return err == nil && !strings.Contains(rel, "..")
 }
 
+// LoadYAMLFile reads a YAML file and returns it as a map
+func LoadYAMLFile(filePath string) (map[string]any, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file %s: %w", filePath, err)
+	}
+
+	var result map[string]any
+	if err := yaml.Unmarshal(data, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse YAML file %s: %w", filePath, err)
+	}
+
+	return result, nil
+}
+
 func MatchFile(fileName string, rule ExculdeRule) bool {
 	if rule.IsGlob {
 		match, _ := filepath.Match(rule.Pattern, fileName)
 		return match
 	}
 	return fileName == rule.Pattern
-}
-
-func CopyDir(src, dst string) error {
-	return filepath.WalkDir(src, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		relPath, err := filepath.Rel(src, path)
-		if err != nil {
-			return fmt.Errorf("failed to get relative path: %v", err)
-		}
-
-		dstPath := filepath.Join(dst, relPath)
-
-		if d.IsDir() {
-			info, err := d.Info()
-			if err != nil {
-				return fmt.Errorf("failed to get directory info: %v", err)
-			}
-			return os.MkdirAll(dstPath, info.Mode())
-		} else {
-			return CopyFile(path, dstPath)
-		}
-	})
-}
-
-func CopyFile(src, dst string) error {
-	srcFile, err := os.Open(src)
-	if err != nil {
-		return fmt.Errorf("failed to open source file: %v", err)
-	}
-	defer srcFile.Close()
-
-	srcInfo, err := srcFile.Stat()
-	if err != nil {
-		return fmt.Errorf("failed to stat source file: %v", err)
-	}
-
-	dstFile, err := os.OpenFile(dst, os.O_RDWR|os.O_CREATE|os.O_TRUNC, srcInfo.Mode())
-	if err != nil {
-		return fmt.Errorf("failed to create destination file: %v", err)
-	}
-	defer dstFile.Close()
-
-	_, err = io.Copy(dstFile, srcFile)
-	if err != nil {
-		return fmt.Errorf("failed to copy file content: %v", err)
-	}
-
-	return nil
 }
 
 // ExtractZip

@@ -178,6 +178,7 @@ type HelmConfig struct {
 	RepoName           string `gorm:"size:128"`                 // Repository name
 	ChartName          string `gorm:"not null;size:128"`        // Helm chart name
 	ContainerVersionID int    `gorm:"not null;index"`           // Associated ContainerVersion ID (one-to-one relationship)
+	ValueFile          string `gorm:"index"`                    // Values file path
 
 	FullChart string `gorm:"-"` // Full chart reference (not stored in DB, used for display)
 
@@ -185,7 +186,7 @@ type HelmConfig struct {
 	ContainerVersion *ContainerVersion `gorm:"foreignKey:ContainerVersionID;constraint:OnDelete:CASCADE"`
 
 	// Many-to-many relationship with ParameterConfig (for Helm values)
-	Values []ParameterConfig `gorm:"many2many:helm_config_values"`
+	DynamicValues []ParameterConfig `gorm:"many2many:helm_config_values"`
 }
 
 func (h *HelmConfig) AfterFind(tx *gorm.DB) error {

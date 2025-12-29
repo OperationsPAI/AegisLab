@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
-	"strings"
 	"time"
 
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
@@ -28,7 +27,7 @@ type restartPayload struct {
 	injectPayload map[string]any
 }
 
-type installRelease = func(ctx context.Context, releaseName string, namespaceIdx int, info *dto.PedestalInfo) error
+type installRelease = func(ctx context.Context, releaseName string, namespaceIdx int, item *dto.HelmConfigItem) error
 
 var installerMap = map[chaos.SystemType]installRelease{
 	chaos.SystemTrainTicket: installTS,
@@ -273,7 +272,7 @@ func parseRestartPayload(payload map[string]any) (*restartPayload, error) {
 }
 
 // installTS installs the Train Ticket pedestal using Helm
-func installTS(ctx context.Context, releaseName string, namespaceIdx int, info *dto.PedestalInfo) error {
+func installTS(ctx context.Context, releaseName string, namespaceIdx int, item *dto.HelmConfigItem) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		span := trace.SpanFromContext(childCtx)
 		logEntry := logrus.WithFields(logrus.Fields{
@@ -281,7 +280,7 @@ func installTS(ctx context.Context, releaseName string, namespaceIdx int, info *
 			"namespace_idx": namespaceIdx,
 		})
 
-		if info.HelmConfig == nil {
+		if item == nil {
 			return handleExecutionError(span, logEntry, "missing helm config in container extra info", fmt.Errorf("missing helm config in container extra info"))
 		}
 
@@ -291,34 +290,34 @@ func installTS(ctx context.Context, releaseName string, namespaceIdx int, info *
 		}
 
 		// Add Train Ticket repository
-		if err := helmClient.AddRepo(info.HelmConfig.RepoName, info.HelmConfig.RepoURL); err != nil {
+		if err := helmClient.AddRepo(item.RepoName, item.RepoURL); err != nil {
 			return fmt.Errorf("failed to add repository: %w", err)
 		}
 
 		// Update repositories
-		if err := helmClient.UpdateRepo(info.HelmConfig.RepoName); err != nil {
+		if err := helmClient.UpdateRepo(item.RepoName); err != nil {
 			return fmt.Errorf("failed to update repositories: %w", err)
 		}
 
-		paramItems := info.HelmConfig.Values
+		paramItems := item.DynamicValues
 		for i := range paramItems {
 			if paramItems[i].TemplateString != "" {
 				paramItems[i].Value = fmt.Sprintf(paramItems[i].TemplateString, namespaceIdx)
 			}
 		}
 
-		helmValues := buildNestedMap(paramItems)
+		helmValues := item.GetValuesMap()
 
 		// Log Helm install parameters for debugging
 		logrus.WithFields(logrus.Fields{
 			"release_name": releaseName,
-			"chart":        info.HelmConfig.FullChart,
+			"chart":        item.FullChart,
 			"namespace":    releaseName,
 		}).Infof("Installing Helm chart with parameters: %+v", helmValues)
 
 		if err := helmClient.Install(ctx,
 			releaseName,
-			info.HelmConfig.FullChart,
+			item.FullChart,
 			helmValues,
 			600*time.Second,
 			360*time.Second,
@@ -329,28 +328,4 @@ func installTS(ctx context.Context, releaseName string, namespaceIdx int, info *
 		logrus.Infof("Train Ticket installed successfully in namespace %s", releaseName)
 		return nil
 	})
-}
-
-// buildNestedMap constructs a nested map from a list of parameter items with dot-separated keys
-func buildNestedMap(items []dto.ParameterItem) map[string]any {
-	root := make(map[string]any)
-	for _, item := range items {
-		value := item.Value
-
-		keys := strings.Split(item.Key, ".")
-		cur := root
-
-		for i, k := range keys {
-			if i == len(keys)-1 {
-				cur[k] = value
-				break
-			}
-			if _, exists := cur[k]; !exists {
-				cur[k] = make(map[string]any)
-			}
-			cur = cur[k].(map[string]any)
-		}
-	}
-
-	return root
 }

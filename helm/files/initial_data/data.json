@@ -59,7 +59,6 @@
                 {
                     "name": "1.0.0",
                     "github_link": "LGU-SE-Internal/train-ticket",
-                    "image_ref": "pair-diag-cn-guangzhou.cr.volces.com/pair/ts-train-service:v1.2.9",
                     "status": 1,
                     "helm_config": {
                         "repo_name": "train-ticket",
@@ -67,86 +66,11 @@
                         "repo_url": "https://lgu-se-internal.github.io/train-ticket",
                         "values": [
                             {
-                                "key": "global.image.repository",
-                                "type": 1,
-                                "category": 1,
-                                "value_type": 0,
-                                "template_string": "{{ .Registry }}/{{ .Namespace }}",
-                                "overridable": false
-                            },
-                            {
-                                "key": "global.image.tag",
-                                "type": 1,
-                                "category": 1,
-                                "value_type": 0,
-                                "template_string": "{{ .Tag }}",
-                                "overridable": false
-                            },
-                            {
-                                "key": "global.security.allowInsecureImages",
-                                "type": 0,
-                                "category": 1,
-                                "value_type": 2,
-                                "default_value": "true",
-                                "required": true,
-                                "overridable": false
-                            },
-                            {
                                 "key": "services.tsUiDashboard.nodePort",
                                 "type": 1,
                                 "category": 1,
                                 "value_type": 1,
                                 "template_string": "31%03d",
-                                "overridable": false
-                            },
-                            {
-                                "key": "mysql.image.repository",
-                                "type": 1,
-                                "category": 1,
-                                "value_type": 0,
-                                "template_string": "{{ .Registry }}/{{ .Namespace }}/mysql",
-                                "overridable": false
-                            },
-                            {
-                                "key": "rabbitmq.image.registry",
-                                "type": 1,
-                                "category": 1,
-                                "value_type": 0,
-                                "template_string": "{{ .Registry }}/{{ .Namespace }}",
-                                "overridable": false
-                            },
-                            {
-                                "key": "rabbitmq.image.repository",
-                                "type": 0,
-                                "category": 1,
-                                "value_type": 0,
-                                "default_value": "rabbitmq",
-                                "required": true,
-                                "overridable": false
-                            },
-                            {
-                                "key": "loadgenerator.image.repository",
-                                "type": 1,
-                                "category": 1,
-                                "value_type": 0,
-                                "template_string": "{{ .Registry }}/{{ .Namespace }}/loadgenerator",
-                                "overridable": false
-                            },
-                            {
-                                "key": "loadgenerator.image.tag",
-                                "type": 0,
-                                "category": 1,
-                                "value_type": 0,
-                                "default_value": "023",
-                                "required": true,
-                                "overridable": true
-                            },
-                            {
-                                "key": "loadgenerator.initContainer.image",
-                                "type": 1,
-                                "category": 1,
-                                "value_type": 0,
-                                "template_string": "{{ .Registry }}/{{ .Namespace }}/netshoot:v0.14",
                                 "overridable": false
                             }
                         ],

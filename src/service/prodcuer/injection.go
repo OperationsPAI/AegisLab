@@ -599,11 +599,11 @@ func ProduceRestartPedestalTasks(ctx context.Context, req *dto.SubmitInjectionRe
 		return nil, fmt.Errorf("failed to render pedestal helm values: %w", err)
 	}
 
-	pedestalInfo := dto.NewPedestalInfo(helmConfig)
-	pedestalInfo.HelmConfig.Values = helmValues
+	helmConfigItem := dto.NewHelmConfigItem(helmConfig)
+	helmConfigItem.DynamicValues = helmValues
 
 	pedestalItem := dto.NewContainerVersionItem(&pedestalVersion)
-	pedestalItem.Extra = pedestalInfo
+	pedestalItem.Extra = helmConfigItem
 
 	benchmarkVersionResults, err := common.MapRefsToContainerVersions([]*dto.ContainerRef{&req.Benchmark.ContainerRef}, consts.ContainerTypeBenchmark, userID)
 	if err != nil {

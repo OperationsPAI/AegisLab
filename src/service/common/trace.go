@@ -6,7 +6,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var TraceTaskEventMap = map[consts.TaskType]map[consts.TaskState]consts.EventType{
+var traceTaskEventMap = map[consts.TaskType]map[consts.TaskState]consts.EventType{
 	consts.TaskTypeRestartPedestal: {
 		consts.TaskRunning:     consts.EventRestartPedestalStarted,
 		consts.TaskCompleted:   consts.EventRestartPedestalCompleted,
@@ -33,7 +33,11 @@ var TraceTaskEventMap = map[consts.TaskType]map[consts.TaskState]consts.EventTyp
 
 // GetEventTypeByTask maps a task type and state to the corresponding event type
 func GetEventTypeByTask(taskType consts.TaskType, taskState consts.TaskState) consts.EventType {
-	stateMap, exists := TraceTaskEventMap[taskType]
+	if taskType == consts.TaskTypeCollectResult {
+		return "unknown"
+	}
+
+	stateMap, exists := traceTaskEventMap[taskType]
 	if !exists {
 		logrus.Warnf("no event type mapping for task type: %s", consts.GetTaskTypeName(taskType))
 		return "unknown"

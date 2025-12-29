@@ -11,6 +11,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"mime/multipart"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -422,6 +423,88 @@ func UpdateContainerVersion(req *dto.UpdateContainerVersionReq, containerID, ver
 	return dto.NewContainerVersionResp(updatedVersion), nil
 }
 
+// UploadHelmValueFile handles uploading a Helm values file to JuiceFS storage
+func UploadHelmValueFile(fileHeader *multipart.FileHeader, containerID, versionID, userID int) (*dto.UploadHelmValueFileResp, error) {
+	filename := fileHeader.Filename
+
+	containerVersion, err := repository.GetContainerVersionByID(database.DB, versionID)
+	if err != nil {
+		if errors.Is(err, consts.ErrNotFound) {
+			return nil, fmt.Errorf("%w: container version %d not found", consts.ErrNotFound, versionID)
+		}
+		return nil, fmt.Errorf("failed to get container version: %w", err)
+	}
+
+	if containerVersion.ContainerID != containerID {
+		return nil, fmt.Errorf("version %d does not belong to container %d", versionID, containerID)
+	}
+
+	if containerVersion.Container != nil || containerVersion.Container.Type != consts.ContainerTypePedestal {
+		return nil, fmt.Errorf("only pedestal container versions support uploading Helm value files")
+	}
+
+	if containerVersion.HelmConfig == nil {
+		return nil, fmt.Errorf("container version %d does not have an associated Helm configuration", versionID)
+	}
+
+	if err := UploadHemlValueFileCore(database.DB, containerVersion.HelmConfig, fileHeader, ""); err != nil {
+		return nil, fmt.Errorf("failed to upload helm value file: %w", err)
+	}
+
+	return &dto.UploadHelmValueFileResp{
+		FilePath: containerVersion.HelmConfig.ValueFile,
+		FileName: filename,
+	}, nil
+}
+
+// UploadHemlValueFileCore handles the core logic of uploading a Helm values file to JuiceFS storage
+func UploadHemlValueFileCore(db *gorm.DB, helmConfig *database.HelmConfig, srcFileHeader *multipart.FileHeader, srcFilePath string) error {
+	jfsBasePath := config.GetString("jfs.dataset_path")
+	if jfsBasePath == "" {
+		return fmt.Errorf("jfs.dataset_path is not configured")
+	}
+
+	// Create directory structure: {jfs.dataset_path}/helm-values
+	targetDir := filepath.Join(jfsBasePath, "helm-values")
+	if err := os.MkdirAll(targetDir, 0755); err != nil {
+		return fmt.Errorf("failed to create directory: %w", err)
+	}
+
+	timestamp := time.Now().Unix()
+
+	var ext, targetFilename, targetPath string
+	if srcFileHeader != nil {
+		ext = filepath.Ext(srcFileHeader.Filename)
+		targetFilename = fmt.Sprintf("values_%d%s", timestamp, ext)
+		targetPath = filepath.Join(targetDir, targetFilename)
+
+		if err := utils.CopyFileFromFileHeader(srcFileHeader, targetPath); err != nil {
+			return fmt.Errorf("failed to save file: %w", err)
+		}
+	}
+
+	if srcFilePath != "" {
+		ext = filepath.Ext(srcFilePath)
+		targetFilename = fmt.Sprintf("values_%d%s", timestamp, ext)
+		targetPath = filepath.Join(targetDir, targetFilename)
+
+		if err := utils.CopyFile(srcFilePath, targetPath); err != nil {
+			return fmt.Errorf("failed to save file: %w", err)
+		}
+	}
+
+	logrus.WithFields(logrus.Fields{
+		"file_path": targetPath,
+	}).Info("Helm values file uploaded successfully")
+
+	helmConfig.ValueFile = targetPath
+	if err := repository.UpdateHelmConfig(db, helmConfig); err != nil {
+		return fmt.Errorf("failed to update helm config: %w", err)
+	}
+
+	return nil
+}
+
 // =====================================================================
 // Container Building Task Service Layer
 // =====================================================================
@@ -547,13 +630,11 @@ func createContainerVersionsCore(db *gorm.DB, versions []database.ContainerVersi
 		}
 	}
 
-	var helmConfigs []database.HelmConfig
-	helmConfigIdxMap := make(map[int]int) // map from helmConfig index to version index
-	for versionIdx, version := range versions {
-		if version.HelmConfig != nil {
-			version.HelmConfig.ContainerVersionID = versions[versionIdx].ID
-			helmConfigIdxMap[len(helmConfigs)] = versionIdx
-			helmConfigs = append(helmConfigs, *version.HelmConfig)
+	var helmConfigs []*database.HelmConfig
+	for versionIdx := range versions {
+		if versions[versionIdx].HelmConfig != nil {
+			versions[versionIdx].HelmConfig.ContainerVersionID = versions[versionIdx].ID
+			helmConfigs = append(helmConfigs, versions[versionIdx].HelmConfig)
 		}
 	}
 
@@ -574,7 +655,7 @@ func createContainerVersionsCore(db *gorm.DB, versions []database.ContainerVersi
 
 	helmValuesWithIdx := []helmValueWithConfigIdx{}
 	for helmConfigIdx, helmConfig := range helmConfigs {
-		for valueIdx, value := range helmConfig.Values {
+		for valueIdx, value := range helmConfig.DynamicValues {
 			helmValuesWithIdx = append(helmValuesWithIdx, helmValueWithConfigIdx{
 				value:         value,
 				helmConfigIdx: helmConfigIdx,

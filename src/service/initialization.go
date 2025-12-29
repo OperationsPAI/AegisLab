@@ -103,8 +103,7 @@ type InitialHelmConfig struct {
 
 func (hc *InitialHelmConfig) ConvertToDBHelmConfig() *database.HelmConfig {
 	return &database.HelmConfig{
-		RepoURL:   hc.RepoURL,
-		RepoName:  hc.RepoName,
+		RepoURL:   hc.RepoName,
 		ChartName: hc.ChartName,
 	}
 }
@@ -558,6 +557,8 @@ func initializeAdminUserAndProjects(tx *gorm.DB, data *InitialData) (*database.U
 
 // initializeContainers initializes default containers from initial data
 func initializeContainers(tx *gorm.DB, data *InitialData, userID int) error {
+	dataPath := config.GetString("initialization.data_path")
+
 	for _, containerData := range data.Containers {
 		container := containerData.ConvertToDBContainer()
 		if container.Type == consts.ContainerTypePedestal {
@@ -588,7 +589,7 @@ func initializeContainers(tx *gorm.DB, data *InitialData, userID int) error {
 						param := paramData.ConvertToDBParameterConfig()
 						params = append(params, *param)
 					}
-					helmConfig.Values = params
+					helmConfig.DynamicValues = params
 				}
 
 				version.HelmConfig = helmConfig
@@ -599,9 +600,20 @@ func initializeContainers(tx *gorm.DB, data *InitialData, userID int) error {
 
 		container.Versions = versions
 
-		_, err := producer.CreateContainerCore(tx, container, userID)
+		createdContainer, err := producer.CreateContainerCore(tx, container, userID)
 		if err != nil {
 			return fmt.Errorf("failed to create container %s: %w", containerData.Name, err)
+		}
+
+		if createdContainer.Type == consts.ContainerTypePedestal {
+			if err := producer.UploadHemlValueFileCore(
+				tx,
+				container.Versions[0].HelmConfig,
+				nil,
+				filepath.Join(dataPath, fmt.Sprintf("%s.yaml", createdContainer.Name)),
+			); err != nil {
+				return fmt.Errorf("failed to upload helm value file for container %s: %w", containerData.Name, err)
+			}
 		}
 	}
 

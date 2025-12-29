@@ -2,11 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
-## [unreleased]
+## [1.1.52] - 2025-12-27
 
 ### Features
 
 - *(config)* Add dynamic configuration
+- *(config)* Dynamic configuration system with namespace lifecycle
 
 ### Deploy
 

@@ -1,0 +1,21 @@
+global:
+  image:
+    repository: 10.10.10.240/library
+    tag: "v1.2.9"
+  security:
+    allowInsecureImages: true
+
+mysql:
+  image:
+    repository: 10.10.10.240/library/mysql
+
+rabbitmq:
+  image:
+    registry: 10.10.10.240/library
+    repository: rabbitmq
+
+loadgenerator:
+  image:
+    repository: 10.10.10.240/library/loadgenerator
+  initContainer:
+    image: 10.10.10.240/library/netshoot:v0.14
