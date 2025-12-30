@@ -5,12 +5,8 @@ import (
 	"aegis/database"
 	"aegis/dto"
 	"aegis/repository"
-	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-
-	"github.com/redis/go-redis/v9"
 )
 
 // BatchDeleteTasks deletes multiple tasks by their IDs
@@ -64,48 +60,4 @@ func ListTasks(req *dto.ListTaskReq) (*dto.ListResp[dto.TaskResp], error) {
 		Pagination: req.ConvertToPaginationInfo(total),
 	}
 	return &resp, nil
-}
-
-func ListQueuedTasks(ctx context.Context) (*dto.QueuedTasksResp, error) {
-	readyTaskDatas, err := repository.ListReadyTasks(ctx)
-	if err != nil {
-		if errors.Is(err, redis.Nil) {
-			return nil, fmt.Errorf("%w: no ready tasks found", consts.ErrNotFound)
-		}
-		return nil, err
-	}
-
-	readyTask := make([]dto.TaskResp, 0, len(readyTaskDatas))
-	for _, taskData := range readyTaskDatas {
-		var task database.Task
-		if err := json.Unmarshal([]byte(taskData), &task); err != nil {
-			return nil, err
-		}
-
-		readyTask = append(readyTask, *dto.NewTaskResp(&task))
-	}
-
-	delayedTaskDatas, err := repository.ListDelayedTasks(ctx, 1000)
-	if err != nil {
-		if errors.Is(err, redis.Nil) {
-			return nil, fmt.Errorf("%w: no delayed tasks found", consts.ErrNotFound)
-		}
-		return nil, err
-	}
-
-	delayedTask := make([]dto.TaskResp, 0, len(delayedTaskDatas))
-	for _, taskData := range delayedTaskDatas {
-		var task database.Task
-		if err := json.Unmarshal([]byte(taskData), &task); err != nil {
-			return nil, err
-		}
-
-		delayedTask = append(delayedTask, *dto.NewTaskResp(&task))
-	}
-
-	resp := &dto.QueuedTasksResp{
-		ReadyTasks:   readyTask,
-		DelayedTasks: delayedTask,
-	}
-	return resp, nil
 }

@@ -22,14 +22,14 @@ type ServiceInfo struct {
 	Details      any       `json:"details,omitempty"`
 }
 
-type NamespaceMonitorItem struct {
+type NsMonitorItem struct {
 	LockedBy string    `json:"locked_by"`
 	EndTime  time.Time `json:"end_time"`
 	Status   string    `json:"status"`
 }
 
 type ListNamespaceLockResp struct {
-	Items map[string]NamespaceMonitorItem `json:"items" swaggertype:"object"`
+	Items map[string]NsMonitorItem `json:"items" swaggertype:"object"`
 }
 
 // SystemInfo represents system information

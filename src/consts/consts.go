@@ -17,6 +17,14 @@ const (
 	DefaultTimeUnit         = time.Minute
 )
 
+// monitoring related constants
+const (
+	// Set of all monitored namespaces
+	NamespacesKey = "monitor:namespaces"
+	// Hash pattern for namespace status (will be monitor:ns:{namespace})
+	NamespaceKeyPattern = "monitor:ns:%s"
+)
+
 // ResourceName is the type for resource names, used for permission checks
 type ResourceName string
 

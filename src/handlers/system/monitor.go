@@ -3,7 +3,6 @@ package system
 import (
 	"aegis/dto"
 	"aegis/handlers"
-	"aegis/service/consumer"
 	producer "aegis/service/prodcuer"
 	"net/http"
 	"runtime"
@@ -110,10 +109,9 @@ func GetSystemInfo(c *gin.Context) {
 //	@Failure		401	{object}	dto.GenericResponse[any]						"Authentication required"
 //	@Failure		403	{object}	dto.GenericResponse[any]						"Permission denied"
 //	@Failure		500	{object}	dto.GenericResponse[any]						"Internal Server Error"
-//	@Router			/system/monitor/namespace/locks [get]
+//	@Router			/system/monitor/namespaces/locks [get]
 func ListNamespaceLocks(c *gin.Context) {
-	monitor := consumer.GetMonitor()
-	items, err := monitor.InspectLock()
+	items, err := producer.InspectLock(c.Request.Context())
 	if handlers.HandleServiceError(c, err) {
 		return
 	}
@@ -125,7 +123,7 @@ func ListNamespaceLocks(c *gin.Context) {
 //
 //	@Summary		List queued tasks
 //	@Description	List tasks in queue (ready and delayed)
-//	@Tags			Tasks
+//	@Tags			System
 //	@Produce		json
 //	@Security		BearerAuth
 //	@Success		200	{object}	dto.GenericResponse[dto.QueuedTasksResp]	"Queued tasks retrieved successfully"
@@ -133,7 +131,7 @@ func ListNamespaceLocks(c *gin.Context) {
 //	@Failure		403	{object}	dto.GenericResponse[any]					"Permission denied"
 //	@Failure		404	{object}	dto.GenericResponse[any]					"No queued tasks found"
 //	@Failure		500	{object}	dto.GenericResponse[any]					"Internal server error"
-//	@Router			/system/monitor/task/queue [post]
+//	@Router			/system/monitor/tasks/queue [post]
 func ListQueuedTasks(c *gin.Context) {
 	ctx := c.Request.Context()
 	resp, err := producer.ListQueuedTasks(ctx)

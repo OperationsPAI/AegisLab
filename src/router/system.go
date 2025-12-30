@@ -41,7 +41,7 @@ func SetupSystemRoutes(router *gin.Engine) {
 	{
 		monitor.POST("/metrics", system.GetMetrics)
 		monitor.GET("/info", system.GetSystemInfo)
-		monitor.GET("/namespaces/locks", system.ListQueuedTasks)
-		monitor.GET("/task/queue", system.ListQueuedTasks)
+		monitor.GET("/namespaces/locks", system.ListNamespaceLocks)
+		monitor.GET("/tasks/queue", system.ListQueuedTasks)
 	}
 }
