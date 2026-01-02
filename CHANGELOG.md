@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### Features
+
+- *(pedestal)* Add OpenTelemetry Demo support
+
 ### Refactor
 
 - *(monitor)* Decouple namespace lock query from consumer

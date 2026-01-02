@@ -235,6 +235,63 @@ class PostProcesser:
         elif "components" in self.data and "schemas" in self.data["components"]:
             update_refs(self.data["components"]["schemas"])
 
+    def deduplicate_enum_values(self) -> None:
+        """
+        Remove duplicate values from enum arrays in schema definitions.
+        This fixes the issue where swag generates duplicate enum values
+        when parsing external package type aliases.
+        """
+        schemas = None
+        if "definitions" in self.data:
+            schemas = self.data["definitions"]
+        elif "components" in self.data and "schemas" in self.data["components"]:
+            schemas = self.data["components"]["schemas"]
+
+        if not schemas:
+            return
+
+        count = 0
+        for schema_name, schema_def in schemas.items():
+            if not isinstance(schema_def, dict):
+                continue
+
+            # Check if this schema has an enum field
+            if "enum" in schema_def and isinstance(schema_def["enum"], list):
+                original_enum = schema_def["enum"]
+                original_len = len(original_enum)
+
+                # Remove duplicates while preserving order
+                seen = set()
+                deduped_enum = []
+                for value in original_enum:
+                    if value not in seen:
+                        seen.add(value)
+                        deduped_enum.append(value)
+
+                # Update only if duplicates were found
+                if len(deduped_enum) < original_len:
+                    schema_def["enum"] = deduped_enum
+                    count += 1
+                    console.print(
+                        f"[gray]   {schema_name}: removed {original_len - len(deduped_enum)} duplicate enum values[/gray]"
+                    )
+
+                    # Also deduplicate x-enum-varnames if present
+                    if "x-enum-varnames" in schema_def and isinstance(
+                        schema_def["x-enum-varnames"], list
+                    ):
+                        varnames = schema_def["x-enum-varnames"]
+                        # Take only the first half if length matches original enum
+                        if len(varnames) == original_len:
+                            schema_def["x-enum-varnames"] = varnames[
+                                : len(deduped_enum)
+                            ]
+
+        if count > 0:
+            console.print(
+                f"[bold green]✅ Deduplicated enums in {count} schemas[/bold green]"
+            )
+
     def convert_inline_enums_to_refs(self) -> None:
         """
         Convert inline enum definitions in parameters to $ref references.
@@ -495,6 +552,7 @@ def init(version: str) -> None:
     processor.update_version(version)
     processor.add_sse_extensions()
     processor.update_model_name()
+    processor.deduplicate_enum_values()  # Remove duplicate enum values
 
     processor.output(api_file)
 
