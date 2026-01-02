@@ -523,7 +523,7 @@ func AddContainerVersionEnvVars(db *gorm.DB, envVars []database.ContainerVersion
 	if len(envVars) == 0 {
 		return nil
 	}
-	if err := db.Create(&envVars).Error; err != nil {
+	if err := db.Clauses(clause.OnConflict{DoNothing: true}).Create(&envVars).Error; err != nil {
 		return fmt.Errorf("failed to add container version env vars: %w", err)
 	}
 	return nil
@@ -556,7 +556,7 @@ func AddHelmConfigValues(db *gorm.DB, helmValues []database.HelmConfigValue) err
 	if len(helmValues) == 0 {
 		return nil
 	}
-	if err := db.Create(&helmValues).Error; err != nil {
+	if err := db.Clauses(clause.OnConflict{DoNothing: true}).Create(&helmValues).Error; err != nil {
 		return fmt.Errorf("failed to add helm config values: %w", err)
 	}
 	return nil

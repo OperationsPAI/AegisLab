@@ -26,6 +26,7 @@ type injectionPayload struct {
 	preDuration int
 	nodes       []chaos.Node
 	namespace   string
+	pedestal    chaos.SystemType
 	pedestalID  int
 	labels      []dto.LabelItem
 }
@@ -210,6 +211,7 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 		injection := &database.FaultInjection{
 			Name:          name,
 			FaultType:     faultType,
+			Category:      payload.pedestal,
 			Description:   fmt.Sprintf("Fault batch for task %s (%d faults)", task.TaskID, len(payload.nodes)),
 			DisplayConfig: utils.StringPtr(string(displayData)),
 			EngineConfig:  string(engineData),
@@ -274,6 +276,15 @@ func parseInjectionPayload(payload map[string]any) (*injectionPayload, error) {
 		return nil, fmt.Errorf(message, consts.InjectNamespace)
 	}
 
+	pedestalStr, ok := payload[consts.InjectPedestal].(string)
+	if !ok || pedestalStr == "" {
+		return nil, fmt.Errorf(message, consts.InjectPedestal)
+	}
+	pedestal := chaos.SystemType(pedestalStr)
+	if !pedestal.IsValid() {
+		return nil, fmt.Errorf("invalid pedestal type: %s", pedestalStr)
+	}
+
 	pedestalIDFloat, ok := payload[consts.InjectPedestalID].(float64)
 	if !ok || pedestalIDFloat <= 0 {
 		return nil, fmt.Errorf(message, consts.InjectPedestalID)
@@ -290,6 +301,7 @@ func parseInjectionPayload(payload map[string]any) (*injectionPayload, error) {
 		preDuration: preDuration,
 		nodes:       nodes,
 		namespace:   namespace,
+		pedestal:    pedestal,
 		pedestalID:  pedestalID,
 		labels:      labels,
 	}, nil

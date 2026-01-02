@@ -13,13 +13,14 @@ import (
 
 // FaultInjectionNoIssues view model
 type FaultInjectionNoIssues struct {
-	ID           int             `gorm:"column:datapack_id"`
-	Name         string          `gorm:"column:datapack_name"`
-	FaultType    chaos.ChaosType `gorm:"column:fault_type"`
-	EngineConfig string          `gorm:"column:engine_config"`
-	LabelKey     string          `gorm:"column:label_key"`
-	LabelValue   string          `gorm:"column:value_key"`
-	CreatedAt    time.Time       `gorm:"column:created_at"`
+	ID           int              `gorm:"column:datapack_id"`
+	Name         string           `gorm:"column:datapack_name"`
+	FaultType    chaos.ChaosType  `gorm:"column:fault_type"`
+	Category     chaos.SystemType `gorm:"column:category"`
+	EngineConfig string           `gorm:"column:engine_config"`
+	LabelKey     string           `gorm:"column:label_key"`
+	LabelValue   string           `gorm:"column:value_key"`
+	CreatedAt    time.Time        `gorm:"column:created_at"`
 }
 
 func (FaultInjectionNoIssues) TableName() string {
@@ -28,20 +29,21 @@ func (FaultInjectionNoIssues) TableName() string {
 
 // FaultInjectionWithIssues view model
 type FaultInjectionWithIssues struct {
-	ID                  int             `gorm:"column:datapack_id"`
-	Name                string          `gorm:"column:datapack_name"`
-	FaultType           chaos.ChaosType `gorm:"column:fault_type"`
-	EngineConfig        string          `gorm:"column:engine_config"`
-	LabelKey            string          `gorm:"column:label_key"`
-	LabelValue          string          `gorm:"column:value_key"`
-	CreatedAt           time.Time       `gorm:"column:created_at"`
-	Issues              string          `gorm:"column:issues"`
-	AbnormalAvgDuration float64         `gorm:"column:abnormal_avg_duration"`
-	NormalAvgDuration   float64         `gorm:"column:normal_avg_duration"`
-	AbnormalSuccRate    float64         `gorm:"column:abnormal_succ_rate"`
-	NormalSuccRate      float64         `gorm:"column:normal_succ_rate"`
-	AbnormalP99         float64         `gorm:"column:abnormal_p99"`
-	NormalP99           float64         `gorm:"column:normal_p99"`
+	ID                  int              `gorm:"column:datapack_id"`
+	Name                string           `gorm:"column:datapack_name"`
+	FaultType           chaos.ChaosType  `gorm:"column:fault_type"`
+	Category            chaos.SystemType `gorm:"column:category"`
+	EngineConfig        string           `gorm:"column:engine_config"`
+	LabelKey            string           `gorm:"column:label_key"`
+	LabelValue          string           `gorm:"column:value_key"`
+	CreatedAt           time.Time        `gorm:"column:created_at"`
+	Issues              string           `gorm:"column:issues"`
+	AbnormalAvgDuration float64          `gorm:"column:abnormal_avg_duration"`
+	NormalAvgDuration   float64          `gorm:"column:normal_avg_duration"`
+	AbnormalSuccRate    float64          `gorm:"column:abnormal_succ_rate"`
+	NormalSuccRate      float64          `gorm:"column:normal_succ_rate"`
+	AbnormalP99         float64          `gorm:"column:abnormal_p99"`
+	NormalP99           float64          `gorm:"column:normal_p99"`
 }
 
 func (FaultInjectionWithIssues) TableName() string {
@@ -78,7 +80,8 @@ func createDetectorViews() {
 		Select(`DISTINCT 
 		fi.id AS datapack_id, 
 		fi.name AS name, 
-		fi.fault_type AS fault_type, 
+		fi.fault_type AS fault_type,
+		fi.category AS category, 
 		fi.engine_config AS engine_config, 
 		l.label_key as label_key,
 		l.label_value as label_value,
@@ -96,7 +99,8 @@ func createDetectorViews() {
 		Select(`DISTINCT 
 		fi.id AS datapack_id, 
 		fi.name AS name,
-		fi.fault_type AS fault_type, 
+		fi.fault_type AS fault_type,
+		fi.category AS category, 
 		fi.engine_config AS engine_config, 
 		l.label_key as label_key,
 		l.label_value as label_value,

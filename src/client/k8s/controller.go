@@ -141,7 +141,7 @@ func (c *Controller) AddNamespaceInformers(namespaces []string) error {
 		return nil
 	}
 
-	logrus.Infof("Adding informers for %d namespace(s): %v", len(namespaces), namespaces)
+	logrus.Debugf("Adding informers for %d namespace(s): %v", len(namespaces), namespaces)
 
 	tweakListOptions := func(options *metav1.ListOptions) {
 		options.LabelSelector = fmt.Sprintf("%s=%s", consts.K8sLabelAppID, consts.AppID)
@@ -166,7 +166,7 @@ func (c *Controller) AddNamespaceInformers(namespaces []string) error {
 		}
 
 		// Create new factory for this namespace
-		logrus.Infof("Creating new CRD informers for namespace: %s", namespace)
+		logrus.Debugf("Creating new CRD informers for namespace: %s", namespace)
 		chaosFactory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
 			GetK8sDynamicClient(),
 			resyncPeriod,
@@ -211,7 +211,7 @@ func (c *Controller) AddNamespaceInformers(namespaces []string) error {
 
 		newInformers[namespace] = syncFuncs
 		addedCount++
-		logrus.Infof("Successfully added and started %d CRD informer(s) for namespace: %s", len(gvrInformers), namespace)
+		logrus.Debugf("Successfully added and started %d CRD informer(s) for namespace: %s", len(gvrInformers), namespace)
 	}
 
 	// Wait for all new informers to sync their caches
@@ -221,7 +221,7 @@ func (c *Controller) AddNamespaceInformers(namespaces []string) error {
 			allSyncFuncs = append(allSyncFuncs, syncFuncs...)
 		}
 
-		logrus.Infof("Waiting for %d new CRD informer(s) to sync caches...", len(allSyncFuncs))
+		logrus.Debugf("Waiting for %d new CRD informer(s) to sync caches...", len(allSyncFuncs))
 		if !cache.WaitForCacheSync(c.ctx.Done(), allSyncFuncs...) {
 			return fmt.Errorf("timed out waiting for new CRD informer caches to sync")
 		}
@@ -278,14 +278,14 @@ func (c *Controller) startJobAndPodInformers() error {
 		return fmt.Errorf("callback must be set before registering Job and Pod informers")
 	}
 
-	logrus.Info("Starting Job and Pod informers...")
+	logrus.Debug("Starting Job and Pod informers...")
 
 	// Register event handlers
 	if c.jobInformer != nil {
 		if _, err := c.jobInformer.AddEventHandler(c.genJobEventHandlerFuncs()); err != nil {
 			return fmt.Errorf("failed to add event handler for Job informer: %w", err)
 		}
-		logrus.Info("Registered event handler for Job informer")
+		logrus.Debug("Registered event handler for Job informer")
 
 		// Start Job informer
 		go c.jobInformer.Run(c.ctx.Done())
@@ -298,7 +298,7 @@ func (c *Controller) startJobAndPodInformers() error {
 		if _, err := c.podInformer.AddEventHandler(c.genPodEventHandlerFuncs()); err != nil {
 			return fmt.Errorf("failed to add event handler for Pod informer: %w", err)
 		}
-		logrus.Info("Registered event handler for Pod informer")
+		logrus.Debug("Registered event handler for Pod informer")
 
 		// Start Pod informer
 		go c.podInformer.Run(c.ctx.Done())
@@ -317,7 +317,7 @@ func (c *Controller) startJobAndPodInformers() error {
 	}
 
 	if len(syncFuncs) > 0 {
-		logrus.Info("Waiting for Job and Pod informer caches to sync...")
+		logrus.Debug("Waiting for Job and Pod informer caches to sync...")
 		if !cache.WaitForCacheSync(c.ctx.Done(), syncFuncs...) {
 			return fmt.Errorf("timed out waiting for Job and Pod informer caches to sync")
 		}

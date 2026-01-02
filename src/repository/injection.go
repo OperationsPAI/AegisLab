@@ -151,6 +151,9 @@ func ListInjections(db *gorm.DB, limit, offset int, filterOptions *dto.ListInjec
 	if filterOptions.FaultType != nil {
 		query = query.Where("fault_type = ?", *filterOptions.FaultType)
 	}
+	if filterOptions.Category != nil {
+		query = query.Where("category = ?", *filterOptions.Category)
+	}
 	if filterOptions.Benchmark != "" {
 		query = query.Where("benchmark = ?", filterOptions.Benchmark)
 	}

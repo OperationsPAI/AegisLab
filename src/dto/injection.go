@@ -154,6 +154,7 @@ type InjectionFieldMappingResp struct {
 
 type ListInjectionFilters struct {
 	FaultType       *chaos.ChaosType
+	Category        *chaos.SystemType
 	Benchmark       string
 	State           *consts.DatapackState
 	Status          *consts.StatusType
@@ -164,6 +165,7 @@ type ListInjectionFilters struct {
 type ListInjectionReq struct {
 	PaginationReq
 	Type      *chaos.ChaosType      `form:"fault_type" binding:"omitempty"`
+	Category  *chaos.SystemType     `form:"category" binding:"omitempty"`
 	Benchmark string                `form:"benchmark" binding:"omitempty"`
 	State     *consts.DatapackState `form:"state" binding:"omitempty"`
 	Status    *consts.StatusType    `form:"status" binding:"omitempty"`
@@ -176,6 +178,9 @@ func (req *ListInjectionReq) Validate() error {
 	}
 	if err := validateChaosType(req.Type); err != nil {
 		return err
+	}
+	if !req.Category.IsValid() {
+		return fmt.Errorf("invalid category: %s", req.Category)
 	}
 	if err := validateDatapackState(req.State); err != nil {
 		return err
@@ -209,27 +214,14 @@ func (req *ListInjectionReq) ToFilterOptions() *ListInjectionFilters {
 	}
 }
 
-type SearchInjectionFilters struct {
-	TaskIDs         []string
-	NamePattern     string
-	FaultTypes      []chaos.ChaosType
-	Benchmarks      []string
-	States          []consts.DatapackState
-	Statuses        []consts.StatusType
-	LabelConditions []map[string]string
-	StartTimeGte    *time.Time
-	StartTimeLte    *time.Time
-	EndTimeGte      *time.Time
-	EndTimeLte      *time.Time
-}
-
-// InjectionV2SearchReq represents the request to search injections with various filters
+// SearchInjectionReq represents the request to search fault injections with advanced filters
 type SearchInjectionReq struct {
 	AdvancedSearchReq
 	TaskIDs       []string               `json:"task_ids" binding:"omitempty"`
 	Names         []string               `json:"names" binding:"omitempty"`
 	NamePattern   string                 `json:"name_pattern" binding:"omitempty"`
 	FaultTypes    []chaos.ChaosType      `json:"fault_types" binding:"omitempty"`
+	Categories    []chaos.SystemType     `json:"categories" binding:"omitempty"`
 	States        []consts.DatapackState `json:"states" binding:"omitempty"`
 	Benchmarks    []string               `json:"benchmarks" binding:"omitempty"`
 	Labels        []LabelItem            `json:"labels" binding:"omitempty"` // Custom labels to filter by
@@ -310,6 +302,14 @@ func (req *SearchInjectionReq) ConvertToSearchReq() *SearchReq {
 		}
 		sr.AddFilter("fault_type", OpIn, faultTypeValues)
 	}
+	if len(req.Categories) > 0 {
+		categoryValues := make([]string, len(req.Categories))
+		for i, ct := range req.Categories {
+			categoryValues[i] = ct.String()
+		}
+		sr.AddFilter("category", OpIn, categoryValues)
+	}
+
 	if len(req.States) > 0 {
 		stateValues := make([]string, len(req.States))
 		for i, st := range req.States {
@@ -411,6 +411,7 @@ type InjectionResp struct {
 	ID            int            `json:"id"`
 	Name          string         `json:"name"`
 	FaultType     string         `json:"fault_type"`
+	Category      string         `json:"category"`
 	DisplayConfig map[string]any `json:"display_config,omitempty" swaggertype:"object"`
 	PreDuration   int            `json:"pre_duration"`
 	StartTime     *time.Time     `json:"start_time,omitempty"`
@@ -440,6 +441,7 @@ func NewInjectionResp(injection *database.FaultInjection) *InjectionResp {
 		ID:          injection.ID,
 		Name:        injection.Name,
 		FaultType:   faultTypeName,
+		Category:    injection.Category.String(),
 		PreDuration: injection.PreDuration,
 		StartTime:   injection.StartTime,
 		EndTime:     injection.EndTime,
@@ -666,6 +668,7 @@ type InjectionNoIssuesResp struct {
 	ID           int         `json:"datapack_id"`
 	Name         string      `json:"datapack_name"`
 	FaultType    string      `json:"fault_type"`
+	Category     string      `json:"category"`
 	EngineConfig *chaos.Node `json:"engine_config"`
 }
 
@@ -680,6 +683,7 @@ func NewInjectionNoIssuesResp(entity database.FaultInjectionNoIssues) (*Injectio
 		ID:           entity.ID,
 		Name:         entity.Name,
 		FaultType:    chaos.ChaosTypeMap[entity.FaultType],
+		Category:     entity.Category.String(),
 		EngineConfig: engineConfig,
 	}, nil
 }
@@ -689,6 +693,7 @@ type InjectionWithIssuesResp struct {
 	ID                  int        `json:"datapack_id"`
 	Name                string     `json:"datapack_name"`
 	FaultType           string     `json:"fault_type"`
+	Category            string     `json:"category"`
 	EngineConfig        chaos.Node `json:"engine_config"`
 	Issues              string     `json:"issues"`
 	AbnormalAvgDuration float64    `json:"abnormal_avg_duration"`
@@ -709,6 +714,7 @@ func NewInjectionWithIssuesResp(entity database.FaultInjectionWithIssues) (*Inje
 		ID:                  entity.ID,
 		Name:                entity.Name,
 		FaultType:           chaos.ChaosTypeMap[entity.FaultType],
+		Category:            entity.Category.String(),
 		EngineConfig:        engineConfig,
 		Issues:              entity.Issues,
 		AbnormalAvgDuration: entity.AbnormalAvgDuration,

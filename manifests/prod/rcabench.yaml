@@ -23,7 +23,7 @@ harbor:
 configmap:
   k8s:
     init_container:
-      busybox_image: "pair-diag-cn-guangzhou.cr.volces.com/pair/busybox:1.35"
+      busybox_image: pair-diag-cn-guangzhou.cr.volces.com/pair/busybox:1.35
 
 persistence:
   storageType: volcengine

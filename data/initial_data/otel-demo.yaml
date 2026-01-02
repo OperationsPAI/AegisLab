@@ -11,3 +11,23 @@ default:
       value: cumulative
     - name: OTEL_RESOURCE_ATTRIBUTES
       value: 'service.name=$(OTEL_SERVICE_NAME),service.namespace=opentelemetry-demo,service.version={{ .Chart.AppVersion }}'
+
+  image: 
+    repository: 10.10.10.240/library/open-telemetry-demo
+
+components:
+  flagd:
+    imageOverride:
+      repository: 10.10.10.240/library/flagd
+
+  valkey-cart:
+    imageOverride:
+      repository: 10.10.10.240/library/valkey
+
+grafana:
+  enabled: false
+
+opensearch:
+  image:
+    repository: 10.10.10.240/library/opensearch
+    tag: "3.2.0"

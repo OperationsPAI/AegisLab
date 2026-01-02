@@ -94,17 +94,17 @@ func (cv *InitialContainerVersion) ConvertToDBContainerVersion() *database.Conta
 }
 
 type InitialHelmConfig struct {
-	ChartName    string                   `json:"chart_name"`
-	RepoName     string                   `json:"repo_name"`
-	RepoURL      string                   `json:"repo_url"`
-	PortTemplate string                   `json:"port_template"`
-	Values       []InitialParameterConfig `json:"values"`
+	ChartName string                   `json:"chart_name"`
+	RepoName  string                   `json:"repo_name"`
+	RepoURL   string                   `json:"repo_url"`
+	Values    []InitialParameterConfig `json:"values"`
 }
 
 func (hc *InitialHelmConfig) ConvertToDBHelmConfig() *database.HelmConfig {
 	return &database.HelmConfig{
-		RepoURL:   hc.RepoName,
 		ChartName: hc.ChartName,
+		RepoName:  hc.RepoName,
+		RepoURL:   hc.RepoURL,
 	}
 }
 
@@ -284,8 +284,31 @@ func InitializeConsumer() {
 		}
 	}
 
-	if err := registerConfigUpdateCallbacks(); err != nil {
-		logrus.Fatalf("Failed to register config update callbacks: %v", err)
+	config.GetChaosSystemConfigManager().RegisterCallback(onChaosSystemConfigUpdate)
+
+	// Initialize namespaces on startup to ensure all enabled namespaces are properly initialized
+	// This is critical after program restart to re-initialize CRD informers
+	logrus.Info("Initializing namespaces on startup...")
+	monitor := consumer.GetMonitor()
+	if monitor == nil {
+		logrus.Warn("Monitor not initialized, skipping namespace initialization")
+	} else {
+		initialized, err := monitor.InitializeNamespaces()
+		if err != nil {
+			logrus.Errorf("Failed to initialize namespaces: %v", err)
+			return
+		}
+
+		if len(initialized) == 0 {
+			logrus.Warn("No namespaces to initialize on startup")
+			return
+		}
+
+		logrus.Infof("Initialized namespaces on startup: %v", initialized)
+		if err := updateK8sController(initialized, []string{}); err != nil {
+			logrus.Errorf("Failed to update k8s controller: %v", err)
+			return
+		}
 	}
 }
 
@@ -351,97 +374,99 @@ func initializeProducer() error {
 		actions = append(actions, action)
 	}
 
-	return database.DB.Transaction(func(tx *gorm.DB) error {
-		// Create system resources
-		if err := repository.BatchUpsertResources(tx, resources); err != nil {
-			return fmt.Errorf("failed to create system resources: %w", err)
-		}
-
-		resourceNames := make([]consts.ResourceName, 0, len(resources))
-		for _, res := range resources {
-			resourceNames = append(resourceNames, res.Name)
-		}
-
-		allResourcesInDB, err := repository.ListResourcesByNames(tx, resourceNames)
-		if err != nil {
-			return fmt.Errorf("failed to get system resources from database: %w", err)
-		}
-
-		if len(allResourcesInDB) != len(resources) {
-			return fmt.Errorf("mismatch in number of resources created and fetched")
-		}
-
-		resourceMap := make(map[consts.ResourceName]*database.Resource, len(allResourcesInDB))
-		resourceIDMap = make(map[consts.ResourceName]int, len(allResourcesInDB))
-		for _, res := range allResourcesInDB {
-			resourceIDMap[res.Name] = res.ID
-			resourceMap[res.Name] = &res
-		}
-
-		resourceMap[consts.ResourceContainerVersion].ParentID = utils.IntPtr(resourceIDMap[consts.ResourceContainer])
-		resourceMap[consts.ResourceDatasetVersion].ParentID = utils.IntPtr(resourceIDMap[consts.ResourceDataset])
-
-		toUpdatedResources := []database.Resource{
-			*resourceMap[consts.ResourceContainerVersion],
-			*resourceMap[consts.ResourceDatasetVersion],
-		}
-
-		if err := repository.BatchUpsertResources(tx, toUpdatedResources); err != nil {
-			return fmt.Errorf("failed to update resource parent IDs: %w", err)
-		}
-
-		// Create system permissions
-		var permissionsToCreate []database.Permission
-		for _, resource := range allResourcesInDB {
-			for _, action := range actions {
-				permission := database.Permission{
-					Name:        producer.GetPermissionName(action, resource.Name),
-					DisplayName: producer.GetPermissionDisplayName(action, resource.DisplayName),
-					Action:      string(action),
-					ResourceID:  resourceIDMap[resource.Name],
-					IsSystem:    true,
-					Status:      consts.CommonEnabled,
-				}
-				permissionsToCreate = append(permissionsToCreate, permission)
+	return withOptimizedDBSettings(func() error {
+		return database.DB.Transaction(func(tx *gorm.DB) error {
+			// Create system resources
+			if err := repository.BatchUpsertResources(tx, resources); err != nil {
+				return fmt.Errorf("failed to create system resources: %w", err)
 			}
-		}
 
-		if err := repository.BatchUpsertPermissions(tx, permissionsToCreate); err != nil {
-			return fmt.Errorf("failed to create system permissions: %w", err)
-		}
+			resourceNames := make([]consts.ResourceName, 0, len(resources))
+			for _, res := range resources {
+				resourceNames = append(resourceNames, res.Name)
+			}
 
-		// Create system roles
-		if err := repository.BatchUpsertRoles(tx, systemRoles); err != nil {
-			return fmt.Errorf("failed to create system roles: %w", err)
-		}
+			allResourcesInDB, err := repository.ListResourcesByNames(tx, resourceNames)
+			if err != nil {
+				return fmt.Errorf("failed to get system resources from database: %w", err)
+			}
 
-		// Assign permissions to system roles
-		if err := assignSystemRolePermissions(tx); err != nil {
-			return fmt.Errorf("failed to assign system role permissions: %w", err)
-		}
+			if len(allResourcesInDB) != len(resources) {
+				return fmt.Errorf("mismatch in number of resources created and fetched")
+			}
 
-		// Create super admin user and default project
-		adminUser, err := initializeAdminUserAndProjects(tx, initialData)
-		if err != nil {
-			return fmt.Errorf("failed to initialize admin user and projects: %w", err)
-		}
+			resourceMap := make(map[consts.ResourceName]*database.Resource, len(allResourcesInDB))
+			resourceIDMap = make(map[consts.ResourceName]int, len(allResourcesInDB))
+			for _, res := range allResourcesInDB {
+				resourceIDMap[res.Name] = res.ID
+				resourceMap[res.Name] = &res
+			}
 
-		// Create default containers from initial data
-		if err := initializeContainers(tx, initialData, adminUser.ID); err != nil {
-			return fmt.Errorf("failed to initialize containers: %w", err)
-		}
+			resourceMap[consts.ResourceContainerVersion].ParentID = utils.IntPtr(resourceIDMap[consts.ResourceContainer])
+			resourceMap[consts.ResourceDatasetVersion].ParentID = utils.IntPtr(resourceIDMap[consts.ResourceDataset])
 
-		// Create default datasets from initial data
-		if err := initializeDatasets(tx, initialData, adminUser.ID); err != nil {
-			return fmt.Errorf("failed to initialize datasets: %w", err)
-		}
+			toUpdatedResources := []database.Resource{
+				*resourceMap[consts.ResourceContainerVersion],
+				*resourceMap[consts.ResourceDatasetVersion],
+			}
 
-		// Initialize execution result labels
-		if err := initializeExecutionLabels(tx); err != nil {
-			return fmt.Errorf("failed to initialize execution labels: %w", err)
-		}
+			if err := repository.BatchUpsertResources(tx, toUpdatedResources); err != nil {
+				return fmt.Errorf("failed to update resource parent IDs: %w", err)
+			}
 
-		return nil
+			// Create system permissions
+			var permissionsToCreate []database.Permission
+			for _, resource := range allResourcesInDB {
+				for _, action := range actions {
+					permission := database.Permission{
+						Name:        producer.GetPermissionName(action, resource.Name),
+						DisplayName: producer.GetPermissionDisplayName(action, resource.DisplayName),
+						Action:      string(action),
+						ResourceID:  resourceIDMap[resource.Name],
+						IsSystem:    true,
+						Status:      consts.CommonEnabled,
+					}
+					permissionsToCreate = append(permissionsToCreate, permission)
+				}
+			}
+
+			if err := repository.BatchUpsertPermissions(tx, permissionsToCreate); err != nil {
+				return fmt.Errorf("failed to create system permissions: %w", err)
+			}
+
+			// Create system roles
+			if err := repository.BatchUpsertRoles(tx, systemRoles); err != nil {
+				return fmt.Errorf("failed to create system roles: %w", err)
+			}
+
+			// Assign permissions to system roles
+			if err := assignSystemRolePermissions(tx); err != nil {
+				return fmt.Errorf("failed to assign system role permissions: %w", err)
+			}
+
+			// Create super admin user and default project
+			adminUser, err := initializeAdminUserAndProjects(tx, initialData)
+			if err != nil {
+				return fmt.Errorf("failed to initialize admin user and projects: %w", err)
+			}
+
+			// Create default containers from initial data
+			if err := initializeContainers(tx, initialData, adminUser.ID); err != nil {
+				return fmt.Errorf("failed to initialize containers: %w", err)
+			}
+
+			// Create default datasets from initial data
+			if err := initializeDatasets(tx, initialData, adminUser.ID); err != nil {
+				return fmt.Errorf("failed to initialize datasets: %w", err)
+			}
+
+			// Initialize execution result labels
+			if err := initializeExecutionLabels(tx); err != nil {
+				return fmt.Errorf("failed to initialize execution labels: %w", err)
+			}
+
+			return nil
+		})
 	})
 }
 
@@ -675,17 +700,19 @@ func initializeConsumer() error {
 		return fmt.Errorf("failed to load initial data from file: %w", err)
 	}
 
-	err = database.DB.Transaction(func(tx *gorm.DB) error {
-		if err := initializeDynamicConfigs(tx, initialData); err != nil {
-			return fmt.Errorf("failed to initialize dynamic configs for consumer: %w", err)
+	return withOptimizedDBSettings(func() error {
+		err := database.DB.Transaction(func(tx *gorm.DB) error {
+			if err := initializeDynamicConfigs(tx, initialData); err != nil {
+				return fmt.Errorf("failed to initialize dynamic configs for consumer: %w", err)
+			}
+			return nil
+		})
+		if err != nil {
+			return fmt.Errorf("failed to initialize consumer data: %w", err)
 		}
+
 		return nil
 	})
-	if err != nil {
-		return fmt.Errorf("failed to initialize consumer data: %w", err)
-	}
-
-	return nil
 }
 
 // initializeDynamicConfigs initializes dynamic configuration items from initial data
@@ -705,16 +732,6 @@ func initializeDynamicConfigs(tx *gorm.DB, data *InitialData) error {
 	}
 
 	consumerData.configs = configs
-	return nil
-}
-
-// registerConfigUpdateCallbacks registers callbacks for dynamic config updates
-func registerConfigUpdateCallbacks() error {
-	config.GetChaosSystemConfigManager().RegisterCallback(onChaosSystemConfigUpdate)
-	if err := config.GetChaosSystemConfigManager().Reload(); err != nil {
-		return fmt.Errorf("failed to reload chaos system config: %w", err)
-	}
-
 	return nil
 }
 
@@ -751,34 +768,66 @@ func onChaosSystemConfigUpdate() error {
 		logrus.Infof("Deleted namespaces (no active locks): %v", result.Deleted)
 	}
 
-	// Update Controller informers
-	controller := k8s.GetK8sController()
-	if controller == nil {
-		logrus.Warn("Controller not initialized, skipping informer update")
-		return nil
-	}
-
 	// Add informers for newly added and recovered namespaces
 	namespacesToAdd := make([]string, 0, len(result.Added)+len(result.Recovered))
 	namespacesToAdd = append(namespacesToAdd, result.Added...)
 	namespacesToAdd = append(namespacesToAdd, result.Recovered...)
-
-	if len(namespacesToAdd) > 0 {
-		logrus.Infof("Adding informers for active namespaces: %v", namespacesToAdd)
-		if err := controller.AddNamespaceInformers(namespacesToAdd); err != nil {
-			return fmt.Errorf("failed to add namespace informers: %w", err)
-		}
-	}
 
 	// Remove informers for disabled and deleted namespaces
 	namespacesToRemove := make([]string, 0, len(result.Disabled)+len(result.Deleted))
 	namespacesToRemove = append(namespacesToRemove, result.Disabled...)
 	namespacesToRemove = append(namespacesToRemove, result.Deleted...)
 
-	if len(namespacesToRemove) > 0 {
-		logrus.Infof("Marking namespaces as inactive: %v", namespacesToRemove)
-		controller.RemoveNamespaceInformers(namespacesToRemove)
+	if err := updateK8sController(namespacesToAdd, namespacesToRemove); err != nil {
+		return fmt.Errorf("failed to update k8s controller: %w", err)
 	}
 
 	return nil
+}
+
+// updateK8sController updates the Kubernetes controller with the latest namespace configurations
+func updateK8sController(toAdd, toRemove []string) error {
+	controller := k8s.GetK8sController()
+	if controller == nil {
+		logrus.Warn("Controller not initialized, skipping informer update")
+		return nil
+	}
+
+	if len(toAdd) > 0 {
+		logrus.Infof("Adding informers for active namespaces: %v", toAdd)
+		if err := controller.AddNamespaceInformers(toAdd); err != nil {
+			return fmt.Errorf("failed to add namespace informers: %w", err)
+		}
+	}
+
+	if len(toRemove) > 0 {
+		logrus.Infof("Marking namespaces as inactive: %v", toRemove)
+		controller.RemoveNamespaceInformers(toRemove)
+	}
+
+	return nil
+}
+
+// withOptimizedDBSettings executes a function with optimized database settings for bulk operations.
+// It temporarily disables foreign key and unique checks to speed up initialization.
+func withOptimizedDBSettings(fn func() error) error {
+	// Disable foreign key and unique checks for faster initialization
+	if err := database.DB.Exec("SET FOREIGN_KEY_CHECKS=0").Error; err != nil {
+		logrus.Warnf("Failed to disable foreign key checks: %v", err)
+	}
+	if err := database.DB.Exec("SET UNIQUE_CHECKS=0").Error; err != nil {
+		logrus.Warnf("Failed to disable unique checks: %v", err)
+	}
+
+	// Ensure checks are re-enabled even if the function fails
+	defer func() {
+		if err := database.DB.Exec("SET FOREIGN_KEY_CHECKS=1").Error; err != nil {
+			logrus.Errorf("Failed to re-enable foreign key checks: %v", err)
+		}
+		if err := database.DB.Exec("SET UNIQUE_CHECKS=1").Error; err != nil {
+			logrus.Errorf("Failed to re-enable unique checks: %v", err)
+		}
+	}()
+
+	return fn()
 }

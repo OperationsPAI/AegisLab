@@ -46,7 +46,7 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 				return fmt.Errorf("failed to get detector results by execution ID: %w", err)
 			}
 
-			hasResults := len(results) >= 0
+			hasResults := len(results) > 0 // Fixed: should be > 0, not >= 0
 
 			eventName := consts.EventDatapackResultCollection
 			if !hasResults {

@@ -61,8 +61,8 @@
                     "github_link": "LGU-SE-Internal/train-ticket",
                     "status": 1,
                     "helm_config": {
-                        "repo_name": "train-ticket",
                         "chart_name": "trainticket",
+                        "repo_name": "train-ticket",
                         "repo_url": "https://lgu-se-internal.github.io/train-ticket",
                         "values": [
                             {
@@ -74,6 +74,25 @@
                                 "overridable": false
                             }
                         ],
+                        "status": 1
+                    }
+                }
+            ]
+        },
+        {
+            "type": 2,
+            "name": "otel-demo",
+            "is_public": true,
+            "status": 1,
+            "versions": [
+                {
+                    "name": "1.0.0",
+                    "github_link": "LGU-SE-Internal/opentelemetry-demo",
+                    "status": 1,
+                    "helm_config": {
+                        "chart_name": "opentelemetry-demo",
+                        "repo_name": "open-telemetry",
+                        "repo_url": "https://lgu-se-internal.github.io/opentelemetry-demo",
                         "status": 1
                     }
                 }
@@ -192,8 +211,7 @@
             "value_type": 0,
             "category": "injection",
             "description": "Namespace pattern for system Train Ticket instances",
-            "is_secret": false,
-            "pattern": "^\\^ts\\\\d\\+\\$$"
+            "is_secret": false
         },
         {
             "key": "injection.system.ts.extract_pattern",
@@ -202,8 +220,36 @@
             "value_type": 0,
             "category": "injection",
             "description": "Extraction pattern for namespace prefix and number from Train Ticket instances",
+            "is_secret": false
+        },
+        {
+            "key": "injection.system.otel-demo.count",
+            "value": "1",
+            "default_value": "1",
+            "value_type": 2,
+            "category": "injection",
+            "description": "Number of system OpenTelemetry Demo to create",
             "is_secret": false,
-            "pattern": "^\\^\\(.+\\)\\(\\\\d\\+\\)\\$$"
+            "min_value": 1,
+            "max_value": 20
+        },
+        {
+            "key": "injection.system.otel-demo.ns_pattern",
+            "value": "^otel-demo\\d+$",
+            "default_value": "^otel-demo\\d+$",
+            "value_type": 0,
+            "category": "injection",
+            "description": "Namespace pattern for system OpenTelemetry Demo instances",
+            "is_secret": false
+        },
+        {
+            "key": "injection.system.otel-demo.extract_pattern",
+            "value": "^(otel-demo)(\\d+)$",
+            "default_value": "^(otel-demo)(\\d+)$",
+            "value_type": 0,
+            "category": "injection",
+            "description": "Extraction pattern for namespace prefix and number from OpenTelemetry Demo instances",
+            "is_secret": false
         },
         {
             "key": "algo.detector",

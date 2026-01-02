@@ -83,7 +83,7 @@ type Container struct {
 	CreatedAt time.Time         `gorm:"autoCreateTime;index"`
 	UpdatedAt time.Time         `gorm:"autoUpdateTime"`
 
-	ActiveName string `gorm:"type:varchar(150) GENERATED ALWAYS AS (CASE WHEN status >= 0 THEN name ELSE NULL END) STORED;uniqueIndex:idx_active_container_name"`
+	ActiveName string `gorm:"type:varchar(150) GENERATED ALWAYS AS (CASE WHEN status >= 0 THEN name ELSE NULL END) VIRTUAL;uniqueIndex:idx_active_container_name"`
 
 	// Many-to-many relationship with labels
 	Versions []ContainerVersion `gorm:"foreignKey:ContainerID"`
@@ -121,7 +121,7 @@ type ContainerVersion struct {
 	CreatedAt time.Time         `gorm:"autoCreateTime;index"`
 	UpdatedAt time.Time         `gorm:"autoUpdateTime"`
 
-	ActiveVersionKey string `gorm:"type:varchar(40) GENERATED ALWAYS AS (CASE WHEN status >= 0 THEN CONCAT(container_id, ':', name) ELSE NULL END) STORED;uniqueIndex:idx_active_version_unique"`
+	ActiveVersionKey string `gorm:"type:varchar(40) GENERATED ALWAYS AS (CASE WHEN status >= 0 THEN CONCAT(container_id, ':', name) ELSE NULL END) VIRTUAL;uniqueIndex:idx_active_version_unique"`
 
 	ImageRef string `gorm:"-"`
 
@@ -265,7 +265,7 @@ type Dataset struct {
 	CreatedAt time.Time         `gorm:"autoCreateTime;index"`         // Creation time
 	UpdatedAt time.Time         `gorm:"autoUpdateTime"`               // Update time
 
-	ActiveName string `gorm:"type:varchar(150) GENERATED ALWAYS AS (CASE WHEN status >= 0 THEN name ELSE NULL END) STORED;uniqueIndex:idx_active_dataset_name"`
+	ActiveName string `gorm:"type:varchar(150) GENERATED ALWAYS AS (CASE WHEN status >= 0 THEN name ELSE NULL END) VIRTUAL;uniqueIndex:idx_active_dataset_name"`
 
 	// Many-to-many relationships - use explicit intermediate tables for better control
 	Versions []DatasetVersion `gorm:"foreignKey:DatasetID"`
@@ -288,7 +288,7 @@ type DatasetVersion struct {
 	CreatedAt time.Time         `gorm:"autoCreateTime;index"`     // Creation time
 	UpdatedAt time.Time         `gorm:"autoUpdateTime"`           // Update time
 
-	ActiveVersionKey string `gorm:"type:varchar(40) GENERATED ALWAYS AS (CASE WHEN status >= 0 THEN CONCAT(dataset_id, ':', name) ELSE NULL END) STORED;uniqueIndex:idx_active_version_unique"`
+	ActiveVersionKey string `gorm:"type:varchar(40) GENERATED ALWAYS AS (CASE WHEN status >= 0 THEN CONCAT(dataset_id, ':', name) ELSE NULL END) VIRTUAL;uniqueIndex:idx_active_version_unique"`
 
 	// Foreign key association
 	Dataset *Dataset `gorm:"foreignKey:DatasetID"`
@@ -341,7 +341,7 @@ type Label struct {
 	CreatedAt time.Time         `gorm:"autoCreateTime"`               // Creation time
 	UpdatedAt time.Time         `gorm:"autoUpdateTime"`               // Update time
 
-	ActiveKeyValue string `gorm:"type:varchar(100) GENERATED ALWAYS AS (CASE WHEN status >= 0 THEN CONCAT(label_key, ':', label_value) ELSE NULL END) STORED;uniqueIndex:idx_key_value_unique"`
+	ActiveKeyValue string `gorm:"type:varchar(100) GENERATED ALWAYS AS (CASE WHEN status >= 0 THEN CONCAT(label_key, ':', label_value) ELSE NULL END) VIRTUAL;uniqueIndex:idx_key_value_unique"`
 }
 
 // User table
@@ -360,7 +360,7 @@ type User struct {
 	CreatedAt time.Time         `gorm:"autoCreateTime;index"`        // Creation time
 	UpdatedAt time.Time         `gorm:"autoUpdateTime"`              // Update time
 
-	ActiveUsername string `gorm:"type:varchar(64) GENERATED ALWAYS AS (CASE WHEN status >= 0 THEN username ELSE NULL END) STORED;uniqueIndex:idx_active_username"`
+	ActiveUsername string `gorm:"type:varchar(64) GENERATED ALWAYS AS (CASE WHEN status >= 0 THEN username ELSE NULL END) VIRTUAL;uniqueIndex:idx_active_username"`
 }
 
 // BeforeCreate GORM hook - hash the password before creating a new user
@@ -386,7 +386,7 @@ type Role struct {
 	CreatedAt time.Time         `gorm:"autoCreateTime"`               // Creation time
 	UpdatedAt time.Time         `gorm:"autoUpdateTime"`               // Update time
 
-	ActiveName string `gorm:"type:varchar(32) GENERATED ALWAYS AS (CASE WHEN status >= 0 THEN name ELSE NULL END) STORED;uniqueIndex:idx_active_role_name"`
+	ActiveName string `gorm:"type:varchar(32) GENERATED ALWAYS AS (CASE WHEN status >= 0 THEN name ELSE NULL END) VIRTUAL;uniqueIndex:idx_active_role_name"`
 }
 
 // Permission table
@@ -403,7 +403,7 @@ type Permission struct {
 	CreatedAt time.Time         `gorm:"autoCreateTime"`               // Creation time
 	UpdatedAt time.Time         `gorm:"autoUpdateTime"`               // Update time
 
-	ActiveName string `gorm:"type:varchar(128) GENERATED ALWAYS AS (CASE WHEN status >= 0 THEN name ELSE NULL END) STORED;uniqueIndex:idx_active_permission_name"`
+	ActiveName string `gorm:"type:varchar(128) GENERATED ALWAYS AS (CASE WHEN status >= 0 THEN name ELSE NULL END) VIRTUAL;uniqueIndex:idx_active_permission_name"`
 
 	// Foreign key association
 	Resource *Resource `gorm:"foreignKey:ResourceID"`
@@ -512,19 +512,20 @@ type Task struct {
 
 // FaultInjectionSchedule model
 type FaultInjection struct {
-	ID            int             `gorm:"primaryKey;autoIncrement"`                                                    // Unique identifier
-	Name          string          `gorm:"size:128;not null;index"`                                                     // Schedule name, add unique index
-	FaultType     chaos.ChaosType `gorm:"not null;index;index:idx_fault_type_state"`                                   // Fault type, add composite index
-	Description   string          `gorm:"type:text"`                                                                   // Description
-	DisplayConfig *string         `gorm:"type:longtext"`                                                               // User-facing display configuration
-	EngineConfig  string          `gorm:"type:longtext;not null"`                                                      // System-facing runtime configuration
-	Groundtruths  []Groundtruth   `gorm:"type:json;serializer:json"`                                                   // Expected impact groundtruth (service, pod, container, metric, function, span)
-	PreDuration   int             `gorm:"not null"`                                                                    // Normal data duration
-	StartTime     *time.Time      `gorm:"index;check:start_time IS NULL OR end_time IS NULL OR start_time < end_time"` // Expected fault start time, nullable with validation
-	EndTime       *time.Time      `gorm:"index"`                                                                       // Expected fault end time, nullable
-	BenchmarkID   int             `gorm:"not null;index"`                                                              // Associated benchmark ID, add index
-	PedestalID    int             `gorm:"not null;index"`                                                              // Associated pedestal ID, add index
-	TaskID        *string         `gorm:"index;size:64"`                                                               // Associated task ID, add composite index
+	ID            int              `gorm:"primaryKey;autoIncrement"`                                                    // Unique identifier
+	Name          string           `gorm:"size:128;not null;index"`                                                     // Schedule name, add unique index
+	FaultType     chaos.ChaosType  `gorm:"not null;index;index:idx_fault_type_state"`                                   // Fault type, add composite index
+	Category      chaos.SystemType `gorm:"not null;index"`                                                              // System category
+	Description   string           `gorm:"type:text"`                                                                   // Description
+	DisplayConfig *string          `gorm:"type:longtext"`                                                               // User-facing display configuration
+	EngineConfig  string           `gorm:"type:longtext;not null"`                                                      // System-facing runtime configuration
+	Groundtruths  []Groundtruth    `gorm:"type:json;serializer:json"`                                                   // Expected impact groundtruth (service, pod, container, metric, function, span)
+	PreDuration   int              `gorm:"not null"`                                                                    // Normal data duration
+	StartTime     *time.Time       `gorm:"index;check:start_time IS NULL OR end_time IS NULL OR start_time < end_time"` // Expected fault start time, nullable with validation
+	EndTime       *time.Time       `gorm:"index"`                                                                       // Expected fault end time, nullable
+	BenchmarkID   int              `gorm:"not null;index"`                                                              // Associated benchmark ID, add index
+	PedestalID    int              `gorm:"not null;index"`                                                              // Associated pedestal ID, add index
+	TaskID        *string          `gorm:"index;size:64"`                                                               // Associated task ID, add composite index
 
 	State     consts.DatapackState `gorm:"not null;default:0;index;index:idx_fault_type_state"` // Datapack state
 	Status    consts.StatusType    `gorm:"not null;default:1;index"`                            // Status: -1:deleted 0:disabled 1:enabled
@@ -689,7 +690,7 @@ type UserContainer struct {
 	CreatedAt time.Time         `gorm:"autoCreateTime;index"`     // Creation time
 	UpdatedAt time.Time         `gorm:"autoUpdateTime"`           // Update time
 
-	ActiveUserContainer string `gorm:"type:varchar(32) GENERATED ALWAYS AS (CASE WHEN status >= 0 THEN CONCAT(user_id, ':', container_id, ':', role_id) ELSE NULL END) STORED;uniqueIndex:idx_user_container_unique"`
+	ActiveUserContainer string `gorm:"type:varchar(32) GENERATED ALWAYS AS (CASE WHEN status >= 0 THEN CONCAT(user_id, ':', container_id, ':', role_id) ELSE NULL END) VIRTUAL;uniqueIndex:idx_user_container_unique"`
 
 	// Foreign key association
 	User      *User      `gorm:"foreignKey:UserID"`
@@ -707,7 +708,7 @@ type UserDataset struct {
 	CreatedAt time.Time         `gorm:"autoCreateTime;index"`     // Creation time
 	UpdatedAt time.Time         `gorm:"autoUpdateTime"`           // Update time
 
-	ActiveUserDataset string `gorm:"type:varchar(32) GENERATED ALWAYS AS (CASE WHEN status >= 0 THEN CONCAT(user_id, ':', dataset_id, ':', role_id) ELSE NULL END) STORED;uniqueIndex:idx_user_dataset_unique"`
+	ActiveUserDataset string `gorm:"type:varchar(32) GENERATED ALWAYS AS (CASE WHEN status >= 0 THEN CONCAT(user_id, ':', dataset_id, ':', role_id) ELSE NULL END) VIRTUAL;uniqueIndex:idx_user_dataset_unique"`
 
 	// Foreign key association
 	User    *User    `gorm:"foreignKey:UserID"`
@@ -726,7 +727,7 @@ type UserProject struct {
 	CreatedAt time.Time         `gorm:"autoCreateTime;index"`     // Creation time
 	UpdatedAt time.Time         `gorm:"autoUpdateTime"`           // Update time
 
-	ActiveUserProject string `gorm:"type:varchar(32) GENERATED ALWAYS AS (CASE WHEN status >= 0 THEN CONCAT(user_id, ':', project_id, ':', role_id) ELSE NULL END) STORED;uniqueIndex:idx_user_project_unique"`
+	ActiveUserProject string `gorm:"type:varchar(32) GENERATED ALWAYS AS (CASE WHEN status >= 0 THEN CONCAT(user_id, ':', project_id, ':', role_id) ELSE NULL END) VIRTUAL;uniqueIndex:idx_user_project_unique"`
 
 	// Foreign key association
 	User    *User    `gorm:"foreignKey:UserID"`

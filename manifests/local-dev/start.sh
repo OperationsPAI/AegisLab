@@ -2,16 +2,15 @@
 
 minikube start --nodes 3 \
   --driver=docker \
-  --cpus=2 \
-  --memory=4g 
+  --cpus=4 \
+  --memory=8g 
 
 # install chaos-mesh
 helm repo add chaos-mesh https://charts.chaos-mesh.org
 kubectl create ns chaos-mesh
-helm install chaos-mesh chaos-mesh/chaos-mesh --namespace chaos-mesh --version 2.8.0
+helm install chaos-mesh chaos-mesh/chaos-mesh --namespace chaos-mesh --create-namespace --version 2.8.0
 kubectl apply -f manifests/chaos-mesh/rbac.yaml
 kubectl create token account-cluster -n default
-
 
 # install cilium
 helm repo add cilium https://helm.cilium.io/
@@ -32,4 +31,4 @@ helm install --namespace monitoring clickstack clickstack/clickstack -f ./manife
 
 # demo workload
 kubectl create ns od
-helm install --namespace od otel-demo open-telemetry/opentelemetry-demo -f ./manifests/local-dev/otel-demo-values.yaml --set prometheus.rbac.create=false
+helm install --namespace otel-demo1 --create-namespace otel-demo1 opentelemetry-demo/opentelemetry-demo -f ./data/initial_data/otel-demo.yaml

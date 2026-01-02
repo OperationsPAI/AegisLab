@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [unreleased]
+
+### Refactor
+
+- *(monitor)* Decouple namespace lock query from consumer
+
 ## [1.1.52] - 2025-12-27
 
 ### Features

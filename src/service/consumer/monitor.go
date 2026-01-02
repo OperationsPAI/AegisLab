@@ -39,6 +39,12 @@ type NamespaceRefreshResult struct {
 	Deleted   []string // Namespaces removed from config with no active locks
 }
 
+// NamespaceInitResult contains results of namespace initialization on startup
+type NamespaceInitResult struct {
+	Refreshed   *NamespaceRefreshResult // Result of configuration refresh
+	Initialized []string                // Namespaces that were re-initialized (all enabled namespaces)
+}
+
 // monitor manages namespace locks and status using Redis
 type monitor struct {
 	redisClient *redis.Client
@@ -295,6 +301,41 @@ func (m *monitor) GetNamespaceToRestart(endTime time.Time, nsPattern, traceID st
 	}
 
 	return ""
+}
+
+// InitializeNamespaces should be called on program startup to ensure all enabled namespaces
+// are properly initialized, even if the program was restarted
+func (m *monitor) InitializeNamespaces() ([]string, error) {
+	_, err := m.RefreshNamespaces()
+	if err != nil {
+		return nil, fmt.Errorf("failed to refresh namespaces during initialization: %w", err)
+	}
+
+	// Get all enabled namespaces from Redis
+	allNamespaces, err := m.redisClient.SMembers(m.ctx, consts.NamespacesKey).Result()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get namespaces from Redis: %w", err)
+	}
+
+	initialized := make([]string, 0)
+	for _, ns := range allNamespaces {
+		status, err := m.getNamespaceStatus(ns)
+		if err != nil {
+			logrus.Errorf("Failed to get status for namespace %s: %v", ns, err)
+			continue
+		}
+
+		if status == consts.CommonEnabled {
+			if err := m.addNamespace(ns, time.Now()); err != nil {
+				logrus.Errorf("Failed to initialize namespace %s: %v", ns, err)
+			} else {
+				initialized = append(initialized, ns)
+				logrus.Debugf("Initialized namespace on startup: %s", ns)
+			}
+		}
+	}
+
+	return initialized, nil
 }
 
 // RefreshNamespaces updates the namespace list based on current configuration

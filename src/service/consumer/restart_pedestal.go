@@ -27,12 +27,6 @@ type restartPayload struct {
 	injectPayload map[string]any
 }
 
-type installRelease = func(ctx context.Context, releaseName string, namespaceIdx int, item *dto.HelmConfigItem) error
-
-var installerMap = map[chaos.SystemType]installRelease{
-	chaos.SystemTrainTicket: installTS,
-}
-
 // executeRestartPedestal handles the execution of a restart pedestal task
 func executeRestartPedestal(ctx context.Context, task *dto.UnifiedTask) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
@@ -153,14 +147,7 @@ func executeRestartPedestal(ctx context.Context, task *dto.UnifiedTask) error {
 			return handleExecutionError(span, logEntry, "missing extra info in pedestal item", fmt.Errorf("missing extra info in pedestal item"))
 		}
 
-		installFunc, exists := installerMap[system]
-		if !exists {
-			toReleased = true
-			message := fmt.Sprintf("no install function for system %s", system)
-			return handleExecutionError(span, logEntry, message, errors.New(message))
-		}
-
-		if err := installFunc(childCtx, namespace, index, payload.pedestal.Extra); err != nil {
+		if err := installPedestal(childCtx, namespace, index, payload.pedestal.Extra); err != nil {
 			toReleased = true
 			publishEvent(childCtx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
 				TaskID:    task.TaskID,
@@ -169,7 +156,7 @@ func executeRestartPedestal(ctx context.Context, task *dto.UnifiedTask) error {
 				Payload:   err.Error(),
 			})
 
-			return handleExecutionError(span, logEntry, "failed to install Train Ticket", err)
+			return handleExecutionError(span, logEntry, fmt.Sprintf("failed to install pedestal of system %s", system), err)
 		}
 
 		message := fmt.Sprintf("Injection start at %s, duration %dm", injectTime.Local().String(), payload.faultDuration)
@@ -186,6 +173,7 @@ func executeRestartPedestal(ctx context.Context, task *dto.UnifiedTask) error {
 		tracing.SetSpanAttribute(childCtx, consts.TaskStateKey, consts.GetTaskStateName(consts.TaskCompleted))
 
 		payload.injectPayload[consts.InjectNamespace] = namespace
+		payload.injectPayload[consts.InjectPedestal] = system
 		payload.injectPayload[consts.InjectPedestalID] = payload.pedestal.ID
 
 		if err := common.ProduceFaultInjectionTasks(childCtx, task, injectTime, payload.injectPayload); err != nil {
@@ -271,8 +259,8 @@ func parseRestartPayload(payload map[string]any) (*restartPayload, error) {
 	}, nil
 }
 
-// installTS installs the Train Ticket pedestal using Helm
-func installTS(ctx context.Context, releaseName string, namespaceIdx int, item *dto.HelmConfigItem) error {
+// installPedestal installs or upgrades the pedestal using Helm
+func installPedestal(ctx context.Context, releaseName string, namespaceIdx int, item *dto.HelmConfigItem) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		span := trace.SpanFromContext(childCtx)
 		logEntry := logrus.WithFields(logrus.Fields{
@@ -289,7 +277,6 @@ func installTS(ctx context.Context, releaseName string, namespaceIdx int, item *
 			return handleExecutionError(span, logEntry, "failed to create Helm client", err)
 		}
 
-		// Add Train Ticket repository
 		if err := helmClient.AddRepo(item.RepoName, item.RepoURL); err != nil {
 			return fmt.Errorf("failed to add repository: %w", err)
 		}
@@ -322,10 +309,10 @@ func installTS(ctx context.Context, releaseName string, namespaceIdx int, item *
 			600*time.Second,
 			360*time.Second,
 		); err != nil {
-			return fmt.Errorf("failed to install Train Ticket: %w", err)
+			return fmt.Errorf("failed to install Helm chart: %w", err)
 		}
 
-		logrus.Infof("Train Ticket installed successfully in namespace %s", releaseName)
+		logEntry.Info("Helm chart installed successfully")
 		return nil
 	})
 }

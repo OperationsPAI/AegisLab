@@ -304,6 +304,7 @@ const (
 	InjectPreDuration = "pre_duration"
 	InjectNodes       = "nodes"
 	InjectNamespace   = "namespace"
+	InjectPedestal    = "pedestal"
 	InjectPedestalID  = "pedestal_id"
 	InjectLabels      = "labels"
 

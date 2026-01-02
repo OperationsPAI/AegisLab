@@ -1,0 +1,33 @@
+default:
+  env:
+    - name: OTEL_SERVICE_NAME
+      valueFrom:
+        fieldRef:
+          apiVersion: v1
+          fieldPath: "metadata.labels['app.kubernetes.io/component']"
+    - name: OTEL_COLLECTOR_NAME
+      value: opentelemetry-kube-stack-deployment-collector.monitoring.svc.cluster.local
+    - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
+      value: cumulative
+    - name: OTEL_RESOURCE_ATTRIBUTES
+      value: 'service.name=$(OTEL_SERVICE_NAME),service.namespace=opentelemetry-demo,service.version={{ .Chart.AppVersion }}'
+
+  image: 
+    repository: pair-diag-cn-guangzhou.cr.volces.com/pair/open-telemetry-demo
+
+components:
+  flagd:
+    imageOverride:
+      repository: pair-diag-cn-guangzhou.cr.volces.com/pair/flagd
+
+  valkey-cart:
+    imageOverride:
+      repository: pair-diag-cn-guangzhou.cr.volces.com/pair/valkey
+
+grafana:
+  enabled: false
+
+opensearch:
+  image:
+    repository: pair-diag-cn-guangzhou.cr.volces.com/pair/opensearch
+    tag: "3.2.0"

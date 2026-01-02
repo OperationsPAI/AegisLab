@@ -110,6 +110,13 @@ func tryUpdateTraceStateCore(ctx context.Context, traceID, taskID string, newSta
 	if updatedTask.Type == consts.TaskTypeCollectResult && event != nil && event.EventName != "" {
 		inferredEvent = event.EventName
 		logEntry.Debugf("using explicit event from CollectResult task: %s", inferredEvent)
+
+		// For FullPipeline with early termination events, mark trace as completed
+		if trace.Type == consts.TraceTypeFullPipeline &&
+			(event.EventName == consts.EventDatapackNoAnomaly || event.EventName == consts.EventDatapackNoDetectorData) {
+			inferredState = consts.TraceCompleted
+			logEntry.Debugf("FullPipeline early termination detected, marking trace as completed")
+		}
 	}
 
 	logEntry.Debugf("inferred trace state: %s, event: %s (triggered by task %s: %s)",
@@ -207,12 +214,54 @@ func buildLevelStatistics(tasks []database.Task, treeHeight int) map[int]*levelS
 	return stats
 }
 
+// hasEarlyTerminationEvent checks if any CollectResult task has completed with early termination events
+func hasEarlyTerminationEvent(tasks []database.Task) bool {
+	for _, task := range tasks {
+		if task.Type == consts.TaskTypeCollectResult && task.State == consts.TaskCompleted {
+			// Check task metadata or level to determine if it's a detector CollectResult
+			// Detector CollectResult is at level 4 in FullPipeline:
+			// L0: RestartPedestal, L1: FaultInjection, L2: BuildDatapack,
+			// L3: RunAlgorithm(detector), L4: CollectResult(detector) <- early termination point
+			if task.Level == 4 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// findEarlyTerminationEvent finds and returns the early termination event from completed CollectResult tasks
+func findEarlyTerminationEvent(tasks []database.Task) consts.EventType {
+	// Look for completed CollectResult tasks at level 4 (detector CollectResult level)
+	for _, task := range tasks {
+		if task.Type == consts.TaskTypeCollectResult && task.State == consts.TaskCompleted && task.Level == 4 {
+			// Check if there are no subsequent RCA algorithm tasks (level 5+)
+			// Detector RunAlgorithm is at level 3, RCA algorithms are at level 5
+			hasRCAAlgorithmTasks := false
+			for _, t := range tasks {
+				if t.Type == consts.TaskTypeRunAlgorithm && t.Level >= 5 {
+					hasRCAAlgorithmTasks = true
+					break
+				}
+			}
+
+			if !hasRCAAlgorithmTasks {
+				// Early termination confirmed, return appropriate event
+				// The actual event will be overridden in tryUpdateTraceStateCore
+				return consts.EventDatapackNoAnomaly
+			}
+		}
+	}
+	return ""
+}
+
 // selectBestLastEvent selects the most appropriate last event from completed leaf tasks
 func selectBestLastEvent(tasks []database.Task, leafLevel int) consts.EventType {
 	// Event priority map: higher value = higher priority
 	eventPriority := map[consts.EventType]int{
 		consts.EventDatapackResultCollection: 100,
 		consts.EventDatapackNoAnomaly:        90,
+		consts.EventDatapackNoDetectorData:   85, // Added this event to priority map
 		consts.EventFaultInjectionCompleted:  80,
 		consts.EventAlgoRunSucceed:           70,
 		consts.EventDatapackBuildSucceed:     60,
@@ -223,6 +272,14 @@ func selectBestLastEvent(tasks []database.Task, leafLevel int) consts.EventType 
 	var bestPriority int = -1
 	var latestTime time.Time
 
+	// First, check for early termination events at any level (not just leaf level)
+	// This handles FullPipeline cases where CollectResult at level 4 is the actual end
+	earlyTerminationEvent := findEarlyTerminationEvent(tasks)
+	if earlyTerminationEvent != "" {
+		return earlyTerminationEvent
+	}
+
+	// Then check leaf level tasks as before
 	for _, task := range tasks {
 		if task.Level != leafLevel || task.State != consts.TaskCompleted {
 			continue
@@ -258,6 +315,19 @@ func inferTraceState(trace *database.Trace, tasks []database.Task) (consts.Trace
 	stats := buildLevelStatistics(tasks, treeHeight)
 
 	// State inference with priority: Failed > Completed > Running > Pending
+
+	// Priority 0: Check for early termination in FullPipeline
+	// When CollectResult task completes with no_anomaly or no_detector_data,
+	// the pipeline ends early without executing algorithm tasks
+	if trace.Type == consts.TraceTypeFullPipeline {
+		if hasEarlyTerminationEvent(tasks) {
+			// Found early termination event, trace should complete
+			lastEvent := findEarlyTerminationEvent(tasks)
+			if lastEvent != "" {
+				return consts.TraceCompleted, lastEvent
+			}
+		}
+	}
 
 	// Priority 1: Check if any level has all tasks failed
 	for level := range treeHeight {
