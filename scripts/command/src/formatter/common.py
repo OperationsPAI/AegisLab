@@ -1,7 +1,12 @@
 import os
 from abc import ABC
 
-from src.common.common import LanguageType, ScopeType, console, repo
+from git import Repo
+from src.common.common import PROJECT_ROOT, LanguageType, ScopeType, console
+
+repo = Repo(PROJECT_ROOT)  # Initialize the git repository at the current directory
+
+__all__ = ["Formatter", "get_staged_files_helper", "get_modified_files_helper"]
 
 
 class Formatter(ABC):

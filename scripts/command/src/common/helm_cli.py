@@ -1,7 +1,7 @@
 import time
 from pathlib import Path
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from src.common.command import run_command
 from src.common.common import PROJECT_ROOT, console
@@ -19,6 +19,8 @@ class HelmRelease(BaseModel):
     name: str
     chart: str
     namespace: str
+    is_local: bool = False
+
     repo_name: str | None = None
     repo_url: str | None = None
     version: str | None = None
@@ -27,6 +29,15 @@ class HelmRelease(BaseModel):
     extra_args: list[str] = Field(default_factory=list)
 
     model_config = {"arbitrary_types_allowed": True}
+
+    @model_validator(mode="after")
+    def validate(self) -> "HelmRelease":
+        if self.is_local:
+            chart_path = Path(self.chart)
+            if not chart_path.exists():
+                raise ValueError(f"Local chart path '{self.chart}' does not exist.")
+
+        return self
 
 
 class HelmCLI:
@@ -76,6 +87,19 @@ class HelmCLI:
         except SystemExit:
             return False
 
+    def is_repo_exist(self, name: str) -> bool:
+        """Check if a Helm repo already exists."""
+        try:
+            run_command(
+                ["helm", "repo", "list"],
+                cwd=self.cwd,
+                check=True,
+                capture_output=True,
+            )
+            return name in self._repos_added
+        except SystemExit:
+            return False
+
     def install(
         self,
         release: HelmRelease,
@@ -97,8 +121,14 @@ class HelmCLI:
             True if installation succeeded, False otherwise.
         """
         # Add repo if specified
-        if release.repo_name and release.repo_url:
-            self.add_repo(release.repo_name, release.repo_url)
+        if not release.is_local:
+            if release.repo_name is not None and self.is_repo_exist(release.repo_name):
+                if release.repo_url is None:
+                    raise ValueError(
+                        f"Repo URL must be provided for repo '{release.repo_name}'"
+                    )
+
+                self.add_repo(release.repo_name, release.repo_url)
 
         console.print(
             f"[bold blue]Installing Helm release '{release.name}' in namespace {release.namespace}[/bold blue]"

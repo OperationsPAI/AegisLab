@@ -14,6 +14,7 @@ def main():
         formatter,
         git,
         pedestal,
+        port_manager,
         rcabench_,
         swagger,
         test,
@@ -25,6 +26,9 @@ def main():
     app.add_typer(formatter.app, name="format", help="Code formatting utilities.")
     app.add_typer(git.app, name="git", help="Git hooks and utilities.")
     app.add_typer(pedestal.app, name="pedestal", help="Pedestal utilities.")
+    app.add_typer(
+        port_manager.app, name="port", help="Kubernetes port forwarding manager."
+    )
     app.add_typer(rcabench_.app, name="rcabench", help="RCABench utilities.")
     app.add_typer(swagger.app, name="swagger", help="Swagger/OpenAPI utilities.")
     app.add_typer(test.app, name="test", help="Test environment utilities.")

@@ -40,6 +40,9 @@ class RESTResponse(io.IOBase):
             self.data = self.response.data
         return self.data
 
+    def __iter__(self):
+        return self.response.read_chunked() if self.response.chunked else self.response.stream()
+
     def getheaders(self):
         """Returns a dictionary of the response headers."""
         return self.response.headers

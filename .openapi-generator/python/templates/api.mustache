@@ -28,14 +28,6 @@ class {{classname}}:
 {{#operation}}
 
 {{#vendorExtensions.x-is-streaming-api}}
-    @staticmethod
-    def bytes_to_generator(data: bytes, chunk_size: int | None = None):
-        if not chunk_size:
-            yield data
-        else:
-            for i in range(0, len(data), chunk_size):
-                yield data[i : i + chunk_size]
-
     @validate_call
     def {{operationId}}{{>partial_api_args}}:
         """{{summary}} (SSE Stream using sseclient)
@@ -77,9 +69,11 @@ class {{classname}}:
             {{/isWildcard}}
             {{/responses}}
         }
-        for code in _response_types_map:
-            if code.startswith('2'):
-                _response_types_map.pop(code)
+        _response_types_map = {
+            code: resp_type 
+            for code, resp_type in _response_types_map.items() 
+            if not code.startswith("2")
+        }
         
 
         response_data = self.api_client.call_api(
@@ -91,13 +85,14 @@ class {{classname}}:
             "Response data must be of type RESTResponse"
         )
         if response_data.status >= 400:
+            data = {{#async}}await {{/async}}response_data.read()
             self.api_client.response_deserialize(
                 response_data=response_data,
                 response_types_map=_response_types_map,
             )
             return None
 
-        return sseclient.SSEClient(self.bytes_to_generator(response_data.read(), chunk_size=1024))
+        return sseclient.SSEClient(response_data)  # type: ignore
 
 {{/vendorExtensions.x-is-streaming-api}}
 {{^vendorExtensions.x-is-streaming-api}}

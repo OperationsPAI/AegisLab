@@ -54,6 +54,17 @@ class PostProcesser:
         "*|status": "StatusType",
     }
 
+    # Models that should always be kept in SDK even if not directly referenced
+    # These are typically used in SSE events or other indirect references
+    ALWAYS_KEEP_MODELS = {
+        "DatapackInfo",
+        "DatapackResult",
+        "ExecutionInfo",
+        "ExecutionResult",
+        "InfoPayloadTemplate",
+        "JobMessage",
+    }
+
     def __init__(self, file_path: Path) -> None:
         self.file_path = file_path
         self.data: dict[str, Any] = {}
@@ -454,6 +465,12 @@ class PostProcesser:
 
         # Collect refs from filtered paths
         collect_refs(filtered_paths)
+
+        # Add models that should always be kept
+        used_models.update(self.ALWAYS_KEEP_MODELS)
+        console.print(
+            f"[gray]   → Force-keeping {len(self.ALWAYS_KEEP_MODELS)} models: {', '.join(sorted(self.ALWAYS_KEEP_MODELS))}[/gray]"
+        )
 
         # Step 3: Recursively collect nested model dependencies
         if schemas is not None:

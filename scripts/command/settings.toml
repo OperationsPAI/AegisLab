@@ -33,13 +33,3 @@ port = "13306"
 [prod.redis]
 host = "localhost"
 port = "16379"
-
-[staging]
-
-[staging.database.mysql]
-host = "10.10.10.220"
-port = "32206"
-
-[staging.redis]
-host = "10.10.10.220"
-port = "32279"

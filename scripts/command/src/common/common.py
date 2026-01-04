@@ -4,12 +4,9 @@ from pathlib import Path
 from dynaconf import Dynaconf
 from rich.console import Console
 
-from git import Repo
-
 __all__ = [
     "ENV",
     "console",
-    "repo",
     "PROJECT_ROOT",
     "HELM_CHART_PATH",
     "INITIAL_DATA_PATH",
@@ -57,4 +54,3 @@ settings = Dynaconf(
 
 
 console = Console()  # Initialize a global console object for rich output
-repo = Repo(PROJECT_ROOT)  # Initialize the git repository at the current directory

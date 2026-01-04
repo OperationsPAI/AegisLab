@@ -144,7 +144,10 @@ install-rcabench:  ## 🔧 Deploy RCABench application
 		--wait --timeout 10m
 	@printf "$(GREEN)✅ RCABench installed successfully$(RESET)\n\n"
 	@printf "$(BLUE)🔗 Starting automatic port forwarding...$(RESET)\n"
-	@./scripts/forward.sh test
+	@$(MAKE) forward-ports
+
+forward-ports: ## 🔗 Start port forwarding to access application
+	@$(MAKE) run-command ARGS="port start -e $(ENV_MODE) -n $(NS)"
 
 setup-dev-env: check-prerequisites ## 🛠️  Setup development environment
 	@printf "$(BLUE)🛠️  Setting up development environment...$(RESET)\n"

@@ -1,4 +1,3 @@
-import time
 from collections.abc import Callable
 from functools import wraps
 from pathlib import Path
@@ -134,7 +133,9 @@ class KubernetesManager:
                     f"[bold red]Failed to switch to context: {target_context}[/bold red]"
                 )
                 raise RuntimeError(f"Failed to switch to context: {target_context}")
-            console.print(f"[bold green]✓ Switched to: {target_context}[/bold green]\n")
+            console.print(
+                f"[bold green]✅ Switched to: {target_context}[/bold green]\n"
+            )
 
         # Store session information
         self._sessions[self.env] = K8sSessionData(
@@ -679,6 +680,76 @@ class KubernetesManager:
                 f"[bold red]API error listing Deployments in namespace '{namespace}': {e.reason}[/bold red]"
             )
             return False
+
+    def get_services_with_ports(self, namespace: str) -> list[dict[str, Any]]:
+        """Get all services in a namespace with their ports.
+
+        Args:
+            namespace: Kubernetes namespace
+
+        Returns:
+            List of services, each containing name and ports
+        """
+        assert self._core_api is not None, "Kubernetes API is not initialized"
+
+        try:
+            services = self._core_api.list_namespaced_service(namespace=namespace)
+            service_list = []
+
+            for svc in services.items:
+                if svc.metadata is None or svc.spec is None:
+                    continue
+
+                svc_name = svc.metadata.name
+                ports = []
+
+                if svc.spec.ports:
+                    for port_spec in svc.spec.ports:
+                        if port_spec.port:
+                            ports.append(port_spec.port)
+
+                if ports:  # Only add services with ports
+                    service_list.append({"name": svc_name, "ports": ports})
+
+            return service_list
+
+        except ApiException as e:
+            console.print(
+                f"[bold red]Error getting services from namespace {namespace}: {e}[/bold red]"
+            )
+            return []
+
+    def get_service_ports(self, service_name: str, namespace: str) -> list[int]:
+        """Get ports for a specific service.
+
+        Args:
+            service_name: Name of the service
+            namespace: Kubernetes namespace
+
+        Returns:
+            List of port numbers
+        """
+        assert self._core_api is not None, "Kubernetes API is not initialized"
+
+        try:
+            service = self._core_api.read_namespaced_service(
+                name=service_name, namespace=namespace
+            )
+
+            if not service or not service.spec or not service.spec.ports:  # type: ignore
+                return []
+
+            return [
+                port_spec.port
+                for port_spec in service.spec.ports  # type: ignore
+                if port_spec.port  # type: ignore
+            ]
+
+        except ApiException as e:
+            console.print(
+                f"[bold red]Error getting service {service_name} in namespace {namespace}: {e}[/bold red]"
+            )
+            return []
 
 
 def kubectl_apply(manifest: str | Path) -> bool:
