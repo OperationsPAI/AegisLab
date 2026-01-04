@@ -56,7 +56,7 @@ func performTraceStateUpdate(ctx context.Context, traceID, taskID string, newSta
 	const maxRetries = 3
 	logEntry := logrus.WithField("trace_id", traceID)
 
-	for attempt := 0; attempt < maxRetries; attempt++ {
+	for attempt := range maxRetries {
 		err := tryUpdateTraceStateCore(ctx, traceID, taskID, newState, event)
 		if err == nil {
 			return nil
@@ -76,7 +76,7 @@ func performTraceStateUpdate(ctx context.Context, traceID, taskID string, newSta
 }
 
 // tryUpdateTraceStateCore attempts to update trace state once
-func tryUpdateTraceStateCore(ctx context.Context, traceID, taskID string, newState consts.TaskState, event *dto.StreamEvent) error {
+func tryUpdateTraceStateCore(ctx context.Context, traceID, taskID string, newState consts.TaskState, streamEvent *dto.StreamEvent) error {
 	logEntry := logrus.WithField("trace_id", traceID)
 
 	// 1. Fetch trace with all tasks (including the just-updated task)
@@ -102,18 +102,21 @@ func tryUpdateTraceStateCore(ctx context.Context, traceID, taskID string, newSta
 	}
 
 	// 3. Infer new trace state and event from all current tasks
-	inferredState, inferredEvent := inferTraceState(trace, trace.Tasks)
+	// Pass streamEvent to help distinguish early termination vs continuation scenarios
+	inferredState, inferredEventType := inferTraceState(trace, trace.Tasks, streamEvent)
 
 	// Special handling for CollectResult task: use the provided event directly
 	// CollectResult tasks provide specific events like EventDatapackResultCollection, EventDatapackNoAnomaly
 	// that are more accurate than inferred events
-	if updatedTask.Type == consts.TaskTypeCollectResult && event != nil && event.EventName != "" {
-		inferredEvent = event.EventName
-		logEntry.Debugf("using explicit event from CollectResult task: %s", inferredEvent)
+	if updatedTask.Type == consts.TaskTypeCollectResult && streamEvent != nil && streamEvent.EventName != "" {
+		// Always use the explicit event from CollectResult task for more accurate event tracking
+		inferredEventType = streamEvent.EventName
+		logEntry.Debugf("using explicit event from CollectResult task: %s", inferredEventType)
 
 		// For FullPipeline with early termination events, mark trace as completed
+		// EventDatapackNoAnomaly and EventDatapackNoDetectorData indicate no further processing needed
 		if trace.Type == consts.TraceTypeFullPipeline &&
-			(event.EventName == consts.EventDatapackNoAnomaly || event.EventName == consts.EventDatapackNoDetectorData) {
+			(streamEvent.EventName == consts.EventDatapackNoAnomaly || streamEvent.EventName == consts.EventDatapackNoDetectorData) {
 			inferredState = consts.TraceCompleted
 			logEntry.Debugf("FullPipeline early termination detected, marking trace as completed")
 		}
@@ -121,20 +124,20 @@ func tryUpdateTraceStateCore(ctx context.Context, traceID, taskID string, newSta
 
 	logEntry.Debugf("inferred trace state: %s, event: %s (triggered by task %s: %s)",
 		consts.GetTraceStateName(inferredState),
-		inferredEvent,
+		inferredEventType,
 		taskID,
 		consts.GetTaskStateName(newState))
 
 	// 4. Check if update is necessary (skip if state unchanged to reduce DB writes)
-	if trace.State == inferredState && trace.LastEvent == inferredEvent {
+	if trace.State == inferredState && trace.LastEvent == inferredEventType {
 		logEntry.Debugf("trace state unchanged, skipping update")
 		return nil
 	}
 
 	// 5. Prepare update data
-	updates := map[string]interface{}{
+	updates := map[string]any{
 		"state":      inferredState,
-		"last_event": inferredEvent,
+		"last_event": inferredEventType,
 		"updated_at": time.Now(),
 	}
 
@@ -157,25 +160,10 @@ func tryUpdateTraceStateCore(ctx context.Context, traceID, taskID string, newSta
 		return fmt.Errorf("optimistic lock conflict: trace was modified by another job")
 	}
 
-	// 7. Publish trace state change event to Redis Stream
-	stream := fmt.Sprintf(consts.StreamLogKey, traceID)
-	traceEvent := dto.StreamEvent{
-		TaskID:    traceID,             // Use trace ID for trace-level events
-		TaskType:  consts.TaskType(-1), // Special marker for trace-level events
-		EventName: inferredEvent,
-		Payload:   nil,
-	}
-
-	if event != nil && event.Payload != nil {
-		traceEvent.Payload = event.Payload
-	}
-
-	publishEvent(ctx, stream, traceEvent, withCallerLevel(4))
-
 	logEntry.Infof("trace state updated: %s -> %s, event: %s (triggered by task state change)",
 		consts.GetTraceStateName(trace.State),
 		consts.GetTraceStateName(inferredState),
-		inferredEvent)
+		inferredEventType)
 
 	return nil
 }
@@ -215,7 +203,23 @@ func buildLevelStatistics(tasks []database.Task, treeHeight int) map[int]*levelS
 }
 
 // hasEarlyTerminationEvent checks if any CollectResult task has completed with early termination events
-func hasEarlyTerminationEvent(tasks []database.Task) bool {
+// Now also checks the streamEvent to accurately determine if it's truly an early termination
+func hasEarlyTerminationEvent(tasks []database.Task, streamEvent *dto.StreamEvent) bool {
+	// Priority 1: Check if streamEvent explicitly indicates early termination
+	if streamEvent != nil && streamEvent.EventName != "" {
+		// These events indicate early termination - no further processing needed
+		if streamEvent.EventName == consts.EventDatapackNoAnomaly ||
+			streamEvent.EventName == consts.EventDatapackNoDetectorData {
+			return true
+		}
+		// EventDatapackResultCollection means anomaly detected, need to continue with RCA
+		if streamEvent.EventName == consts.EventDatapackResultCollection {
+			return false
+		}
+	}
+
+	// Priority 2: Fallback to checking task structure
+	// This handles cases where streamEvent is not available
 	for _, task := range tasks {
 		if task.Type == consts.TaskTypeCollectResult && task.State == consts.TaskCompleted {
 			// Check task metadata or level to determine if it's a detector CollectResult
@@ -223,7 +227,17 @@ func hasEarlyTerminationEvent(tasks []database.Task) bool {
 			// L0: RestartPedestal, L1: FaultInjection, L2: BuildDatapack,
 			// L3: RunAlgorithm(detector), L4: CollectResult(detector) <- early termination point
 			if task.Level == 4 {
-				return true
+				// Without streamEvent, we can't determine if it's early termination
+				// Need to check if RCA tasks exist
+				hasRCAAlgorithmTasks := false
+				for _, t := range tasks {
+					if t.Type == consts.TaskTypeRunAlgorithm && t.Level >= 5 {
+						hasRCAAlgorithmTasks = true
+						break
+					}
+				}
+				// Only consider it early termination if no RCA tasks were created
+				return !hasRCAAlgorithmTasks
 			}
 		}
 	}
@@ -231,7 +245,21 @@ func hasEarlyTerminationEvent(tasks []database.Task) bool {
 }
 
 // findEarlyTerminationEvent finds and returns the early termination event from completed CollectResult tasks
-func findEarlyTerminationEvent(tasks []database.Task) consts.EventType {
+// Now uses streamEvent to accurately return the correct event type
+func findEarlyTerminationEvent(tasks []database.Task, streamEvent *dto.StreamEvent) consts.EventType {
+	// Priority 1: If streamEvent is provided with early termination events, use it directly
+	if streamEvent != nil && streamEvent.EventName != "" {
+		if streamEvent.EventName == consts.EventDatapackNoAnomaly ||
+			streamEvent.EventName == consts.EventDatapackNoDetectorData {
+			return streamEvent.EventName
+		}
+		// EventDatapackResultCollection is NOT an early termination event
+		if streamEvent.EventName == consts.EventDatapackResultCollection {
+			return "" // Not early termination
+		}
+	}
+
+	// Priority 2: Fallback to checking task structure
 	// Look for completed CollectResult tasks at level 4 (detector CollectResult level)
 	for _, task := range tasks {
 		if task.Type == consts.TaskTypeCollectResult && task.State == consts.TaskCompleted && task.Level == 4 {
@@ -246,8 +274,8 @@ func findEarlyTerminationEvent(tasks []database.Task) consts.EventType {
 			}
 
 			if !hasRCAAlgorithmTasks {
-				// Early termination confirmed, return appropriate event
-				// The actual event will be overridden in tryUpdateTraceStateCore
+				// Early termination confirmed, but without streamEvent we can't determine exact event
+				// Return a conservative default (this case should be rare with streamEvent passing)
 				return consts.EventDatapackNoAnomaly
 			}
 		}
@@ -256,12 +284,9 @@ func findEarlyTerminationEvent(tasks []database.Task) consts.EventType {
 }
 
 // selectBestLastEvent selects the most appropriate last event from completed leaf tasks
-func selectBestLastEvent(tasks []database.Task, leafLevel int) consts.EventType {
+func selectBestLastEvent(tasks []database.Task, leafLevel int, streamEvent *dto.StreamEvent) consts.EventType {
 	// Event priority map: higher value = higher priority
 	eventPriority := map[consts.EventType]int{
-		consts.EventDatapackResultCollection: 100,
-		consts.EventDatapackNoAnomaly:        90,
-		consts.EventDatapackNoDetectorData:   85, // Added this event to priority map
 		consts.EventFaultInjectionCompleted:  80,
 		consts.EventAlgoRunSucceed:           70,
 		consts.EventDatapackBuildSucceed:     60,
@@ -274,7 +299,7 @@ func selectBestLastEvent(tasks []database.Task, leafLevel int) consts.EventType 
 
 	// First, check for early termination events at any level (not just leaf level)
 	// This handles FullPipeline cases where CollectResult at level 4 is the actual end
-	earlyTerminationEvent := findEarlyTerminationEvent(tasks)
+	earlyTerminationEvent := findEarlyTerminationEvent(tasks, streamEvent)
 	if earlyTerminationEvent != "" {
 		return earlyTerminationEvent
 	}
@@ -310,7 +335,8 @@ func selectBestLastEvent(tasks []database.Task, leafLevel int) consts.EventType 
 }
 
 // inferTraceState infers trace state and last event from all tasks
-func inferTraceState(trace *database.Trace, tasks []database.Task) (consts.TraceState, consts.EventType) {
+// streamEvent parameter helps distinguish between early termination vs continuation scenarios
+func inferTraceState(trace *database.Trace, tasks []database.Task, streamEvent *dto.StreamEvent) (consts.TraceState, consts.EventType) {
 	treeHeight := traceTypeHeightMap[trace.Type]
 	stats := buildLevelStatistics(tasks, treeHeight)
 
@@ -320,9 +346,9 @@ func inferTraceState(trace *database.Trace, tasks []database.Task) (consts.Trace
 	// When CollectResult task completes with no_anomaly or no_detector_data,
 	// the pipeline ends early without executing algorithm tasks
 	if trace.Type == consts.TraceTypeFullPipeline {
-		if hasEarlyTerminationEvent(tasks) {
+		if hasEarlyTerminationEvent(tasks, streamEvent) {
 			// Found early termination event, trace should complete
-			lastEvent := findEarlyTerminationEvent(tasks)
+			lastEvent := findEarlyTerminationEvent(tasks, streamEvent)
 			if lastEvent != "" {
 				return consts.TraceCompleted, lastEvent
 			}
@@ -334,7 +360,7 @@ func inferTraceState(trace *database.Trace, tasks []database.Task) (consts.Trace
 		levelStat := stats[level]
 		if levelStat.Total > 0 && levelStat.Failed == levelStat.Total {
 			// All tasks at this level failed -> Trace failed
-			lastEvent := selectBestLastEvent(tasks, level)
+			lastEvent := selectBestLastEvent(tasks, level, streamEvent)
 			if lastEvent == consts.EventTaskStateUpdate {
 				// Find any failed task at this level to get its event
 				for _, task := range tasks {
@@ -355,8 +381,20 @@ func inferTraceState(trace *database.Trace, tasks []database.Task) (consts.Trace
 	// For FullPipeline: LeafNum might be > 1, only need one path to succeed
 	// For other types: LeafNum should be 1
 	if leafStat.Completed > 0 {
-		lastEvent := selectBestLastEvent(tasks, leafLevel)
-		return consts.TraceCompleted, lastEvent
+		// Check if there are any tasks still running or pending at any level
+		hasActiveOrPendingTasks := false
+		for level := range treeHeight {
+			if stats[level].Running > 0 || stats[level].Pending > 0 {
+				hasActiveOrPendingTasks = true
+				break
+			}
+		}
+
+		// Only mark as completed if no active or pending tasks remain
+		if !hasActiveOrPendingTasks {
+			lastEvent := selectBestLastEvent(tasks, leafLevel, streamEvent)
+			return consts.TraceCompleted, lastEvent
+		}
 	}
 
 	// Priority 3: Check if any task is running

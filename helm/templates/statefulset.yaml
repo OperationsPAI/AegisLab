@@ -27,6 +27,12 @@ spec:
           volumeMounts:
             - name: jaeger-data
               mountPath: /badger
+      {{- if not .Values.persistence.jaeger.enabled }}
+      volumes:
+        - name: jaeger-data
+          emptyDir: {}
+      {{- end }}
+  {{- if .Values.persistence.jaeger.enabled }}
   volumeClaimTemplates:
     - metadata:
         name: jaeger-data
@@ -39,6 +45,7 @@ spec:
         resources:
           requests:
             storage: {{ .Values.persistence.jaeger.size }}
+  {{- end }}
 
 ---
 # redis
@@ -63,9 +70,26 @@ spec:
           imagePullPolicy: "{{ .Values.images.redis.pullPolicy }}"
           ports:
             - containerPort: 6379
+          {{- if not .Values.persistence.redis.enabled }}
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          {{- end }}
           volumeMounts:
             - name: redis-data
               mountPath: /data
+      {{- if not .Values.persistence.redis.enabled }}
+      volumes:
+        - name: redis-data
+          emptyDir:
+            medium: "Memory"
+            sizeLimit: "512Mi"
+      {{- end }}
+  {{- if .Values.persistence.redis.enabled }}
   volumeClaimTemplates:
     - metadata:
         name: redis-data
@@ -78,6 +102,7 @@ spec:
         resources:
           requests:
             storage: {{ .Values.persistence.redis.size }}
+  {{- end }}
 
 ---
 # mysql
@@ -117,11 +142,35 @@ spec:
             - --default-authentication-plugin=mysql_native_password
             - --character-set-server=utf8mb4
             - --collation-server=utf8mb4_unicode_ci
+            {{- if not .Values.persistence.mysql.enabled }}
+            - --innodb-flush-log-at-trx-commit=2
+            - --innodb-buffer-pool-size=256M
+            - --innodb-log-file-size=32M
+            - --skip-innodb-doublewrite
+            - --innodb-flush-method=O_DIRECT_NO_FSYNC
+            {{- end }}
           ports:
             - containerPort: 3306
+          {{- if not .Values.persistence.mysql.enabled }}
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+          {{- end }}
           volumeMounts:
             - name: mysql-data
               mountPath: /var/lib/mysql
+      {{- if not .Values.persistence.mysql.enabled }}
+      volumes:
+        - name: mysql-data
+          emptyDir:
+            medium: "Memory"
+            sizeLimit: "1Gi"
+      {{- end }}
+  {{- if .Values.persistence.mysql.enabled }}
   volumeClaimTemplates:
     - metadata:
         name: mysql-data
@@ -134,3 +183,4 @@ spec:
         resources:
           requests:
             storage: {{ .Values.persistence.mysql.size }}
+  {{- end }}

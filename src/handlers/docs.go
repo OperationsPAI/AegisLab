@@ -13,7 +13,9 @@ import (
 //	@Accept			json
 //	@Produce		json
 //	@Success		200	{object}	dto.StreamEvent			"Server-Sent Event payload structure"
+//	@Success		200	{object}	dto.DatapackInfo		"Datapack information structure"
 //	@Success		200	{object}	dto.DatapackResult		"Datapack result structure"
+//	@Success		200	{object}	dto.ExecutionInfo		"Execution information structure"
 //	@Success		200	{object}	dto.ExecutionResult		"Execution result structure"
 //	@Success		200	{object}	dto.InfoPayloadTemplate	"Information payload template"
 //	@Success		200	{object}	dto.JobMessage			"k8s Job message structure"
@@ -29,4 +31,5 @@ import (
 //	@Success		200	{object}	consts.TaskType			"Task type constants"
 //	@Success		200	{object}	consts.SSEEventName		"SSE event name constants"
 //	@Router			/api/_docs/models [get]
+//	@x-api-type		{"sdk":"true"}
 func SwaggerModelsDoc(c *gin.Context) {}

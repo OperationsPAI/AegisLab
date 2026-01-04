@@ -63,7 +63,6 @@ func (t *UnifiedTask) ConvertToTask() (*database.Task, error) {
 		Status:       consts.CommonEnabled,
 		ParentTaskID: t.ParentTaskID,
 		TraceID:      t.TraceID,
-		GroupID:      t.GroupID,
 		ProjectID:    t.ProjectID,
 	}
 	return task, nil
@@ -282,7 +281,6 @@ func NewTaskResp(task *database.Task) *TaskResp {
 		ExecuteTime: task.ExecuteTime,
 		CronExpr:    task.CronExpr,
 		TraceID:     task.TraceID,
-		GroupID:     task.GroupID,
 		State:       consts.GetTaskStateName(task.State),
 		Status:      consts.GetStatusTypeName(task.Status),
 		ProjectID:   task.Project.ID,

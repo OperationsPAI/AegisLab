@@ -44,16 +44,26 @@ func (s *StreamEvent) ToSSE() (string, error) {
 	return string(jsonData), nil
 }
 
-type DatapackResult struct {
-	Datapack  *InjectionItem `json:"datapack"`
-	Timestamp string         `json:"timestamp"`
+type DatapackInfo struct {
+	Datapack *InjectionItem `json:"datapack"`
+	JobName  string         `json:"job_name"`
 }
 
-type ExecutionResult struct {
+type DatapackResult struct {
+	Datapack string `json:"datapack"`
+	JobName  string `json:"job_name"`
+}
+
+type ExecutionInfo struct {
 	Algorithm   *ContainerVersionItem `json:"algorithm"`
 	Datapack    *InjectionItem        `json:"datapack"`
 	ExecutionID int                   `json:"execution_id"`
-	Timestamp   string                `json:"timestamp"`
+	JobName     string                `json:"job_name"`
+}
+
+type ExecutionResult struct {
+	Algorithm string `json:"algorithm"`
+	JobName   string `json:"job_name"`
 }
 
 type InfoPayloadTemplate struct {
@@ -75,7 +85,7 @@ type TraceQuery struct {
 }
 
 type GetTraceStreamReq struct {
-	LastID string `form:"last_id" binding:"required"`
+	LastID string `form:"last_id" binding:"omitempty"`
 }
 
 func (req *GetTraceStreamReq) Validate() error {

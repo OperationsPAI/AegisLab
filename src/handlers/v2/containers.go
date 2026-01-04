@@ -534,15 +534,15 @@ func SubmitContainerBuilding(c *gin.Context) {
 //	@Accept			multipart/form-data
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			container_id	path		int									true	"Container ID"
-//	@Param			version_id		path		int									true	"Container Version ID"
-//	@Param			file			formData	file								true	"Helm values YAML file"
+//	@Param			container_id	path		int													true	"Container ID"
+//	@Param			version_id		path		int													true	"Container Version ID"
+//	@Param			file			formData	file												true	"Helm values YAML file"
 //	@Success		200				{object}	dto.GenericResponse[dto.UploadHelmValueFileResp]	"File uploaded successfully"
-//	@Failure		400				{object}	dto.GenericResponse[any]			"Invalid request or file"
-//	@Failure		401				{object}	dto.GenericResponse[any]			"Authentication required"
-//	@Failure		403				{object}	dto.GenericResponse[any]			"Permission denied"
-//	@Failure		404				{object}	dto.GenericResponse[any]			"Container or version not found"
-//	@Failure		500				{object}	dto.GenericResponse[any]			"Internal server error"
+//	@Failure		400				{object}	dto.GenericResponse[any]							"Invalid request or file"
+//	@Failure		401				{object}	dto.GenericResponse[any]							"Authentication required"
+//	@Failure		403				{object}	dto.GenericResponse[any]							"Permission denied"
+//	@Failure		404				{object}	dto.GenericResponse[any]							"Container or version not found"
+//	@Failure		500				{object}	dto.GenericResponse[any]							"Internal server error"
 //	@Router			/api/v2/containers/{container_id}/versions/{version_id}/helm-values [post]
 func UploadHelmValueFile(c *gin.Context) {
 	userID, exists := middleware.GetCurrentUserID(c)

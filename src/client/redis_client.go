@@ -131,7 +131,7 @@ func RedisXRead(ctx context.Context, streams []string, count int64, block time.D
 		Block:   block,
 	}).Result()
 
-	if err != nil {
+	if err != nil && err != redis.Nil {
 		return nil, fmt.Errorf("redis XREAD failed: %w", err)
 	}
 

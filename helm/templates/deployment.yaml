@@ -15,39 +15,35 @@ spec:
     spec:
       serviceAccountName: {{ .Release.Name }}-sa
       initContainers:
-        - name: wait-for-redis
+        - name: wait-for-dependencies
           image: {{ include "helm.image" (dict "imageConfig" .Values.images.busybox "global" .Values.global) }}
           imagePullPolicy: "{{ .Values.images.busybox.pullPolicy }}"
           command:
             - sh
             - -c
-            - >
-              while ! nc -z {{ .Release.Name }}-redis 6379; do
-                echo "Waiting for Redis...";
-                sleep 3;
-              done;
-        - name: wait-for-mysql
-          image: {{ include "helm.image" (dict "imageConfig" .Values.images.busybox "global" .Values.global) }}
-          imagePullPolicy: "{{ .Values.images.busybox.pullPolicy }}"
-          command:
-            - sh
-            - -c
-            - >
-              while ! nc -z {{ .Release.Name }}-mysql 3306; do
-                echo "Waiting for MySQL...";
-                sleep 3;
-              done;
-        - name: wait-for-jaeger
-          image: {{ include "helm.image" (dict "imageConfig" .Values.images.busybox "global" .Values.global) }}
-          imagePullPolicy: "{{ .Values.images.busybox.pullPolicy }}"
-          command:
-            - sh
-            - -c
-            - >
-              while ! nc -z {{ .Release.Name }}-jaeger 4318; do
-                echo "Waiting for Jaeger...";
-                sleep 3;
-              done;
+            - |
+              # Parallel dependency check with timeout
+              TIMEOUT=120
+              START=$(date +%s)
+              
+              check_redis() { while ! nc -z {{ .Release.Name }}-redis 6379; do sleep 1; done; }
+              check_mysql() { while ! nc -z {{ .Release.Name }}-mysql 3306; do sleep 1; done; }
+              check_jaeger() { while ! nc -z {{ .Release.Name }}-jaeger 4318; do sleep 1; done; }
+              
+              # Start background checks
+              check_redis & PID1=$!
+              check_mysql & PID2=$!
+              check_jaeger & PID3=$!
+              
+              # Wait with timeout
+              while kill -0 $PID1 2>/dev/null || kill -0 $PID2 2>/dev/null || kill -0 $PID3 2>/dev/null; do
+                [ $(($(date +%s) - START)) -ge $TIMEOUT ] && echo "Timeout waiting for dependencies" && exit 1
+                sleep 5
+              done
+              
+              # Verify all succeeded
+              wait $PID1 && wait $PID2 && wait $PID3 || exit 1
+              echo "Dependencies ready in $(($(date +%s) - START))s"
       containers:
         - name: exp
           image: {{ include "helm.image" (dict "imageConfig" .Values.images.rcabench "global" .Values.global) }}
@@ -104,39 +100,35 @@ spec:
     spec:
       serviceAccountName: {{ .Release.Name }}-sa
       initContainers:
-        - name: wait-for-redis
+        - name: wait-for-dependencies
           image: {{ include "helm.image" (dict "imageConfig" .Values.images.busybox "global" .Values.global) }}
           imagePullPolicy: "{{ .Values.images.busybox.pullPolicy }}"
           command:
             - sh
             - -c
-            - >
-              while ! nc -z {{ .Release.Name }}-redis 6379; do
-                echo "Waiting for Redis...";
-                sleep 3;
-              done;
-        - name: wait-for-mysql
-          image: {{ include "helm.image" (dict "imageConfig" .Values.images.busybox "global" .Values.global) }}
-          imagePullPolicy: "{{ .Values.images.busybox.pullPolicy }}"
-          command:
-            - sh
-            - -c
-            - >
-              while ! nc -z {{ .Release.Name }}-mysql 3306; do
-                echo "Waiting for MySQL...";
-                sleep 3;
-              done;
-        - name: wait-for-jaeger
-          image: {{ include "helm.image" (dict "imageConfig" .Values.images.busybox "global" .Values.global) }}
-          imagePullPolicy: "{{ .Values.images.busybox.pullPolicy }}"
-          command:
-            - sh
-            - -c
-            - >
-              while ! nc -z {{ .Release.Name }}-jaeger 4318; do
-                echo "Waiting for Jaeger...";
-                sleep 3;
-              done;
+            - |
+              # Parallel dependency check with timeout
+              TIMEOUT=120
+              START=$(date +%s)
+              
+              check_redis() { while ! nc -z {{ .Release.Name }}-redis 6379; do sleep 1; done; }
+              check_mysql() { while ! nc -z {{ .Release.Name }}-mysql 3306; do sleep 1; done; }
+              check_jaeger() { while ! nc -z {{ .Release.Name }}-jaeger 4318; do sleep 1; done; }
+              
+              # Start background checks
+              check_redis & PID1=$!
+              check_mysql & PID2=$!
+              check_jaeger & PID3=$!
+              
+              # Wait with timeout
+              while kill -0 $PID1 2>/dev/null || kill -0 $PID2 2>/dev/null || kill -0 $PID3 2>/dev/null; do
+                [ $(($(date +%s) - START)) -ge $TIMEOUT ] && echo "Timeout waiting for dependencies" && exit 1
+                sleep 5
+              done
+              
+              # Verify all succeeded
+              wait $PID1 && wait $PID2 && wait $PID3 || exit 1
+              echo "Dependencies ready in $(($(date +%s) - START))s"
       containers:
         - name: exp
           image: {{ include "helm.image" (dict "imageConfig" .Values.images.rcabench "global" .Values.global) }}

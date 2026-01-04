@@ -12,8 +12,24 @@ import (
 	"github.com/oklog/ulid"
 )
 
+// HelmKeyPart represents a parsed key part that may contain an array index
+type HelmKeyPart struct {
+	Key     string
+	IsArray bool
+	Index   int
+}
+
 var envVarRegex = regexp.MustCompile(`^[A-Z_][A-Z0-9_]*$`)
-var helmKeyRegex = regexp.MustCompile(`^([a-zA-Z_-][a-zA-Z0-9_-]*\.)*[a-zA-Z_-][a-zA-Z0-9_-]*$`)
+
+// helmKeyRegex validates Helm value keys with support for:
+// - Simple keys: "key"
+// - Nested keys: "key.subkey"
+// - Array indices: "key[0]", "key[123]"
+// - Complex paths: "accounting.initContainers[0].image"
+var helmKeyRegex = regexp.MustCompile(`^[a-zA-Z_-][a-zA-Z0-9_-]*(\[\d+\])?(\.[a-zA-Z_-][a-zA-Z0-9_-]*(\[\d+\])?)*$`)
+
+// arrayIndexRegex matches array indices like [0], [123]
+var arrayIndexRegex = regexp.MustCompile(`^(.+?)\[(\d+)\]$`)
 
 // ConvertSimpleTypeToString converts simple types (string, int, float64, bool) to their string representation
 func ConvertSimpleTypeToString(a any) (string, error) {
@@ -72,44 +88,6 @@ func ConvertStringToSimpleType(s string) (any, error) {
 	return value, nil
 }
 
-// IsValidEnvVar checks if the provided string is a valid environment variable name
-func IsValidEnvVar(envVar string) error {
-	if envVar == "" {
-		return fmt.Errorf("environment variable cannot be empty")
-	}
-	if len(envVar) > 128 {
-		return fmt.Errorf("environment variable name too long (max 128 characters)")
-	}
-	if ok := envVarRegex.MatchString(envVar); !ok {
-		return fmt.Errorf("environment variable contains invalid characters")
-	}
-	return nil
-}
-
-// IsValidHelmValueKey checks if the provided string is a valid Helm Value Path key
-func IsValidHelmValueKey(key string) error {
-	if key == "" {
-		return fmt.Errorf("Helm value key cannot be empty")
-	}
-	if ok := helmKeyRegex.MatchString(key); !ok {
-		return fmt.Errorf("Helm value key contains invalid characters")
-	}
-	return nil
-}
-
-func IsValidUUID(s string) bool {
-	_, err := uuid.Parse(s)
-	return err == nil
-}
-
-func ToSnakeCase(s string) string {
-	var matchFirstCap = regexp.MustCompile("(.)([A-Z][a-z]+)")
-	var matchAllCap = regexp.MustCompile("([a-z0-9])([A-Z])")
-	snake := matchFirstCap.ReplaceAllString(s, "${1}_${2}")
-	snake = matchAllCap.ReplaceAllString(snake, "${1}_${2}")
-	return strings.ToLower(snake)
-}
-
 // GenerateColorFromKey generates a consistent color based on a key string
 func GenerateColorFromKey(key string) string {
 	// Predefined color palette with good visibility and contrast
@@ -141,6 +119,85 @@ func GenerateColorFromKey(key string) string {
 	}
 
 	return colors[hash]
+}
+
+// GenerateULID generates a ULID string based on the provided time.
+func GenerateULID(t *time.Time) string {
+	if t == nil {
+		now := time.Now()
+		t = &now
+	}
+
+	entropy := ulid.Monotonic(rand.New(rand.NewSource(t.UnixNano())), 0)
+	id := ulid.MustNew(ulid.Timestamp(*t), entropy)
+	return id.String()
+}
+
+// IsValidEnvVar checks if the provided string is a valid environment variable name
+func IsValidEnvVar(envVar string) error {
+	if envVar == "" {
+		return fmt.Errorf("environment variable cannot be empty")
+	}
+	if len(envVar) > 128 {
+		return fmt.Errorf("environment variable name too long (max 128 characters)")
+	}
+	if ok := envVarRegex.MatchString(envVar); !ok {
+		return fmt.Errorf("environment variable contains invalid characters")
+	}
+	return nil
+}
+
+// IsValidHelmValueKey checks if the provided string is a valid Helm Value Path key
+func IsValidHelmValueKey(key string) error {
+	if key == "" {
+		return fmt.Errorf("Helm value key cannot be empty")
+	}
+	if ok := helmKeyRegex.MatchString(key); !ok {
+		return fmt.Errorf("Helm value key contains invalid characters")
+	}
+	return nil
+}
+
+func IsValidUUID(s string) bool {
+	_, err := uuid.Parse(s)
+	return err == nil
+}
+
+// ParseHelmKey parses a Helm key like "accounting.initContainers[0].image"
+// into structured parts that include array indices
+func ParseHelmKey(key string) []HelmKeyPart {
+	parts := strings.Split(key, ".")
+	result := make([]HelmKeyPart, 0, len(parts))
+
+	for _, part := range parts {
+		if matches := arrayIndexRegex.FindStringSubmatch(part); matches != nil {
+			// This part has an array index
+			keyName := matches[1]
+			index, _ := strconv.Atoi(matches[2])
+			result = append(result, HelmKeyPart{
+				Key:     keyName,
+				IsArray: true,
+				Index:   index,
+			})
+		} else {
+			// Regular key without array index
+			result = append(result, HelmKeyPart{
+				Key:     part,
+				IsArray: false,
+				Index:   0,
+			})
+		}
+	}
+
+	return result
+}
+
+func ToSnakeCase(s string) string {
+	var matchFirstCap = regexp.MustCompile("(.)([A-Z][a-z]+)")
+	var matchAllCap = regexp.MustCompile("([a-z0-9])([A-Z])")
+	snake := matchFirstCap.ReplaceAllString(s, "${1}_${2}")
+	snake = matchAllCap.ReplaceAllString(snake, "${1}_${2}")
+	return strings.ToLower(snake)
 }
 
 func ToSingular(plural string) string {
@@ -178,15 +235,4 @@ func ToSingular(plural string) string {
 	}
 
 	return plural
-}
-
-func GenerateULID(t *time.Time) string {
-	if t == nil {
-		now := time.Now()
-		t = &now
-	}
-
-	entropy := ulid.Monotonic(rand.New(rand.NewSource(t.UnixNano())), 0)
-	id := ulid.MustNew(ulid.Timestamp(*t), entropy)
-	return id.String()
 }

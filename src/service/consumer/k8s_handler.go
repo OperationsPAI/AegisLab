@@ -151,7 +151,7 @@ func (h *k8sHandler) HandleCRDAdd(name string, annotations map[string]string, la
 			parsedLabels.taskType,
 			consts.TaskRunning,
 			fmt.Sprintf("injecting fault for task %s", parsedLabels.taskID),
-		).withSimpleEvent(consts.EventFaultInjectionStarted),
+		).withEvent(consts.EventFaultInjectionStarted, name),
 	)
 }
 
@@ -259,7 +259,7 @@ func (h *k8sHandler) HandleCRDSucceeded(namespace, pod, name string, startTime, 
 			parsedLabels.taskType,
 			consts.TaskCompleted,
 			fmt.Sprintf(consts.TaskMsgCompleted, parsedLabels.taskID),
-		).withSimpleEvent(consts.EventFaultInjectionCompleted),
+		).withEvent(consts.EventFaultInjectionCompleted, name),
 	)
 
 	errCtx := NewErrorContext(taskCtx, taskSpan, &parsedLabels.taskIdentifiers)
@@ -316,7 +316,7 @@ func (h *k8sHandler) HandleCRDSucceeded(namespace, pod, name string, startTime, 
 	}
 }
 
-func (h *k8sHandler) HandleJobAdd(annotations map[string]string, labels map[string]string) {
+func (h *k8sHandler) HandleJobAdd(name string, annotations map[string]string, labels map[string]string) {
 	parsedAnnotations, err := parseAnnotations(annotations)
 	if err != nil {
 		logrus.Errorf("HandleJobAdd: failed to parse annotations: %v", err)
@@ -331,13 +331,24 @@ func (h *k8sHandler) HandleJobAdd(annotations map[string]string, labels map[stri
 
 	var message string
 	var eventType consts.EventType
+	var payload any
 	switch parsedLabels.taskType {
 	case consts.TaskTypeBuildDatapack:
 		message = fmt.Sprintf("building dataset for task %s", parsedLabels.taskID)
 		eventType = consts.EventDatapackBuildStarted
+		payload = dto.DatapackInfo{
+			Datapack: parsedAnnotations.datapack,
+			JobName:  name,
+		}
 	case consts.TaskTypeRunAlgorithm:
 		message = fmt.Sprintf("running algorithm for task %s", parsedLabels.taskID)
 		eventType = consts.EventAlgoRunStarted
+		payload = dto.ExecutionInfo{
+			Algorithm:   parsedAnnotations.algorithm,
+			Datapack:    parsedAnnotations.datapack,
+			ExecutionID: *parsedLabels.ExecutionID,
+			JobName:     name,
+		}
 	}
 
 	taskCtx := otel.GetTextMapPropagator().Extract(context.Background(), parsedAnnotations.taskCarrier)
@@ -348,7 +359,7 @@ func (h *k8sHandler) HandleJobAdd(annotations map[string]string, labels map[stri
 			parsedLabels.taskType,
 			consts.TaskRunning,
 			message,
-		).withSimpleEvent(eventType),
+		).withEvent(eventType, payload),
 	)
 }
 
@@ -445,8 +456,8 @@ func (h *k8sHandler) HandleJobFailed(job *batchv1.Job, annotations map[string]st
 
 		eventName = consts.EventDatapackBuildFailed
 		payload = dto.DatapackResult{
-			Datapack:  parsedAnnotations.datapack,
-			Timestamp: time.Now().Format(time.RFC3339),
+			Datapack: parsedAnnotations.datapack.Name,
+			JobName:  job.Name,
 		}
 
 		if err := updateInjectionState(parsedAnnotations.datapack.Name, consts.DatapackBuildFailed); err != nil {
@@ -476,10 +487,8 @@ func (h *k8sHandler) HandleJobFailed(job *batchv1.Job, annotations map[string]st
 
 		eventName = consts.EventAlgoRunFailed
 		payload = dto.ExecutionResult{
-			Algorithm:   parsedAnnotations.algorithm,
-			Datapack:    parsedAnnotations.datapack,
-			ExecutionID: *parsedLabels.ExecutionID,
-			Timestamp:   time.Now().Format(time.RFC3339),
+			Algorithm: parsedAnnotations.algorithm.ContainerName,
+			JobName:   job.Name,
 		}
 
 		if parsedAnnotations.algorithm.ContainerName == config.GetString(consts.DetectorKey) {
@@ -566,8 +575,8 @@ func (h *k8sHandler) HandleJobSucceeded(job *batchv1.Job, annotations map[string
 			).withEvent(
 				consts.EventDatapackBuildSucceed,
 				dto.DatapackResult{
-					Datapack:  parsedAnnotations.datapack,
-					Timestamp: time.Now().Format(time.RFC3339),
+					Datapack: parsedAnnotations.datapack.Name,
+					JobName:  job.Name,
 				},
 			),
 		)
@@ -658,10 +667,8 @@ func (h *k8sHandler) HandleJobSucceeded(job *batchv1.Job, annotations map[string
 			).withEvent(
 				consts.EventAlgoRunSucceed,
 				dto.ExecutionResult{
-					Algorithm:   parsedAnnotations.algorithm,
-					Datapack:    parsedAnnotations.datapack,
-					ExecutionID: *parsedLabels.ExecutionID,
-					Timestamp:   time.Now().Format(time.RFC3339),
+					Algorithm: parsedAnnotations.algorithm.ContainerName,
+					JobName:   job.Name,
 				},
 			),
 		)

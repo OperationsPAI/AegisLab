@@ -77,7 +77,7 @@ func GetTraceStream(c *gin.Context) {
 
 	logEntry.Infof("Reading historical events from Stream")
 	historicalMessages, err := producer.ReadTraceStreamMessages(ctx, streamKey, req.LastID, 100, 0)
-	if err != nil && err != redis.Nil {
+	if err != nil {
 		logEntry.Errorf("failed to read historical events from redis: %v", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to read event history")
 		return
@@ -91,11 +91,12 @@ func GetTraceStream(c *gin.Context) {
 			return
 		}
 
-		req.LastID = lastID
 		if completed {
 			logEntry.Info("Trace completed during historical events, closing stream connection")
 			return
 		}
+
+		req.LastID = lastID
 	}
 
 	logEntry.Infof("Switching to real-time event monitoring from ID: %s", req.LastID)
@@ -107,7 +108,7 @@ func GetTraceStream(c *gin.Context) {
 
 		default:
 			newMessages, err := producer.ReadTraceStreamMessages(ctx, streamKey, req.LastID, 10, time.Second)
-			if err != nil && err != redis.Nil {
+			if err != nil {
 				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 					logEntry.Infof("Context done while reading stream: %v", err)
 					return
@@ -118,8 +119,9 @@ func GetTraceStream(c *gin.Context) {
 				return
 			}
 
-			if err == redis.Nil {
-				logEntry.Info("No new messages, continuing")
+			if len(newMessages) == 0 {
+				logEntry.Debug("No new messages, continuing")
+				continue
 			}
 
 			lastID, completed, err := sendSSEEvents(c, processor, newMessages)
@@ -131,6 +133,7 @@ func GetTraceStream(c *gin.Context) {
 			req.LastID = lastID
 			if completed {
 				logEntry.Info("Trace completed, closing stream connection")
+				time.Sleep(1 * time.Second)
 				return
 			}
 
@@ -141,19 +144,27 @@ func GetTraceStream(c *gin.Context) {
 
 // sendSSEEvents processes and sends stream messages as SSE events
 func sendSSEEvents(c *gin.Context, processor *producer.StreamProcessor, streams []redis.XStream) (string, bool, error) {
-	lastID, streamEvent, err := processor.ProcessMessageForSSE(streams[0].Messages[0])
-	if err != nil {
-		c.SSEvent(string(consts.EventEnd), nil)
-		c.Writer.Flush()
-		return lastID, true, err
+	if len(streams) == 0 || len(streams[0].Messages) == 0 {
+		return "", false, fmt.Errorf("no messages to process")
 	}
 
-	c.Render(-1, sse.Event{
-		Id:    lastID,
-		Event: string(consts.EventUpdate),
-		Data:  streamEvent,
-	})
-	c.Writer.Flush()
+	var lastID string
+	for _, msg := range streams[0].Messages {
+		id, streamEvent, err := processor.ProcessMessageForSSE(msg)
+		lastID = id
+		if err != nil {
+			c.SSEvent(string(consts.EventEnd), nil)
+			c.Writer.Flush()
+			return lastID, true, err
+		}
+
+		c.Render(-1, sse.Event{
+			Id:    lastID,
+			Event: string(consts.EventUpdate),
+			Data:  streamEvent,
+		})
+		c.Writer.Flush()
+	}
 
 	completed := processor.IsCompleted()
 	if completed {

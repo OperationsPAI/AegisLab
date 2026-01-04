@@ -228,13 +228,6 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 			return handleExecutionError(span, logEntry, "failed to write fault injection schedule to database", err)
 		}
 
-		publishEvent(childCtx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
-			TaskID:    task.TaskID,
-			TaskType:  consts.TaskTypeFaultInjection,
-			EventName: consts.EventFaultInjectionStarted,
-			Payload:   names,
-		})
-
 		return nil
 	})
 }

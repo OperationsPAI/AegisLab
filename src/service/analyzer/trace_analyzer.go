@@ -24,12 +24,12 @@ import (
 
 var payloadTypeRegistry = map[consts.EventType]reflect.Type{
 	// Algorithm execution events
-	consts.EventAlgoRunSucceed: reflect.TypeFor[dto.ExecutionResult](),
-	consts.EventAlgoRunFailed:  reflect.TypeFor[dto.ExecutionResult](),
+	consts.EventAlgoRunSucceed: reflect.TypeFor[dto.ExecutionInfo](),
+	consts.EventAlgoRunFailed:  reflect.TypeFor[dto.ExecutionInfo](),
 
 	// Dataset Build events
-	consts.EventDatapackBuildSucceed: reflect.TypeFor[dto.DatapackResult](),
-	consts.EventDatapackBuildFailed:  reflect.TypeFor[dto.DatapackResult](),
+	consts.EventDatapackBuildSucceed: reflect.TypeFor[dto.DatapackInfo](),
+	consts.EventDatapackBuildFailed:  reflect.TypeFor[dto.DatapackInfo](),
 
 	// Task status events
 	consts.EventTaskStateUpdate: reflect.TypeFor[dto.InfoPayloadTemplate](),

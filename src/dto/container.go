@@ -61,25 +61,77 @@ func (hci *HelmConfigItem) GetValuesMap() map[string]any {
 	for _, item := range hci.DynamicValues {
 		value := item.Value
 
-		keys := strings.Split(item.Key, ".")
+		keys := utils.ParseHelmKey(item.Key)
 		cur := root
 
 		for i, k := range keys {
 			if i == len(keys)-1 {
 				// Last key - set the value
-				cur[k] = value
+				if k.IsArray {
+					// Handle array index
+					if arr, ok := cur[k.Key].([]any); ok {
+						// Extend array if needed
+						for len(arr) <= k.Index {
+							arr = append(arr, make(map[string]any))
+						}
+						arr[k.Index] = value
+						cur[k.Key] = arr
+					} else {
+						// Create new array
+						arr := make([]any, k.Index+1)
+						for j := 0; j < k.Index; j++ {
+							arr[j] = make(map[string]any)
+						}
+						arr[k.Index] = value
+						cur[k.Key] = arr
+					}
+				} else {
+					cur[k.Key] = value
+				}
 				break
 			}
-			if _, exists := cur[k]; !exists {
-				cur[k] = make(map[string]any)
-			}
-			if nextMap, ok := cur[k].(map[string]any); ok {
-				cur = nextMap
+
+			// Handle intermediate keys
+			if k.IsArray {
+				// Current key is an array
+				if _, exists := cur[k.Key]; !exists {
+					// Create new array
+					arr := make([]any, k.Index+1)
+					for j := 0; j <= k.Index; j++ {
+						arr[j] = make(map[string]any)
+					}
+					cur[k.Key] = arr
+				}
+
+				if arr, ok := cur[k.Key].([]any); ok {
+					// Extend array if needed
+					for len(arr) <= k.Index {
+						arr = append(arr, make(map[string]any))
+					}
+					cur[k.Key] = arr
+
+					if nextMap, ok := arr[k.Index].(map[string]any); ok {
+						cur = nextMap
+					} else {
+						// Create new map at this index
+						newMap := make(map[string]any)
+						arr[k.Index] = newMap
+						cur = newMap
+					}
+				}
 			} else {
-				// If the path exists but is not a map, replace it with a map
-				newMap := make(map[string]any)
-				cur[k] = newMap
-				cur = newMap
+				// Regular key
+				if _, exists := cur[k.Key]; !exists {
+					cur[k.Key] = make(map[string]any)
+				}
+				if nextMap, ok := cur[k.Key].(map[string]any); ok {
+					cur = nextMap
+				} else {
+					// If the path exists but is not a map, replace it with a map
+					newMap := make(map[string]any)
+					cur[k.Key] = newMap
+					cur = newMap
+				}
 			}
 		}
 	}
