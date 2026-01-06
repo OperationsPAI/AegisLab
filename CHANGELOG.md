@@ -4,9 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### Testing
+
+- Migrate from Docker Compose to Kubernetes-based testing
+
+## [1.1.55] - 2026-01-06
+
 ### Features
 
 - *(trace)* Add group statistics API and version automation
+
+### Miscellaneous Tasks
+
+- *(release)* Bump version to 1.1.55
 
 ## [1.1.54] - 2026-01-04
 

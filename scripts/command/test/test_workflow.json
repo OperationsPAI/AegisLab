@@ -1,0 +1,124 @@
+{
+    "test_full_pipeline": [
+        {
+            "name": "otel_demo_one",
+            "description": "Test fault injection with otel-demo pedestal, random algorithm, and clickhouse benchmark",
+            "input": {
+                "algorithms": [
+                    {
+                        "name": "random",
+                        "version": "1.0.0"
+                    }
+                ],
+                "benchmark": {
+                    "name": "clickhouse",
+                    "version": "1.0.0"
+                },
+                "interval": 2,
+                "labels": [
+                    {
+                        "key": "env",
+                        "value": "prod"
+                    },
+                    {
+                        "key": "batch",
+                        "value": "boostrap"
+                    }
+                ],
+                "pedestal": {
+                    "name": "otel-demo",
+                    "version": "1.0.0"
+                },
+                "pre_duration": 1,
+                "project_name": "pair_diagnosis",
+                "specs": [
+                    [
+                        {
+                            "children": {
+                                "1": {
+                                    "children": {
+                                        "0": {
+                                            "value": 1
+                                        },
+                                        "1": {
+                                            "value": 1
+                                        },
+                                        "2": {
+                                            "value": 2
+                                        }
+                                    }
+                                }
+                            },
+                            "value": 1
+                        }
+                    ]
+                ]
+            },
+            "expected": {
+                "timeout": 3000,
+                "min_events": 15
+            }
+        }
+    ],
+    "test_listen_trace_events": [
+        {
+            "name": "otel_demo_one",
+            "description": "Test fault injection with otel-demo pedestal, random algorithm, and clickhouse benchmark",
+            "input": {
+                "algorithms": [
+                    {
+                        "name": "random",
+                        "version": "1.0.0"
+                    }
+                ],
+                "benchmark": {
+                    "name": "clickhouse",
+                    "version": "1.0.0"
+                },
+                "interval": 2,
+                "labels": [
+                    {
+                        "key": "env",
+                        "value": "prod"
+                    },
+                    {
+                        "key": "batch",
+                        "value": "boostrap"
+                    }
+                ],
+                "pedestal": {
+                    "name": "otel-demo",
+                    "version": "1.0.0"
+                },
+                "pre_duration": 1,
+                "project_name": "pair_diagnosis",
+                "specs": [
+                    [
+                        {
+                            "children": {
+                                "1": {
+                                    "children": {
+                                        "0": {
+                                            "value": 1
+                                        },
+                                        "1": {
+                                            "value": 1
+                                        },
+                                        "2": {
+                                            "value": 2
+                                        }
+                                    }
+                                }
+                            },
+                            "value": 1
+                        }
+                    ]
+                ]
+            },
+            "expected": {
+                "timeout": 3000,
+                "min_events": 15
+            }
+        }
+    ]
+}

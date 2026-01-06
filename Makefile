@@ -116,36 +116,6 @@ check-prerequisites: ## 🔍 Check development environment dependencies
 	@printf "$(GREEN)✅ kubectx installed$(RESET)\n"
 	@printf "$(GREEN)🎉 All dependency checks passed!$(RESET)\n\n"
 
-install-chaos-mesh: ## 📦 Install Chaos Mesh
-	@printf "$(BLUE)📦 Installing Chaos Mesh...$(RESET)\n"
-	helm repo add chaos-mesh https://charts.chaos-mesh.org
-	helm install chaos-mesh chaos-mesh/chaos-mesh \
-		--namespace=chaos-mesh \
-		--create-namespace \
-		--set chaosDaemon.runtime=containerd \
-		--version 2.7.2
-	@printf "$(GREEN)✅ Chaos Mesh installation completed$(RESET)\n"
-
-install-jfs-driver: ## 🚀 Install JuiceFS CSI Driver
-	@printf "$(BLUE)🚀 Installing JuiceFS CSI Driver...$(RESET)\n"
-	helm repo add juicefs https://juicedata.github.io/charts/
-	helm repo update
-
-	helm install juicefs-csi-driver juicefs/juicefs-csi-driver \
-	--namespace kube-system \
-	--set storageClasses[0].enabled=false
-	@printf "$(GREEN)✅ JuiceFS CSI Driver installation completed$(RESET)\n"
-
-install-rcabench:  ## 🔧 Deploy RCABench application
-	@printf "$(BLUE)Deploying RCABench application...$(RESET)\n"
-	helm upgrade -i rcabench ./helm --namespace exp \
-		--create-namespace \
-		--values ./manifests/test/rcabench.yaml \
-		--wait --timeout 10m
-	@printf "$(GREEN)✅ RCABench installed successfully$(RESET)\n\n"
-	@printf "$(BLUE)🔗 Starting automatic port forwarding...$(RESET)\n"
-	@$(MAKE) forward-ports
-
 forward-ports: ## 🔗 Start port forwarding to access application
 	@$(MAKE) run-command ARGS="port start -e $(ENV_MODE) -n $(NS)"
 
@@ -159,6 +129,8 @@ setup-dev-env: check-prerequisites ## 🛠️  Setup development environment
 		curl -LsSf https://astral.sh/uv/install.sh | sh; \
 		printf "$(GREEN)✅ 'uv' installed!$(RESET)\n"; \
 	fi
+	@printf "$(GRAY)Applying Kubernetes manifests for local development...$(RESET)\n"
+	kubectl apply -f manifests/local-dev/exp-dev-setup.yaml
 	@printf "$(GRAY)Installing Git hooks with Lefthook...$(RESET)\n"
 	@if test -f $(LEFTHOOK_CONFIG); then \
 		devbox run install-hooks; \
@@ -180,11 +152,18 @@ install-pedestals: ## 🔍 Install pedestals in namespaces (usage: make install-
 # Build and Deployment
 # =============================================================================
 
+install-rcabench:  ## 🔧 Deploy RCABench application
+	@printf "$(BLUE)Deploying RCABench application...$(RESET)\n"
+	helm upgrade -i rcabench ./helm --namespace exp \
+		--create-namespace \
+		--values ./manifests/test/rcabench.yaml \
+		--wait --timeout 10m
+	@printf "$(GREEN)✅ RCABench installed successfully$(RESET)\n\n"
+	@printf "$(BLUE)🔗 Starting automatic port forwarding...$(RESET)\n"
+	@$(MAKE) forward-ports
+
 run: check-prerequisites ## 🚀 Build and deploy application (using skaffold)
 	$(MAKE) run-command ARGS="rcabench run -e $(ENV_MODE)"
-
-check-secrets: ## 🔍 Check required Secrets exist
-	$(MAKE) run-command ARGS="rcabench check-secrets -e $(ENV_MODE)"
 
 # =============================================================================
 # Development Tools

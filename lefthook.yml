@@ -45,8 +45,28 @@ commit-msg:
           exit 1
         }
 
-# Pre-push hook: Run tests before push (optional)
-# pre-push:
-#   commands:
-#     tests:
-#       run: make test
+# Pre-push hook: Auto-generate changelog before push
+pre-push:
+  commands:
+    auto-changelog:
+      run: |
+        echo "📝 Generating CHANGELOG.md..."
+        
+        # Generate changelog
+        make changelog
+        
+        # Check if CHANGELOG.md has changes (both staged and unstaged)
+        if git diff --quiet CHANGELOG.md && git diff --cached --quiet CHANGELOG.md; then
+          echo "⚠️ No CHANGELOG.md changes detected"
+        else
+          echo "✅ CHANGELOG.md has been updated"
+          
+          # Add CHANGELOG.md to staging
+          git add CHANGELOG.md
+          
+          # Amend to the current commit without editing message
+          git commit --amend --no-edit --no-verify
+          
+          echo "✅ CHANGELOG.md successfully added to commit"
+        fi
+

@@ -20,7 +20,20 @@ images:
 harbor:
   enabled: false
 
+initialization:
+  enabled: false
+
 configmap:
   k8s:
     init_container:
       busybox_image: pair-diag-cn-guangzhou.cr.volces.com/pair/busybox:1.35
+
+persistence:
+  redis:
+    enabled: false
+
+  mysql:
+    enabled: false
+
+  jaeger:
+    enabled: false
