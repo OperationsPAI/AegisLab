@@ -1,16 +1,21 @@
 import copy
 import json
+import re
 import shutil
 import sys
 from pathlib import Path
 from typing import Any
 
+import tomlkit
 from python_on_whales import docker
+from ruamel.yaml import YAML
 
 from src.common.command import run_command
 from src.common.common import ScopeType, console, settings
 from src.formatter.python import PythonFormatter
 from src.util import get_longest_common_substring
+
+__all__ = ["generate_python_sdk", "init"]
 
 # Project root: /home/nn/workspace/AegisLab
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
@@ -57,6 +62,7 @@ class PostProcesser:
     # Models that should always be kept in SDK even if not directly referenced
     # These are typically used in SSE events or other indirect references
     ALWAYS_KEEP_MODELS = {
+        "StreamEvent",
         "DatapackInfo",
         "DatapackResult",
         "ExecutionInfo",
@@ -703,3 +709,48 @@ def generate_python_sdk(version: str) -> None:
     )
     formatter = PythonFormatter(scope=ScopeType.SDK)
     formatter.run()
+
+    # 5. Update version information in project files
+    _update_version(version)
+
+
+def _update_version(version: str) -> None:
+    """
+    Update version information in various project files.
+        - sdk/python/src/rcabench/__init__.py
+        - src/config.dev.toml
+        - helm/values.yaml
+    """
+    # Update version in sdk/python/src/rcabench/__init__.py
+    init_python_path = PYTHON_SDK_DIR / "src" / "rcabench" / "__init__.py"
+    with open(init_python_path, encoding="utf-8") as f:
+        init_content = f.read()
+
+    pattern = r'__version__\s*=\s*["\'].*?["\']'
+    replacement = f'__version__ = "{version}"'
+    new_init_content = re.sub(pattern, replacement, init_content)
+
+    with open(init_python_path, "w", encoding="utf-8") as f:
+        f.write(new_init_content)
+
+    # Update version in src/config.dev.toml
+    dev_config_path = PROJECT_ROOT / "src" / "config.dev.toml"
+    with open(dev_config_path, encoding="utf-8") as f:
+        dev_config = tomlkit.load(f)
+
+    dev_config["version"] = version
+    with open(dev_config_path, "w", encoding="utf-8") as f:
+        tomlkit.dump(dev_config, f)
+
+    # Update version in helm/values.yaml
+    yaml = YAML()
+    yaml.preserve_quotes = True
+    yaml.indent(mapping=2, sequence=4, offset=2)
+
+    helm_values_path = PROJECT_ROOT / "helm" / "values.yaml"
+    with open(helm_values_path, encoding="utf-8") as f:
+        helm_values = yaml.load(f)
+
+    helm_values["configmap"]["version"] = version
+    with open(helm_values_path, "w", encoding="utf-8") as f:
+        yaml.dump(helm_values, f)

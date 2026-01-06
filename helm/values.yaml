@@ -48,7 +48,7 @@ initialization:
 
 configmap:
   name: "rcabench"
-  version: "0.1.0"
+  version: "1.1.55"
   port: 8080
   workspace: "/app"
   system:
@@ -92,13 +92,12 @@ persistence:
   # Global storage type setting - applies to containers, logs, and juicefs sections
   # Options: "juicefs" | "volcengine" | "external"
   storageType: "juicefs"
-  
+
   # Common StorageClass names for each type
   storageClassNames:
     juicefs: "juicefs-sc"
     volcengine: "rcabench"
     external: ""
-  
   redis:
     enabled: true
     accessMode: ReadWriteOnce

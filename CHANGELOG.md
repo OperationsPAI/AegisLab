@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [unreleased]
+
+### Features
+
+- *(trace)* Add group statistics API and version automation
+
 ## [1.1.54] - 2026-01-04
 
 ### Features
