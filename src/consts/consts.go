@@ -412,6 +412,10 @@ const (
 	EventJobFailed  EventType = "k8s.job.failed"
 )
 
+func (e EventType) String() string {
+	return string(e)
+}
+
 const (
 	TaskCarrier  = "task_carrier"
 	TraceCarrier = "trace_carrier"

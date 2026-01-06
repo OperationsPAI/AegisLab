@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -41,7 +42,72 @@ var payloadTypeRegistry = map[consts.EventType]reflect.Type{
 	consts.EventJobFailed:  reflect.TypeFor[dto.JobMessage](),
 }
 
-// ===================== Stream Processor =====================
+// ===================== Trace Service =====================
+
+// ListTraceIDs lists unique trace IDs from tasks within the specified time range
+func ListTraceIDs(opts *dto.TimeFilterOptions) ([]string, error) {
+	startTime, endTime := opts.GetTimeRange()
+
+	tasks, err := repository.ListTasksByTimeRange(database.DB, startTime, endTime)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query tasks from database: %v", err)
+	}
+
+	var traceIDs []string
+	for _, task := range tasks {
+		traceIDs = append(traceIDs, task.TraceID)
+	}
+
+	traceIDs = utils.ToUniqueSlice(traceIDs)
+	return traceIDs, nil
+}
+
+// GetGroupStats retrieves statistics for a group of traces
+func GetGroupStats(req *dto.GetGroupStatsReq) (*dto.GroupStats, error) {
+	if req == nil {
+		return nil, fmt.Errorf("request cannot be nil")
+	}
+
+	// Query all traces belonging to this group
+	traces, err := repository.GetTracesByGroupID(database.DB, req.GroupID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query traces for group %s: %w", req.GroupID, err)
+	}
+
+	if len(traces) == 0 {
+		return dto.NewDefaultGroupStats(), nil
+	}
+
+	durations := make([]float64, 0, len(traces))
+	totalDuration := 0.0
+	for _, trace := range traces {
+		if trace.EndTime != nil {
+			duration := trace.EndTime.Sub(trace.StartTime).Seconds()
+			durations = append(durations, duration)
+			totalDuration += duration
+		}
+	}
+
+	traceStateMap := make(map[string][]dto.TraceStatsItem, 4)
+	for _, trace := range traces {
+		stateName := consts.GetTraceStateName(trace.State)
+		if _, exists := traceStateMap[stateName]; !exists {
+			traceStateMap[stateName] = make([]dto.TraceStatsItem, 0)
+		}
+
+		traceStateMap[stateName] = append(traceStateMap[stateName], *dto.NewTraceStats(&trace))
+	}
+
+	return &dto.GroupStats{
+		TotalTraces:   len(traces),
+		AvgDuration:   totalDuration / float64(len(durations)),
+		MinDuration:   slices.Min(durations),
+		MaxDuration:   slices.Max(durations),
+		TraceStateMap: traceStateMap,
+	}, nil
+}
+
+// ===================== Trace Stream Service =====================
 
 type StreamProcessor struct {
 	isCompleted   bool
@@ -76,13 +142,16 @@ func (sp *StreamProcessor) ProcessMessageForSSE(msg redis.XMessage) (string, *dt
 	case consts.EventImageBuildSucceed:
 		sp.isCompleted = true
 
+	case consts.EventRestartPedestalFailed, consts.EventFaultInjectionFailed, consts.EventDatapackBuildFailed:
+		sp.isCompleted = true
+
 	case consts.EventDatapackNoAnomaly, consts.EventDatapackNoDetectorData:
 		sp.isCompleted = true
 
 	case consts.EventDatapackResultCollection:
 		sp.isCompleted = len(sp.algorithmMap) == 0
 
-	case consts.EventAlgoRunSucceed, consts.EventAlgoRunFailed:
+	case consts.EventAlgoResultCollection, consts.EventAlgoRunFailed:
 		payload, ok := streamEvent.Payload.(*dto.ExecutionResult)
 		if !ok {
 			return "", nil, fmt.Errorf("invalid payload type for task status update event: %T", streamEvent.Payload)
@@ -100,28 +169,6 @@ func (sp *StreamProcessor) ProcessMessageForSSE(msg redis.XMessage) (string, *dt
 
 	return msg.ID, streamEvent, nil
 }
-
-// ===================== Trace Service =====================
-
-// ListTraceIDs lists unique trace IDs from tasks within the specified time range
-func ListTraceIDs(opts *dto.TimeFilterOptions) ([]string, error) {
-	startTime, endTime := opts.GetTimeRange()
-
-	tasks, err := repository.ListTasksByTimeRange(database.DB, startTime, endTime)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query tasks from database: %v", err)
-	}
-
-	var traceIDs []string
-	for _, task := range tasks {
-		traceIDs = append(traceIDs, task.TraceID)
-	}
-
-	traceIDs = utils.ToUniqueSlice(traceIDs)
-	return traceIDs, nil
-}
-
-// ===================== Trace Stream Service =====================
 
 // GetTraceStreamEvents retrieves trace events from Redis stream based on the provided TraceQuery
 func GetTraceStreamEvents(ctx context.Context, query *dto.TraceQuery) ([]*dto.StreamEvent, error) {

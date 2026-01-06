@@ -62,16 +62,3 @@ type AnalyzeInjectionsResp struct {
 	Efficiency string                    `json:"efficiency"`
 	Stats      map[string]InjectionStats `json:"stats"`
 }
-
-type TraceStats struct {
-	Total       int     `json:"total"`
-	AvgDuration float64 `json:"avg_duration"`
-	MinDuration float64 `json:"min_duration"`
-	MaxDuration float64 `json:"max_duration"`
-
-	EndCountMap          map[consts.TaskType]map[string]int     `json:"end_count_map"`
-	TraceStatusTimeMap   map[string]map[consts.TaskType]float64 `json:"trace_status_time_map"`
-	TraceCompletedList   []string                               `json:"trace_completed_list"`
-	FaultInjectionTraces []string                               `json:"fault_injection_traces"`
-	TraceErrors          any                                    `json:"trace_errors"`
-}

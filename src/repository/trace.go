@@ -29,6 +29,19 @@ func GetTraceByID(db *gorm.DB, traceID string) (*database.Trace, error) {
 	return &trace, nil
 }
 
+// GetTracesByGroupID retrieves all traces belonging to a specific group
+func GetTracesByGroupID(db *gorm.DB, groupID string) ([]database.Trace, error) {
+	var traces []database.Trace
+	if err := db.Model(&database.Trace{}).
+		Preload("Tasks").
+		Where("group_id = ? AND status != ?", groupID, consts.CommonDeleted).
+		Order("start_time DESC").
+		Find(&traces).Error; err != nil {
+		return nil, err
+	}
+	return traces, nil
+}
+
 // ListTraceIDs retrieves distinct trace IDs from tasks within the specified time range
 func ListTraceIDs(db *gorm.DB, startTime, endTime *time.Time) ([]string, error) {
 	var traceIDs []string

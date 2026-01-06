@@ -2,11 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
-## [unreleased]
+## [1.1.54] - 2026-01-04
+
+### Features
+
+- *(core)* Enhance trace processing and optimize infrastructure
+
+### Miscellaneous Tasks
+
+- *(sdk)* Release Python SDK v1.1.54
+
+## [1.1.53] - 2026-01-02
 
 ### Features
 
 - *(pedestal)* Add OpenTelemetry Demo support
+
+### Miscellaneous Tasks
+
+- *(release)* Bump version to 1.1.53
 
 ### Refactor
 

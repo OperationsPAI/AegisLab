@@ -3,6 +3,7 @@ package v2
 import (
 	"aegis/consts"
 	"aegis/dto"
+	"aegis/handlers"
 	producer "aegis/service/prodcuer"
 	"aegis/utils"
 	"context"
@@ -23,13 +24,11 @@ import (
 //	@Description	Establishes a Server-Sent Events (SSE) connection to stream trace logs and task execution events in real-time. Returns historical events first, then switches to live monitoring.
 //	@Tags			Traces
 //	@ID				get_trace_events
-//	@Accept			json
 //	@Produce		text/event-stream
 //	@Security		BearerAuth
 //	@Param			trace_id	path		string						true	"Trace ID"
 //	@Param			last_id		query		string						false	"Last event ID received"	default("0")
 //	@Success		200			{string}	string						"A stream of event messages (e.g., log entries, task status updates)."
-//	@Failure		400			{object}	dto.GenericResponse[any]	"Invalid request"
 //	@Failure		400			{object}	dto.GenericResponse[any]	"Invalid trace ID or invalid request format/parameters"
 //	@Failure		401			{object}	dto.GenericResponse[any]	"Authentication required"
 //	@Failure		403			{object}	dto.GenericResponse[any]	"Permission denied"
@@ -140,6 +139,42 @@ func GetTraceStream(c *gin.Context) {
 			logrus.Info("Sent SSE messages, lastID:", lastID)
 		}
 	}
+}
+
+// GetGroupStats handles retrieval of group trace statistics
+//
+//	@Summary		Get statistics for a group of traces
+//	@Description	Retrieves statistics such as total traces, average duration, and state distribution for a specified group of traces.
+//	@Tags			Traces
+//	@ID				get_group_stats
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			group_id	query		string						true	"Group ID to query"
+//	@Success		200			{object}	dto.GenericResponse[dto.GroupStats]	"Group trace statistics"
+//	@Failure		400			{object}	dto.GenericResponse[any]				"Invalid request format/parameters"
+//	@Failure		401			{object}	dto.GenericResponse[any]				"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]				"Permission denied"
+//	@Failure		500			{object}	dto.GenericResponse[any]				"Internal server error"
+//	@Router			/api/v2/traces/group/stats [get]
+//	@x-api-type		{"sdk":"true"}
+func GetGroupStats(c *gin.Context) {
+	var req dto.GetGroupStatsReq
+	if err := c.ShouldBindQuery(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format")
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		return
+	}
+
+	stats, err := producer.GetGroupStats(&req)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	dto.SuccessResponse(c, stats)
 }
 
 // sendSSEEvents processes and sends stream messages as SSE events
