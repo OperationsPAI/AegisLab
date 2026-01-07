@@ -141,6 +141,12 @@ setup-dev-env: check-prerequisites ## 🛠️  Setup development environment
 	fi
 	@printf "$(GREEN)✅ Development environment setup completed!$(RESET)\n"
 
+setup-test-env: check-prerequisites ## 🧪 Setup test environment
+	@printf "$(BLUE)🧪 Setting up test environment...$(RESET)\n"
+	@printf "$(GRAY)Executing test environment setup script...$(RESET)\n"
+	bash ./manifests/test/start.sh
+	@printf "$(GREEN)✅ Test environment setup completed!$(RESET)\n"
+
 # =============================================================================
 # Pedestal Function
 # =============================================================================
@@ -162,8 +168,38 @@ install-rcabench:  ## 🔧 Deploy RCABench application
 	@printf "$(BLUE)🔗 Starting automatic port forwarding...$(RESET)\n"
 	@$(MAKE) forward-ports
 
+local-deploy: ## 🛠️  Setup local development environment with basic services
+	@$(MAKE) run-command ARGS="rcabench local-deploy -e $(ENV_MODE) -s prod -f"
+
 run: check-prerequisites ## 🚀 Build and deploy application (using skaffold)
 	$(MAKE) run-command ARGS="rcabench run -e $(ENV_MODE)"
+
+# =============================================================================
+# Test
+# =============================================================================
+
+regression-test:
+	@echo "\nCreating Command Environment"
+	cd scripts/command && \
+	uv venv && \
+	. .venv/bin/activate && \
+	uv sync --no-group test --group dev
+	@echo "✅ Generated Command Environment"
+	@echo "\nGenerating Python SDK..."
+	go install github.com/swaggo/swag/cmd/swag@latest && \
+	export PATH=$PATH:$(go env GOPATH)/bin && \
+	$(MAKE) generate-python-sdk SDK_VERSION=0.0.0
+	@echo "✅ Generated Python SDK..."
+	@echo "\nRunning regression tests..."
+	cd scripts/command && \
+	uv sync --no-group dev --group test && \
+	uv run pytest test/test_workflow.py -v -s --tb=short --color=yes --capture=no
+	@echo "✅ Tests completed"
+	@kubectl delete jobs -n exp --all
+	@echo "\nCleaning up..."
+	cd scripts/command && rm -rf .venv
+	rm -rf sdk/python
+	@echo "✅ Cleaned up test server environment"
 
 # =============================================================================
 # Development Tools
@@ -172,9 +208,6 @@ run: check-prerequisites ## 🚀 Build and deploy application (using skaffold)
 local-debug:  ## 🐛 Start local debugging environment
 	@printf "$(BLUE)⌛️ Starting local application...$(RESET)\n"; \
 	cd $(SRC_DIR) && go run main.go both --port 8082
-
-local-deploy: ## 🛠️  Setup local development environment with basic services
-	@$(MAKE) run-command ARGS="rcabench local-deploy -e $(ENV_MODE) -s prod -f"
 
 update-dependencies: ## 📦 Update latest version of dependencies
 	@printf "$(BLUE)📦 Updating latest version of chaos-experiment library...$(RESET)\n"
@@ -208,23 +241,6 @@ swag-init: ## 📝 Initialize Swagger documentation
 generate-python-sdk: swag-init ## ⚙️ Generate Python SDK from Swagger documentation
 	$(MAKE) run-command ARGS="swagger generate-sdk -l python -v $(SDK_VERSION)"
 
-
-# =============================================================================
-# Cleanup and Maintenance
-# =============================================================================
-
-clean-all: ## 🧹 Clean all resources
-	@printf "$(BLUE)🧹 Cleaning all resources...$(RESET)\n"
-	@printf "$(YELLOW)⚠️ This will delete all deployed resources!$(RESET)\n"
-	@read -p "Confirm to continue? (y/N): " confirm && [ "$$confirm" = "y" ] || exit 1
-	@printf "$(GRAY)Deleting Helm release...$(RESET)\n"
-	helm uninstall rcabench -n $(NS) || true
-	@printf "$(GRAY)Deleting namespace...$(RESET)\n"
-	kubectl delete namespace $(NS) || true
-	@printf "$(GRAY)Stopping port forwarding...$(RESET)\n"
-	pkill -f "kubectl port-forward" || true
-	@printf "$(GREEN)✅ Cleanup completed$(RESET)\n"
-
 # =============================================================================
 # Utilities
 # =============================================================================
@@ -241,20 +257,6 @@ changelog-preview: ## 👁️  Preview unreleased changes
 changelog-latest: ## 📋 Show latest release changes
 	@printf "$(BLUE)📋 Showing latest release changes...$(RESET)\n"
 	@eval "$$(devbox shellenv)" && git-cliff --latest
-
-restart: ## 🔄 Restart application
-	@printf "$(BLUE)🔄 Restarting application...$(RESET)\n"
-	kubectl rollout restart deployment --all -n $(NS)
-	@printf "$(GREEN)✅ Application restart completed$(RESET)\n"
-
-scale: ## 📏 Scale deployment (usage: make scale DEPLOYMENT=app REPLICAS=3)
-	@if [ -z "$(DEPLOYMENT)" ] || [ -z "$(REPLICAS)" ]; then \
-		printf "$(RED)❌ Please provide deployment name and replica count: make scale DEPLOYMENT=app REPLICAS=3$(RESET)\n"; \
-		exit 1; \
-	fi
-	@printf "$(BLUE)📏 Scaling deployment $(DEPLOYMENT) to $(REPLICAS) replicas...$(RESET)\n"
-	kubectl scale deployment $(DEPLOYMENT) --replicas=$(REPLICAS) -n $(NS)
-	@printf "$(GREEN)✅ Extension completed$(RESET)\n"
 
 # =============================================================================
 # Information Display

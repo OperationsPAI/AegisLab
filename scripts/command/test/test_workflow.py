@@ -117,28 +117,6 @@ class TestWorkflow:
         post_process_events(evaluations_api, case, results)
 
 
-# class TestTraces:
-#     def test_listen_trace_events(
-#         self,
-#         evaluations_api: EvaluationsApi,
-#         traces_api: TracesApi,
-#         case: dict[str, Any],
-#     ):
-#         # Parse expected values
-#         expected = case.get("expected", {})
-#         timeout_seconds = expected.get("timeout", 300)  # Default 5 minutes
-#         min_events = expected.get("min_events", 1)
-
-#         results = listen_trace_events(
-#             traces_api,
-#             trace_id="6d8b7e08-32d7-4e55-8a80-303daf8f9288",
-#             timeout_seconds=timeout_seconds,
-#             min_events=min_events,
-#         )
-
-#         post_process_events(evaluations_api, case, results)
-
-
 def post_process_events(
     evaluations_api: EvaluationsApi, case: dict[str, Any], results: list[str]
 ) -> None:

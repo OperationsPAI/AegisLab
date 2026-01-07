@@ -2,10 +2,11 @@
 set -e  # Exit on error
 
 # Retry function for helm install commands
+# --atomic flag automatically cleans up on failure, no manual uninstall needed
 # Usage: retry_helm_install <max_attempts> <command...>
 retry_helm_install() {
     local max_attempts=$1
-    shift
+    shift 1
     local attempt=1
     
     while [ $attempt -le $max_attempts ]; do
@@ -14,10 +15,15 @@ retry_helm_install() {
             return 0
         else
             if [ $attempt -lt $max_attempts ]; then
-                echo "⚠️  Attempt $attempt failed, retrying..."
+                echo "⚠️  Attempt $attempt failed (--atomic cleaned up automatically)..."
+                echo "🔄 Retrying in 5 seconds..."
                 sleep 5
             else
                 echo "❌ All $max_attempts attempts failed"
+                
+                # Final cleanup
+                kind delete cluster -n test
+                
                 return 1
             fi
         fi
@@ -43,10 +49,10 @@ helm repo add chaos-mesh https://charts.chaos-mesh.org --force-update
 retry_helm_install 3 helm install chaos-mesh chaos-mesh/chaos-mesh \
 	--namespace chaos-mesh \
 	--create-namespace \
-	--set chaosDaemon.runtime=containerd \
 	--version 2.8.0 \
-	--wait \
-	--timeout 5m
+    -f manifests/cn_mirror/chaos-mesh.yaml \
+	--atomic \
+	--timeout 10m
 echo "✅ Chaos Mesh installed successfully"
 echo ""
 
@@ -72,8 +78,8 @@ echo "Installing ClickHouse and JuiceFS CSI Driver in parallel..."
   retry_helm_install 3 helm install clickstack clickstack/clickstack \
       --namespace monitoring \
       --create-namespace \
-      -f manifests/test/click-stack.yaml \
-      --wait \
+      -f manifests/cn_mirror/click-stack.yaml \
+      --atomic \
       --timeout 5m
   echo "✅ ClickHouse stack installed"
 ) &
@@ -84,7 +90,7 @@ CLICKHOUSE_PID=$!
   helm repo add juicefs https://juicedata.github.io/charts --force-update
   retry_helm_install 3 helm install juicefs-csi-driver juicefs/juicefs-csi-driver \
       --namespace kube-system \
-      --wait \
+      --atomic \
       --timeout 5m
   echo "✅ JuiceFS CSI Driver installed"
 ) &
@@ -103,7 +109,7 @@ retry_helm_install 3 helm install opentelemetry-kube-stack open-telemetry/opente
     --namespace monitoring \
     --create-namespace \
     -f manifests/test/otel-kube-stack.yaml \
-    --wait \
+    --atomic \
     --timeout 5m
 echo "✅ OpenTelemetry Kube Stack installed"
 echo ""
@@ -115,11 +121,12 @@ retry_helm_install 3 helm install otel-demo0 opentelemetry-demo/opentelemetry-de
     --namespace otel-demo0 \
     --create-namespace \
     -f helm/files/initial_data/otel-demo.yaml \
-    --wait \
-    --timeout 5m
+    --atomic \
+    --timeout 10m
 echo "✅ OpenTelemetry Demo installed"
 echo ""
 
 echo "============================================="
 echo "✅ Test cluster setup completed successfully!"
 echo "============================================="
+c

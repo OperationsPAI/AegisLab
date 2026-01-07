@@ -10,7 +10,8 @@
     "kubernetes-helm@latest",
     "kubectx@latest",
     "git-cliff@latest",
-    "lefthook@2.0.12"
+    "lefthook@2.0.12",
+    "kind@0.31.0"
   ],
   "shell": {
     "init_hook": [
