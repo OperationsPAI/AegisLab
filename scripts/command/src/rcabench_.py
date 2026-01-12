@@ -87,9 +87,13 @@ def execute_release_workflow(env: ENV, k8s_manager: KubernetesManager):
     with open(SKAFFOLD_FILE) as f:
         skaffold_config = yaml.safe_load(f)
     original_build_image = skaffold_config["build"]["artifacts"][0]["image"]
-    original_image_repo = skaffold_config["deploy"]["helm"]["releases"][0]["setValues"][
-        "image.repository"
-    ]
+
+    # Ensure setValues exists in helm release config
+    helm_release = skaffold_config["deploy"]["helm"]["releases"][0]
+    if "setValues" not in helm_release:
+        helm_release["setValues"] = {}
+
+    original_image_repo = helm_release["setValues"].get("image.repository", "")
 
     new_build_image = settings.default_repo
     new_image_repo = settings.default_repo
@@ -104,10 +108,17 @@ def execute_release_workflow(env: ENV, k8s_manager: KubernetesManager):
 
     run_command(["skaffold", "run", f"--default-repo={settings.default_repo}"])
 
+    # Restore original values
     skaffold_config["build"]["artifacts"][0]["image"] = original_build_image
-    skaffold_config["deploy"]["helm"]["releases"][0]["setValues"][
-        "image.repository"
-    ] = original_image_repo
+    if original_image_repo:
+        skaffold_config["deploy"]["helm"]["releases"][0]["setValues"][
+            "image.repository"
+        ] = original_image_repo
+    else:
+        # Remove setValues if it was empty originally
+        helm_release = skaffold_config["deploy"]["helm"]["releases"][0]
+        if "setValues" in helm_release and not helm_release["setValues"]:
+            del helm_release["setValues"]
 
     with open(SKAFFOLD_FILE, "w", encoding="utf-8") as f:
         yaml.dump(skaffold_config, f, sort_keys=False)

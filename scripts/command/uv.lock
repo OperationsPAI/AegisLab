@@ -230,7 +230,9 @@ dependencies = [
     { name = "pydantic" },
     { name = "pyyaml" },
     { name = "rich" },
+    { name = "ruamel-yaml" },
     { name = "toml" },
+    { name = "tomlkit" },
     { name = "typer" },
     { name = "uv" },
 ]
@@ -262,7 +264,9 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.12.4" },
     { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "rich", specifier = ">=14.2.0" },
+    { name = "ruamel-yaml", specifier = ">=0.19.1" },
     { name = "toml", specifier = ">=0.10.2" },
+    { name = "tomlkit", specifier = ">=0.13.3" },
     { name = "typer", specifier = ">=0.20.0" },
     { name = "uv", specifier = ">=0.9.10" },
 ]

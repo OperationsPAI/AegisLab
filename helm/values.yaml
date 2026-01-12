@@ -44,7 +44,7 @@ harbor:
 
 # Initialization settings for PVC setup during install/upgrade
 initialization:
-  enabled: true
+  enabled: false
 
 configmap:
   name: "rcabench"

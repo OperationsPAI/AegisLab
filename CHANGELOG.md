@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### Bug Fixes
+
+- Py dependency
+
 ### Testing
 
 - Migrate from Docker Compose to Kubernetes-based testing
