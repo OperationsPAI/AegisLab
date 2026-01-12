@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"aegis/consts"
-	producer "aegis/service/prodcuer"
+	producer "aegis/service/producer"
 	"aegis/utils"
 
 	"github.com/gin-gonic/gin"

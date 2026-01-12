@@ -6,7 +6,7 @@ import (
 
 	"aegis/dto"
 	"aegis/handlers"
-	producer "aegis/service/prodcuer"
+	producer "aegis/service/producer"
 
 	"github.com/gin-gonic/gin"
 )

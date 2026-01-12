@@ -15,7 +15,7 @@ import (
 	"aegis/repository"
 	"aegis/service/common"
 	"aegis/service/consumer"
-	producer "aegis/service/prodcuer"
+	producer "aegis/service/producer"
 	"aegis/utils"
 
 	"github.com/sirupsen/logrus"

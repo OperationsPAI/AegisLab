@@ -5,7 +5,7 @@ import (
 	"aegis/dto"
 	"aegis/handlers"
 	"aegis/middleware"
-	producer "aegis/service/prodcuer"
+	producer "aegis/service/producer"
 	"context"
 	"net/http"
 	"strconv"

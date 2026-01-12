@@ -3,7 +3,7 @@ package system
 import (
 	"aegis/dto"
 	"aegis/handlers"
-	producer "aegis/service/prodcuer"
+	producer "aegis/service/producer"
 	"net/http"
 	"runtime"
 	"time"
