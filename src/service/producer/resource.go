@@ -52,6 +52,7 @@ func ListResourcePermissions(resourceID int) ([]dto.PermissionResp, error) {
 		if errors.Is(err, consts.ErrNotFound) {
 			return nil, fmt.Errorf("%w: resource with ID %d not found", consts.ErrNotFound, resourceID)
 		}
+		return nil, err
 	}
 
 	permissions, err := repository.GetPermissionsByResource(database.DB, resource.ID)

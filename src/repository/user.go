@@ -56,9 +56,9 @@ func GetUserByUsername(db *gorm.DB, username string) (*database.User, error) {
 }
 
 // GetUserByEmail gets a user by email
-func GetUserByEmail(email string) (*database.User, error) {
+func GetUserByEmail(db *gorm.DB, email string) (*database.User, error) {
 	var user database.User
-	if err := database.DB.Where("email = ?", email).First(&user).Error; err != nil {
+	if err := db.Where("email = ?", email).First(&user).Error; err != nil {
 		return nil, fmt.Errorf("failed to find user with email %s: %w", email, err)
 	}
 	return &user, nil
@@ -209,7 +209,7 @@ func BatchDeleteUserPermisssions(db *gorm.DB, userID int, permissionIDs []int) e
 func CheckUserPermission(db *gorm.DB, userID int, action string, resourceName string, projectID, containerID, datasetID *int) (bool, error) {
 	// Find the target permission
 	var permission database.Permission
-	if err := database.DB.
+	if err := db.
 		Select("permissions.*").
 		Joins("JOIN resources ON permissions.resource_id = resources.id").
 		Where("permissions.action = ? AND resources.name = ?", action, resourceName).

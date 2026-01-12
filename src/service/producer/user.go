@@ -40,7 +40,7 @@ func CreateUser(req *dto.CreateUserReq) (*dto.UserResp, error) {
 			return fmt.Errorf("%w: username %s already exists", consts.ErrAlreadyExists, user.Username)
 		}
 
-		if _, err := repository.GetUserByEmail(user.Email); err == nil {
+		if _, err := repository.GetUserByEmail(tx, user.Email); err == nil {
 			return fmt.Errorf("%w: email %s already exists", consts.ErrAlreadyExists, user.Email)
 		}
 

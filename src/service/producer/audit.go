@@ -74,7 +74,7 @@ func LogFailedAction(ipAddress, userAgent, action, errorMsg string, duration, us
 
 		log.ResourceID = resource.ID
 
-		if err := repository.CreateAuditLog(database.DB, log); err != nil {
+		if err := repository.CreateAuditLog(tx, log); err != nil {
 			return fmt.Errorf("failed to log failed action: %w", err)
 		}
 		return nil
@@ -107,7 +107,7 @@ func LogSystemAction(action, details string, resourceName consts.ResourceName) e
 
 		log.ResourceID = resource.ID
 
-		if err := repository.CreateAuditLog(database.DB, log); err != nil {
+		if err := repository.CreateAuditLog(tx, log); err != nil {
 			return fmt.Errorf("failed to log system action: %w", err)
 		}
 		return nil
@@ -142,7 +142,7 @@ func LogUserAction(ipAddress, userAgent, action, details string, duration, userI
 
 		log.ResourceID = resource.ID
 
-		if err := repository.CreateAuditLog(database.DB, log); err != nil {
+		if err := repository.CreateAuditLog(tx, log); err != nil {
 			return fmt.Errorf("failed to log user action: %w", err)
 		}
 		return nil

@@ -54,7 +54,7 @@ func BatchDeleteInjectionsByLabels(labelItems []dto.LabelItem) error {
 	}
 
 	return database.DB.Transaction(func(tx *gorm.DB) error {
-		injectionIDs, err := repository.ListInjectionIDsByLabels(database.DB, labelConditions)
+		injectionIDs, err := repository.ListInjectionIDsByLabels(tx, labelConditions)
 		if err != nil {
 			return fmt.Errorf("failed to list injection ids by labels: %w", err)
 		}

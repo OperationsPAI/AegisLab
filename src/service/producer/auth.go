@@ -30,7 +30,7 @@ func Register(req *dto.RegisterReq) (*dto.UserInfo, error) {
 			return fmt.Errorf("%w: username is already taken", consts.ErrAlreadyExists)
 		}
 
-		if _, err := repository.GetUserByEmail(req.Email); err == nil {
+		if _, err := repository.GetUserByEmail(tx, req.Email); err == nil {
 			return fmt.Errorf("%w: email is already registered", consts.ErrAlreadyExists)
 		}
 
