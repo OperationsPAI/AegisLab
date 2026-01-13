@@ -1,3 +1,6 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+
 import { useQuery } from '@tanstack/react-query';
 import {
   Button,
@@ -11,15 +14,6 @@ import {
   Select,
   Space,
 } from 'antd';
-import { useState, type React } from 'react';
-import { useNavigate } from 'react-router-dom';
-
-
-import { containerApi } from '../../api/containers';
-import { injectionApi } from '../../api/injections';
-import { projectApi } from '../../api/projects';
-import MainLayout from '../../components/layout/MainLayout';
-import type { Container, FaultType, Project } from '../../types/api';
 
 import { AlgorithmSelector } from './components/AlgorithmSelector';
 import { FaultConfigPanel } from './components/FaultConfigPanel';
@@ -27,6 +21,11 @@ import { FaultTypePanel } from './components/FaultTypePanel';
 import { TagManager } from './components/TagManager';
 import { VisualCanvas } from './components/VisualCanvas';
 
+import { containerApi } from '../../api/containers';
+import { injectionApi } from '../../api/injections';
+import { projectApi } from '../../api/projects';
+import MainLayout from '../../components/layout/MainLayout';
+import type { Container, FaultType, Project } from '../../types/api';
 
 import './InjectionCreate.css';
 
@@ -64,7 +63,7 @@ const InjectionCreate: React.FC = () => {
   const { data: projects = [], isLoading: projectsLoading } = useQuery({
     queryKey: ['projects'],
     queryFn: () => projectApi.getProjects({ page: 1, size: 100 }),
-    select: (data) => data.data || [],
+    select: (data: any) => data.items || [],
   });
 
   // Fetch containers when project is selected
@@ -72,7 +71,7 @@ const InjectionCreate: React.FC = () => {
     queryKey: ['containers', selectedProject],
     queryFn: () => {
       if (!selectedProject) {
-        return Promise.resolve({ data: [] });
+        return Promise.resolve({ items: [] });
       }
       return containerApi.getContainers({
         projectId: selectedProject,
@@ -81,24 +80,27 @@ const InjectionCreate: React.FC = () => {
       });
     },
     enabled: !!selectedProject,
-    select: (data) => data.data || [],
+    select: (data: any) => data.items || [],
   });
 
   // Group containers by type
   const groupedContainers = containers.reduce(
     (
       acc: {
-        pedestals: Container[];
-        benchmarks: Container[];
-        algorithms: Container[];
+        pedestals: any[];
+        benchmarks: any[];
+        algorithms: any[];
       },
-      container: Container
+      container: any
     ) => {
-      if (container.type === 'pedestal') {
+      if (container.type === 2) {
+        // Pedestal
         acc.pedestals.push(container);
-      } else if (container.type === 'benchmark') {
+      } else if (container.type === 1) {
+        // Benchmark
         acc.benchmarks.push(container);
-      } else if (container.type === 'algorithm') {
+      } else if (container.type === 0) {
+        // Algorithm
         acc.algorithms.push(container);
       }
       return acc;
@@ -321,7 +323,9 @@ const InjectionCreate: React.FC = () => {
               <Col span={24}>
                 <FaultConfigPanel
                   fault={selectedFault}
-                  onConfigChange={(config) => {
+                  onConfigChange={(
+                    config: Record<string, string | number | boolean>
+                  ) => {
                     // Update fault configuration in matrix
                     console.error('Fault config updated:', config);
                   }}

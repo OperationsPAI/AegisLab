@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import {
   CheckCircleOutlined,
@@ -31,8 +33,6 @@ import {
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import type { EChartsOption } from 'echarts';
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 import { injectionApi } from '@/api/injections';
 import LabChart from '@/components/charts/LabChart';
@@ -74,10 +74,9 @@ const InjectionList = () => {
 
   // Fetch statistics - mock for now
   const stats = {
-    total: injectionsData?.total || 0,
+    total: injectionsData?.pagination?.total || 0,
     running:
-      injectionsData?.data.filter((i) => i.state === InjectionState.RUNNING)
-        .length || 0,
+      injectionsData?.items?.filter((i) => i.state === '1').length || 0,
     successRate: 87,
     avgDuration: 45,
   };
@@ -292,19 +291,19 @@ const InjectionList = () => {
           <Avatar
             size='large'
             style={{
-              backgroundColor: getInjectionTypeColor(record.type),
+              backgroundColor: getInjectionTypeColor(InjectionType.NETWORK),
               fontSize: '1.25rem',
             }}
           >
-            {getInjectionTypeIcon(record.type)}
+            {getInjectionTypeIcon(InjectionType.NETWORK)}
           </Avatar>
           <div>
             <Text strong style={{ fontSize: '1rem' }}>
               {name}
             </Text>
             <br />
-            <Tag color={getInjectionTypeColor(record.type)}>
-              {InjectionType[record.type]}
+            <Tag color={getInjectionTypeColor(InjectionType.NETWORK)}>
+              {record.fault_type || 'Unknown'}
             </Tag>
           </div>
         </Space>
@@ -346,10 +345,10 @@ const InjectionList = () => {
             percent={progress || 0}
             size='small'
             status={
-              record.state === InjectionState.ERROR ? 'exception' : 'active'
+              record.state === '3' ? 'exception' : 'active' // ERROR = 3
             }
             strokeColor={
-              record.state === InjectionState.COMPLETED ? '#10b981' : undefined
+              record.state === '2' ? '#10b981' : undefined // COMPLETED = 2
             }
           />
           <Text type='secondary' style={{ fontSize: '0.75rem' }}>
@@ -397,7 +396,7 @@ const InjectionList = () => {
       width: '12%',
       render: (_: string, record: Injection) => (
         <Space>
-          {record.state === InjectionState.PENDING && (
+          {record.state === '0' && ( // PENDING
             <Button
               type='text'
               icon={<PlayCircleOutlined />}
@@ -405,7 +404,7 @@ const InjectionList = () => {
               title='Start Injection'
             />
           )}
-          {record.state === InjectionState.RUNNING && (
+          {record.state === '1' && ( // RUNNING
             <Button
               type='text'
               danger
@@ -417,7 +416,7 @@ const InjectionList = () => {
           <Button
             type='text'
             icon={<EditOutlined />}
-            onClick={() => handleEditInjection(record.id)}
+            onClick={() => handleEditInjection(record.id || 0)}
             title='Edit Injection'
           />
           <Button
@@ -543,11 +542,11 @@ const InjectionList = () => {
         <Table
           rowSelection={rowSelection}
           columns={columns}
-          dataSource={injectionsData?.data || []}
+          dataSource={injectionsData?.items || []}
           loading={isLoading}
           pagination={{
             ...pagination,
-            total: injectionsData?.total || 0,
+            total: injectionsData?.pagination?.total || 0,
             showSizeChanger: true,
             showQuickJumper: true,
             showTotal: (total) => `Total ${total} injections`,

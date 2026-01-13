@@ -14,6 +14,9 @@
   --color-primary-900: #0c4a6e;
 
   /* Secondary Color Palette - Data Visualization */
+  --color-secondary-0: #ffffff;
+
+  /* Secondary Color Palette - Data Visualization */
   --color-secondary-50: #f8fafc;
   --color-secondary-100: #f1f5f9;
   --color-secondary-200: #e2e8f0;
@@ -28,6 +31,7 @@
   /* Accent Colors - Status Indicators */
   --color-success: #10b981;
   --color-warning: #f59e0b;
+  --color-warning-dark: #f97316;
   --color-error: #ef4444;
   --color-info: #06b6d4;
 
@@ -119,6 +123,7 @@
 
 /* Dark Theme - Research Lab at Night */
 [data-theme='dark'] {
+  --color-secondary-0: #0f172a;
   --color-primary-50: #0c4a6e;
   --color-primary-100: #075985;
   --color-primary-200: #0369a1;
@@ -157,11 +162,11 @@
   --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.5);
 }
 
-/* Animations */
+/* Animations -统一动画定义 */
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(20px);
   }
   to {
     opacity: 1;
@@ -190,10 +195,21 @@
 
 @keyframes shimmer {
   0% {
-    background-position: -1000px 0;
+    transform: translateX(-100%);
   }
   100% {
-    background-position: 1000px 0;
+    transform: translateX(100%);
+  }
+}
+
+@keyframes nodeAdd {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 

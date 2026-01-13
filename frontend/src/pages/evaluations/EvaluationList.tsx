@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import {
   BarChartOutlined,
@@ -34,8 +36,6 @@ import {
   Typography,
 } from 'antd';
 import dayjs from 'dayjs';
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 import { containerApi } from '@/api/containers';
 import { datasetApi } from '@/api/datasets';
@@ -62,7 +62,7 @@ const mockEvaluations: DatapackEvaluationResult[] = [
         execution_id: 42,
         execution_duration: 120,
         detector_results: [],
-        predictions: {},
+        predictions: [],
         executed_at: '2024-01-15T10:30:00Z',
       },
     ],
@@ -77,7 +77,7 @@ const mockEvaluations: DatapackEvaluationResult[] = [
         execution_id: 43,
         execution_duration: 95,
         detector_results: [],
-        predictions: {},
+        predictions: [],
         executed_at: '2024-01-15T11:45:00Z',
       },
     ],
@@ -115,11 +115,11 @@ const EvaluationList = () => {
   // Evaluate datapack mutation
   const evaluateDatapackMutation = useMutation({
     mutationFn: (specs: DatapackEvaluationSpec[]) =>
-      evaluationApi.evaluateDatapacks(specs as Array<Record<string, unknown>>),
-    onSuccess: (data) => {
+      evaluationApi.evaluateDatapacks(specs as any),
+    onSuccess: (data: any) => {
       message.success('Evaluation completed successfully');
       // Add new evaluations to the list
-      setEvaluations((prev) => [...prev, ...data]);
+      setEvaluations((prev) => [...prev, ...(data?.data?.items || [])]);
     },
     onError: (error) => {
       message.error('Failed to evaluate datapack');
@@ -130,11 +130,11 @@ const EvaluationList = () => {
   // Evaluate dataset mutation
   const evaluateDatasetMutation = useMutation({
     mutationFn: (specs: DatapackEvaluationSpec[]) =>
-      evaluationApi.evaluateDatasets(specs as Array<Record<string, unknown>>),
-    onSuccess: (data) => {
+      evaluationApi.evaluateDatasets(specs as any),
+    onSuccess: (data: any) => {
       message.success('Evaluation completed successfully');
       // Add new evaluations to the list
-      setEvaluations((prev) => [...prev, ...data]);
+      setEvaluations((prev) => [...prev, ...(data?.data?.items || [])]);
     },
     onError: (error) => {
       message.error('Failed to evaluate dataset');
@@ -307,7 +307,7 @@ const EvaluationList = () => {
           percent={(precision || 0) * 100}
           size='small'
           strokeColor={getMetricColor(precision || 0)}
-          format={(percent) => `${percent.toFixed(1)}%`}
+          format={(percent) => `${(percent || 0).toFixed(1)}%`}
         />
       ),
     },
@@ -321,7 +321,7 @@ const EvaluationList = () => {
           percent={(recall || 0) * 100}
           size='small'
           strokeColor={getMetricColor(recall || 0)}
-          format={(percent) => `${percent.toFixed(1)}%`}
+          format={(percent) => `${(percent || 0).toFixed(1)}%`}
         />
       ),
     },
@@ -335,7 +335,7 @@ const EvaluationList = () => {
           percent={(f1Score || 0) * 100}
           size='small'
           strokeColor={getMetricColor(f1Score || 0)}
-          format={(percent) => `${percent.toFixed(1)}%`}
+          format={(percent) => `${(percent || 0).toFixed(1)}%`}
         />
       ),
     },
@@ -359,7 +359,7 @@ const EvaluationList = () => {
               percent={(accuracy || 0) * 100}
               size='small'
               strokeColor={getMetricColor(accuracy || 0)}
-              format={(percent) => `${percent.toFixed(1)}%`}
+              format={(percent) => `${(percent || 0).toFixed(1)}%`}
             />
           }
         />
@@ -438,7 +438,7 @@ const EvaluationList = () => {
           <StatCard
             title='Total Evaluations'
             value={evaluations.length}
-            icon={<BarChartOutlined />}
+            prefix={<BarChartOutlined />}
             color='primary'
           />
         </Col>
@@ -446,7 +446,7 @@ const EvaluationList = () => {
           <StatCard
             title='Algorithms Evaluated'
             value={new Set(evaluations.map((e) => e.algorithm)).size}
-            icon={<FunctionOutlined />}
+            prefix={<FunctionOutlined />}
             color='success'
           />
         </Col>
@@ -458,19 +458,15 @@ const EvaluationList = () => {
                 ? `${(evaluations.length * 85).toFixed(1)}%`
                 : '0%'
             }
-            icon={<CheckCircleOutlined />}
+            prefix={<CheckCircleOutlined />}
             color='warning'
           />
         </Col>
         <Col xs={24} sm={12} md={6}>
           <StatCard
             title='Best Accuracy'
-            value={
-              evaluations.length > 0
-                ? `${(95).toFixed(1)}%`
-                : '0%'
-            }
-            icon={<CheckCircleOutlined />}
+            value={evaluations.length > 0 ? `${(95).toFixed(1)}%` : '0%'}
+            prefix={<CheckCircleOutlined />}
             color='error'
           />
         </Col>
@@ -496,7 +492,7 @@ const EvaluationList = () => {
               onChange={handleAlgorithmFilter}
               value={algorithmFilter}
             >
-              {algorithmsData?.data?.data?.map((algo) => (
+              {algorithmsData?.data?.items?.map((algo: any) => (
                 <Option key={algo.id} value={algo.name}>
                   {algo.name}
                 </Option>

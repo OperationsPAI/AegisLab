@@ -1,5 +1,6 @@
 import { Configuration, ContainersApi } from '@rcabench/client';
 import axios, { type AxiosRequestConfig } from 'axios';
+import type { Container } from '@/types/api';
 
 // Create configuration with dynamic token
 const createContainerConfig = () => {
@@ -40,7 +41,6 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Export the containers API using generated SDK where available
 export const containerApi = {
   // Get containers list - using generated SDK
   getContainers: async (params?: {
@@ -62,27 +62,17 @@ export const containerApi = {
     return response.data;
   },
 
-  // Get container detail - using generated SDK
-  getContainer: async (id: number) => {
-    const containersApi = new ContainersApi(createContainerConfig());
-    const response = await containersApi.getContainerById({ containerId: id });
-    return response.data;
-  },
+  // Get container detail - manual API call
+  getContainer: (id: number) => apiClient.get(`/containers/${id}`),
 
-  // Create container - using generated SDK
-  createContainer: async (data: {
+  // Create container - manual API call
+  createContainer: (data: {
     name: string;
     type: number;
     readme?: string;
     isPublic?: boolean;
     labels?: Array<{ key: string; value: string }>;
-  }) => {
-    const containersApi = new ContainersApi(createContainerConfig());
-    const response = await containersApi.createContainer({
-      request: data,
-    });
-    return response.data;
-  },
+  }) => apiClient.post<Container>('/containers', data),
 
   // Update container - manual endpoint (not in generated SDK)
   updateContainer: (id: number, data: Record<string, unknown>) =>
@@ -120,26 +110,6 @@ export const containerApi = {
   // Delete version - manual endpoint (not in generated SDK)
   deleteVersion: (containerId: number, versionId: number) =>
     apiClient.delete(`/containers/${containerId}/versions/${versionId}`),
-
-  // Build container - using generated SDK
-  buildContainer: async (data: {
-    containerId: number;
-    config: Record<string, unknown>;
-    dockerfile: string;
-  }) => {
-    const containersApi = new ContainersApi(createContainerConfig());
-    const response = await containersApi.buildContainerImage({
-      request: {
-        github_repository: (data.config.github_repository as string) || '',
-        image_name: (data.config.image_name as string) || '',
-        build_options: {
-          dockerfile_path: data.dockerfile,
-          ...(data.config.build_options as Record<string, unknown>),
-        },
-      },
-    });
-    return response.data;
-  },
 };
 
 export default apiClient;

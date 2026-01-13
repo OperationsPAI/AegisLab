@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+
 import {
   InfoCircleOutlined,
   ReloadOutlined,
@@ -19,7 +21,6 @@ import {
   Tag,
   Tooltip,
 } from 'antd';
-import { useEffect, useState, type React } from 'react';
 
 import type { FaultType } from '../../../types/api';
 
@@ -48,7 +49,7 @@ interface FaultConfigPanelProps {
 export const FaultConfigPanel: React.FC<FaultConfigPanelProps> = ({
   fault,
   onConfigChange,
-}) => {
+}: FaultConfigPanelProps) => {
   const [form] = Form.useForm();
   const [config, setConfig] = useState<
     Record<string, string | number | boolean>
@@ -69,7 +70,7 @@ export const FaultConfigPanel: React.FC<FaultConfigPanelProps> = ({
     }
   }, [fault, form, onConfigChange]);
 
-  const getDefaultValue = (type: string) => {
+  const getDefaultValue = (type: string): string | number | boolean => {
     switch (type) {
       case 'boolean':
         return false;
@@ -77,13 +78,16 @@ export const FaultConfigPanel: React.FC<FaultConfigPanelProps> = ({
       case 'range':
         return 0;
       case 'select':
-        return undefined;
+        return '';
       default:
         return '';
     }
   };
 
-  const handleFormChange = (_: Record<string, unknown>, values: Record<string, unknown>) => {
+  const handleFormChange = (
+    _: Record<string, unknown>,
+    values: Record<string, unknown>
+  ) => {
     setConfig(values as Record<string, string | number | boolean>);
     onConfigChange(values as Record<string, string | number | boolean>);
   };

@@ -33,11 +33,12 @@ export enum ProjectState {
 // ==================== Task State Enums ====================
 
 export enum TaskState {
+  CANCELLED = -2,
+  ERROR = -1,
   PENDING = 0,
-  RUNNING = 1,
-  COMPLETED = 2,
-  ERROR = 3,
-  CANCELLED = 4,
+  RESCHEDULED = 1,
+  RUNNING = 2,
+  COMPLETED = 3,
 }
 
 export enum InjectionState {
@@ -67,9 +68,9 @@ export enum ExecutionState {
 // ==================== Container Types ====================
 
 export enum ContainerType {
-  PEDESTAL = 'Pedestal',
-  BENCHMARK = 'Benchmark',
-  ALGORITHM = 'Algorithm',
+  ALGORITHM = 0,
+  BENCHMARK = 1,
+  PEDESTAL = 2,
 }
 
 export interface Container {
@@ -213,15 +214,15 @@ export interface Execution {
   id: number;
   algorithm_id: number;
   algorithm_version: string;
-  datapack_id: string;
+  datapack_id: number;
   state: ExecutionState;
-  execution_duration?: number;
+  duration?: number;
   created_at: string;
   updated_at: string;
   labels?: Label[];
   algorithm?: Container;
   datapack?: Datapack;
-  granularity_results?: GranularityResults;
+  granularity_results?: GranularityResultItem[];
 }
 
 export interface Datapack {
@@ -232,11 +233,11 @@ export interface Datapack {
   created_at: string;
 }
 
-export interface GranularityResults {
-  service_results?: RankResult[];
-  pod_results?: RankResult[];
-  span_results?: RankResult[];
-  metric_results?: RankResult[];
+export interface GranularityResultItem {
+  confidence?: number;
+  level: string;
+  rank: number;
+  result: string;
 }
 
 export interface RankResult {
@@ -249,29 +250,55 @@ export interface RankResult {
 // ==================== Task Types ====================
 
 export enum TaskType {
-  SUBMIT_INJECTION = 'SubmitInjection',
-  BUILD_DATAPACK = 'BuildDatapack',
-  FAULT_INJECTION = 'FaultInjection',
-  COLLECT_RESULT = 'CollectResult',
-  ALGORITHM_EXECUTION = 'AlgorithmExecution',
+  BuildContainer = 0,
+  RestartPedestal = 1,
+  FaultInjection = 2,
+  RunAlgorithm = 3,
+  BuildDatapack = 4,
+  CollectResult = 5,
+  CronJob = 6,
 }
 
 export interface Task {
-  id: string;
-  type: TaskType;
-  state: TaskState;
-  status: number;
-  trace_id: string;
-  group_id: string;
-  parent_id?: string;
+  id?: string;
+  type?: TaskType | string;
+  state?: TaskState | string;
+  status?: string;
+  trace_id?: string;
+  group_id?: string;
   project_id?: number;
-  retry_count: number;
-  max_retry: number;
-  immediate: boolean;
-  created_at: string;
+  project_name?: string;
+  immediate?: boolean;
+  cron_expr?: string;
+  execute_time?: number;
+  created_at?: string;
+  updated_at?: string;
   started_at?: string;
   finished_at?: string;
   payload?: unknown;
+  retry_count?: number;
+  max_retry?: number;
+}
+
+// API response type for task detail
+export interface TaskDetailResp {
+  id?: string;
+  type?: string;
+  state?: string;
+  status?: string;
+  trace_id?: string;
+  group_id?: string;
+  project_id?: number;
+  project_name?: string;
+  immediate?: boolean;
+  cron_expr?: string;
+  execute_time?: number;
+  created_at?: string;
+  updated_at?: string;
+  started_at?: string;
+  finished_at?: string;
+  payload?: unknown;
+  logs?: string[];
 }
 
 // ==================== User & Auth Types ====================
@@ -330,7 +357,7 @@ export interface ExecutionRef {
   execution_id: number;
   execution_duration: number;
   detector_results: DetectorResult[];
-  predictions: GranularityResults;
+  predictions: GranularityResultItem[];
   executed_at: string;
 }
 

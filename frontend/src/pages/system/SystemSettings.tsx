@@ -1,52 +1,53 @@
+import { useState } from 'react';
+
 import {
-  SettingOutlined,
-  UserOutlined,
-  SafetyOutlined,
-  DatabaseOutlined,
+  ClockCircleOutlined,
   CloudOutlined,
-  NotificationOutlined,
+  DatabaseOutlined,
   GlobalOutlined,
-  SaveOutlined,
-  ReloadOutlined,
   InfoCircleOutlined,
   LockOutlined,
   MailOutlined,
-  ClockCircleOutlined,
-} from '@ant-design/icons'
+  NotificationOutlined,
+  ReloadOutlined,
+  SafetyOutlined,
+  SaveOutlined,
+  SettingOutlined,
+  UserOutlined,
+} from '@ant-design/icons';
 import {
+  Alert,
+  Avatar,
+  Button,
   Card,
+  Col,
+  Divider,
   Form,
   Input,
-  Button,
-  Space,
-  Typography,
-  Row,
-  Col,
-  Switch,
-  Select,
   InputNumber,
-  Tabs,
-  Alert,
-  Divider,
   List,
-  Avatar,
-  Tag,
-  Modal,
   message,
-  Statistic,
+  Modal,
   Progress,
-} from 'antd'
-import { useState } from 'react'
+  Row,
+  Select,
+  Space,
+  Statistic,
+  Switch,
+  Tabs,
+  Tag,
+  Typography,
+} from 'antd';
 
-const { Title, Text } = Typography
-const { TabPane } = Tabs
-const { Option } = Select
+const { Title, Text } = Typography;
+const { TabPane } = Tabs;
+const { Option } = Select;
 
 const SystemSettings = () => {
-  const [activeTab, setActiveTab] = useState('general')
-  const [form] = Form.useForm()
-  const [loading, setLoading] = useState(false)
-  const [testEmailLoading, setTestEmailLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState('general');
+  const [form] = Form.useForm();
+  const [loading, setLoading] = useState(false);
+  const [testEmailLoading, setTestEmailLoading] = useState(false);
 
   // Mock system statistics
   const systemStats = {
@@ -58,7 +59,7 @@ const SystemSettings = () => {
     diskUsage: 68,
     memoryUsage: 45,
     cpuUsage: 23,
-  }
+  };
 
   // Mock user list
   const users = [
@@ -86,66 +87,66 @@ const SystemSettings = () => {
       status: 'inactive',
       lastLogin: '2024-01-10 14:20:00',
     },
-  ]
+  ];
 
   const handleSaveSettings = async (values: Record<string, unknown>) => {
-    setLoading(true)
+    setLoading(true);
     try {
       // TODO: Implement API call to save settings
-      console.error('Saving settings:', values)
-      message.success('Settings saved successfully')
+      console.error('Saving settings:', values);
+      message.success('Settings saved successfully');
     } catch (error) {
-      message.error('Failed to save settings')
-      console.error('Save settings error:', error)
+      message.error('Failed to save settings');
+      console.error('Save settings error:', error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleTestEmail = async () => {
-    setTestEmailLoading(true)
+    setTestEmailLoading(true);
     try {
       // TODO: Implement API call to test email configuration
-      message.success('Test email sent successfully')
+      message.success('Test email sent successfully');
     } catch (error) {
-      message.error('Failed to send test email')
-      console.error('Test email error:', error)
+      message.error('Failed to send test email');
+      console.error('Test email error:', error);
     } finally {
-      setTestEmailLoading(false)
+      setTestEmailLoading(false);
     }
-  }
+  };
 
   const handleUserAction = (_userId: number, action: string) => {
     Modal.confirm({
       title: `Confirm ${action}`,
       content: `Are you sure you want to ${action.toLowerCase()} this user?`,
       onOk: () => {
-        message.success(`User ${action.toLowerCase()}d successfully`)
+        message.success(`User ${action.toLowerCase()}d successfully`);
       },
-    })
-  }
+    });
+  };
 
   const getRoleColor = (role: string) => {
     switch (role.toLowerCase()) {
       case 'admin':
-        return 'red'
+        return 'red';
       case 'user':
-        return 'blue'
+        return 'blue';
       default:
-        return 'default'
+        return 'default';
     }
-  }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'active':
-        return 'green'
+        return 'green';
       case 'inactive':
-        return 'orange'
+        return 'orange';
       default:
-        return 'default'
+        return 'default';
     }
-  }
+  };
 
   return (
     <div style={{ padding: 24 }}>
@@ -155,7 +156,7 @@ const SystemSettings = () => {
           <GlobalOutlined style={{ marginRight: 8 }} />
           System Settings
         </Title>
-        <Text type="secondary">
+        <Text type='secondary'>
           Configure system-wide settings and manage users
         </Text>
       </div>
@@ -167,9 +168,9 @@ const SystemSettings = () => {
         </Title>
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={12} md={6}>
-            <Card size="small">
+            <Card size='small'>
               <Statistic
-                title="Total Users"
+                title='Total Users'
                 value={systemStats.totalUsers}
                 prefix={<UserOutlined />}
                 valueStyle={{ color: '#3b82f6' }}
@@ -177,9 +178,9 @@ const SystemSettings = () => {
             </Card>
           </Col>
           <Col xs={24} sm={12} md={6}>
-            <Card size="small">
+            <Card size='small'>
               <Statistic
-                title="Active Users"
+                title='Active Users'
                 value={systemStats.activeUsers}
                 prefix={<UserOutlined />}
                 valueStyle={{ color: '#10b981' }}
@@ -187,9 +188,9 @@ const SystemSettings = () => {
             </Card>
           </Col>
           <Col xs={24} sm={12} md={6}>
-            <Card size="small">
+            <Card size='small'>
               <Statistic
-                title="System Uptime"
+                title='System Uptime'
                 value={systemStats.systemUptime}
                 prefix={<GlobalOutlined />}
                 valueStyle={{ color: '#10b981' }}
@@ -197,9 +198,9 @@ const SystemSettings = () => {
             </Card>
           </Col>
           <Col xs={24} sm={12} md={6}>
-            <Card size="small">
+            <Card size='small'>
               <Statistic
-                title="Total Projects"
+                title='Total Projects'
                 value={systemStats.totalProjects}
                 prefix={<DatabaseOutlined />}
                 valueStyle={{ color: '#f59e0b' }}
@@ -221,7 +222,7 @@ const SystemSettings = () => {
             <Progress
               percent={systemStats.diskUsage}
               status={systemStats.diskUsage > 80 ? 'exception' : 'active'}
-              format={percent => `${percent}%`}
+              format={(percent) => `${percent}%`}
             />
           </Col>
           <Col xs={24} sm={8}>
@@ -231,7 +232,7 @@ const SystemSettings = () => {
             <Progress
               percent={systemStats.memoryUsage}
               status={systemStats.memoryUsage > 80 ? 'exception' : 'active'}
-              format={percent => `${percent}%`}
+              format={(percent) => `${percent}%`}
             />
           </Col>
           <Col xs={24} sm={8}>
@@ -241,7 +242,7 @@ const SystemSettings = () => {
             <Progress
               percent={systemStats.cpuUsage}
               status={systemStats.cpuUsage > 80 ? 'exception' : 'active'}
-              format={percent => `${percent}%`}
+              format={(percent) => `${percent}%`}
             />
           </Col>
         </Row>
@@ -256,13 +257,13 @@ const SystemSettings = () => {
               General Settings
             </span>
           }
-          key="general"
+          key='general'
         >
           <Card
-            title="General Configuration"
+            title='General Configuration'
             extra={
               <Button
-                type="primary"
+                type='primary'
                 icon={<SaveOutlined />}
                 loading={loading}
                 onClick={() => form.submit()}
@@ -273,7 +274,7 @@ const SystemSettings = () => {
           >
             <Form
               form={form}
-              layout="vertical"
+              layout='vertical'
               onFinish={handleSaveSettings}
               initialValues={{
                 siteName: 'AegisLab RCABench',
@@ -291,87 +292,98 @@ const SystemSettings = () => {
               <Row gutter={[24, 24]}>
                 <Col xs={24} lg={12}>
                   <Form.Item
-                    label="Site Name"
-                    name="siteName"
-                    rules={[{ required: true, message: 'Please enter site name' }]}
+                    label='Site Name'
+                    name='siteName'
+                    rules={[
+                      { required: true, message: 'Please enter site name' },
+                    ]}
                   >
-                    <Input placeholder="Enter site name" />
+                    <Input placeholder='Enter site name' />
                   </Form.Item>
 
                   <Form.Item
-                    label="Site URL"
-                    name="siteUrl"
-                    rules={[{ required: true, message: 'Please enter site URL' }]}
+                    label='Site URL'
+                    name='siteUrl'
+                    rules={[
+                      { required: true, message: 'Please enter site URL' },
+                    ]}
                   >
-                    <Input placeholder="https://example.com" />
+                    <Input placeholder='https://example.com' />
                   </Form.Item>
 
                   <Form.Item
-                    label="Timezone"
-                    name="timezone"
-                    rules={[{ required: true, message: 'Please select timezone' }]}
+                    label='Timezone'
+                    name='timezone'
+                    rules={[
+                      { required: true, message: 'Please select timezone' },
+                    ]}
                   >
-                    <Select placeholder="Select timezone">
-                      <Option value="UTC">UTC</Option>
-                      <Option value="America/New_York">America/New_York</Option>
-                      <Option value="Europe/London">Europe/London</Option>
-                      <Option value="Asia/Shanghai">Asia/Shanghai</Option>
+                    <Select placeholder='Select timezone'>
+                      <Option value='UTC'>UTC</Option>
+                      <Option value='America/New_York'>America/New_York</Option>
+                      <Option value='Europe/London'>Europe/London</Option>
+                      <Option value='Asia/Shanghai'>Asia/Shanghai</Option>
                     </Select>
                   </Form.Item>
 
                   <Form.Item
-                    label="Date Format"
-                    name="dateFormat"
-                    rules={[{ required: true, message: 'Please select date format' }]}
+                    label='Date Format'
+                    name='dateFormat'
+                    rules={[
+                      { required: true, message: 'Please select date format' },
+                    ]}
                   >
-                    <Select placeholder="Select date format">
-                      <Option value="YYYY-MM-DD">YYYY-MM-DD</Option>
-                      <Option value="MM/DD/YYYY">MM/DD/YYYY</Option>
-                      <Option value="DD/MM/YYYY">DD/MM/YYYY</Option>
+                    <Select placeholder='Select date format'>
+                      <Option value='YYYY-MM-DD'>YYYY-MM-DD</Option>
+                      <Option value='MM/DD/YYYY'>MM/DD/YYYY</Option>
+                      <Option value='DD/MM/YYYY'>DD/MM/YYYY</Option>
                     </Select>
                   </Form.Item>
                 </Col>
 
                 <Col xs={24} lg={12}>
                   <Form.Item
-                    label="Time Format"
-                    name="timeFormat"
-                    rules={[{ required: true, message: 'Please select time format' }]}
+                    label='Time Format'
+                    name='timeFormat'
+                    rules={[
+                      { required: true, message: 'Please select time format' },
+                    ]}
                   >
-                    <Select placeholder="Select time format">
-                      <Option value="HH:mm:ss">24-hour (HH:mm:ss)</Option>
-                      <Option value="hh:mm:ss A">12-hour (hh:mm:ss A)</Option>
+                    <Select placeholder='Select time format'>
+                      <Option value='HH:mm:ss'>24-hour (HH:mm:ss)</Option>
+                      <Option value='hh:mm:ss A'>12-hour (hh:mm:ss A)</Option>
                     </Select>
                   </Form.Item>
 
                   <Form.Item
-                    label="Max File Size (MB)"
-                    name="maxFileSize"
-                    rules={[{ required: true, message: 'Please enter max file size' }]}
+                    label='Max File Size (MB)'
+                    name='maxFileSize'
+                    rules={[
+                      { required: true, message: 'Please enter max file size' },
+                    ]}
                   >
-                    <InputNumber
-                      min={1}
-                      max={1000}
-                      style={{ width: '100%' }}
-                    />
+                    <InputNumber min={1} max={1000} style={{ width: '100%' }} />
                   </Form.Item>
 
                   <Form.Item
-                    label="Max Projects per User"
-                    name="maxProjectsPerUser"
-                    rules={[{ required: true, message: 'Please enter max projects' }]}
+                    label='Max Projects per User'
+                    name='maxProjectsPerUser'
+                    rules={[
+                      { required: true, message: 'Please enter max projects' },
+                    ]}
                   >
-                    <InputNumber
-                      min={1}
-                      max={100}
-                      style={{ width: '100%' }}
-                    />
+                    <InputNumber min={1} max={100} style={{ width: '100%' }} />
                   </Form.Item>
 
                   <Form.Item
-                    label="Session Timeout (seconds)"
-                    name="sessionTimeout"
-                    rules={[{ required: true, message: 'Please enter session timeout' }]}
+                    label='Session Timeout (seconds)'
+                    name='sessionTimeout'
+                    rules={[
+                      {
+                        required: true,
+                        message: 'Please enter session timeout',
+                      },
+                    ]}
                   >
                     <InputNumber
                       min={300}
@@ -388,17 +400,17 @@ const SystemSettings = () => {
               <Row gutter={[24, 24]}>
                 <Col xs={24} lg={12}>
                   <Form.Item
-                    label="Enable User Registration"
-                    name="enableRegistration"
-                    valuePropName="checked"
+                    label='Enable User Registration'
+                    name='enableRegistration'
+                    valuePropName='checked'
                   >
                     <Switch />
                   </Form.Item>
 
                   <Form.Item
-                    label="Enable Public Projects"
-                    name="enablePublicProjects"
-                    valuePropName="checked"
+                    label='Enable Public Projects'
+                    name='enablePublicProjects'
+                    valuePropName='checked'
                   >
                     <Switch />
                   </Form.Item>
@@ -406,9 +418,9 @@ const SystemSettings = () => {
 
                 <Col xs={24} lg={12}>
                   <Alert
-                    message="Security Settings"
-                    description="These settings affect the security and accessibility of your system. Please review carefully before making changes."
-                    type="warning"
+                    message='Security Settings'
+                    description='These settings affect the security and accessibility of your system. Please review carefully before making changes.'
+                    type='warning'
                     showIcon
                     icon={<SafetyOutlined />}
                   />
@@ -425,10 +437,10 @@ const SystemSettings = () => {
               Email Settings
             </span>
           }
-          key="email"
+          key='email'
         >
           <Card
-            title="Email Configuration"
+            title='Email Configuration'
             extra={
               <Space>
                 <Button
@@ -439,7 +451,7 @@ const SystemSettings = () => {
                   Test Email
                 </Button>
                 <Button
-                  type="primary"
+                  type='primary'
                   icon={<SaveOutlined />}
                   loading={loading}
                   onClick={() => form.submit()}
@@ -451,7 +463,7 @@ const SystemSettings = () => {
           >
             <Form
               form={form}
-              layout="vertical"
+              layout='vertical'
               onFinish={handleSaveSettings}
               initialValues={{
                 smtpHost: 'smtp.gmail.com',
@@ -467,17 +479,21 @@ const SystemSettings = () => {
               <Row gutter={[24, 24]}>
                 <Col xs={24} lg={12}>
                   <Form.Item
-                    label="SMTP Host"
-                    name="smtpHost"
-                    rules={[{ required: true, message: 'Please enter SMTP host' }]}
+                    label='SMTP Host'
+                    name='smtpHost'
+                    rules={[
+                      { required: true, message: 'Please enter SMTP host' },
+                    ]}
                   >
-                    <Input placeholder="smtp.gmail.com" />
+                    <Input placeholder='smtp.gmail.com' />
                   </Form.Item>
 
                   <Form.Item
-                    label="SMTP Port"
-                    name="smtpPort"
-                    rules={[{ required: true, message: 'Please enter SMTP port' }]}
+                    label='SMTP Port'
+                    name='smtpPort'
+                    rules={[
+                      { required: true, message: 'Please enter SMTP port' },
+                    ]}
                   >
                     <InputNumber
                       min={1}
@@ -487,55 +503,68 @@ const SystemSettings = () => {
                   </Form.Item>
 
                   <Form.Item
-                    label="SMTP User"
-                    name="smtpUser"
-                    rules={[{ required: true, message: 'Please enter SMTP user' }]}
+                    label='SMTP User'
+                    name='smtpUser'
+                    rules={[
+                      { required: true, message: 'Please enter SMTP user' },
+                    ]}
                   >
-                    <Input placeholder="your-email@gmail.com" />
+                    <Input placeholder='your-email@gmail.com' />
                   </Form.Item>
 
                   <Form.Item
-                    label="SMTP Password"
-                    name="smtpPassword"
-                    rules={[{ required: true, message: 'Please enter SMTP password' }]}
+                    label='SMTP Password'
+                    name='smtpPassword'
+                    rules={[
+                      { required: true, message: 'Please enter SMTP password' },
+                    ]}
                   >
-                    <Input.Password placeholder="Enter SMTP password" />
+                    <Input.Password placeholder='Enter SMTP password' />
                   </Form.Item>
                 </Col>
 
                 <Col xs={24} lg={12}>
                   <Form.Item
-                    label="Encryption Method"
-                    name="smtpEncryption"
-                    rules={[{ required: true, message: 'Please select encryption method' }]}
+                    label='Encryption Method'
+                    name='smtpEncryption'
+                    rules={[
+                      {
+                        required: true,
+                        message: 'Please select encryption method',
+                      },
+                    ]}
                   >
-                    <Select placeholder="Select encryption method">
-                      <Option value="none">None</Option>
-                      <Option value="tls">TLS</Option>
-                      <Option value="ssl">SSL</Option>
+                    <Select placeholder='Select encryption method'>
+                      <Option value='none'>None</Option>
+                      <Option value='tls'>TLS</Option>
+                      <Option value='ssl'>SSL</Option>
                     </Select>
                   </Form.Item>
 
                   <Form.Item
-                    label="From Email"
-                    name="fromEmail"
-                    rules={[{ required: true, message: 'Please enter from email' }]}
+                    label='From Email'
+                    name='fromEmail'
+                    rules={[
+                      { required: true, message: 'Please enter from email' },
+                    ]}
                   >
-                    <Input placeholder="noreply@example.com" />
+                    <Input placeholder='noreply@example.com' />
                   </Form.Item>
 
                   <Form.Item
-                    label="From Name"
-                    name="fromName"
-                    rules={[{ required: true, message: 'Please enter from name' }]}
+                    label='From Name'
+                    name='fromName'
+                    rules={[
+                      { required: true, message: 'Please enter from name' },
+                    ]}
                   >
-                    <Input placeholder="AegisLab RCABench" />
+                    <Input placeholder='AegisLab RCABench' />
                   </Form.Item>
 
                   <Form.Item
-                    label="Enable Email Notifications"
-                    name="enableEmailNotifications"
-                    valuePropName="checked"
+                    label='Enable Email Notifications'
+                    name='enableEmailNotifications'
+                    valuePropName='checked'
                   >
                     <Switch />
                   </Form.Item>
@@ -552,49 +581,49 @@ const SystemSettings = () => {
               User Management
             </span>
           }
-          key="users"
+          key='users'
         >
-          <Card title="User Management">
+          <Card title='User Management'>
             <List
-              itemLayout="horizontal"
+              itemLayout='horizontal'
               dataSource={users}
-              renderItem={item => (
+              renderItem={(item) => (
                 <List.Item
                   key={item.id}
                   actions={[
                     <Button
-                      key="edit"
-                      type="link"
-                      size="small"
+                      key='edit'
+                      type='link'
+                      size='small'
                       onClick={() => handleUserAction(item.id, 'Edit')}
                     >
                       Edit
                     </Button>,
                     item.status === 'active' ? (
                       <Button
-                        key="deactivate"
-                        type="link"
+                        key='deactivate'
+                        type='link'
                         danger
-                        size="small"
+                        size='small'
                         onClick={() => handleUserAction(item.id, 'Deactivate')}
                       >
                         Deactivate
                       </Button>
                     ) : (
                       <Button
-                        key="activate"
-                        type="link"
-                        size="small"
+                        key='activate'
+                        type='link'
+                        size='small'
                         onClick={() => handleUserAction(item.id, 'Activate')}
                       >
                         Activate
                       </Button>
                     ),
                     <Button
-                      key="delete"
-                      type="link"
+                      key='delete'
+                      type='link'
                       danger
-                      size="small"
+                      size='small'
                       onClick={() => handleUserAction(item.id, 'Delete')}
                     >
                       Delete
@@ -607,18 +636,22 @@ const SystemSettings = () => {
                       <Space>
                         <Text strong>{item.name}</Text>
                         <Tag color={getRoleColor(item.role)}>{item.role}</Tag>
-                        <Tag color={getStatusColor(item.status)}>{item.status}</Tag>
+                        <Tag color={getStatusColor(item.status)}>
+                          {item.status}
+                        </Tag>
                       </Space>
                     }
                     description={
-                      <Space direction="vertical" size={0}>
+                      <Space direction='vertical' size={0}>
                         <Space>
                           <MailOutlined />
                           <Text>{item.email}</Text>
                         </Space>
                         <Space>
                           <ClockCircleOutlined />
-                          <Text type="secondary">Last login: {item.lastLogin}</Text>
+                          <Text type='secondary'>
+                            Last login: {item.lastLogin}
+                          </Text>
                         </Space>
                       </Space>
                     }
@@ -636,13 +669,13 @@ const SystemSettings = () => {
               Integration Settings
             </span>
           }
-          key="integration"
+          key='integration'
         >
-          <Card title="Third-party Integrations">
+          <Card title='Third-party Integrations'>
             <Alert
-              message="Integration Settings"
-              description="Configure integrations with external services and APIs."
-              type="info"
+              message='Integration Settings'
+              description='Configure integrations with external services and APIs.'
+              type='info'
               showIcon
               icon={<InfoCircleOutlined />}
               style={{ marginBottom: 24 }}
@@ -651,76 +684,70 @@ const SystemSettings = () => {
             <Row gutter={[24, 24]}>
               <Col xs={24} lg={12}>
                 <Card
-                  title="Kubernetes Integration"
+                  title='Kubernetes Integration'
                   extra={<Switch defaultChecked />}
                 >
-                  <Form.Item label="Cluster URL">
-                    <Input placeholder="https://kubernetes.example.com" />
+                  <Form.Item label='Cluster URL'>
+                    <Input placeholder='https://kubernetes.example.com' />
                   </Form.Item>
-                  <Form.Item label="Namespace">
-                    <Input placeholder="default" />
+                  <Form.Item label='Namespace'>
+                    <Input placeholder='default' />
                   </Form.Item>
-                  <Form.Item label="Service Account">
-                    <Input placeholder="rcabench-sa" />
+                  <Form.Item label='Service Account'>
+                    <Input placeholder='rcabench-sa' />
+                  </Form.Item>
+                </Card>
+              </Col>
+
+              <Col xs={24} lg={12}>
+                <Card title='Docker Registry' extra={<Switch defaultChecked />}>
+                  <Form.Item label='Registry URL'>
+                    <Input placeholder='https://registry.example.com' />
+                  </Form.Item>
+                  <Form.Item label='Username'>
+                    <Input placeholder='username' />
+                  </Form.Item>
+                  <Form.Item label='Password'>
+                    <Input.Password placeholder='password' />
                   </Form.Item>
                 </Card>
               </Col>
 
               <Col xs={24} lg={12}>
                 <Card
-                  title="Docker Registry"
+                  title='Monitoring & Logging'
                   extra={<Switch defaultChecked />}
                 >
-                  <Form.Item label="Registry URL">
-                    <Input placeholder="https://registry.example.com" />
+                  <Form.Item label='Prometheus URL'>
+                    <Input placeholder='http://prometheus:9090' />
                   </Form.Item>
-                  <Form.Item label="Username">
-                    <Input placeholder="username" />
+                  <Form.Item label='Grafana URL'>
+                    <Input placeholder='http://grafana:3000' />
                   </Form.Item>
-                  <Form.Item label="Password">
-                    <Input.Password placeholder="password" />
+                  <Form.Item label='Jaeger URL'>
+                    <Input placeholder='http://jaeger:16686' />
                   </Form.Item>
                 </Card>
               </Col>
 
               <Col xs={24} lg={12}>
-                <Card
-                  title="Monitoring & Logging"
-                  extra={<Switch defaultChecked />}
-                >
-                  <Form.Item label="Prometheus URL">
-                    <Input placeholder="http://prometheus:9090" />
-                  </Form.Item>
-                  <Form.Item label="Grafana URL">
-                    <Input placeholder="http://grafana:3000" />
-                  </Form.Item>
-                  <Form.Item label="Jaeger URL">
-                    <Input placeholder="http://jaeger:16686" />
-                  </Form.Item>
-                </Card>
-              </Col>
-
-              <Col xs={24} lg={12}>
-                <Card
-                  title="External Storage"
-                  extra={<Switch />}
-                >
-                  <Form.Item label="Storage Type">
-                    <Select placeholder="Select storage type">
-                      <Option value="s3">Amazon S3</Option>
-                      <Option value="gcs">Google Cloud Storage</Option>
-                      <Option value="azure">Azure Blob Storage</Option>
-                      <Option value="minio">MinIO</Option>
+                <Card title='External Storage' extra={<Switch />}>
+                  <Form.Item label='Storage Type'>
+                    <Select placeholder='Select storage type'>
+                      <Option value='s3'>Amazon S3</Option>
+                      <Option value='gcs'>Google Cloud Storage</Option>
+                      <Option value='azure'>Azure Blob Storage</Option>
+                      <Option value='minio'>MinIO</Option>
                     </Select>
                   </Form.Item>
-                  <Form.Item label="Bucket Name">
-                    <Input placeholder="my-bucket" />
+                  <Form.Item label='Bucket Name'>
+                    <Input placeholder='my-bucket' />
                   </Form.Item>
-                  <Form.Item label="Access Key">
-                    <Input placeholder="access key" />
+                  <Form.Item label='Access Key'>
+                    <Input placeholder='access key' />
                   </Form.Item>
-                  <Form.Item label="Secret Key">
-                    <Input.Password placeholder="secret key" />
+                  <Form.Item label='Secret Key'>
+                    <Input.Password placeholder='secret key' />
                   </Form.Item>
                 </Card>
               </Col>
@@ -735,11 +762,11 @@ const SystemSettings = () => {
               Notification Settings
             </span>
           }
-          key="notifications"
+          key='notifications'
         >
-          <Card title="Notification Configuration">
+          <Card title='Notification Configuration'>
             <Form
-              layout="vertical"
+              layout='vertical'
               initialValues={{
                 enableSystemNotifications: true,
                 enableEmailNotifications: true,
@@ -753,33 +780,33 @@ const SystemSettings = () => {
               <Row gutter={[24, 24]}>
                 <Col xs={24} lg={12}>
                   <Form.Item
-                    label="Enable System Notifications"
-                    name="enableSystemNotifications"
-                    valuePropName="checked"
+                    label='Enable System Notifications'
+                    name='enableSystemNotifications'
+                    valuePropName='checked'
                   >
                     <Switch />
                   </Form.Item>
 
                   <Form.Item
-                    label="Enable Email Notifications"
-                    name="enableEmailNotifications"
-                    valuePropName="checked"
+                    label='Enable Email Notifications'
+                    name='enableEmailNotifications'
+                    valuePropName='checked'
                   >
                     <Switch />
                   </Form.Item>
 
                   <Form.Item
-                    label="Enable Slack Notifications"
-                    name="enableSlackNotifications"
-                    valuePropName="checked"
+                    label='Enable Slack Notifications'
+                    name='enableSlackNotifications'
+                    valuePropName='checked'
                   >
                     <Switch />
                   </Form.Item>
 
                   <Form.Item
-                    label="Enable Webhook Notifications"
-                    name="enableWebhookNotifications"
-                    valuePropName="checked"
+                    label='Enable Webhook Notifications'
+                    name='enableWebhookNotifications'
+                    valuePropName='checked'
                   >
                     <Switch />
                   </Form.Item>
@@ -787,25 +814,24 @@ const SystemSettings = () => {
 
                 <Col xs={24} lg={12}>
                   <Form.Item
-                    label="Notification Email"
-                    name="notificationEmail"
-                    rules={[{ type: 'email', message: 'Please enter valid email' }]}
+                    label='Notification Email'
+                    name='notificationEmail'
+                    rules={[
+                      { type: 'email', message: 'Please enter valid email' },
+                    ]}
                   >
-                    <Input placeholder="admin@example.com" prefix={<MailOutlined />} />
+                    <Input
+                      placeholder='admin@example.com'
+                      prefix={<MailOutlined />}
+                    />
                   </Form.Item>
 
-                  <Form.Item
-                    label="Slack Webhook URL"
-                    name="slackWebhook"
-                  >
-                    <Input placeholder="https://hooks.slack.com/services/..." />
+                  <Form.Item label='Slack Webhook URL' name='slackWebhook'>
+                    <Input placeholder='https://hooks.slack.com/services/...' />
                   </Form.Item>
 
-                  <Form.Item
-                    label="Webhook URL"
-                    name="webhookUrl"
-                  >
-                    <Input placeholder="https://your-webhook-url.com" />
+                  <Form.Item label='Webhook URL' name='webhookUrl'>
+                    <Input placeholder='https://your-webhook-url.com' />
                   </Form.Item>
                 </Col>
               </Row>
@@ -814,33 +840,33 @@ const SystemSettings = () => {
 
               <Title level={5}>Notification Events</Title>
               <Form.Item
-                label="Experiment Completed"
-                name="notifyExperimentCompleted"
-                valuePropName="checked"
+                label='Experiment Completed'
+                name='notifyExperimentCompleted'
+                valuePropName='checked'
               >
                 <Switch />
               </Form.Item>
 
               <Form.Item
-                label="Experiment Failed"
-                name="notifyExperimentFailed"
-                valuePropName="checked"
+                label='Experiment Failed'
+                name='notifyExperimentFailed'
+                valuePropName='checked'
               >
                 <Switch />
               </Form.Item>
 
               <Form.Item
-                label="System Error"
-                name="notifySystemError"
-                valuePropName="checked"
+                label='System Error'
+                name='notifySystemError'
+                valuePropName='checked'
               >
                 <Switch />
               </Form.Item>
 
               <Form.Item
-                label="User Registration"
-                name="notifyUserRegistration"
-                valuePropName="checked"
+                label='User Registration'
+                name='notifyUserRegistration'
+                valuePropName='checked'
               >
                 <Switch />
               </Form.Item>
@@ -855,11 +881,11 @@ const SystemSettings = () => {
               Security Settings
             </span>
           }
-          key="security"
+          key='security'
         >
-          <Card title="Security Configuration">
+          <Card title='Security Configuration'>
             <Form
-              layout="vertical"
+              layout='vertical'
               initialValues={{
                 enableTwoFactorAuth: false,
                 enableCaptcha: true,
@@ -878,37 +904,43 @@ const SystemSettings = () => {
                 <Col xs={24} lg={12}>
                   <Title level={5}>Authentication</Title>
                   <Form.Item
-                    label="Enable Two-Factor Authentication"
-                    name="enableTwoFactorAuth"
-                    valuePropName="checked"
+                    label='Enable Two-Factor Authentication'
+                    name='enableTwoFactorAuth'
+                    valuePropName='checked'
                   >
                     <Switch />
                   </Form.Item>
 
                   <Form.Item
-                    label="Enable CAPTCHA"
-                    name="enableCaptcha"
-                    valuePropName="checked"
+                    label='Enable CAPTCHA'
+                    name='enableCaptcha'
+                    valuePropName='checked'
                   >
                     <Switch />
                   </Form.Item>
 
                   <Form.Item
-                    label="Max Login Attempts"
-                    name="maxLoginAttempts"
-                    rules={[{ required: true, message: 'Please enter max login attempts' }]}
+                    label='Max Login Attempts'
+                    name='maxLoginAttempts'
+                    rules={[
+                      {
+                        required: true,
+                        message: 'Please enter max login attempts',
+                      },
+                    ]}
                   >
-                    <InputNumber
-                      min={1}
-                      max={10}
-                      style={{ width: '100%' }}
-                    />
+                    <InputNumber min={1} max={10} style={{ width: '100%' }} />
                   </Form.Item>
 
                   <Form.Item
-                    label="Lockout Duration (seconds)"
-                    name="lockoutDuration"
-                    rules={[{ required: true, message: 'Please enter lockout duration' }]}
+                    label='Lockout Duration (seconds)'
+                    name='lockoutDuration'
+                    rules={[
+                      {
+                        required: true,
+                        message: 'Please enter lockout duration',
+                      },
+                    ]}
                   >
                     <InputNumber
                       min={60}
@@ -922,45 +954,46 @@ const SystemSettings = () => {
                 <Col xs={24} lg={12}>
                   <Title level={5}>Password Policy</Title>
                   <Form.Item
-                    label="Minimum Password Length"
-                    name="passwordMinLength"
-                    rules={[{ required: true, message: 'Please enter minimum password length' }]}
+                    label='Minimum Password Length'
+                    name='passwordMinLength'
+                    rules={[
+                      {
+                        required: true,
+                        message: 'Please enter minimum password length',
+                      },
+                    ]}
                   >
-                    <InputNumber
-                      min={6}
-                      max={20}
-                      style={{ width: '100%' }}
-                    />
+                    <InputNumber min={6} max={20} style={{ width: '100%' }} />
                   </Form.Item>
 
                   <Form.Item
-                    label="Require Uppercase Letters"
-                    name="passwordRequireUppercase"
-                    valuePropName="checked"
-                  >
-                    <Switch />
-                  </Form.Item>
-
-                  <Form.Item
-                    label="Require Lowercase Letters"
-                    name="passwordRequireLowercase"
-                    valuePropName="checked"
+                    label='Require Uppercase Letters'
+                    name='passwordRequireUppercase'
+                    valuePropName='checked'
                   >
                     <Switch />
                   </Form.Item>
 
                   <Form.Item
-                    label="Require Numbers"
-                    name="passwordRequireNumbers"
-                    valuePropName="checked"
+                    label='Require Lowercase Letters'
+                    name='passwordRequireLowercase'
+                    valuePropName='checked'
                   >
                     <Switch />
                   </Form.Item>
 
                   <Form.Item
-                    label="Require Special Characters"
-                    name="passwordRequireSpecialChars"
-                    valuePropName="checked"
+                    label='Require Numbers'
+                    name='passwordRequireNumbers'
+                    valuePropName='checked'
+                  >
+                    <Switch />
+                  </Form.Item>
+
+                  <Form.Item
+                    label='Require Special Characters'
+                    name='passwordRequireSpecialChars'
+                    valuePropName='checked'
                   >
                     <Switch />
                   </Form.Item>
@@ -973,9 +1006,14 @@ const SystemSettings = () => {
                 <Col xs={24} lg={12}>
                   <Title level={5}>Session Management</Title>
                   <Form.Item
-                    label="Session Timeout (seconds)"
-                    name="sessionTimeout"
-                    rules={[{ required: true, message: 'Please enter session timeout' }]}
+                    label='Session Timeout (seconds)'
+                    name='sessionTimeout'
+                    rules={[
+                      {
+                        required: true,
+                        message: 'Please enter session timeout',
+                      },
+                    ]}
                   >
                     <InputNumber
                       min={300}
@@ -986,9 +1024,9 @@ const SystemSettings = () => {
                   </Form.Item>
 
                   <Form.Item
-                    label="Enable Audit Logging"
-                    name="enableAuditLogging"
-                    valuePropName="checked"
+                    label='Enable Audit Logging'
+                    name='enableAuditLogging'
+                    valuePropName='checked'
                   >
                     <Switch />
                   </Form.Item>
@@ -996,9 +1034,9 @@ const SystemSettings = () => {
 
                 <Col xs={24} lg={12}>
                   <Alert
-                    message="Security Recommendations"
-                    description="Enable two-factor authentication for enhanced security. Use strong password policies and regularly review audit logs."
-                    type="info"
+                    message='Security Recommendations'
+                    description='Enable two-factor authentication for enhanced security. Use strong password policies and regularly review audit logs.'
+                    type='info'
                     showIcon
                     icon={<LockOutlined />}
                   />
@@ -1007,7 +1045,7 @@ const SystemSettings = () => {
 
               <Form.Item>
                 <Button
-                  type="primary"
+                  type='primary'
                   icon={<SaveOutlined />}
                   loading={loading}
                   onClick={() => form.submit()}
@@ -1020,7 +1058,7 @@ const SystemSettings = () => {
         </TabPane>
       </Tabs>
     </div>
-  )
-}
+  );
+};
 
-export default SystemSettings
+export default SystemSettings;

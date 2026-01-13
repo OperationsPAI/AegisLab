@@ -1,3 +1,4 @@
+import { useState } from 'react';
 
 import {
   ClockCircleOutlined,
@@ -11,7 +12,6 @@ import {
 } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { Card, Empty, List, Spin, Tag, Tooltip } from 'antd';
-import { useState, type React } from 'react';
 
 import { injectionApi } from '../../../api/injections';
 import type { FaultType } from '../../../types/api';
@@ -46,7 +46,7 @@ const faultTypeColors: Record<string, string> = {
 
 export const FaultTypePanel: React.FC<FaultTypePanelProps> = ({
   onFaultSelect,
-}) => {
+}: FaultTypePanelProps) => {
   const [selectedFault, setSelectedFault] = useState<FaultType | null>(null);
 
   // Fetch fault types
@@ -151,7 +151,7 @@ export const FaultTypePanel: React.FC<FaultTypePanelProps> = ({
                           <Tooltip
                             title={`${fault.parameters.length} parameters`}
                           >
-                            <Tag size='small'>
+                            <Tag>
                               {fault.parameters.length} params
                             </Tag>
                           </Tooltip>

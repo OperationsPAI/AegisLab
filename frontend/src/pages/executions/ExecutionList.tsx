@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import {
   CheckCircleOutlined,
@@ -35,13 +37,16 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 import { containerApi } from '@/api/containers';
 import { executionApi } from '@/api/executions';
 import StatCard from '@/components/ui/StatCard';
-import { ExecutionState, type Execution, type Label } from '@/types/api';
+import {
+  ContainerType,
+  type Execution,
+  ExecutionState,
+  type Label,
+} from '@/types/api';
 
 dayjs.extend(duration);
 
@@ -63,7 +68,7 @@ const ExecutionList = () => {
 
   // Fetch executions
   const {
-    data: executionsData,
+    data: executionsResponse,
     isLoading,
     refetch,
   } = useQuery({
@@ -84,23 +89,30 @@ const ExecutionList = () => {
   });
 
   // Fetch algorithms for filter
-  const { data: algorithmsData } = useQuery({
+  const { data: algorithmsResponse } = useQuery({
     queryKey: ['algorithms'],
-    queryFn: () => containerApi.getContainers({ type: 'Algorithm' }),
+    queryFn: () =>
+      containerApi.getContainers({ type: ContainerType.ALGORITHM }),
   });
+
+  const executionsData = executionsResponse?.data;
+  const algorithmsData = algorithmsResponse?.data;
 
   // Statistics
   const stats = {
     total: executionsData?.total || 0,
     running:
-      executionsData?.data.filter((e) => e.state === ExecutionState.RUNNING)
-        .length || 0,
+      executionsData?.data?.filter(
+        (e: any) => e.state === ExecutionState.RUNNING
+      ).length || 0,
     completed:
-      executionsData?.data.filter((e) => e.state === ExecutionState.COMPLETED)
-        .length || 0,
+      executionsData?.data?.filter(
+        (e: any) => e.state === ExecutionState.COMPLETED
+      ).length || 0,
     failed:
-      executionsData?.data.filter((e) => e.state === ExecutionState.ERROR)
-        .length || 0,
+      executionsData?.data?.filter(
+        (e: any) => e.state === ExecutionState.ERROR
+      ).length || 0,
   };
 
   const handleTableChange = (newPagination: TablePaginationConfig) => {
@@ -234,21 +246,21 @@ const ExecutionList = () => {
       dataIndex: 'id',
       key: 'id',
       width: '12%',
-      render: (id: number, record: Execution) => (
+      render: (id: number, record: any) => (
         <Space direction='vertical' size={0}>
           <Text strong>#{id}</Text>
           <Text type='secondary' style={{ fontSize: '0.75rem' }}>
-            {record.algorithm?.name || 'Unknown Algorithm'}
+            {record.algorithm_name || 'Unknown Algorithm'}
           </Text>
         </Space>
       ),
     },
     {
       title: 'Algorithm',
-      dataIndex: ['algorithm', 'name'],
+      dataIndex: 'algorithm_name',
       key: 'algorithm',
       width: '20%',
-      render: (_: string, record: Execution) => (
+      render: (_: string, record: any) => (
         <Space>
           <Avatar
             size='small'
@@ -256,7 +268,7 @@ const ExecutionList = () => {
             icon={<FunctionOutlined />}
           />
           <div>
-            <Text strong>{record.algorithm?.name || 'Unknown'}</Text>
+            <Text strong>{record.algorithm_name || 'Unknown'}</Text>
             <br />
             <Text type='secondary' style={{ fontSize: '0.75rem' }}>
               v{record.algorithm_version}
@@ -267,13 +279,13 @@ const ExecutionList = () => {
     },
     {
       title: 'Datapack',
-      dataIndex: ['datapack', 'id'],
+      dataIndex: 'datapack_id',
       key: 'datapack',
       width: '15%',
-      render: (datapackId: string) => (
+      render: (datapackId: number) => (
         <Space>
           <DatabaseOutlined style={{ color: '#3b82f6' }} />
-          <Text code>{datapackId?.substring(0, 8) || 'N/A'}</Text>
+          <Text code>{datapackId?.toString().substring(0, 8) || 'N/A'}</Text>
         </Space>
       ),
     },
@@ -282,42 +294,81 @@ const ExecutionList = () => {
       dataIndex: 'state',
       key: 'state',
       width: '12%',
-      render: (state: ExecutionState) => (
-        <Badge
-          status={
-            state === ExecutionState.COMPLETED
-              ? 'success'
-              : state === ExecutionState.ERROR
-                ? 'error'
-                : state === ExecutionState.RUNNING
-                  ? 'processing'
-                  : 'default'
-          }
-          text={
-            <Space>
-              {getStateIcon(state)}
-              <Text strong style={{ color: getStateColor(state) }}>
-                {state === ExecutionState.PENDING
-                  ? 'Pending'
-                  : state === ExecutionState.RUNNING
-                    ? 'Running'
-                    : state === ExecutionState.COMPLETED
-                      ? 'Completed'
-                      : state === ExecutionState.ERROR
-                        ? 'Error'
-                        : 'Unknown'}
-              </Text>
-            </Space>
-          }
-        />
-      ),
+      render: (state: string) => {
+        // 转换状态为本地 ExecutionState 枚举
+        let executionState: ExecutionState;
+        switch (state) {
+          case 'initial':
+          case 'pending':
+            executionState = ExecutionState.PENDING;
+            break;
+          case 'running':
+            executionState = ExecutionState.RUNNING;
+            break;
+          case 'success':
+            executionState = ExecutionState.COMPLETED;
+            break;
+          case 'failed':
+          default:
+            executionState = ExecutionState.ERROR;
+            break;
+        }
+
+        return (
+          <Badge
+            status={
+              executionState === ExecutionState.COMPLETED
+                ? 'success'
+                : executionState === ExecutionState.ERROR
+                  ? 'error'
+                  : executionState === ExecutionState.RUNNING
+                    ? 'processing'
+                    : 'default'
+            }
+            text={
+              <Space>
+                {getStateIcon(executionState)}
+                <Text strong style={{ color: getStateColor(executionState) }}>
+                  {executionState === ExecutionState.PENDING
+                    ? 'Pending'
+                    : executionState === ExecutionState.RUNNING
+                      ? 'Running'
+                      : executionState === ExecutionState.COMPLETED
+                        ? 'Completed'
+                        : 'Error'}
+                </Text>
+              </Space>
+            }
+          />
+        );
+      },
       filters: [
         { text: 'Pending', value: ExecutionState.PENDING },
         { text: 'Running', value: ExecutionState.RUNNING },
         { text: 'Completed', value: ExecutionState.COMPLETED },
         { text: 'Error', value: ExecutionState.ERROR },
       ],
-      onFilter: (value: number, record: Execution) => record.state === value,
+      onFilter: (value: ExecutionState, record: any) => {
+        // 转换状态进行比较
+        let recordState: ExecutionState;
+        switch (record.state) {
+          case 'initial':
+          case 'pending':
+            recordState = ExecutionState.PENDING;
+            break;
+          case 'running':
+            recordState = ExecutionState.RUNNING;
+            break;
+          case 'success':
+            recordState = ExecutionState.COMPLETED;
+            break;
+          case 'failed':
+          default:
+            recordState = ExecutionState.ERROR;
+            break;
+        }
+        return recordState === value;
+      },
     },
     {
       title: 'Duration',
@@ -446,7 +497,7 @@ const ExecutionList = () => {
             title='Total Executions'
             value={stats.total}
             icon={<FunctionOutlined />}
-            color='#3b82f6'
+            color='primary'
           />
         </Col>
         <Col xs={24} sm={12} md={6}>
@@ -454,7 +505,7 @@ const ExecutionList = () => {
             title='Running'
             value={stats.running}
             icon={<SyncOutlined />}
-            color='#f59e0b'
+            color='warning'
           />
         </Col>
         <Col xs={24} sm={12} md={6}>
@@ -462,7 +513,7 @@ const ExecutionList = () => {
             title='Completed'
             value={stats.completed}
             icon={<CheckCircleOutlined />}
-            color='#10b981'
+            color='success'
           />
         </Col>
         <Col xs={24} sm={12} md={6}>
@@ -470,7 +521,7 @@ const ExecutionList = () => {
             title='Failed'
             value={stats.failed}
             icon={<CloseCircleOutlined />}
-            color='#ef4444'
+            color='error'
           />
         </Col>
       </Row>
@@ -509,7 +560,7 @@ const ExecutionList = () => {
               onChange={handleAlgorithmFilter}
               value={algorithmFilter}
             >
-              {algorithmsData?.data.map((algo) => (
+              {algorithmsData?.data?.map((algo: any) => (
                 <Option key={algo.id} value={algo.id}>
                   {algo.name}
                 </Option>
@@ -540,11 +591,11 @@ const ExecutionList = () => {
           rowKey='id'
           rowSelection={rowSelection}
           columns={columns}
-          dataSource={executionsData?.data || []}
+          dataSource={(executionsData?.items as any[]) || []}
           loading={isLoading}
           pagination={{
             ...pagination,
-            total: executionsData?.data.total || 0,
+            total: executionsData?.pagination?.total || 0,
             showSizeChanger: true,
             showQuickJumper: true,
             showTotal: (total, range) =>

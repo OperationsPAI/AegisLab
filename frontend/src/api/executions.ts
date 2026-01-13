@@ -1,100 +1,41 @@
-import { Configuration, ExecutionsApi } from '@rcabench/client';
-import axios, { type AxiosRequestConfig } from 'axios';
+import type { PaginationParams, PaginatedResponse, Execution } from '@/types/api';
+import apiClient from './client';
 
-// Create configuration with dynamic token
-const createExecutionConfig = () => {
-  const token = localStorage.getItem('access_token');
-
-  return new Configuration({
-    basePath: '/api/v2',
-    accessToken: token ? `Bearer ${token}` : undefined,
-    baseOptions: {
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    } as AxiosRequestConfig,
-  });
-};
-
-// Create axios instance for manual API calls
-const apiClient = axios.create({
-  baseURL: '/api/v2',
-  timeout: 30000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Request interceptor for auth
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('access_token');
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// Export the executions API using generated SDK where available
 export const executionApi = {
-  // Get executions list - using generated SDK
-  getExecutions: async (params?: {
-    page?: number;
-    size?: number;
-    state?: number;
-    status?: number;
-    labels?: string[];
-    projectId?: number;
-    datapackId?: string;
-  }) => {
-    const executionsApi = new ExecutionsApi(createExecutionConfig());
-    const response = await executionsApi.listExecutions({
-      page: params?.page,
-      size: params?.size,
-      state: params?.state,
-      status: params?.status,
-      labels: params?.labels,
-    });
-    return response;
-  },
+  // Get executions list - manual API call to match project types
+  getExecutions: (
+    params?: Partial<PaginationParams> & {
+      state?: number;
+      status?: number;
+      labels?: string[];
+      projectId?: number;
+      datapackId?: string;
+    }
+  ) => apiClient.get<PaginatedResponse<Execution>>('/executions', { params }),
 
-  // Get execution detail - using generated SDK
-  getExecution: async (id: number) => {
-    const executionsApi = new ExecutionsApi(createExecutionConfig());
-    const response = await executionsApi.getExecutionById({ id });
-    return response.data;
-  },
+  // Get execution detail - manual API call
+  getExecution: (id: number) => apiClient.get<Execution>(`/executions/${id}`),
 
-  // Execute algorithm - using generated SDK
-  executeAlgorithm: async (data: {
+  // Execute algorithm - manual API call
+  executeAlgorithm: (data: {
     algorithmName: string;
     algorithmVersion: string;
     datapackId: string;
     labels?: Array<{ key: string; value: string }>;
-  }) => {
-    const executionsApi = new ExecutionsApi(createExecutionConfig());
-    const response = await executionsApi.runAlgorithm({
-      request: {
-        project_name: 'default',
-        specs: [
-          {
-            algorithm: {
-              name: data.algorithmName,
-              version: data.algorithmVersion,
-            },
-            datapack: data.datapackId,
+  }) =>
+    apiClient.post('/executions', {
+      project_name: 'default',
+      specs: [
+        {
+          algorithm: {
+            name: data.algorithmName,
+            version: data.algorithmVersion,
           },
-        ],
-        labels: data.labels,
-      },
-    });
-    return response.data;
-  },
+          datapack: data.datapackId,
+        },
+      ],
+      labels: data.labels,
+    }),
 
   // Upload detector results - manual endpoint (not in generated SDK)
   uploadDetectorResults: (

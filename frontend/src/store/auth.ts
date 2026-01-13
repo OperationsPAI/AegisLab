@@ -1,4 +1,4 @@
-import type { DtoUserInfo as User, DtoLoginResp } from '@rcabench/client';
+import type { LoginResp, UserInfo as User } from '@rcabench/client';
 import { create } from 'zustand';
 
 import { authApi } from '@/api/auth';
@@ -32,8 +32,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const response = await authApi.login({ username, password });
       // console.log('Login response:', response)
       // The response structure needs to be checked
-      const token = (response as DtoLoginResp)?.token;
-      const user = (response as DtoLoginResp)?.user;
+      const token = (response as LoginResp)?.token;
+      const user = (response as LoginResp)?.user;
 
       // Backend returns 'token' instead of 'access_token'
       // Store the same token as both access and refresh token for now

@@ -1,3 +1,6 @@
+import { memo } from 'react';
+import { Handle, type NodeProps, Position } from 'reactflow';
+
 import {
   ClockCircleOutlined,
   CloudServerOutlined,
@@ -11,8 +14,6 @@ import {
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import { Button, Tag, Tooltip } from 'antd';
-import { memo, type React } from 'react';
-import { Handle, Position, type NodeProps } from 'reactflow';
 
 import type { FaultType } from '../../../types/api';
 
@@ -105,7 +106,7 @@ export const FaultNode = memo<NodeProps<FaultNodeData>>(
         )}
 
         <div className='fault-node-footer'>
-          <Tag color={getFaultColor()} size='small'>
+          <Tag color={getFaultColor()}>
             {fault.type}
           </Tag>
           {fault.parameters && (

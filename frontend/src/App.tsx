@@ -24,6 +24,7 @@ import UserProfile from '@/pages/settings/UserProfile';
 import SystemSettings from '@/pages/system/SystemSettings';
 import TaskDetail from '@/pages/tasks/TaskDetail';
 import TaskList from '@/pages/tasks/TaskList';
+import UtilityTest from '@/pages/UtilityTest';
 import { useAuthStore } from '@/store/auth';
 
 function App() {
@@ -94,6 +95,9 @@ function App() {
         {/* Settings */}
         <Route path='settings/profile' element={<UserProfile />} />
         <Route path='settings' element={<Settings />} />
+
+        {/* Utility Test */}
+        <Route path='utility-test' element={<UtilityTest />} />
 
         {/* Fallback */}
         <Route path='*' element={<Navigate to='/dashboard' replace />} />

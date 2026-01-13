@@ -1,3 +1,6 @@
+import { useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+
 import {
   ArrowLeftOutlined,
   ClockCircleOutlined,
@@ -27,9 +30,6 @@ import {
   Typography,
 } from 'antd';
 import dayjs from 'dayjs';
-import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-
 
 import { datasetApi } from '@/api/datasets';
 import type { DatasetVersion } from '@/types/api';
@@ -267,173 +267,185 @@ const DatasetDetail = () => {
       </Card>
 
       {/* Tabs */}
-      <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
-        {
-          key: 'overview',
-          label: 'Overview',
-          children: (
-            <>
-              <Row gutter={[16, 16]}>
-                <Col xs={24} lg={16}>
-                  <Card title='Dataset Information'>
-                    <Descriptions column={2} bordered>
-                      <Descriptions.Item label='ID'>
-                        {datasetData.id}
-                      </Descriptions.Item>
-                      <Descriptions.Item label='Type'>
-                        <Tag
-                          color={getTypeColor(datasetData.type)}
-                          style={{ fontWeight: 500, fontSize: '1rem' }}
-                        >
-                          {datasetData.type}
-                        </Tag>
-                      </Descriptions.Item>
-                      <Descriptions.Item label='Visibility'>
-                        <Tag color={datasetData.is_public ? 'green' : 'default'}>
-                          {datasetData.is_public ? 'Public' : 'Private'}
-                        </Tag>
-                      </Descriptions.Item>
-                      <Descriptions.Item label='Created'>
-                        <Space>
-                          <ClockCircleOutlined />
-                          {dayjs(datasetData.created_at).format(
-                            'MMMM D, YYYY HH:mm'
-                          )}
-                        </Space>
-                      </Descriptions.Item>
-                      <Descriptions.Item label='Updated'>
-                        <Space>
-                          <ClockCircleOutlined />
-                          {dayjs(datasetData.updated_at).format(
-                            'MMMM D, YYYY HH:mm'
-                          )}
-                        </Space>
-                      </Descriptions.Item>
-                      <Descriptions.Item label='Labels'>
-                        {datasetData.labels?.length ? (
-                          <Space wrap>
-                            {datasetData.labels.map((label, index) => (
-                              <Tag key={index} icon={<TagsOutlined />}>
-                                {label.key}: {label.value}
-                              </Tag>
-                            ))}
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        items={[
+          {
+            key: 'overview',
+            label: 'Overview',
+            children: (
+              <>
+                <Row gutter={[16, 16]}>
+                  <Col xs={24} lg={16}>
+                    <Card title='Dataset Information'>
+                      <Descriptions column={2} bordered>
+                        <Descriptions.Item label='ID'>
+                          {datasetData.id}
+                        </Descriptions.Item>
+                        <Descriptions.Item label='Type'>
+                          <Tag
+                            color={getTypeColor(datasetData.type)}
+                            style={{ fontWeight: 500, fontSize: '1rem' }}
+                          >
+                            {datasetData.type}
+                          </Tag>
+                        </Descriptions.Item>
+                        <Descriptions.Item label='Visibility'>
+                          <Tag
+                            color={datasetData.is_public ? 'green' : 'default'}
+                          >
+                            {datasetData.is_public ? 'Public' : 'Private'}
+                          </Tag>
+                        </Descriptions.Item>
+                        <Descriptions.Item label='Created'>
+                          <Space>
+                            <ClockCircleOutlined />
+                            {dayjs(datasetData.created_at).format(
+                              'MMMM D, YYYY HH:mm'
+                            )}
                           </Space>
-                        ) : (
-                          <Text type='secondary'>No labels</Text>
-                        )}
-                      </Descriptions.Item>
-                    </Descriptions>
-                  </Card>
-                </Col>
-                <Col xs={24} lg={8}>
-                  <Card title='Quick Stats'>
-                    <Space direction='vertical' style={{ width: '100%' }}>
-                      <div>
-                        <Text type='secondary'>Total Versions</Text>
-                        <br />
-                        <Title level={3} style={{ margin: 0, color: '#3b82f6' }}>
-                          {versions.length}
-                        </Title>
-                      </div>
-                      <Divider />
-                      <div>
-                        <Text type='secondary'>Latest Version</Text>
-                        <br />
-                        <Text strong style={{ fontSize: '1.25rem' }}>
-                          {versions[0]?.version || 'N/A'}
-                        </Text>
-                      </div>
-                      <Divider />
-                      <div>
-                        <Text type='secondary'>Total Size</Text>
-                        <br />
-                        <Text strong style={{ fontSize: '1.25rem' }}>
-                          {formatFileSize(
-                            versions.reduce((sum, v) => sum + (v.size || 0), 0)
+                        </Descriptions.Item>
+                        <Descriptions.Item label='Updated'>
+                          <Space>
+                            <ClockCircleOutlined />
+                            {dayjs(datasetData.updated_at).format(
+                              'MMMM D, YYYY HH:mm'
+                            )}
+                          </Space>
+                        </Descriptions.Item>
+                        <Descriptions.Item label='Labels'>
+                          {datasetData.labels?.length ? (
+                            <Space wrap>
+                              {datasetData.labels.map((label, index) => (
+                                <Tag key={index} icon={<TagsOutlined />}>
+                                  {label.key}: {label.value}
+                                </Tag>
+                              ))}
+                            </Space>
+                          ) : (
+                            <Text type='secondary'>No labels</Text>
                           )}
-                        </Text>
-                      </div>
-                    </Space>
-                  </Card>
-                </Col>
-              </Row>
+                        </Descriptions.Item>
+                      </Descriptions>
+                    </Card>
+                  </Col>
+                  <Col xs={24} lg={8}>
+                    <Card title='Quick Stats'>
+                      <Space direction='vertical' style={{ width: '100%' }}>
+                        <div>
+                          <Text type='secondary'>Total Versions</Text>
+                          <br />
+                          <Title
+                            level={3}
+                            style={{ margin: 0, color: '#3b82f6' }}
+                          >
+                            {versions.length}
+                          </Title>
+                        </div>
+                        <Divider />
+                        <div>
+                          <Text type='secondary'>Latest Version</Text>
+                          <br />
+                          <Text strong style={{ fontSize: '1.25rem' }}>
+                            {versions[0]?.version || 'N/A'}
+                          </Text>
+                        </div>
+                        <Divider />
+                        <div>
+                          <Text type='secondary'>Total Size</Text>
+                          <br />
+                          <Text strong style={{ fontSize: '1.25rem' }}>
+                            {formatFileSize(
+                              versions.reduce(
+                                (sum, v) => sum + (v.size || 0),
+                                0
+                              )
+                            )}
+                          </Text>
+                        </div>
+                      </Space>
+                    </Card>
+                  </Col>
+                </Row>
 
-              {datasetData.description && (
-                <Card title='Description' style={{ marginTop: 16 }}>
-                  <Text>{datasetData.description}</Text>
-                </Card>
-              )}
-            </>
-          )
-        },
-        {
-          key: 'versions',
-          label: 'Versions',
-          children: (
-            <Card
-              title='Dataset Versions'
-              extra={
-                <Button
-                  type='primary'
-                  icon={<PlusOutlined />}
-                  onClick={() => {
-                    // TODO: Navigate to version creation page
-                    message.info('Version creation will be implemented soon');
+                {datasetData.description && (
+                  <Card title='Description' style={{ marginTop: 16 }}>
+                    <Text>{datasetData.description}</Text>
+                  </Card>
+                )}
+              </>
+            ),
+          },
+          {
+            key: 'versions',
+            label: 'Versions',
+            children: (
+              <Card
+                title='Dataset Versions'
+                extra={
+                  <Button
+                    type='primary'
+                    icon={<PlusOutlined />}
+                    onClick={() => {
+                      // TODO: Navigate to version creation page
+                      message.info('Version creation will be implemented soon');
+                    }}
+                  >
+                    Add Version
+                  </Button>
+                }
+              >
+                <Table
+                  rowKey='id'
+                  columns={versionColumns}
+                  dataSource={versions}
+                  loading={versionsLoading}
+                  pagination={{
+                    pageSize: 10,
+                    showSizeChanger: true,
+                    showQuickJumper: true,
+                    showTotal: (total, range) =>
+                      `${range[0]}-${range[1]} of ${total} versions`,
                   }}
-                >
-                  Add Version
-                </Button>
-              }
-            >
-              <Table
-                rowKey='id'
-                columns={versionColumns}
-                dataSource={versions}
-                loading={versionsLoading}
-                pagination={{
-                  pageSize: 10,
-                  showSizeChanger: true,
-                  showQuickJumper: true,
-                  showTotal: (total, range) =>
-                    `${range[0]}-${range[1]} of ${total} versions`,
-                }}
-              />
-            </Card>
-          )
-        },
-        {
-          key: 'preview',
-          label: 'Preview',
-          children: (
-            <Card title='Dataset Preview'>
-              <Text type='secondary'>
-                Dataset preview functionality will be implemented soon.
-              </Text>
-              <div style={{ marginTop: 16 }}>
-                <Text>Sample data preview will appear here...</Text>
-              </div>
-            </Card>
-          )
-        },
-        {
-          key: 'usage',
-          label: 'Usage',
-          children: (
-            <Card title='Dataset Usage'>
-              <Text>
-                This dataset can be used in experiments and evaluations.
-              </Text>
-              <Divider />
-              <Text strong>How to use this dataset:</Text>
-              <ul style={{ marginTop: 8 }}>
-                <li>Select this dataset when creating an experiment</li>
-                <li>Dataset will be automatically loaded during execution</li>
-                <li>Results can be compared with other datasets</li>
-              </ul>
-            </Card>
-          )
-        }
-      ]} />
+                />
+              </Card>
+            ),
+          },
+          {
+            key: 'preview',
+            label: 'Preview',
+            children: (
+              <Card title='Dataset Preview'>
+                <Text type='secondary'>
+                  Dataset preview functionality will be implemented soon.
+                </Text>
+                <div style={{ marginTop: 16 }}>
+                  <Text>Sample data preview will appear here...</Text>
+                </div>
+              </Card>
+            ),
+          },
+          {
+            key: 'usage',
+            label: 'Usage',
+            children: (
+              <Card title='Dataset Usage'>
+                <Text>
+                  This dataset can be used in experiments and evaluations.
+                </Text>
+                <Divider />
+                <Text strong>How to use this dataset:</Text>
+                <ul style={{ marginTop: 8 }}>
+                  <li>Select this dataset when creating an experiment</li>
+                  <li>Dataset will be automatically loaded during execution</li>
+                  <li>Results can be compared with other datasets</li>
+                </ul>
+              </Card>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 };

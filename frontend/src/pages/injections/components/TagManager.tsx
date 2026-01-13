@@ -1,10 +1,12 @@
+import { useEffect, useRef, useState } from 'react';
+
 import {
   InfoCircleOutlined,
   PlusOutlined,
   TagsOutlined,
 } from '@ant-design/icons';
 import { Button, Form, Input, message, Space, Tag, Tooltip } from 'antd';
-import { useEffect, useRef, useState, type React } from 'react';
+import type { InputRef } from 'antd/es/input';
 
 import './TagManager.css';
 
@@ -25,8 +27,8 @@ export const TagManager: React.FC<TagManagerProps> = ({
   const [inputValue, setInputValue] = useState('');
   const [editInputIndex, setEditInputIndex] = useState(-1);
   const [editInputValue, setEditInputValue] = useState('');
-  const inputRef = useRef<Input>(null);
-  const editInputRef = useRef<Input>(null);
+  const inputRef = useRef<InputRef>(null);
+  const editInputRef = useRef<InputRef>(null);
 
   useEffect(() => {
     if (inputVisible) {
@@ -111,11 +113,6 @@ export const TagManager: React.FC<TagManagerProps> = ({
     }
   };
 
-  const _validateTag = (tag: string) => {
-    // Allow alphanumeric, spaces, hyphens, and underscores
-    const pattern = /^[a-zA-Z0-9\s\-_]+$/;
-    return pattern.test(tag);
-  };
 
   const handleQuickAdd = (tag: string) => {
     if (value.indexOf(tag) === -1) {

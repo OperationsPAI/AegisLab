@@ -56,7 +56,7 @@ export const projectApi = {
       isPublic: params?.isPublic,
       status: params?.status,
     });
-    return response.data;
+    return response.data.data; // 返回 ListProjectResp 类型
   },
 
   // Get project detail - using generated SDK

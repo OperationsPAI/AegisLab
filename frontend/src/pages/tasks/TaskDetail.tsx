@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import {
   ArrowLeftOutlined,
@@ -13,7 +15,6 @@ import {
   PlayCircleOutlined,
   ReloadOutlined,
   SyncOutlined,
-  TagsOutlined,
 } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -37,12 +38,10 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
-import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
 
 import { taskApi } from '@/api/tasks';
 import StatusBadge from '@/components/ui/StatusBadge';
-import { TaskState, type Task, type TaskType, type Label } from '@/types/api';
+import { type TaskDetailResp, TaskState, TaskType } from '@/types/api';
 
 dayjs.extend(duration);
 
@@ -78,7 +77,7 @@ const TaskDetail = () => {
 
   // Real-time log streaming via SSE
   useEffect(() => {
-    if (!task || !task.data || task.data.state !== 1) return; // 1 = RUNNING
+    if (!task || !task.data || task.data.state !== '1') return; // 1 = RUNNING
 
     const eventSource = new EventSource(
       `/api/v2/traces/${task.data.trace_id}/stream`
@@ -111,7 +110,7 @@ const TaskDetail = () => {
   }, [task, refetch]);
 
   const handleCancelTask = () => {
-    if (task?.data?.state !== 1 && task?.data?.state !== 0) {
+    if (task?.data?.state !== '1' && task?.data?.state !== '0') {
       // Not RUNNING or PENDING
       message.warning('Only running or pending tasks can be cancelled');
       return;
@@ -136,7 +135,7 @@ const TaskDetail = () => {
   };
 
   const handleRetryTask = () => {
-    if (task?.data.state !== TaskState.ERROR) {
+    if (getTaskState(task?.data?.state) !== TaskState.ERROR) {
       message.warning('Only failed tasks can be retried');
       return;
     }
@@ -174,16 +173,20 @@ const TaskDetail = () => {
 
   const getTaskTypeIcon = (type: TaskType) => {
     switch (type) {
-      case 'SubmitInjection':
-        return <PlayCircleOutlined style={{ color: '#3b82f6' }} />;
-      case 'BuildDatapack':
+      case TaskType.BuildContainer:
         return <DashboardOutlined style={{ color: '#10b981' }} />;
-      case 'FaultInjection':
+      case TaskType.RestartPedestal:
+        return <ReloadOutlined style={{ color: '#3b82f6' }} />;
+      case TaskType.FaultInjection:
         return <SyncOutlined style={{ color: '#f59e0b' }} />;
-      case 'CollectResult':
-        return <DatabaseOutlined style={{ color: '#8b5cf6' }} />;
-      case 'AlgorithmExecution':
+      case TaskType.RunAlgorithm:
         return <FunctionOutlined style={{ color: '#ec4899' }} />;
+      case TaskType.BuildDatapack:
+        return <DatabaseOutlined style={{ color: '#8b5cf6' }} />;
+      case TaskType.CollectResult:
+        return <DatabaseOutlined style={{ color: '#8b5cf6' }} />;
+      case TaskType.CronJob:
+        return <ClockCircleOutlined style={{ color: '#6b7280' }} />;
       default:
         return <ClockCircleOutlined />;
     }
@@ -191,16 +194,20 @@ const TaskDetail = () => {
 
   const getTaskTypeColor = (type: TaskType) => {
     switch (type) {
-      case 'SubmitInjection':
-        return '#3b82f6';
-      case 'BuildDatapack':
+      case TaskType.BuildContainer:
         return '#10b981';
-      case 'FaultInjection':
+      case TaskType.RestartPedestal:
+        return '#3b82f6';
+      case TaskType.FaultInjection:
         return '#f59e0b';
-      case 'CollectResult':
-        return '#8b5cf6';
-      case 'AlgorithmExecution':
+      case TaskType.RunAlgorithm:
         return '#ec4899';
+      case TaskType.BuildDatapack:
+        return '#8b5cf6';
+      case TaskType.CollectResult:
+        return '#8b5cf6';
+      case TaskType.CronJob:
+        return '#6b7280';
       default:
         return '#6b7280';
     }
@@ -208,15 +215,17 @@ const TaskDetail = () => {
 
   const getStateColor = (state: TaskState) => {
     switch (state) {
-      case 0: // PENDING
+      case TaskState.PENDING:
         return '#d1d5db';
-      case 1: // RUNNING
+      case TaskState.RESCHEDULED:
+        return '#9ca3af';
+      case TaskState.RUNNING:
         return '#3b82f6';
-      case 2: // COMPLETED
+      case TaskState.COMPLETED:
         return '#10b981';
-      case 3: // ERROR
+      case TaskState.ERROR:
         return '#ef4444';
-      case 4: // CANCELLED
+      case TaskState.CANCELLED:
         return '#6b7280';
       default:
         return '#6b7280';
@@ -225,41 +234,21 @@ const TaskDetail = () => {
 
   const getStateIcon = (state: TaskState) => {
     switch (state) {
-      case 0: // PENDING
+      case TaskState.PENDING:
         return <ClockCircleOutlined />;
-      case 1: // RUNNING
+      case TaskState.RESCHEDULED:
+        return <ClockCircleOutlined style={{ color: '#9ca3af' }} />;
+      case TaskState.RUNNING:
         return <SyncOutlined spin />;
-      case 2: // COMPLETED
+      case TaskState.COMPLETED:
         return <CheckCircleOutlined />;
-      case 3: // ERROR
+      case TaskState.ERROR:
         return <CloseCircleOutlined />;
-      case 4: // CANCELLED
+      case TaskState.CANCELLED:
         return <PauseCircleOutlined />;
       default:
         return <ClockCircleOutlined />;
     }
-  };
-
-  const formatDuration = (start?: string, end?: string) => {
-    if (!start) return '-';
-    const startTime = dayjs(start);
-    const endTime = end ? dayjs(end) : dayjs();
-    const duration = dayjs.duration(endTime.diff(startTime));
-
-    if (duration.asHours() >= 1) {
-      return `${Math.floor(duration.asHours())}h ${duration.minutes()}m ${duration.seconds()}s`;
-    } else if (duration.asMinutes() >= 1) {
-      return `${duration.minutes()}m ${duration.seconds()}s`;
-    } else {
-      return `${duration.seconds()}s`;
-    }
-  };
-
-  const getTaskProgress = (task: Task) => {
-    if (task.state === 2) return 100; // COMPLETED
-    if (task.state === 3 || task.state === 4) return 0; // ERROR or CANCELLED
-    if (task.state === 1) return 50; // RUNNING
-    return 0;
   };
 
   if (isLoading) {
@@ -288,8 +277,38 @@ const TaskDetail = () => {
     );
   }
 
-  const taskData = task?.data;
-  const progress = getTaskProgress(taskData);
+  const taskData: TaskDetailResp | undefined = task?.data;
+
+  // Helper to convert string state to TaskState enum
+  const getTaskState = (state?: string): TaskState => {
+    const numState = parseInt(state || '0', 10);
+    if (Object.values(TaskState).includes(numState as TaskState)) {
+      return numState as TaskState;
+    }
+    return TaskState.PENDING;
+  };
+
+  // Helper to convert string type to TaskType enum
+  const getTaskType = (type?: string): TaskType => {
+    const numType = parseInt(type || '0', 10);
+    if (Object.values(TaskType).includes(numType as TaskType)) {
+      return numType as TaskType;
+    }
+    return TaskType.BuildContainer;
+  };
+
+  // Safe version of getTaskProgress
+  const getSafeTaskProgress = (taskData?: TaskDetailResp): number => {
+    if (!taskData) return 0;
+    const state = getTaskState(taskData.state);
+    if (state === TaskState.COMPLETED) return 100;
+    if (state === TaskState.ERROR || state === TaskState.CANCELLED) return 0;
+    if (state === TaskState.RUNNING) return 50;
+    if (state === TaskState.RESCHEDULED) return 25;
+    return 0;
+  };
+
+  const progress = getSafeTaskProgress(taskData);
 
   return (
     <div style={{ padding: 24 }}>
@@ -307,32 +326,40 @@ const TaskDetail = () => {
           </Title>
           <Badge
             status={
-              (task?.data?.state === 2
+              (getTaskState(task?.data?.state) === TaskState.COMPLETED
                 ? 'success' // COMPLETED
-                : task?.data?.state === 3
+                : getTaskState(task?.data?.state) === TaskState.ERROR
                   ? 'error' // ERROR
-                  : task?.data?.state === 1
+                  : getTaskState(task?.data?.state) === TaskState.RUNNING
                     ? 'processing' // RUNNING
-                    : task?.data?.state === 4
+                    : getTaskState(task?.data?.state) === TaskState.CANCELLED
                       ? 'warning' // CANCELLED
-                      : 'default') as 'success' | 'processing' | 'error' | 'default' | 'warning'
+                      : 'default') as
+                | 'success'
+                | 'processing'
+                | 'error'
+                | 'default'
+                | 'warning'
             }
             text={
               <Space>
-                {getStateIcon(task?.data?.state || 0)}
+                {getStateIcon(getTaskState(task?.data?.state))}
                 <Text
                   strong
-                  style={{ color: getStateColor(task?.data?.state || 0) }}
+                  style={{
+                    color: getStateColor(getTaskState(task?.data?.state)),
+                  }}
                 >
-                  {task?.data?.state === 0
+                  {getTaskState(task?.data?.state) === TaskState.PENDING
                     ? 'Pending' // PENDING
-                    : task?.data?.state === 1
+                    : getTaskState(task?.data?.state) === TaskState.RUNNING
                       ? 'Running' // RUNNING
-                      : task?.data?.state === 2
+                      : getTaskState(task?.data?.state) === TaskState.COMPLETED
                         ? 'Completed' // COMPLETED
-                        : task?.data?.state === 3
+                        : getTaskState(task?.data?.state) === TaskState.ERROR
                           ? 'Error' // ERROR
-                          : task?.data?.state === 4
+                          : getTaskState(task?.data?.state) ===
+                              TaskState.CANCELLED
                             ? 'Cancelled' // CANCELLED
                             : 'Unknown'}
                 </Text>
@@ -347,7 +374,8 @@ const TaskDetail = () => {
         <Row justify='space-between' align='middle'>
           <Col>
             <Space>
-              {(taskData?.state === 1 || taskData?.state === 0) && ( // RUNNING or PENDING
+              {(getTaskState(taskData?.state) === TaskState.RUNNING ||
+                getTaskState(taskData?.state) === TaskState.PENDING) && ( // RUNNING or PENDING
                 <Button
                   danger
                   icon={<PauseCircleOutlined />}
@@ -356,7 +384,7 @@ const TaskDetail = () => {
                   Cancel Task
                 </Button>
               )}
-              {taskData?.state === 3 && ( // ERROR
+              {getTaskState(taskData?.state) === TaskState.ERROR && ( // ERROR
                 <Button
                   type='primary'
                   icon={<ReloadOutlined />}
@@ -405,16 +433,16 @@ const TaskDetail = () => {
         <Progress
           percent={progress}
           status={
-            taskData.state === TaskState.ERROR
+            getTaskState(taskData?.state) === TaskState.ERROR
               ? 'exception'
-              : taskData.state === TaskState.COMPLETED
+              : getTaskState(taskData?.state) === TaskState.COMPLETED
                 ? 'success'
                 : 'active'
           }
-          strokeColor={getStateColor(taskData.state)}
+          strokeColor={getStateColor(getTaskState(taskData?.state))}
           format={(percent) => (
             <Space>
-              {getStateIcon(taskData.state)}
+              {getStateIcon(getTaskState(taskData?.state))}
               <Text>{percent}%</Text>
             </Space>
           )}
@@ -422,305 +450,294 @@ const TaskDetail = () => {
       </Card>
 
       {/* Tabs */}
-      <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
-        {
-          key: 'overview',
-          label: 'Overview',
-          children: (
-          <>
-          <Row gutter={[16, 16]}>
-            <Col xs={24} lg={16}>
-              <Card title='Task Information'>
-                <Descriptions column={2} bordered>
-                  <Descriptions.Item label='Task ID'>
-                    <Space>
-                      <Text code>{taskId}</Text>
-                      <Button
-                        type='text'
-                        size='small'
-                        icon={<CopyOutlined />}
-                        onClick={() => {
-                          navigator.clipboard.writeText(taskId);
-                          message.success('Task ID copied to clipboard');
-                        }}
-                      />
-                    </Space>
-                  </Descriptions.Item>
-                  <Descriptions.Item label='Type'>
-                    <Tag
-                      color={getTaskTypeColor(taskData.type)}
-                      style={{ fontWeight: 500, fontSize: '1rem' }}
-                    >
-                      <Space>
-                        {getTaskTypeIcon(taskData.type)}
-                        {taskData.type}
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        items={[
+          {
+            key: 'overview',
+            label: 'Overview',
+            children: (
+              <>
+                <Row gutter={[16, 16]}>
+                  <Col xs={24} lg={16}>
+                    <Card title='Task Information'>
+                      <Descriptions column={2} bordered>
+                        <Descriptions.Item label='Task ID'>
+                          <Space>
+                            <Text code>{taskId}</Text>
+                            <Button
+                              type='text'
+                              size='small'
+                              icon={<CopyOutlined />}
+                              onClick={() => {
+                                navigator.clipboard.writeText(taskId);
+                                message.success('Task ID copied to clipboard');
+                              }}
+                            />
+                          </Space>
+                        </Descriptions.Item>
+                        <Descriptions.Item label='Type'>
+                          <Tag
+                            color={getTaskTypeColor(
+                              getTaskType(taskData?.type)
+                            )}
+                            style={{ fontWeight: 500, fontSize: '1rem' }}
+                          >
+                            <Space>
+                              {getTaskTypeIcon(getTaskType(taskData?.type))}
+                              {taskData?.type || 'Unknown'}
+                            </Space>
+                          </Tag>
+                        </Descriptions.Item>
+                        <Descriptions.Item label='Status'>
+                          <StatusBadge
+                            status={
+                              getTaskState(taskData?.state) ===
+                              TaskState.COMPLETED
+                                ? 'completed'
+                                : getTaskState(taskData?.state) ===
+                                    TaskState.ERROR
+                                  ? 'error'
+                                  : getTaskState(taskData?.state) ===
+                                      TaskState.RUNNING
+                                    ? 'running'
+                                    : getTaskState(taskData?.state) ===
+                                        TaskState.CANCELLED
+                                      ? 'warning'
+                                      : 'pending'
+                            }
+                            text={
+                              getTaskState(taskData?.state) ===
+                              TaskState.PENDING
+                                ? 'Pending'
+                                : getTaskState(taskData?.state) ===
+                                    TaskState.RUNNING
+                                  ? 'Running'
+                                  : getTaskState(taskData?.state) ===
+                                      TaskState.COMPLETED
+                                    ? 'Completed'
+                                    : getTaskState(taskData?.state) ===
+                                        TaskState.ERROR
+                                      ? 'Error'
+                                      : getTaskState(taskData?.state) ===
+                                          TaskState.CANCELLED
+                                        ? 'Cancelled'
+                                        : 'Unknown'
+                            }
+                          />
+                        </Descriptions.Item>
+                        <Descriptions.Item label='Retry Count'>
+                          <Text code>N/A</Text>
+                        </Descriptions.Item>
+                        <Descriptions.Item label='Immediate'>
+                          <Text>{taskData?.immediate ? 'Yes' : 'No'}</Text>
+                        </Descriptions.Item>
+                        <Descriptions.Item label='Trace ID'>
+                          <Text code>{taskData?.trace_id || 'N/A'}</Text>
+                        </Descriptions.Item>
+                        <Descriptions.Item label='Group ID'>
+                          <Text code>{taskData?.group_id || 'N/A'}</Text>
+                        </Descriptions.Item>
+                        <Descriptions.Item label='Project ID'>
+                          <Text>{taskData?.project_id || 'N/A'}</Text>
+                        </Descriptions.Item>
+                        <Descriptions.Item label='Status Code'>
+                          <Text code>{taskData?.status || 'N/A'}</Text>
+                        </Descriptions.Item>
+                      </Descriptions>
+                    </Card>
+                  </Col>
+                  <Col xs={24} lg={8}>
+                    <Card title='Timing Information'>
+                      <Space direction='vertical' style={{ width: '100%' }}>
+                        <div>
+                          <Text type='secondary'>Created</Text>
+                          <br />
+                          <Text strong>
+                            {taskData?.created_at
+                              ? dayjs(taskData.created_at).format(
+                                  'MMM D, YYYY HH:mm:ss'
+                                )
+                              : 'N/A'}
+                          </Text>
+                        </div>
+                        <Divider />
+                        <div>
+                          <Text type='secondary'>Duration</Text>
+                          <br />
+                          <Title
+                            level={3}
+                            style={{ margin: 0, color: '#3b82f6' }}
+                          >
+                            N/A
+                          </Title>
+                        </div>
                       </Space>
-                    </Tag>
-                  </Descriptions.Item>
-                  <Descriptions.Item label='Status'>
-                    <StatusBadge
-                      status={
-                        taskData.state === TaskState.COMPLETED
-                          ? 'success'
-                          : taskData.state === TaskState.ERROR
-                            ? 'error'
-                            : taskData.state === TaskState.RUNNING
-                              ? 'processing'
-                              : taskData.state === TaskState.CANCELLED
-                                ? 'warning'
-                                : 'default'
-                      }
-                      text={
-                        taskData.state === TaskState.PENDING
-                          ? 'Pending'
-                          : taskData.state === TaskState.RUNNING
-                            ? 'Running'
-                            : taskData.state === TaskState.COMPLETED
-                              ? 'Completed'
-                              : taskData.state === TaskState.ERROR
-                                ? 'Error'
-                                : taskData.state === TaskState.CANCELLED
-                                  ? 'Cancelled'
-                                  : 'Unknown'
-                      }
-                    />
-                  </Descriptions.Item>
-                  <Descriptions.Item label='Retry Count'>
-                    <Text code>
-                      {taskData.retry_count}/{taskData.max_retry}
-                    </Text>
-                  </Descriptions.Item>
-                  <Descriptions.Item label='Immediate'>
-                    <Text>{taskData.immediate ? 'Yes' : 'No'}</Text>
-                  </Descriptions.Item>
-                  <Descriptions.Item label='Trace ID'>
-                    <Text code>{taskData.trace_id}</Text>
-                  </Descriptions.Item>
-                  <Descriptions.Item label='Group ID'>
-                    <Text code>{taskData.group_id}</Text>
-                  </Descriptions.Item>
-                  {taskData.parent_id && (
-                    <Descriptions.Item label='Parent ID'>
-                      <Text code>{taskData.parent_id}</Text>
-                    </Descriptions.Item>
+                    </Card>
+                  </Col>
+                </Row>
+
+                {taskData?.payload !== undefined &&
+                  taskData?.payload !== null && (
+                    <Card title='Payload' style={{ marginTop: 16 }}>
+                      <pre
+                        style={{
+                          margin: 0,
+                          fontSize: '0.875rem',
+                          whiteSpace: 'pre-wrap',
+                        }}
+                      >
+                        {JSON.stringify(taskData.payload, null, 2)}
+                      </pre>
+                    </Card>
                   )}
-                  <Descriptions.Item label='Project ID'>
-                    <Text>{taskData.project_id || 'N/A'}</Text>
-                  </Descriptions.Item>
-                  <Descriptions.Item label='Status Code'>
-                    <Text code>{taskData.status}</Text>
-                  </Descriptions.Item>
-                </Descriptions>
-              </Card>
-            </Col>
-            <Col xs={24} lg={8}>
-              <Card title='Timing Information'>
-                <Space direction='vertical' style={{ width: '100%' }}>
-                  <div>
-                    <Text type='secondary'>Created</Text>
-                    <br />
-                    <Text strong>
-                      {dayjs(taskData.created_at).format(
-                        'MMM D, YYYY HH:mm:ss'
-                      )}
-                    </Text>
+              </>
+            ),
+          },
+
+          {
+            key: 'logs',
+            label: 'Logs',
+            children: (
+              <Card
+                title='Task Logs'
+                extra={
+                  <Space>
+                    <Button
+                      icon={<ReloadOutlined />}
+                      onClick={() => setLogs([])}
+                    >
+                      Clear Logs
+                    </Button>
+                    <Button
+                      icon={<DownloadOutlined />}
+                      onClick={handleDownloadLogs}
+                      disabled={logs.length === 0}
+                    >
+                      Download
+                    </Button>
+                  </Space>
+                }
+              >
+                {logs.length > 0 ? (
+                  <div
+                    style={{
+                      background: '#f5f5f5',
+                      padding: 16,
+                      borderRadius: 4,
+                      maxHeight: 400,
+                      overflow: 'auto',
+                    }}
+                  >
+                    <pre
+                      style={{
+                        margin: 0,
+                        fontSize: '0.875rem',
+                        fontFamily: 'monospace',
+                      }}
+                    >
+                      {logs.join('\n')}
+                    </pre>
                   </div>
-                  <Divider />
-                  {taskData.started_at && (
-                    <>
-                      <div>
-                        <Text type='secondary'>Started</Text>
-                        <br />
-                        <Text strong>
-                          {dayjs(taskData.started_at).format(
+                ) : (
+                  <Empty
+                    description='No logs available. Logs will appear when the task starts running.'
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  />
+                )}
+              </Card>
+            ),
+          },
+
+          {
+            key: 'timeline',
+            label: 'Timeline',
+            children: (
+              <Card title='Task Execution Timeline'>
+                <Timeline>
+                  <Timeline.Item color='blue' dot={<ClockCircleOutlined />}>
+                    <Text strong>Task Created</Text>
+                    <br />
+                    <Text type='secondary'>
+                      {taskData?.created_at
+                        ? dayjs(taskData.created_at).format(
                             'MMM D, YYYY HH:mm:ss'
-                          )}
-                        </Text>
-                      </div>
-                      <Divider />
-                    </>
+                          )
+                        : 'N/A'}
+                    </Text>
+                  </Timeline.Item>
+
+                  {taskData?.started_at && (
+                    <Timeline.Item color='green' dot={<PlayCircleOutlined />}>
+                      <Text strong>Task Started</Text>
+                      <br />
+                      <Text type='secondary'>
+                        {dayjs(taskData.started_at).format(
+                          'MMM D, YYYY HH:mm:ss'
+                        )}
+                      </Text>
+                    </Timeline.Item>
                   )}
-                  {taskData.finished_at && (
-                    <>
-                      <div>
-                        <Text type='secondary'>Finished</Text>
+
+                  {getTaskState(taskData?.state) === TaskState.RUNNING && (
+                    <Timeline.Item color='blue' dot={<SyncOutlined spin />}>
+                      <Text strong>Task Running</Text>
+                      <br />
+                      <Text type='secondary'>In progress...</Text>
+                    </Timeline.Item>
+                  )}
+
+                  {getTaskState(taskData?.state) === TaskState.COMPLETED &&
+                    taskData?.finished_at && (
+                      <Timeline.Item
+                        color='green'
+                        dot={<CheckCircleOutlined />}
+                      >
+                        <Text strong>Task Completed</Text>
                         <br />
-                        <Text strong>
+                        <Text type='secondary'>
                           {dayjs(taskData.finished_at).format(
                             'MMM D, YYYY HH:mm:ss'
                           )}
                         </Text>
-                      </div>
-                      <Divider />
-                    </>
-                  )}
-                  <div>
-                    <Text type='secondary'>Duration</Text>
-                    <br />
-                    <Title level={3} style={{ margin: 0, color: '#3b82f6' }}>
-                      {formatDuration(
-                        taskData.started_at,
-                        taskData.finished_at
-                      )}
-                    </Title>
-                  </div>
-                </Space>
+                      </Timeline.Item>
+                    )}
+
+                  {getTaskState(taskData?.state) === TaskState.ERROR &&
+                    taskData?.finished_at && (
+                      <Timeline.Item color='red' dot={<CloseCircleOutlined />}>
+                        <Text strong>Task Failed</Text>
+                        <br />
+                        <Text type='secondary'>
+                          {dayjs(taskData.finished_at).format(
+                            'MMM D, YYYY HH:mm:ss'
+                          )}
+                        </Text>
+                      </Timeline.Item>
+                    )}
+
+                  {getTaskState(taskData?.state) === TaskState.CANCELLED &&
+                    taskData?.finished_at && (
+                      <Timeline.Item
+                        color='orange'
+                        dot={<PauseCircleOutlined />}
+                      >
+                        <Text strong>Task Cancelled</Text>
+                        <br />
+                        <Text type='secondary'>
+                          {dayjs(taskData.finished_at).format(
+                            'MMM D, YYYY HH:mm:ss'
+                          )}
+                        </Text>
+                      </Timeline.Item>
+                    )}
+                </Timeline>
               </Card>
-            </Col>
-          </Row>
-
-          {taskData?.labels && taskData.labels.length > 0 && (
-            <Card title='Labels' style={{ marginTop: 16 }}>
-              <Space wrap>
-                {taskData.labels.map((label: Label, index: number) => (
-                  <Tag key={index} icon={<TagsOutlined />}>
-                    {label.key}: {label.value}
-                  </Tag>
-                ))}
-              </Space>
-            </Card>
-          )}
-
-          {taskData?.payload && (
-            <Card title='Payload' style={{ marginTop: 16 }}>
-              <pre
-                style={{
-                  margin: 0,
-                  fontSize: '0.875rem',
-                  whiteSpace: 'pre-wrap',
-                }}
-              >
-                {JSON.stringify(taskData.payload, null, 2)}
-              </pre>
-            </Card>
-          )}
-    </>
-  )
-},
-
-        {
-          key: 'logs',
-          label: 'Logs',
-          children: (
-          <Card
-            title='Task Logs'
-            extra={
-              <Space>
-                <Button icon={<ReloadOutlined />} onClick={() => setLogs([])}>
-                  Clear Logs
-                </Button>
-                <Button
-                  icon={<DownloadOutlined />}
-                  onClick={handleDownloadLogs}
-                  disabled={logs.length === 0}
-                >
-                  Download
-                </Button>
-              </Space>
-            }
-          >
-            {logs.length > 0 ? (
-              <div
-                style={{
-                  background: '#f5f5f5',
-                  padding: 16,
-                  borderRadius: 4,
-                  maxHeight: 400,
-                  overflow: 'auto',
-                }}
-              >
-                <pre
-                  style={{
-                    margin: 0,
-                    fontSize: '0.875rem',
-                    fontFamily: 'monospace',
-                  }}
-                >
-                  {logs.join('\n')}
-                </pre>
-              </div>
-            ) : (
-              <Empty
-                description='No logs available. Logs will appear when the task starts running.'
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-              />
-            )}
-          </Card>
-    )
-  },
-
-        {
-          key: 'timeline',
-          label: 'Timeline',
-          children: (
-          <Card title='Task Execution Timeline'>
-            <Timeline>
-              <Timeline.Item color='blue' dot={<ClockCircleOutlined />}>
-                <Text strong>Task Created</Text>
-                <br />
-                <Text type='secondary'>
-                  {dayjs(taskData.created_at).format('MMM D, YYYY HH:mm:ss')}
-                </Text>
-              </Timeline.Item>
-
-              {taskData?.started_at && (
-                <Timeline.Item color='green' dot={<PlayCircleOutlined />}>
-                  <Text strong>Task Started</Text>
-                  <br />
-                  <Text type='secondary'>
-                    {dayjs(taskData.started_at).format('MMM D, YYYY HH:mm:ss')}
-                  </Text>
-                </Timeline.Item>
-              )}
-
-              {taskData?.state === TaskState.RUNNING && (
-                <Timeline.Item color='blue' dot={<SyncOutlined spin />}>
-                  <Text strong>Task Running</Text>
-                  <br />
-                  <Text type='secondary'>In progress...</Text>
-                </Timeline.Item>
-              )}
-
-              {taskData?.state === TaskState.COMPLETED &&
-                taskData?.finished_at && (
-                  <Timeline.Item color='green' dot={<CheckCircleOutlined />}>
-                    <Text strong>Task Completed</Text>
-                    <br />
-                    <Text type='secondary'>
-                      {dayjs(taskData.finished_at).format(
-                        'MMM D, YYYY HH:mm:ss'
-                      )}
-                    </Text>
-                  </Timeline.Item>
-                )}
-
-              {taskData?.state === TaskState.ERROR && taskData?.finished_at && (
-                <Timeline.Item color='red' dot={<CloseCircleOutlined />}>
-                  <Text strong>Task Failed</Text>
-                  <br />
-                  <Text type='secondary'>
-                    {dayjs(taskData.finished_at).format('MMM D, YYYY HH:mm:ss')}
-                  </Text>
-                </Timeline.Item>
-              )}
-
-              {taskData?.state === TaskState.CANCELLED &&
-                taskData?.finished_at && (
-                  <Timeline.Item color='orange' dot={<PauseCircleOutlined />}>
-                    <Text strong>Task Cancelled</Text>
-                    <br />
-                    <Text type='secondary'>
-                      {dayjs(taskData.finished_at).format(
-                        'MMM D, YYYY HH:mm:ss'
-                      )}
-                    </Text>
-                  </Timeline.Item>
-                )}
-            </Timeline>
-          </Card>
-    )
-  }
-]} />
+            ),
+          },
+        ]}
+      />
     </div>
   );
 };

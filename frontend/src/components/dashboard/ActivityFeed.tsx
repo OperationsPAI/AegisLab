@@ -7,9 +7,9 @@ import {
   ProjectOutlined,
 } from '@ant-design/icons';
 import type {
-  DtoExecutionDetailResp as Execution,
-  DtoInjectionDetailResp as Injection,
-  DtoProjectResp as Project,
+  ExecutionDetailResp as Execution,
+  InjectionDetailResp as Injection,
+  ProjectResp as Project,
 } from '@rcabench/client';
 import { Typography } from 'antd';
 import dayjs from 'dayjs';

@@ -1,8 +1,8 @@
 import {
   Configuration,
   InjectionsApi,
-  type ListInjectionsTypeEnum,
-  type DtoSubmitInjectionReq,
+  type ListInjectionsType,
+  type SubmitInjectionReq,
 } from '@rcabench/client';
 import axios, { type AxiosRequestConfig } from 'axios';
 
@@ -63,7 +63,7 @@ export const injectionApi = {
     const response = await injectionsApi.listInjections({
       page: params?.page,
       size: params?.size,
-      type: params?.fault_type as unknown as ListInjectionsTypeEnum,
+      type: params?.fault_type as unknown as ListInjectionsType,
       state: params?.state,
       labels: params?.label ? [params.label] : undefined,
     });
@@ -81,7 +81,7 @@ export const injectionApi = {
   submitInjection: async (data: Record<string, unknown>) => {
     const injectionsApi = new InjectionsApi(createInjectionConfig());
     const response = await injectionsApi.injectFault({
-      body: data as unknown as DtoSubmitInjectionReq,
+      body: data as unknown as SubmitInjectionReq,
     });
     return response.data;
   },
@@ -112,7 +112,7 @@ export const injectionApi = {
   getFaultMetadata: async (params: { system: string }) => {
     const injectionsApi = new InjectionsApi(createInjectionConfig());
     const response = await injectionsApi.getInjectionMetadata({
-      namespace: params.system,
+      system: params.system as any,
     });
     return response;
   },
@@ -123,7 +123,7 @@ export const injectionApi = {
 
   // Batch delete - manual endpoint (not in generated SDK)
   batchDelete: (ids: number[]) =>
-    apiClient.post<GenericResponse>('/injections/batch-delete', { ids }),
+    apiClient.post<GenericResponse<null>>('/injections/batch-delete', { ids }),
 
   // Analysis - using generated SDK
   getNoIssues: async () => {

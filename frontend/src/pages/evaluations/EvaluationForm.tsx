@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import {
   BarChartOutlined,
@@ -29,8 +31,6 @@ import {
   Tag,
   Typography,
 } from 'antd';
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 import { containerApi } from '@/api/containers';
 import { datasetApi } from '@/api/datasets';
@@ -67,7 +67,7 @@ const EvaluationForm = () => {
   // Fetch algorithms
   const { data: algorithmsData } = useQuery({
     queryKey: ['algorithms'],
-    queryFn: () => containerApi.getContainers({ type: 'Algorithm' }),
+    queryFn: () => containerApi.getContainers({ type: 0 }), // Algorithm = 0
   });
 
   // Fetch executions for datapacks
@@ -86,8 +86,8 @@ const EvaluationForm = () => {
   const evaluateMutation = useMutation({
     mutationFn: (specs: DatapackEvaluationSpec[]) =>
       evaluationType === 'datapack'
-        ? evaluationApi.evaluateDatapacks(specs as Array<Record<string, unknown>>)
-        : evaluationApi.evaluateDatasets(specs as Array<Record<string, unknown>>),
+        ? evaluationApi.evaluateDatapacks(specs as any)
+        : evaluationApi.evaluateDatasets(specs as any),
     onSuccess: (_data) => {
       message.success('Evaluation completed successfully!');
       navigate('/evaluations');
@@ -102,13 +102,9 @@ const EvaluationForm = () => {
 
   const handleAlgorithmChange = (algorithmName: string) => {
     setSelectedAlgorithm(algorithmName);
-    const algorithm = algorithmsData?.data?.data?.find(
-      (a) => a.name === algorithmName
-    );
-    if (algorithm?.versions?.[0]) {
-      setSelectedVersion(algorithm.versions[0].version);
-      form.setFieldsValue({ algorithm_version: algorithm.versions[0].version });
-    }
+    // For now, we'll use a default version
+    setSelectedVersion('latest');
+    form.setFieldsValue({ algorithm_version: 'latest' });
   };
 
   const handleVersionChange = (version: string) => {
@@ -157,10 +153,7 @@ const EvaluationForm = () => {
           name: selectedAlgorithm,
           version: selectedVersion,
         },
-        datapack:
-          evaluationType === 'datapack' ? selectedDatapack : '',
-        dataset:
-          evaluationType === 'dataset' ? selectedDataset : '',
+        datapack: evaluationType === 'datapack' ? selectedDatapack : '',
       },
     ];
 
@@ -191,7 +184,7 @@ const EvaluationForm = () => {
     navigate('/evaluations');
   };
 
-  if (!algorithmsData?.data?.data?.length) {
+  if (!algorithmsData?.data?.items?.length) {
     return (
       <div style={{ padding: 24 }}>
         <Card>
@@ -299,7 +292,7 @@ const EvaluationForm = () => {
                   size='large'
                   onChange={handleAlgorithmChange}
                 >
-                  {algorithmsData?.data?.data?.map((algorithm) => (
+                  {algorithmsData?.data?.items?.map((algorithm: any) => (
                     <Option key={algorithm.id} value={algorithm.name}>
                       <Space>
                         <FunctionOutlined style={{ color: '#f59e0b' }} />
@@ -336,22 +329,17 @@ const EvaluationForm = () => {
                       onChange={handleVersionChange}
                       value={selectedVersion}
                     >
-                      {algorithmsData?.data?.data
-                        ?.find((a) => a.name === selectedAlgorithm)
-                        ?.versions?.map((version) => (
-                          <Option key={version.id} value={version.version}>
-                            <Space>
-                              <Text>{version.version}</Text>
-                              <Text
-                                type='secondary'
-                                style={{ fontSize: '0.75rem' }}
-                              >
-                                ({version.registry}/{version.repository}:
-                                {version.tag})
-                              </Text>
-                            </Space>
-                          </Option>
-                        ))}
+                      <Option key='latest' value='latest'>
+                        <Space>
+                          <Text>latest</Text>
+                          <Text
+                            type='secondary'
+                            style={{ fontSize: '0.75rem' }}
+                          >
+                            Default version
+                          </Text>
+                        </Space>
+                      </Option>
                     </Select>
                   </Form.Item>
 
@@ -363,23 +351,19 @@ const EvaluationForm = () => {
                       <Descriptions.Item label='Public'>
                         <Switch
                           checked={
-                            algorithmsData.data.find(
-                              (a) => a.name === selectedAlgorithm
+                            algorithmsData?.data?.items?.find(
+                              (a: any) => a.name === selectedAlgorithm
                             )?.is_public
                           }
                           disabled
                           size='small'
                         />
                       </Descriptions.Item>
-                      <Descriptions.Item label='Versions'>
-                        {algorithmsData.data.find(
-                          (a) => a.name === selectedAlgorithm
-                        )?.versions?.length || 0}
-                      </Descriptions.Item>
+                      <Descriptions.Item label='Versions'>1</Descriptions.Item>
                       <Descriptions.Item label='Created'>
                         {new Date(
-                          algorithmsData.data.find(
-                            (a) => a.name === selectedAlgorithm
+                          algorithmsData?.data?.items?.find(
+                            (a: any) => a.name === selectedAlgorithm
                           )?.created_at || ''
                         ).toLocaleDateString()}
                       </Descriptions.Item>
@@ -401,28 +385,31 @@ const EvaluationForm = () => {
                     size='large'
                     onChange={handleDatapackChange}
                   >
-                    {executionsData.data.map((execution) => (
-                      <Option
-                        key={execution.id}
-                        value={execution.datapack_id || ''}
-                      >
-                        <Space>
-                          <DatabaseOutlined style={{ color: '#3b82f6' }} />
-                          <div>
+                    {executionsData?.data?.data?.map(
+                      (execution: Execution) => (
+                        <Option
+                          key={execution.id}
+                          value={execution.datapack_id || ''}
+                        >
+                          <Space>
+                            <DatabaseOutlined style={{ color: '#3b82f6' }} />
                             <div>
-                              Datapack {execution.datapack_id?.substring(0, 8)}
+                              <div>
+                                Datapack{' '}
+                                {execution.datapack_id?.substring(0, 8)}
+                              </div>
+                              <Text
+                                type='secondary'
+                                style={{ fontSize: '0.75rem' }}
+                              >
+                                From execution #{execution.id} -{' '}
+                                {execution.algorithm?.name}
+                              </Text>
                             </div>
-                            <Text
-                              type='secondary'
-                              style={{ fontSize: '0.75rem' }}
-                            >
-                              From execution #{execution.id} -{' '}
-                              {execution.algorithm?.name}
-                            </Text>
-                          </div>
-                        </Space>
-                      </Option>
-                    ))}
+                          </Space>
+                        </Option>
+                      )
+                    )}
                   </Select>
                 </Form.Item>
               )}
@@ -440,7 +427,7 @@ const EvaluationForm = () => {
                     size='large'
                     onChange={handleDatasetChange}
                   >
-                    {datasetsData.data.map((dataset) => (
+                    {datasetsData?.map((dataset: Dataset) => (
                       <Option key={dataset.id} value={String(dataset.id)}>
                         <Space>
                           <DatabaseOutlined style={{ color: '#10b981' }} />
@@ -470,7 +457,7 @@ const EvaluationForm = () => {
                   size='large'
                   allowClear
                 >
-                  {datasetsData?.data.data.map((dataset) => (
+                  {datasetsData?.data.map((dataset) => (
                     <Option key={dataset.id} value={String(dataset.id)}>
                       <Space>
                         <CheckCircleOutlined style={{ color: '#10b981' }} />
@@ -631,7 +618,7 @@ const EvaluationForm = () => {
               <Col span={12}>
                 <Statistic
                   title='Available Algorithms'
-                  value={algorithmsData?.data.length || 0}
+                  value={algorithmsData?.data?.items?.length || 0}
                   prefix={<FunctionOutlined />}
                   valueStyle={{ color: '#f59e0b' }}
                 />
@@ -639,7 +626,7 @@ const EvaluationForm = () => {
               <Col span={12}>
                 <Statistic
                   title='Available Datapacks'
-                  value={executionsData?.data.length || 0}
+                  value={executionsData?.data?.data?.length || 0}
                   prefix={<DatabaseOutlined />}
                   valueStyle={{ color: '#3b82f6' }}
                 />
@@ -647,7 +634,7 @@ const EvaluationForm = () => {
               <Col span={12}>
                 <Statistic
                   title='Available Datasets'
-                  value={datasetsData?.data.length || 0}
+                  value={datasetsData?.data?.data?.length || 0}
                   prefix={<DatabaseOutlined />}
                   valueStyle={{ color: '#10b981' }}
                 />

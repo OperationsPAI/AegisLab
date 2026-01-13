@@ -1,6 +1,6 @@
-import { Badge, Tag } from 'antd';
 import type { CSSProperties } from 'react';
 
+import { Badge, Tag } from 'antd';
 
 interface StatusBadgeProps {
   status: 'pending' | 'running' | 'completed' | 'error' | 'warning' | 'info';

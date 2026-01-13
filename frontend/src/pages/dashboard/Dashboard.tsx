@@ -16,7 +16,6 @@ import { projectApi } from '@/api/projects';
 import { taskApi } from '@/api/tasks';
 import LabChart from '@/components/charts/LabChart';
 import StatCard from '@/components/ui/StatCard';
-import { InjectionState, TaskState } from '@/types/api';
 
 import './Dashboard.css';
 
@@ -50,18 +49,16 @@ const Dashboard = () => {
   const stats = {
     totalProjects: projects?.data?.pagination?.total || 0,
     activeInjections:
-      injections?.data?.items?.filter((i) => i.state === InjectionState.RUNNING)
-        .length || 0,
+      injections?.data?.items?.filter((i) => i.state === '1').length || 0, // RUNNING
     pendingTasks:
-      tasks?.data?.items?.filter((t) => t.state === TaskState.PENDING).length || 0,
+      tasks?.data?.items?.filter((t) => t.state === '0').length || 0, // PENDING
     runningTasks:
-      tasks?.data?.items?.filter((t) => t.state === TaskState.RUNNING).length || 0,
+      tasks?.data?.items?.filter((t) => t.state === '1').length || 0, // RUNNING
     completedTasks:
-      tasks?.data?.items?.filter((t) => t.state === TaskState.COMPLETED).length || 0,
-    errorTasks:
-      tasks?.data?.items?.filter((t) => t.state === TaskState.ERROR).length || 0,
+      tasks?.data?.items?.filter((t) => t.state === '2').length || 0, // COMPLETED
+    errorTasks: tasks?.data?.items?.filter((t) => t.state === '3').length || 0, // ERROR
     todayExecutions:
-      executions?.data?.items?.filter((e) =>
+      executions?.data?.data?.items?.filter((e: any) =>
         dayjs(e.created_at).isAfter(dayjs().startOf('day'))
       ).length || 0,
   };

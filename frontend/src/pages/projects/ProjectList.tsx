@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import {
   CalendarOutlined,
@@ -26,8 +28,6 @@ import {
   Typography,
 } from 'antd';
 import dayjs from 'dayjs';
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 import { projectApi } from '@/api/projects';
 import StatCard from '@/components/ui/StatCard';
@@ -35,6 +35,7 @@ import StatusBadge, {
   type StatusBadgeProps,
 } from '@/components/ui/StatusBadge';
 import { ProjectState } from '@/types/api';
+import './ProjectList.css';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -60,17 +61,17 @@ const ProjectList = () => {
 
   // Statistics - mock data for now
   const stats = {
-    total: projectsData?.total || 0,
+    total: projectsData?.pagination?.total || 0,
     active:
-      projectsData?.data.filter((p) => p.state === ProjectState.ACTIVE)
+      projectsData?.items?.filter((p: any) => p.state === ProjectState.ACTIVE)
         .length || 0,
     completedThisMonth:
-      projectsData?.data.filter((p) =>
+      projectsData?.items?.filter((p: any) =>
         dayjs(p.created_at).isAfter(dayjs().subtract(1, 'month'))
       ).length || 0,
     totalExperiments:
-      projectsData?.data.reduce(
-        (sum, p) => sum + (p.experiment_count || 0),
+      projectsData?.items?.reduce(
+        (sum: number, p: any) => sum + (p.experiment_count || 0),
         0
       ) || 0,
   };
@@ -92,9 +93,11 @@ const ProjectList = () => {
     navigate('/projects/new');
   };
 
-  const handleEditProject = (_id: number) => {
+  const handleEditProject = (_id: number | undefined) => {
     // TODO: Navigate to edit page when implemented
-    // console.log('Edit project:', id)
+    if (_id) {
+      // console.log('Edit project:', _id)
+    }
   };
 
   const handleRunExperiment = (_project: Project) => {
@@ -303,11 +306,11 @@ const ProjectList = () => {
       <Card className='table-card'>
         <Table
           columns={columns}
-          dataSource={projectsData?.data || []}
+          dataSource={projectsData?.items || []}
           loading={isLoading}
           pagination={{
             ...pagination,
-            total: projectsData?.total || 0,
+            total: projectsData?.pagination?.total || 0,
             showSizeChanger: true,
             showQuickJumper: true,
             showTotal: (total) => `Total ${total} projects`,

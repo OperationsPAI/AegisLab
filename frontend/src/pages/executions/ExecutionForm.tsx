@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import {
   CloseOutlined,
@@ -7,6 +9,13 @@ import {
   PlayCircleOutlined,
   TagsOutlined,
 } from '@ant-design/icons';
+import type {
+  ContainerDetailResp,
+  ContainerResp,
+  ContainerVersionResp,
+  GenericResponseContainerDetailResp,
+  ListContainerResp,
+} from '@rcabench/client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
@@ -26,12 +35,10 @@ import {
   Tag,
   Typography,
 } from 'antd';
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 import { containerApi } from '@/api/containers';
 import { executionApi } from '@/api/executions';
-import type { Container, Label } from '@/types/api';
+import type { Label } from '@/types/api';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -47,17 +54,17 @@ const ExecutionForm = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [form] = Form.useForm<ExecutionFormData>();
-  const [selectedAlgorithm, setSelectedAlgorithm] = useState<Container | null>(
-    null
-  );
+  const [selectedAlgorithm, setSelectedAlgorithm] = useState<
+    ContainerDetailResp | ContainerResp | null
+  >(null);
   const [selectedVersion, setSelectedVersion] = useState<string>('');
   const [labelInput, setLabelInput] = useState('');
   const [labels, setLabels] = useState<Label[]>([]);
 
   // Fetch algorithms
-  const { data: algorithmsData } = useQuery({
+  const { data: algorithmsData } = useQuery<ListContainerResp>({
     queryKey: ['algorithms'],
-    queryFn: () => containerApi.getContainers({ type: 'Algorithm' }),
+    queryFn: () => containerApi.getContainers({ type: 2 }), // 2 corresponds to ContainerType.ALGORITHM
   });
 
   // Fetch datapacks (simulated - in real app would fetch from datapack API)
@@ -92,11 +99,18 @@ const ExecutionForm = () => {
   // Create execution mutation
   const createMutation = useMutation({
     mutationFn: (data: ExecutionFormData) =>
-      executionApi.executeAlgorithm(data),
-    onSuccess: (response) => {
+      executionApi.executeAlgorithm({
+        algorithmName: data.algorithm_name,
+        algorithmVersion: data.algorithm_version,
+        datapackId: data.datapack_id,
+        labels: data.labels,
+      }),
+    onSuccess: (response: any) => {
       message.success('Execution started successfully');
       queryClient.invalidateQueries({ queryKey: ['executions'] });
-      navigate(`/executions/${response.id}`);
+      // 假设响应包含 execution id 或 task id
+      const executionId = response.id || response.task_id || '1';
+      navigate(`/executions/${executionId}`);
     },
     onError: (error) => {
       message.error('Failed to start execution');
@@ -104,14 +118,30 @@ const ExecutionForm = () => {
     },
   });
 
-  const handleAlgorithmChange = (algorithmId: string) => {
-    const algorithm = algorithmsData?.data.find(
-      (a) => a.id === Number(algorithmId)
+  const handleAlgorithmChange = async (algorithmName: string) => {
+    const algorithm = algorithmsData?.items?.find(
+      (a: ContainerResp) => a.name === algorithmName
     );
-    setSelectedAlgorithm(algorithm || null);
-    if (algorithm?.versions?.[0]) {
-      setSelectedVersion(algorithm.versions[0].version);
-      form.setFieldsValue({ algorithm_version: algorithm.versions[0].version });
+
+    if (algorithm && algorithm.id) {
+      try {
+        // 调用获取容器详情的 API 来获取版本信息
+        const containerDetail = (await containerApi.getContainer(
+          algorithm.id
+        )) as unknown as GenericResponseContainerDetailResp;
+        setSelectedAlgorithm(containerDetail.data || null);
+        if (containerDetail.data?.versions?.[0]?.name) {
+          setSelectedVersion(containerDetail.data.versions[0].name);
+          form.setFieldsValue({
+            algorithm_version: containerDetail.data.versions[0].name,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to get container details:', error);
+        setSelectedAlgorithm(algorithm);
+      }
+    } else {
+      setSelectedAlgorithm(null);
     }
   };
 
@@ -154,7 +184,7 @@ const ExecutionForm = () => {
     setLabels(labels.filter((l) => l.key !== key));
   };
 
-  if (!algorithmsData?.data.length) {
+  if (!algorithmsData?.items?.length) {
     return (
       <div style={{ padding: 24 }}>
         <Card>
@@ -224,7 +254,7 @@ const ExecutionForm = () => {
                   size='large'
                   onChange={handleAlgorithmChange}
                 >
-                  {algorithmsData.data.map((algorithm) => (
+                  {algorithmsData.items?.map((algorithm: ContainerResp) => (
                     <Option key={algorithm.id} value={algorithm.name}>
                       <Space>
                         <FunctionOutlined style={{ color: '#f59e0b' }} />
@@ -234,7 +264,7 @@ const ExecutionForm = () => {
                             type='secondary'
                             style={{ fontSize: '0.75rem' }}
                           >
-                            {algorithm.versions?.length || 0} versions available
+                            Versions available
                           </Text>
                         </div>
                       </Space>
@@ -261,20 +291,23 @@ const ExecutionForm = () => {
                       onChange={handleVersionChange}
                       value={selectedVersion}
                     >
-                      {selectedAlgorithm.versions?.map((version) => (
-                        <Option key={version.id} value={version.version}>
-                          <Space>
-                            <Text>{version.version}</Text>
-                            <Text
-                              type='secondary'
-                              style={{ fontSize: '0.75rem' }}
-                            >
-                              ({version.registry}/{version.repository}:
-                              {version.tag})
-                            </Text>
-                          </Space>
-                        </Option>
-                      ))}
+                      {(selectedAlgorithm as ContainerDetailResp).versions?.map(
+                        (version: ContainerVersionResp) => (
+                          <Option key={version.id} value={version.name}>
+                            <Space>
+                              <Text>{version.name}</Text>
+                              {version.image_ref && (
+                                <Text
+                                  type='secondary'
+                                  style={{ fontSize: '0.75rem' }}
+                                >
+                                  ({version.image_ref})
+                                </Text>
+                              )}
+                            </Space>
+                          </Option>
+                        )
+                      )}
                     </Select>
                   </Form.Item>
 
@@ -291,12 +324,15 @@ const ExecutionForm = () => {
                         />
                       </Descriptions.Item>
                       <Descriptions.Item label='Versions'>
-                        {selectedAlgorithm.versions?.length || 0}
+                        {(selectedAlgorithm as ContainerDetailResp).versions
+                          ?.length || 0}
                       </Descriptions.Item>
                       <Descriptions.Item label='Created'>
-                        {new Date(
-                          selectedAlgorithm.created_at
-                        ).toLocaleDateString()}
+                        {selectedAlgorithm.created_at
+                          ? new Date(
+                              selectedAlgorithm.created_at
+                            ).toLocaleDateString()
+                          : '-'}
                       </Descriptions.Item>
                     </Descriptions>
                   </Card>
@@ -311,22 +347,28 @@ const ExecutionForm = () => {
                 ]}
               >
                 <Select placeholder='Select datapack' size='large'>
-                  {datapacksData?.data.map((datapack) => (
-                    <Option key={datapack.id} value={datapack.id}>
-                      <Space>
-                        <DatabaseOutlined style={{ color: '#3b82f6' }} />
-                        <div>
-                          <div>{datapack.name}</div>
-                          <Text
-                            type='secondary'
-                            style={{ fontSize: '0.75rem' }}
-                          >
-                            ID: {datapack.id}
-                          </Text>
-                        </div>
-                      </Space>
-                    </Option>
-                  ))}
+                  {datapacksData?.data?.data.map(
+                    (datapack: {
+                      id: string;
+                      name: string;
+                      created_at: string;
+                    }) => (
+                      <Option key={datapack.id} value={datapack.id}>
+                        <Space>
+                          <DatabaseOutlined style={{ color: '#3b82f6' }} />
+                          <div>
+                            <div>{datapack.name}</div>
+                            <Text
+                              type='secondary'
+                              style={{ fontSize: '0.75rem' }}
+                            >
+                              ID: {datapack.id}
+                            </Text>
+                          </div>
+                        </Space>
+                      </Option>
+                    )
+                  )}
                 </Select>
               </Form.Item>
 

@@ -1,26 +1,27 @@
+import React, { type DragEvent, useCallback, useRef } from 'react';
+import ReactFlow, {
+  addEdge,
+  Background,
+  type Connection,
+  ConnectionMode,
+  Controls,
+  type Edge,
+  MiniMap,
+  type Node,
+  Panel,
+  ReactFlowProvider,
+  useEdgesState,
+  useNodesState,
+  useReactFlow,
+} from 'reactflow';
+import 'reactflow/dist/style.css';
+
 import {
   ClearOutlined,
   PlayCircleOutlined,
   PlusOutlined,
 } from '@ant-design/icons';
 import { Button, message, Space } from 'antd';
-import React, { useCallback, useRef, type DragEvent } from 'react';
-import ReactFlow, {
-  addEdge,
-  Background,
-  ConnectionMode,
-  Controls,
-  MiniMap,
-  Panel,
-  ReactFlowProvider,
-  useEdgesState,
-  useNodesState,
-  useReactFlow,
-  type Connection,
-  type Edge,
-  type Node,
-} from 'reactflow';
-import 'reactflow/dist/style.css';
 
 import type { FaultType } from '../../../types/api';
 

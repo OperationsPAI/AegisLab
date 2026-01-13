@@ -1,7 +1,7 @@
 .fault-config-panel {
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: var(--color-secondary-0);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
 }
 
 .fault-config-header {
@@ -17,17 +17,17 @@
 .empty-config {
   text-align: center;
   padding: 48px;
-  color: #8c8c8c;
+  color: var(--color-secondary-500);
   font-size: 14px;
 }
 
 .no-parameters {
   text-align: center;
   padding: 24px;
-  color: #8c8c8c;
-  background: #fafafa;
-  border-radius: 6px;
-  border: 1px dashed #d9d9d9;
+  color: var(--color-secondary-500);
+  background: var(--color-secondary-100);
+  border-radius: var(--radius-base);
+  border: 1px dashed var(--color-secondary-300);
 }
 
 .preset-section {
@@ -37,7 +37,7 @@
 
 .fault-description {
   padding: 0 24px 16px;
-  color: #595959;
+  color: var(--color-secondary-600);
   font-size: 14px;
   line-height: 1.6;
 }
@@ -60,7 +60,7 @@
 
 .dynamic-form-item .ant-form-item-label > label {
   font-size: 13px;
-  color: #595959;
+  color: var(--color-secondary-600);
 }
 
 /* Parameter type specific styles */
@@ -95,18 +95,21 @@
 }
 
 /* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  .fault-config-panel {
-    background: #141414;
-    color: rgba(255, 255, 255, 0.85);
-  }
+[data-theme='dark'] .fault-config-panel {
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--color-secondary-100);
+}
 
-  .empty-config,
-  .no-parameters {
-    color: rgba(255, 255, 255, 0.45);
-  }
+[data-theme='dark'] .empty-config,
+[data-theme='dark'] .no-parameters {
+  color: var(--color-secondary-500);
+}
 
-  .fault-description {
-    color: rgba(255, 255, 255, 0.65);
-  }
+[data-theme='dark'] .fault-description {
+  color: var(--color-secondary-400);
+}
+
+[data-theme='dark'] .no-parameters {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: var(--color-secondary-700);
 }

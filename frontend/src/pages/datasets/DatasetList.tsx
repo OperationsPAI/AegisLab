@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import {
   ClockCircleOutlined,
@@ -35,8 +37,6 @@ import {
   Upload,
 } from 'antd';
 import dayjs from 'dayjs';
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 import { datasetApi } from '@/api/datasets';
 import StatCard from '@/components/ui/StatCard';
@@ -289,7 +289,8 @@ const DatasetList = () => {
         { text: 'Log', value: 'Log' },
         { text: 'Metric', value: 'Metric' },
       ],
-      onFilter: (value, record: Dataset) => record.type === value as string,
+      onFilter: (value: any, record: Dataset) =>
+        record.type === (value as string),
     },
     {
       title: 'Public',
@@ -422,7 +423,7 @@ const DatasetList = () => {
           <StatCard
             title='Total Datasets'
             value={stats.total}
-            icon={<DatabaseOutlined />}
+            prefix={<DatabaseOutlined />}
             color='primary'
           />
         </Col>
@@ -430,7 +431,7 @@ const DatasetList = () => {
           <StatCard
             title='Trace Datasets'
             value={stats.trace}
-            icon={<DatabaseOutlined />}
+            prefix={<DatabaseOutlined />}
             color='primary'
           />
         </Col>
@@ -438,7 +439,7 @@ const DatasetList = () => {
           <StatCard
             title='Log Datasets'
             value={stats.log}
-            icon={<FileTextOutlined />}
+            prefix={<FileTextOutlined />}
             color='success'
           />
         </Col>
@@ -446,7 +447,7 @@ const DatasetList = () => {
           <StatCard
             title='Metric Datasets'
             value={stats.metric}
-            icon={<LineChartOutlined />}
+            prefix={<LineChartOutlined />}
             color='warning'
           />
         </Col>

@@ -1,0 +1,67 @@
+/* Shared Form Styles */
+
+.form-card {
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-secondary-200);
+  box-shadow: var(--shadow-sm);
+  padding: 1.5rem;
+}
+
+[data-theme='dark'] .form-card {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: var(--color-secondary-700);
+}
+
+.form-item-label {
+  font-weight: var(--font-weight-medium) !important;
+  color: var(--color-secondary-700) !important;
+}
+
+.form-item-required::before {
+  color: var(--color-error) !important;
+}
+
+.form-button-group {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--color-secondary-200);
+}
+
+[data-theme='dark'] .form-button-group {
+  border-top-color: var(--color-secondary-700);
+}
+
+/* Search Form */
+.search-form {
+  padding: 1.5rem;
+}
+
+.search-form .ant-row {
+  gap: 1rem;
+}
+
+.search-form .ant-form-item {
+  margin-bottom: 1rem;
+}
+
+/* Responsive Form */
+@media (max-width: 768px) {
+  .search-form .ant-row {
+    flex-direction: column;
+  }
+
+  .search-form .ant-col {
+    width: 100%;
+  }
+
+  .form-button-group {
+    flex-direction: column;
+  }
+
+  .form-button-group button {
+    width: 100%;
+  }
+}

@@ -32,19 +32,19 @@
   cursor: pointer;
   transition: all 0.3s ease;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   margin-bottom: 4px;
   padding: 8px 12px;
 }
 
 .fault-type-item:hover {
-  background-color: #f0f5ff;
-  border-color: #1890ff;
+  background-color: var(--color-primary-50);
+  border-color: var(--color-primary-500);
 }
 
 .fault-type-item.selected {
-  background-color: #e6f7ff;
-  border-color: #1890ff;
+  background-color: var(--color-primary-100);
+  border-color: var(--color-primary-500);
 }
 
 .fault-type-item .ant-list-item-meta {
@@ -64,13 +64,17 @@
 
 .fault-type-icon {
   font-size: 20px;
-  color: #1890ff;
+  color: var(--color-primary-500);
 }
 
 .fault-type-name {
   flex: 1;
-  font-weight: 500;
-  color: #262626;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-secondary-800);
+}
+
+[data-theme='dark'] .fault-type-name {
+  color: var(--color-secondary-100);
 }
 
 .fault-type-tag {
@@ -81,7 +85,7 @@
 
 .fault-type-description {
   font-size: 12px;
-  color: #8c8c8c;
+  color: var(--color-secondary-500);
   line-height: 1.4;
   margin-bottom: 4px;
 }
@@ -98,21 +102,3 @@
   border-style: dashed;
 }
 
-/* Scrollbar styling */
-.fault-type-list::-webkit-scrollbar {
-  width: 6px;
-}
-
-.fault-type-list::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 3px;
-}
-
-.fault-type-list::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 3px;
-}
-
-.fault-type-list::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
-}

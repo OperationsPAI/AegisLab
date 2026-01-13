@@ -1,3 +1,4 @@
+import { useState } from 'react';
 
 import {
   ApiOutlined,
@@ -39,7 +40,6 @@ import {
   Typography,
 } from 'antd';
 import dayjs from 'dayjs';
-import { useState } from 'react';
 
 const { Title, Text } = Typography;
 // Removed deprecated TabPane destructuring - using items prop instead
@@ -156,7 +156,6 @@ const Settings = () => {
     }
   };
 
-
   const handleChangePassword = async (values: Record<string, unknown>) => {
     setLoading(true);
     try {
@@ -172,7 +171,9 @@ const Settings = () => {
     }
   };
 
-  const handleCreateApiKey = async (values: Record<string, string | string[]>) => {
+  const handleCreateApiKey = async (
+    values: Record<string, string | string[]>
+  ) => {
     setLoading(true);
     try {
       // Generate a mock API key
@@ -328,581 +329,609 @@ const Settings = () => {
       </Card>
 
       {/* Settings Tabs */}
-      <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
-        {
-          key: 'profile',
-          label: (
-            <span>
-              <UserOutlined />
-              Profile
-            </span>
-          ),
-          children: (
-          <Card
-            title='Profile Settings'
-            extra={
-              <Button
-                type='primary'
-                icon={<SaveOutlined />}
-                loading={loading}
-                onClick={() => profileForm.submit()}
-              >
-                Save Changes
-              </Button>
-            }
-          >
-            <Form
-              form={profileForm}
-              layout='vertical'
-              onFinish={handleSaveProfile}
-              initialValues={{
-                fullName: userData.fullName,
-                email: userData.email,
-                phone: userData.phone,
-                department: userData.department,
-                timezone: 'UTC',
-                language: 'en',
-                dateFormat: 'YYYY-MM-DD',
-                timeFormat: '24h',
-              }}
-            >
-              <Row gutter={[24, 24]}>
-                <Col xs={24} lg={12}>
-                  <Form.Item
-                    label='Full Name'
-                    name='fullName'
-                    rules={[
-                      {
-                        required: true,
-                        message: 'Please enter your full name',
-                      },
-                    ]}
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        items={[
+          {
+            key: 'profile',
+            label: (
+              <span>
+                <UserOutlined />
+                Profile
+              </span>
+            ),
+            children: (
+              <Card
+                title='Profile Settings'
+                extra={
+                  <Button
+                    type='primary'
+                    icon={<SaveOutlined />}
+                    loading={loading}
+                    onClick={() => profileForm.submit()}
                   >
-                    <Input prefix={<UserOutlined />} />
-                  </Form.Item>
+                    Save Changes
+                  </Button>
+                }
+              >
+                <Form
+                  form={profileForm}
+                  layout='vertical'
+                  onFinish={handleSaveProfile}
+                  initialValues={{
+                    fullName: userData.fullName,
+                    email: userData.email,
+                    phone: userData.phone,
+                    department: userData.department,
+                    timezone: 'UTC',
+                    language: 'en',
+                    dateFormat: 'YYYY-MM-DD',
+                    timeFormat: '24h',
+                  }}
+                >
+                  <Row gutter={[24, 24]}>
+                    <Col xs={24} lg={12}>
+                      <Form.Item
+                        label='Full Name'
+                        name='fullName'
+                        rules={[
+                          {
+                            required: true,
+                            message: 'Please enter your full name',
+                          },
+                        ]}
+                      >
+                        <Input prefix={<UserOutlined />} />
+                      </Form.Item>
 
-                  <Form.Item
-                    label='Email'
-                    name='email'
-                    rules={[
-                      { required: true, message: 'Please enter your email' },
-                      { type: 'email', message: 'Please enter a valid email' },
-                    ]}
+                      <Form.Item
+                        label='Email'
+                        name='email'
+                        rules={[
+                          {
+                            required: true,
+                            message: 'Please enter your email',
+                          },
+                          {
+                            type: 'email',
+                            message: 'Please enter a valid email',
+                          },
+                        ]}
+                      >
+                        <Input prefix={<MailOutlined />} />
+                      </Form.Item>
+
+                      <Form.Item label='Phone' name='phone'>
+                        <Input prefix={<PhoneOutlined />} />
+                      </Form.Item>
+
+                      <Form.Item label='Department' name='department'>
+                        <Input />
+                      </Form.Item>
+                    </Col>
+
+                    <Col xs={24} lg={12}>
+                      <Form.Item
+                        label='Timezone'
+                        name='timezone'
+                        rules={[
+                          {
+                            required: true,
+                            message: 'Please select your timezone',
+                          },
+                        ]}
+                      >
+                        <Select>
+                          <Select.Option value='UTC'>UTC</Select.Option>
+                          <Select.Option value='America/New_York'>
+                            America/New_York
+                          </Select.Option>
+                          <Select.Option value='Europe/London'>
+                            Europe/London
+                          </Select.Option>
+                          <Select.Option value='Asia/Shanghai'>
+                            Asia/Shanghai
+                          </Select.Option>
+                        </Select>
+                      </Form.Item>
+
+                      <Form.Item
+                        label='Language'
+                        name='language'
+                        rules={[
+                          {
+                            required: true,
+                            message: 'Please select your language',
+                          },
+                        ]}
+                      >
+                        <Select>
+                          <Select.Option value='en'>English</Select.Option>
+                          <Select.Option value='zh'>中文</Select.Option>
+                          <Select.Option value='es'>Español</Select.Option>
+                        </Select>
+                      </Form.Item>
+
+                      <Form.Item
+                        label='Date Format'
+                        name='dateFormat'
+                        rules={[
+                          {
+                            required: true,
+                            message: 'Please select date format',
+                          },
+                        ]}
+                      >
+                        <Select>
+                          <Select.Option value='YYYY-MM-DD'>
+                            YYYY-MM-DD
+                          </Select.Option>
+                          <Select.Option value='MM/DD/YYYY'>
+                            MM/DD/YYYY
+                          </Select.Option>
+                          <Select.Option value='DD/MM/YYYY'>
+                            DD/MM/YYYY
+                          </Select.Option>
+                        </Select>
+                      </Form.Item>
+
+                      <Form.Item
+                        label='Time Format'
+                        name='timeFormat'
+                        rules={[
+                          {
+                            required: true,
+                            message: 'Please select time format',
+                          },
+                        ]}
+                      >
+                        <Select>
+                          <Select.Option value='24h'>24-hour</Select.Option>
+                          <Select.Option value='12h'>12-hour</Select.Option>
+                        </Select>
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                </Form>
+              </Card>
+            ),
+          },
+
+          {
+            key: 'notifications',
+            label: (
+              <span>
+                <BellOutlined />
+                Notifications
+              </span>
+            ),
+            children: (
+              <Card
+                title='Notification Settings'
+                extra={
+                  <Button
+                    type='primary'
+                    icon={<SaveOutlined />}
+                    loading={loading}
+                    onClick={() => notificationForm.submit()}
                   >
-                    <Input prefix={<MailOutlined />} />
-                  </Form.Item>
-
-                  <Form.Item label='Phone' name='phone'>
-                    <Input prefix={<PhoneOutlined />} />
-                  </Form.Item>
-
-                  <Form.Item label='Department' name='department'>
-                    <Input />
-                  </Form.Item>
-                </Col>
-
-                <Col xs={24} lg={12}>
-                  <Form.Item
-                    label='Timezone'
-                    name='timezone'
-                    rules={[
-                      {
-                        required: true,
-                        message: 'Please select your timezone',
-                      },
-                    ]}
-                  >
-                    <Select>
-                      <Select.Option value='UTC'>UTC</Select.Option>
-                      <Select.Option value='America/New_York'>
-                        America/New_York
-                      </Select.Option>
-                      <Select.Option value='Europe/London'>
-                        Europe/London
-                      </Select.Option>
-                      <Select.Option value='Asia/Shanghai'>
-                        Asia/Shanghai
-                      </Select.Option>
-                    </Select>
-                  </Form.Item>
-
-                  <Form.Item
-                    label='Language'
-                    name='language'
-                    rules={[
-                      {
-                        required: true,
-                        message: 'Please select your language',
-                      },
-                    ]}
-                  >
-                    <Select>
-                      <Select.Option value='en'>English</Select.Option>
-                      <Select.Option value='zh'>中文</Select.Option>
-                      <Select.Option value='es'>Español</Select.Option>
-                    </Select>
-                  </Form.Item>
-
-                  <Form.Item
-                    label='Date Format'
-                    name='dateFormat'
-                    rules={[
-                      { required: true, message: 'Please select date format' },
-                    ]}
-                  >
-                    <Select>
-                      <Select.Option value='YYYY-MM-DD'>
-                        YYYY-MM-DD
-                      </Select.Option>
-                      <Select.Option value='MM/DD/YYYY'>
-                        MM/DD/YYYY
-                      </Select.Option>
-                      <Select.Option value='DD/MM/YYYY'>
-                        DD/MM/YYYY
-                      </Select.Option>
-                    </Select>
-                  </Form.Item>
-
-                  <Form.Item
-                    label='Time Format'
-                    name='timeFormat'
-                    rules={[
-                      { required: true, message: 'Please select time format' },
-                    ]}
-                  >
-                    <Select>
-                      <Select.Option value='24h'>24-hour</Select.Option>
-                      <Select.Option value='12h'>12-hour</Select.Option>
-                    </Select>
-                  </Form.Item>
-                </Col>
-              </Row>
-            </Form>
-          </Card>
-    )
-  },
-
-        {
-          key: 'notifications',
-          label: (
-            <span>
-              <BellOutlined />
-              Notifications
-            </span>
-          ),
-          children: (
-          <Card
-            title='Notification Settings'
-            extra={
-              <Button
-                type='primary'
-                icon={<SaveOutlined />}
-                loading={loading}
-                onClick={() => notificationForm.submit()}
+                    Save Changes
+                  </Button>
+                }
               >
-                Save Changes
-              </Button>
-            }
-          >
-            <Form
-              form={notificationForm}
-              layout='vertical'
-              onFinish={handleSaveNotifications}
-              initialValues={{
-                emailNotifications: true,
-                pushNotifications: false,
-                smsNotifications: false,
-                experimentCompleted: true,
-                experimentFailed: true,
-                systemAlerts: true,
-                weeklyReports: false,
-                marketingEmails: false,
-              }}
-            >
-              <Alert
-                message='Notification Preferences'
-                description='Choose how you want to be notified about different events.'
-                type='info'
-                showIcon
-                style={{ marginBottom: 24 }}
-              />
-
-              <Title level={4}>Notification Channels</Title>
-              <Form.Item
-                label='Email Notifications'
-                name='emailNotifications'
-                valuePropName='checked'
-              >
-                <Switch />
-              </Form.Item>
-
-              <Form.Item
-                label='Push Notifications'
-                name='pushNotifications'
-                valuePropName='checked'
-              >
-                <Switch />
-              </Form.Item>
-
-              <Form.Item
-                label='SMS Notifications'
-                name='smsNotifications'
-                valuePropName='checked'
-              >
-                <Switch />
-              </Form.Item>
-
-              <Divider />
-
-              <Title level={4}>Event Notifications</Title>
-              <Form.Item
-                label='Experiment Completed'
-                name='experimentCompleted'
-                valuePropName='checked'
-              >
-                <Switch />
-              </Form.Item>
-
-              <Form.Item
-                label='Experiment Failed'
-                name='experimentFailed'
-                valuePropName='checked'
-              >
-                <Switch />
-              </Form.Item>
-
-              <Form.Item
-                label='System Alerts'
-                name='systemAlerts'
-                valuePropName='checked'
-              >
-                <Switch />
-              </Form.Item>
-
-              <Form.Item
-                label='Weekly Reports'
-                name='weeklyReports'
-                valuePropName='checked'
-              >
-                <Switch />
-              </Form.Item>
-
-              <Form.Item
-                label='Marketing Emails'
-                name='marketingEmails'
-                valuePropName='checked'
-              >
-                <Switch />
-              </Form.Item>
-            </Form>
-          </Card>
-    )
-  },
-
-        {
-          key: 'security',
-          label: (
-            <span>
-              <LockOutlined />
-              Security
-            </span>
-          ),
-          children: (
-          <Card title='Security Settings'>
-            <Form
-              form={securityForm}
-              layout='vertical'
-              onFinish={handleChangePassword}
-              initialValues={{
-                twoFactorAuth: true,
-                loginAlerts: true,
-                sessionTimeout: 3600,
-                maxLoginAttempts: 5,
-              }}
-            >
-              <Alert
-                message='Security Recommendations'
-                description='Enable two-factor authentication and login alerts for enhanced security.'
-                type='warning'
-                showIcon
-                style={{ marginBottom: 24 }}
-              />
-
-              <Title level={4}>Authentication</Title>
-              <Form.Item
-                label='Two-Factor Authentication'
-                name='twoFactorAuth'
-                valuePropName='checked'
-              >
-                <Switch />
-              </Form.Item>
-
-              <Form.Item
-                label='Login Alerts'
-                name='loginAlerts'
-                valuePropName='checked'
-              >
-                <Switch />
-              </Form.Item>
-
-              <Form.Item
-                label='Session Timeout (seconds)'
-                name='sessionTimeout'
-                rules={[
-                  { required: true, message: 'Please enter session timeout' },
-                ]}
-              >
-                <InputNumber
-                  min={300}
-                  max={86400}
-                  step={300}
-                  style={{ width: '100%' }}
-                />
-              </Form.Item>
-
-              <Form.Item
-                label='Max Login Attempts'
-                name='maxLoginAttempts'
-                rules={[
-                  {
-                    required: true,
-                    message: 'Please enter max login attempts',
-                  },
-                ]}
-              >
-                <InputNumber min={1} max={10} style={{ width: '100%' }} />
-              </Form.Item>
-
-              <Divider />
-
-              <Title level={4}>Change Password</Title>
-              <Row gutter={[24, 24]}>
-                <Col xs={24} lg={12}>
-                  <Form.Item
-                    label='Current Password'
-                    name='oldPassword'
-                    rules={[
-                      {
-                        required: true,
-                        message: 'Please enter current password',
-                      },
-                    ]}
-                  >
-                    <Input.Password
-                      placeholder='Enter current password'
-                      iconRender={(visible) =>
-                        visible ? <EyeOutlined /> : <EyeInvisibleOutlined />
-                      }
-                    />
-                  </Form.Item>
-
-                  <Form.Item
-                    label='New Password'
-                    name='newPassword'
-                    rules={[
-                      { required: true, message: 'Please enter new password' },
-                      {
-                        min: 8,
-                        message: 'Password must be at least 8 characters',
-                      },
-                    ]}
-                  >
-                    <Input.Password
-                      placeholder='Enter new password'
-                      iconRender={(visible) =>
-                        visible ? <EyeOutlined /> : <EyeInvisibleOutlined />
-                      }
-                    />
-                  </Form.Item>
-
-                  <Form.Item
-                    label='Confirm New Password'
-                    name='confirmPassword'
-                    dependencies={['newPassword']}
-                    rules={[
-                      {
-                        required: true,
-                        message: 'Please confirm new password',
-                      },
-                      ({ getFieldValue }) => ({
-                        validator(_, value) {
-                          if (
-                            !value ||
-                            getFieldValue('newPassword') === value
-                          ) {
-                            return Promise.resolve();
-                          }
-                          return Promise.reject(
-                            new Error('Passwords do not match')
-                          );
-                        },
-                      }),
-                    ]}
-                  >
-                    <Input.Password
-                      placeholder='Confirm new password'
-                      iconRender={(visible) =>
-                        visible ? <EyeOutlined /> : <EyeInvisibleOutlined />
-                      }
-                    />
-                  </Form.Item>
-
-                  <Form.Item>
-                    <Button
-                      type='primary'
-                      icon={<SaveOutlined />}
-                      loading={loading}
-                      htmlType='submit'
-                    >
-                      Change Password
-                    </Button>
-                  </Form.Item>
-                </Col>
-
-                <Col xs={24} lg={12}>
+                <Form
+                  form={notificationForm}
+                  layout='vertical'
+                  onFinish={handleSaveNotifications}
+                  initialValues={{
+                    emailNotifications: true,
+                    pushNotifications: false,
+                    smsNotifications: false,
+                    experimentCompleted: true,
+                    experimentFailed: true,
+                    systemAlerts: true,
+                    weeklyReports: false,
+                    marketingEmails: false,
+                  }}
+                >
                   <Alert
-                    message='Password Requirements'
-                    description='Your password must be at least 8 characters long and contain uppercase letters, lowercase letters, numbers, and special characters.'
+                    message='Notification Preferences'
+                    description='Choose how you want to be notified about different events.'
                     type='info'
                     showIcon
+                    style={{ marginBottom: 24 }}
                   />
-                </Col>
-              </Row>
-            </Form>
-          </Card>
-    )
-  },
 
-        {
-          key: 'api',
-          label: (
-            <span>
-              <KeyOutlined />
-              API Keys
-            </span>
-          ),
-          children: (
-          <Card
-            title='API Keys'
-            extra={
-              <Button
-                type='primary'
-                onClick={() => setApiKeyModalVisible(true)}
-              >
-                Create API Key
-              </Button>
-            }
-          >
-            <List
-              itemLayout='horizontal'
-              dataSource={apiKeys}
-              renderItem={(item) => (
-                <List.Item
-                  key={item.id}
-                  actions={[
-                    <Button
-                      key='copy'
-                      type='link'
-                      size='small'
-                      onClick={() => {
-                        navigator.clipboard.writeText(item.key);
-                        message.success('API key copied to clipboard');
-                      }}
-                    >
-                      Copy
-                    </Button>,
-                    item.status === 'active' ? (
-                      <Button
-                        key='revoke'
-                        type='link'
-                        danger
-                        size='small'
-                        onClick={() => handleRevokeApiKey(item.id)}
+                  <Title level={4}>Notification Channels</Title>
+                  <Form.Item
+                    label='Email Notifications'
+                    name='emailNotifications'
+                    valuePropName='checked'
+                  >
+                    <Switch />
+                  </Form.Item>
+
+                  <Form.Item
+                    label='Push Notifications'
+                    name='pushNotifications'
+                    valuePropName='checked'
+                  >
+                    <Switch />
+                  </Form.Item>
+
+                  <Form.Item
+                    label='SMS Notifications'
+                    name='smsNotifications'
+                    valuePropName='checked'
+                  >
+                    <Switch />
+                  </Form.Item>
+
+                  <Divider />
+
+                  <Title level={4}>Event Notifications</Title>
+                  <Form.Item
+                    label='Experiment Completed'
+                    name='experimentCompleted'
+                    valuePropName='checked'
+                  >
+                    <Switch />
+                  </Form.Item>
+
+                  <Form.Item
+                    label='Experiment Failed'
+                    name='experimentFailed'
+                    valuePropName='checked'
+                  >
+                    <Switch />
+                  </Form.Item>
+
+                  <Form.Item
+                    label='System Alerts'
+                    name='systemAlerts'
+                    valuePropName='checked'
+                  >
+                    <Switch />
+                  </Form.Item>
+
+                  <Form.Item
+                    label='Weekly Reports'
+                    name='weeklyReports'
+                    valuePropName='checked'
+                  >
+                    <Switch />
+                  </Form.Item>
+
+                  <Form.Item
+                    label='Marketing Emails'
+                    name='marketingEmails'
+                    valuePropName='checked'
+                  >
+                    <Switch />
+                  </Form.Item>
+                </Form>
+              </Card>
+            ),
+          },
+
+          {
+            key: 'security',
+            label: (
+              <span>
+                <LockOutlined />
+                Security
+              </span>
+            ),
+            children: (
+              <Card title='Security Settings'>
+                <Form
+                  form={securityForm}
+                  layout='vertical'
+                  onFinish={handleChangePassword}
+                  initialValues={{
+                    twoFactorAuth: true,
+                    loginAlerts: true,
+                    sessionTimeout: 3600,
+                    maxLoginAttempts: 5,
+                  }}
+                >
+                  <Alert
+                    message='Security Recommendations'
+                    description='Enable two-factor authentication and login alerts for enhanced security.'
+                    type='warning'
+                    showIcon
+                    style={{ marginBottom: 24 }}
+                  />
+
+                  <Title level={4}>Authentication</Title>
+                  <Form.Item
+                    label='Two-Factor Authentication'
+                    name='twoFactorAuth'
+                    valuePropName='checked'
+                  >
+                    <Switch />
+                  </Form.Item>
+
+                  <Form.Item
+                    label='Login Alerts'
+                    name='loginAlerts'
+                    valuePropName='checked'
+                  >
+                    <Switch />
+                  </Form.Item>
+
+                  <Form.Item
+                    label='Session Timeout (seconds)'
+                    name='sessionTimeout'
+                    rules={[
+                      {
+                        required: true,
+                        message: 'Please enter session timeout',
+                      },
+                    ]}
+                  >
+                    <InputNumber
+                      min={300}
+                      max={86400}
+                      step={300}
+                      style={{ width: '100%' }}
+                    />
+                  </Form.Item>
+
+                  <Form.Item
+                    label='Max Login Attempts'
+                    name='maxLoginAttempts'
+                    rules={[
+                      {
+                        required: true,
+                        message: 'Please enter max login attempts',
+                      },
+                    ]}
+                  >
+                    <InputNumber min={1} max={10} style={{ width: '100%' }} />
+                  </Form.Item>
+
+                  <Divider />
+
+                  <Title level={4}>Change Password</Title>
+                  <Row gutter={[24, 24]}>
+                    <Col xs={24} lg={12}>
+                      <Form.Item
+                        label='Current Password'
+                        name='oldPassword'
+                        rules={[
+                          {
+                            required: true,
+                            message: 'Please enter current password',
+                          },
+                        ]}
                       >
-                        Revoke
-                      </Button>
-                    ) : null,
-                    <Button
-                      key='delete'
-                      type='link'
-                      danger
-                      size='small'
-                      onClick={() => handleDeleteApiKey(item.id)}
-                    >
-                      Delete
-                    </Button>,
-                  ]}
-                >
-                  <List.Item.Meta
-                    avatar={<Avatar icon={<KeyOutlined />} />}
-                    title={
-                      <Space>
-                        <Text strong>{item.name}</Text>
-                        <Tag color={item.status === 'active' ? 'green' : 'red'}>
-                          {item.status.toUpperCase()}
-                        </Tag>
-                      </Space>
-                    }
-                    description={
-                      <Space direction='vertical' size={0}>
-                        <Text code>{item.key}</Text>
-                        <Space>
-                          <Text type='secondary'>
-                            Created:{' '}
-                            {dayjs(item.createdAt).format('MMM D, YYYY')}
-                          </Text>
-                          <Text type='secondary'>
-                            Last used:{' '}
-                            {item.lastUsed
-                              ? dayjs(item.lastUsed).format('MMM D, YYYY HH:mm')
-                              : 'Never'}
-                          </Text>
-                        </Space>
-                        <Space>
-                          {item.permissions.map((permission) => (
-                            <Tag key={permission}>{permission}</Tag>
-                          ))}
-                        </Space>
-                      </Space>
-                    }
-                  />
-                </List.Item>
-              )}
-            />
-          </Card>
-    )
-  },
+                        <Input.Password
+                          placeholder='Enter current password'
+                          iconRender={(visible) =>
+                            visible ? <EyeOutlined /> : <EyeInvisibleOutlined />
+                          }
+                        />
+                      </Form.Item>
 
-        {
-          key: 'activity',
-          label: (
-            <span>
-              <HistoryOutlined />
-              Activity
-            </span>
-          ),
-          children: (
-          <Card title='Recent Activity'>
-            <Timeline>
-              {recentActivity.map((activity) => (
-                <Timeline.Item
-                  key={activity.id}
-                  color={getActivityColor(activity.type)}
-                  dot={getActivityIcon(activity.type)}
-                >
-                  <Space direction='vertical' size={0}>
-                    <Text strong>{activity.action}</Text>
-                    <Text type='secondary'>
-                      {dayjs(activity.timestamp).format('MMMM D, YYYY HH:mm')}
-                    </Text>
-                  </Space>
-                </Timeline.Item>
-              ))}
-            </Timeline>
-          </Card>
-    )
-  }
-]} />
+                      <Form.Item
+                        label='New Password'
+                        name='newPassword'
+                        rules={[
+                          {
+                            required: true,
+                            message: 'Please enter new password',
+                          },
+                          {
+                            min: 8,
+                            message: 'Password must be at least 8 characters',
+                          },
+                        ]}
+                      >
+                        <Input.Password
+                          placeholder='Enter new password'
+                          iconRender={(visible) =>
+                            visible ? <EyeOutlined /> : <EyeInvisibleOutlined />
+                          }
+                        />
+                      </Form.Item>
+
+                      <Form.Item
+                        label='Confirm New Password'
+                        name='confirmPassword'
+                        dependencies={['newPassword']}
+                        rules={[
+                          {
+                            required: true,
+                            message: 'Please confirm new password',
+                          },
+                          ({ getFieldValue }) => ({
+                            validator(_, value) {
+                              if (
+                                !value ||
+                                getFieldValue('newPassword') === value
+                              ) {
+                                return Promise.resolve();
+                              }
+                              return Promise.reject(
+                                new Error('Passwords do not match')
+                              );
+                            },
+                          }),
+                        ]}
+                      >
+                        <Input.Password
+                          placeholder='Confirm new password'
+                          iconRender={(visible) =>
+                            visible ? <EyeOutlined /> : <EyeInvisibleOutlined />
+                          }
+                        />
+                      </Form.Item>
+
+                      <Form.Item>
+                        <Button
+                          type='primary'
+                          icon={<SaveOutlined />}
+                          loading={loading}
+                          htmlType='submit'
+                        >
+                          Change Password
+                        </Button>
+                      </Form.Item>
+                    </Col>
+
+                    <Col xs={24} lg={12}>
+                      <Alert
+                        message='Password Requirements'
+                        description='Your password must be at least 8 characters long and contain uppercase letters, lowercase letters, numbers, and special characters.'
+                        type='info'
+                        showIcon
+                      />
+                    </Col>
+                  </Row>
+                </Form>
+              </Card>
+            ),
+          },
+
+          {
+            key: 'api',
+            label: (
+              <span>
+                <KeyOutlined />
+                API Keys
+              </span>
+            ),
+            children: (
+              <Card
+                title='API Keys'
+                extra={
+                  <Button
+                    type='primary'
+                    onClick={() => setApiKeyModalVisible(true)}
+                  >
+                    Create API Key
+                  </Button>
+                }
+              >
+                <List
+                  itemLayout='horizontal'
+                  dataSource={apiKeys}
+                  renderItem={(item) => (
+                    <List.Item
+                      key={item.id}
+                      actions={[
+                        <Button
+                          key='copy'
+                          type='link'
+                          size='small'
+                          onClick={() => {
+                            navigator.clipboard.writeText(item.key);
+                            message.success('API key copied to clipboard');
+                          }}
+                        >
+                          Copy
+                        </Button>,
+                        item.status === 'active' ? (
+                          <Button
+                            key='revoke'
+                            type='link'
+                            danger
+                            size='small'
+                            onClick={() => handleRevokeApiKey(item.id)}
+                          >
+                            Revoke
+                          </Button>
+                        ) : null,
+                        <Button
+                          key='delete'
+                          type='link'
+                          danger
+                          size='small'
+                          onClick={() => handleDeleteApiKey(item.id)}
+                        >
+                          Delete
+                        </Button>,
+                      ]}
+                    >
+                      <List.Item.Meta
+                        avatar={<Avatar icon={<KeyOutlined />} />}
+                        title={
+                          <Space>
+                            <Text strong>{item.name}</Text>
+                            <Tag
+                              color={item.status === 'active' ? 'green' : 'red'}
+                            >
+                              {item.status.toUpperCase()}
+                            </Tag>
+                          </Space>
+                        }
+                        description={
+                          <Space direction='vertical' size={0}>
+                            <Text code>{item.key}</Text>
+                            <Space>
+                              <Text type='secondary'>
+                                Created:{' '}
+                                {dayjs(item.createdAt).format('MMM D, YYYY')}
+                              </Text>
+                              <Text type='secondary'>
+                                Last used:{' '}
+                                {item.lastUsed
+                                  ? dayjs(item.lastUsed).format(
+                                      'MMM D, YYYY HH:mm'
+                                    )
+                                  : 'Never'}
+                              </Text>
+                            </Space>
+                            <Space>
+                              {item.permissions.map((permission) => (
+                                <Tag key={permission}>{permission}</Tag>
+                              ))}
+                            </Space>
+                          </Space>
+                        }
+                      />
+                    </List.Item>
+                  )}
+                />
+              </Card>
+            ),
+          },
+
+          {
+            key: 'activity',
+            label: (
+              <span>
+                <HistoryOutlined />
+                Activity
+              </span>
+            ),
+            children: (
+              <Card title='Recent Activity'>
+                <Timeline>
+                  {recentActivity.map((activity) => (
+                    <Timeline.Item
+                      key={activity.id}
+                      color={getActivityColor(activity.type)}
+                      dot={getActivityIcon(activity.type)}
+                    >
+                      <Space direction='vertical' size={0}>
+                        <Text strong>{activity.action}</Text>
+                        <Text type='secondary'>
+                          {dayjs(activity.timestamp).format(
+                            'MMMM D, YYYY HH:mm'
+                          )}
+                        </Text>
+                      </Space>
+                    </Timeline.Item>
+                  ))}
+                </Timeline>
+              </Card>
+            ),
+          },
+        ]}
+      />
 
       {/* Create API Key Modal */}
       <Modal

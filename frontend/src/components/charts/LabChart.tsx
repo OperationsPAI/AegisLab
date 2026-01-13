@@ -1,7 +1,7 @@
+import type { CSSProperties } from 'react';
 
 import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
-import type { CSSProperties } from 'react';
 
 interface LabChartProps {
   option: EChartsOption;

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 
 import {
   CloseOutlined,
@@ -34,7 +35,6 @@ import {
   Typography,
 } from 'antd';
 import dayjs from 'dayjs';
-import { useState } from 'react';
 
 const { Title, Text } = Typography;
 // Removed deprecated TabPane destructuring - using items prop instead
@@ -401,120 +401,126 @@ const UserProfile = () => {
       </Card>
 
       {/* Tabs */}
-      <Tabs activeKey='activity' onChange={(_key) => {
-        // Tab change handler - activeKey state controls which tab is displayed
-        // Currently 'activity' and 'security' tabs are available
-      }} items={[
-        {
-          key: 'activity',
-          label: (
-            <span>
-              <HistoryOutlined />
-              Recent Activity
-            </span>
-          ),
-          children: (
-          <Card title='Recent Activity'>
-            <Timeline>
-              {recentActivity.map((activity) => (
-                <Timeline.Item
-                  key={activity.id}
-                  color={getActivityColor(activity.type)}
-                  dot={
-                    <span style={{ fontSize: 20 }}>
-                      {getActivityIcon(activity.type)}
-                    </span>
-                  }
-                >
-                  <div>
-                    <Text strong>{activity.action}</Text>
-                    <br />
-                    <Text type='secondary'>{activity.description}</Text>
-                    <br />
-                    <Text type='secondary' style={{ fontSize: '0.75rem' }}>
-                      {dayjs(activity.timestamp).format('MMMM D, YYYY HH:mm')}
-                    </Text>
-                  </div>
-                </Timeline.Item>
-              ))}
-            </Timeline>
-          </Card>
-    )
-  },
+      <Tabs
+        activeKey='activity'
+        onChange={(_key) => {
+          // Tab change handler - activeKey state controls which tab is displayed
+          // Currently 'activity' and 'security' tabs are available
+        }}
+        items={[
+          {
+            key: 'activity',
+            label: (
+              <span>
+                <HistoryOutlined />
+                Recent Activity
+              </span>
+            ),
+            children: (
+              <Card title='Recent Activity'>
+                <Timeline>
+                  {recentActivity.map((activity) => (
+                    <Timeline.Item
+                      key={activity.id}
+                      color={getActivityColor(activity.type)}
+                      dot={
+                        <span style={{ fontSize: 20 }}>
+                          {getActivityIcon(activity.type)}
+                        </span>
+                      }
+                    >
+                      <div>
+                        <Text strong>{activity.action}</Text>
+                        <br />
+                        <Text type='secondary'>{activity.description}</Text>
+                        <br />
+                        <Text type='secondary' style={{ fontSize: '0.75rem' }}>
+                          {dayjs(activity.timestamp).format(
+                            'MMMM D, YYYY HH:mm'
+                          )}
+                        </Text>
+                      </div>
+                    </Timeline.Item>
+                  ))}
+                </Timeline>
+              </Card>
+            ),
+          },
 
-        {
-          key: 'security',
-          label: (
-            <span>
-              <KeyOutlined />
-              Security
-            </span>
-          ),
-          children: (
-          <Card
-            title='Security Settings'
-            extra={
-              <Button
-                type='primary'
-                icon={<KeyOutlined />}
-                onClick={() => setPasswordModalVisible(true)}
+          {
+            key: 'security',
+            label: (
+              <span>
+                <KeyOutlined />
+                Security
+              </span>
+            ),
+            children: (
+              <Card
+                title='Security Settings'
+                extra={
+                  <Button
+                    type='primary'
+                    icon={<KeyOutlined />}
+                    onClick={() => setPasswordModalVisible(true)}
+                  >
+                    Change Password
+                  </Button>
+                }
               >
-                Change Password
-              </Button>
-            }
-          >
-            <Descriptions bordered column={1}>
-              <Descriptions.Item label='Two-Factor Authentication'>
-                <Switch
-                  checked={userData.twoFactorEnabled}
-                  checkedChildren='Enabled'
-                  unCheckedChildren='Disabled'
-                  onChange={(checked) => {
-                    // TODO: Implement 2FA setup
-                    message.info(
-                      checked
-                        ? 'Two-factor authentication setup initiated'
-                        : 'Two-factor authentication disabled'
-                    );
-                  }}
-                />
-              </Descriptions.Item>
-              <Descriptions.Item label='Email Verification'>
-                {userData.emailVerified ? (
-                  <Tag color='green' icon={<MailOutlined />}>
-                    Verified
-                  </Tag>
-                ) : (
-                  <Button type='link' size='small'>
-                    Verify Email
-                  </Button>
-                )}
-              </Descriptions.Item>
-              <Descriptions.Item label='Phone Verification'>
-                {userData.phoneVerified ? (
-                  <Tag color='green' icon={<PhoneOutlined />}>
-                    Verified
-                  </Tag>
-                ) : (
-                  <Button type='link' size='small'>
-                    Verify Phone
-                  </Button>
-                )}
-              </Descriptions.Item>
-              <Descriptions.Item label='Last Password Change'>
-                {dayjs().subtract(30, 'days').format('MMMM D, YYYY')}
-              </Descriptions.Item>
-              <Descriptions.Item label='Active Sessions'>
-                2 sessions active
-                <Button type='link' size='small' style={{ marginLeft: 8 }}>
-                  View Sessions
-                </Button>
-              </Descriptions.Item>
-            </Descriptions>
-          </Card>
-    )
-  }
-]} />
+                <Descriptions bordered column={1}>
+                  <Descriptions.Item label='Two-Factor Authentication'>
+                    <Switch
+                      checked={userData.twoFactorEnabled}
+                      checkedChildren='Enabled'
+                      unCheckedChildren='Disabled'
+                      onChange={(checked) => {
+                        // TODO: Implement 2FA setup
+                        message.info(
+                          checked
+                            ? 'Two-factor authentication setup initiated'
+                            : 'Two-factor authentication disabled'
+                        );
+                      }}
+                    />
+                  </Descriptions.Item>
+                  <Descriptions.Item label='Email Verification'>
+                    {userData.emailVerified ? (
+                      <Tag color='green' icon={<MailOutlined />}>
+                        Verified
+                      </Tag>
+                    ) : (
+                      <Button type='link' size='small'>
+                        Verify Email
+                      </Button>
+                    )}
+                  </Descriptions.Item>
+                  <Descriptions.Item label='Phone Verification'>
+                    {userData.phoneVerified ? (
+                      <Tag color='green' icon={<PhoneOutlined />}>
+                        Verified
+                      </Tag>
+                    ) : (
+                      <Button type='link' size='small'>
+                        Verify Phone
+                      </Button>
+                    )}
+                  </Descriptions.Item>
+                  <Descriptions.Item label='Last Password Change'>
+                    {dayjs().subtract(30, 'days').format('MMMM D, YYYY')}
+                  </Descriptions.Item>
+                  <Descriptions.Item label='Active Sessions'>
+                    2 sessions active
+                    <Button type='link' size='small' style={{ marginLeft: 8 }}>
+                      View Sessions
+                    </Button>
+                  </Descriptions.Item>
+                </Descriptions>
+              </Card>
+            ),
+          },
+        ]}
+      />
 
       {/* Change Password Modal */}
       <Modal

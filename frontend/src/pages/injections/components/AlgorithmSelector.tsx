@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 import { InfoCircleOutlined, SettingOutlined } from '@ant-design/icons';
 import {
   Button,
@@ -10,7 +12,6 @@ import {
   Tag,
   Tooltip,
 } from 'antd';
-import { useState, type React } from 'react';
 
 import type { Container } from '../../../types/api';
 
@@ -44,8 +45,8 @@ export const AlgorithmSelector: React.FC<AlgorithmSelectorProps> = ({
   const getAlgorithmTags = (algorithm: Container) => {
     const tags = [];
     if (algorithm.type) tags.push(algorithm.type);
-    if (algorithm.version) tags.push(`v${algorithm.version}`);
-    if (algorithm.status === 'active') tags.push('Active');
+    if (algorithm.versions?.length)
+      tags.push(`v${algorithm.versions[0].version}`);
     return tags;
   };
 
@@ -65,7 +66,7 @@ export const AlgorithmSelector: React.FC<AlgorithmSelectorProps> = ({
 
     return (
       <Tag
-        color={algorithm?.status === 'active' ? 'green' : 'default'}
+        color='default'
         onMouseDown={onPreventMouseDown}
         closable={closable}
         onClose={onClose}
@@ -118,15 +119,13 @@ export const AlgorithmSelector: React.FC<AlgorithmSelectorProps> = ({
                   </span>
                   <Space size='small'>
                     {getAlgorithmTags(algorithm).map((tag) => (
-                      <Tag key={tag} size='small'>
-                        {tag}
-                      </Tag>
+                      <Tag key={tag}>{tag}</Tag>
                     ))}
                   </Space>
                 </div>
-                {algorithm.description && (
+                {algorithm.readme && (
                   <div className='algorithm-option-description'>
-                    {algorithm.description}
+                    {algorithm.readme}
                   </div>
                 )}
               </div>
@@ -176,22 +175,18 @@ export const AlgorithmSelector: React.FC<AlgorithmSelectorProps> = ({
                 title={
                   <Space>
                     <span>{algorithm.name}</span>
-                    <Tag
-                      color={
-                        algorithm.status === 'active' ? 'green' : 'default'
-                      }
-                    >
-                      {algorithm.status || 'Unknown'}
-                    </Tag>
                   </Space>
                 }
                 description={
                   <div>
-                    <div>{algorithm.description}</div>
+                    <div>{algorithm.readme}</div>
                     <div className='algorithm-meta'>
                       <Space size='large'>
                         <span>Type: {algorithm.type}</span>
-                        <span>Version: {algorithm.version}</span>
+                        <span>
+                          Version:{' '}
+                          {algorithm.versions?.[0]?.version || 'Unknown'}
+                        </span>
                         <span>
                           Created:{' '}
                           {new Date(

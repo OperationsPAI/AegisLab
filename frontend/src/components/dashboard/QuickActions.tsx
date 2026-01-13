@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 
 import {
   BarChartOutlined,
@@ -6,7 +7,6 @@ import {
   PlusOutlined,
 } from '@ant-design/icons';
 import { Button, Col, Row } from 'antd';
-import { useNavigate } from 'react-router-dom';
 
 const QuickActions = () => {
   const navigate = useNavigate();

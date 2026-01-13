@@ -1,6 +1,6 @@
-import { Card } from 'antd';
 import type { CSSProperties, ReactNode } from 'react';
 
+import { Card } from 'antd';
 
 import './StatCard.css';
 
@@ -9,6 +9,7 @@ interface StatCardProps {
   value: string | number;
   prefix?: ReactNode;
   suffix?: ReactNode;
+  icon?: ReactNode;
   trend?: 'up' | 'down' | 'neutral';
   trendValue?: string;
   color?: 'primary' | 'success' | 'warning' | 'error' | 'info';
@@ -31,6 +32,7 @@ const StatCard = ({
   value,
   prefix,
   suffix,
+  icon,
   trend,
   trendValue,
   color = 'primary',
@@ -63,6 +65,7 @@ const StatCard = ({
         </div>
 
         <div className='stat-card-body'>
+          {icon && <span className='stat-card-icon'>{icon}</span>}
           <span className='stat-card-value' style={{ color: colorValue }}>
             {value}
           </span>
