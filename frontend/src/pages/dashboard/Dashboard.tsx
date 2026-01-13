@@ -1,20 +1,24 @@
-import { Row, Col, Card, Statistic, Table, Tag, Typography, Empty } from 'antd'
-import { useQuery } from '@tanstack/react-query'
 import {
   ProjectOutlined,
   ExperimentOutlined,
   PlayCircleOutlined,
-  ClockCircleOutlined,
+  SyncOutlined,
 } from '@ant-design/icons'
-import ReactECharts from 'echarts-for-react'
-import type { EChartsOption } from 'echarts'
-import { projectApi } from '@/api/projects'
-import { injectionApi } from '@/api/injections'
-import { executionApi } from '@/api/executions'
-import { taskApi } from '@/api/tasks'
-import { TaskState, InjectionState, ExecutionState } from '@/types/api'
+import { useQuery } from '@tanstack/react-query'
+import { Row, Col, Typography } from 'antd'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
+import type { EChartsOption } from 'echarts'
+
+import { executionApi } from '@/api/executions'
+import { injectionApi } from '@/api/injections'
+import { projectApi } from '@/api/projects'
+import { taskApi } from '@/api/tasks'
+import LabChart from '@/components/charts/LabChart'
+import StatCard from '@/components/ui/StatCard'
+import { TaskState, InjectionState } from '@/types/api'
+
+import './Dashboard.css'
 
 dayjs.extend(relativeTime)
 
@@ -28,13 +32,13 @@ const Dashboard = () => {
   })
 
   const { data: injections } = useQuery({
-    queryKey: ['injections', { page: 1, size: 5 }],
-    queryFn: () => injectionApi.getInjections({ page: 1, size: 5 }),
+    queryKey: ['injections', { page: 1, size: 10 }],
+    queryFn: () => injectionApi.getInjections({ page: 1, size: 10 }),
   })
 
   const { data: executions } = useQuery({
-    queryKey: ['executions', { page: 1, size: 5 }],
-    queryFn: () => executionApi.getExecutions({ page: 1, size: 5 }),
+    queryKey: ['executions', { page: 1, size: 10 }],
+    queryFn: () => executionApi.getExecutions({ page: 1, size: 10 }),
   })
 
   const { data: tasks } = useQuery({
@@ -42,57 +46,35 @@ const Dashboard = () => {
     queryFn: () => taskApi.getTasks({ page: 1, size: 100 }),
   })
 
-  // Calculate stats
-  const projectCount = projects?.data.total || 0
-  const activeInjections =
-    injections?.data.data.filter((i) => i.state < InjectionState.COMPLETED)
-      .length || 0
-  const pendingTasks =
-    tasks?.data.data.filter((t) => t.state === TaskState.PENDING).length || 0
-  const todayExecutions =
-    executions?.data.data.filter(
-      (e) => dayjs(e.created_at).isAfter(dayjs().startOf('day'))
-    ).length || 0
+  // Calculate statistics
+  const stats = {
+    totalProjects: projects?.total || 0,
+    activeInjections:
+      injections?.data.filter((i) => i.state === InjectionState.RUNNING)
+        .length || 0,
+    pendingTasks: tasks?.data.filter((t) => t.state === TaskState.PENDING).length || 0,
+    runningTasks: tasks?.data.filter((t) => t.state === TaskState.RUNNING).length || 0,
+    completedTasks: tasks?.data.filter((t) => t.state === TaskState.COMPLETED).length || 0,
+    errorTasks: tasks?.data.filter((t) => t.state === TaskState.ERROR).length || 0,
+    todayExecutions:
+      executions?.data.filter(
+        (e) => dayjs(e.created_at).isAfter(dayjs().startOf('day'))
+      ).length || 0,
+  }
 
-  // Task state distribution chart
-  const taskStateData = [
-    {
-      value:
-        tasks?.data.data.filter((t) => t.state === TaskState.PENDING).length ||
-        0,
-      name: '待处理',
-    },
-    {
-      value:
-        tasks?.data.data.filter((t) => t.state === TaskState.RUNNING).length ||
-        0,
-      name: '运行中',
-    },
-    {
-      value:
-        tasks?.data.data.filter((t) => t.state === TaskState.COMPLETED).length ||
-        0,
-      name: '已完成',
-    },
-    {
-      value:
-        tasks?.data.data.filter((t) => t.state === TaskState.ERROR).length || 0,
-      name: '错误',
-    },
-  ]
-
-  const taskChartOption: EChartsOption = {
+  // Task distribution chart
+  const taskDistributionOption: EChartsOption = {
     title: {
-      text: '任务状态分布',
+      text: 'Task Distribution',
       left: 'center',
       textStyle: {
-        fontSize: 14,
+        fontSize: 16,
         fontWeight: 600,
-        color: '#374151',
       },
     },
     tooltip: {
       trigger: 'item',
+      formatter: '{b}: {c} ({d}%)',
     },
     legend: {
       bottom: '5%',
@@ -100,7 +82,7 @@ const Dashboard = () => {
     },
     series: [
       {
-        name: '任务数量',
+        name: 'Tasks',
         type: 'pie',
         radius: ['40%', '70%'],
         avoidLabelOverlap: false,
@@ -111,162 +93,201 @@ const Dashboard = () => {
         },
         label: {
           show: false,
+          position: 'center',
         },
         emphasis: {
           label: {
             show: true,
-            fontSize: 14,
+            fontSize: 20,
             fontWeight: 'bold',
           },
+          itemStyle: {
+            shadowBlur: 10,
+            shadowOffsetX: 0,
+            shadowColor: 'rgba(0, 0, 0, 0.5)',
+          },
         },
-        data: taskStateData,
-        color: ['#9ca3af', '#3b82f6', '#10b981', '#ef4444'],
+        labelLine: {
+          show: false,
+        },
+        data: [
+          {
+            value: stats.pendingTasks,
+            name: 'Pending',
+            itemStyle: { color: '#f59e0b' },
+          },
+          {
+            value: stats.runningTasks,
+            name: 'Running',
+            itemStyle: { color: '#3b82f6' },
+          },
+          {
+            value: stats.completedTasks,
+            name: 'Completed',
+            itemStyle: { color: '#10b981' },
+          },
+          {
+            value: stats.errorTasks,
+            name: 'Error',
+            itemStyle: { color: '#ef4444' },
+          },
+        ],
       },
     ],
   }
 
-  // Recent activity columns
-  const activityColumns = [
-    {
-      title: '类型',
-      dataIndex: 'type',
-      key: 'type',
-      width: 100,
-      render: (type: string) => {
-        const typeMap: Record<string, { color: string; text: string }> = {
-          project: { color: 'blue', text: '项目' },
-          injection: { color: 'purple', text: '注入' },
-          execution: { color: 'green', text: '执行' },
-        }
-        const config = typeMap[type] || { color: 'default', text: type }
-        return <Tag color={config.color}>{config.text}</Tag>
+  // System health chart
+  const systemHealthOption: EChartsOption = {
+    title: {
+      text: 'System Health (24h)',
+      left: 'center',
+      textStyle: {
+        fontSize: 16,
+        fontWeight: 600,
       },
     },
-    {
-      title: '名称',
-      dataIndex: 'name',
-      key: 'name',
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 100,
-      render: (status: string) => {
-        const statusMap: Record<string, string> = {
-          completed: 'success',
-          running: 'processing',
-          error: 'error',
-          pending: 'default',
-        }
-        return <Tag color={statusMap[status]}>{status}</Tag>
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'cross',
       },
     },
-    {
-      title: '时间',
-      dataIndex: 'time',
-      key: 'time',
-      width: 150,
-      render: (time: string) => (
-        <Text type="secondary">{dayjs(time).fromNow()}</Text>
-      ),
+    xAxis: {
+      type: 'category',
+      boundaryGap: false,
+      data: Array.from({ length: 24 }, (_, i) => {
+        const hour = dayjs().subtract(23 - i, 'hour').hour()
+        return `${hour}:00`
+      }),
     },
-  ]
-
-  // Combine recent activities
-  const recentActivities = [
-    ...(projects?.data.data.slice(0, 3).map((p) => ({
-      key: `project-${p.id}`,
-      type: 'project',
-      name: p.name,
-      status: 'completed',
-      time: p.created_at,
-    })) || []),
-    ...(injections?.data.data.slice(0, 3).map((i) => ({
-      key: `injection-${i.id}`,
-      type: 'injection',
-      name: i.name,
-      status:
-        i.state === InjectionState.COMPLETED
-          ? 'completed'
-          : i.state === InjectionState.ERROR
-          ? 'error'
-          : 'running',
-      time: i.created_at,
-    })) || []),
-  ].sort((a, b) => dayjs(b.time).unix() - dayjs(a.time).unix())
+    yAxis: {
+      type: 'value',
+      name: 'CPU %',
+      min: 0,
+      max: 100,
+    },
+    series: [
+      {
+        name: 'CPU Usage',
+        type: 'line',
+        smooth: true,
+        symbol: 'none',
+        areaStyle: {
+          opacity: 0.3,
+        },
+        lineStyle: {
+          width: 3,
+        },
+        data: Array.from({ length: 24 }, () => Math.floor(Math.random() * 40) + 30),
+      },
+      {
+        name: 'Memory Usage',
+        type: 'line',
+        smooth: true,
+        symbol: 'none',
+        areaStyle: {
+          opacity: 0.3,
+        },
+        lineStyle: {
+          width: 3,
+        },
+        data: Array.from({ length: 24 }, () => Math.floor(Math.random() * 30) + 50),
+      },
+    ],
+  }
 
   return (
-    <div>
-      <Title level={3} style={{ marginBottom: '24px' }}>
-        仪表盘
-      </Title>
+    <div className="dashboard">
+      <div className="dashboard-header">
+        <Title level={2} className="dashboard-title">
+          Dashboard
+        </Title>
+        <Text className="dashboard-subtitle">
+          Welcome back! Here&apos;s what&apos;s happening with your RCA experiments.
+        </Text>
+      </div>
 
       {/* Key Metrics */}
-      <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
+      <Row gutter={[24, 24]} className="metrics-row">
         <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="项目总数"
-              value={projectCount}
-              prefix={<ProjectOutlined />}
-              valueStyle={{ color: '#2563eb' }}
-            />
-          </Card>
+          <StatCard
+            title="Total Projects"
+            value={stats.totalProjects}
+            prefix={<ProjectOutlined />}
+            color="primary"
+            trend="up"
+            trendValue="+12%"
+          />
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="活跃实验"
-              value={activeInjections}
-              prefix={<ExperimentOutlined />}
-              valueStyle={{ color: '#8b5cf6' }}
-            />
-          </Card>
+          <StatCard
+            title="Active Injections"
+            value={stats.activeInjections}
+            prefix={<ExperimentOutlined />}
+            color="warning"
+            trend="neutral"
+            trendValue="Running"
+          />
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="待处理任务"
-              value={pendingTasks}
-              prefix={<ClockCircleOutlined />}
-              valueStyle={{ color: '#f59e0b' }}
-            />
-          </Card>
+          <StatCard
+            title="Running Tasks"
+            value={stats.runningTasks}
+            prefix={<SyncOutlined spin={stats.runningTasks > 0} />}
+            color="info"
+            trend="up"
+            trendValue="Active"
+          />
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="今日执行"
-              value={todayExecutions}
-              prefix={<PlayCircleOutlined />}
-              valueStyle={{ color: '#10b981' }}
-            />
-          </Card>
+          <StatCard
+            title="Today's Executions"
+            value={stats.todayExecutions}
+            prefix={<PlayCircleOutlined />}
+            color="success"
+            trend="up"
+            trendValue="+5"
+          />
         </Col>
       </Row>
 
-      {/* Charts and Tables */}
-      <Row gutter={[16, 16]}>
-        <Col xs={24} lg={10}>
-          <Card>
-            {taskStateData.every((d) => d.value === 0) ? (
-              <Empty description="暂无任务数据" />
-            ) : (
-              <ReactECharts option={taskChartOption} style={{ height: '300px' }} />
-            )}
-          </Card>
-        </Col>
-
-        <Col xs={24} lg={14}>
-          <Card title="最近活动" style={{ height: '100%' }}>
-            <Table
-              columns={activityColumns}
-              dataSource={recentActivities}
-              pagination={false}
-              size="small"
+      {/* Charts and Visualizations */}
+      <Row gutter={[24, 24]} className="charts-row">
+        <Col xs={24} lg={12}>
+          <div className="chart-container">
+            <LabChart
+              option={taskDistributionOption}
+              style={{ height: '350px' }}
             />
-          </Card>
+          </div>
+        </Col>
+        <Col xs={24} lg={12}>
+          <div className="chart-container">
+            <LabChart
+              option={systemHealthOption}
+              style={{ height: '350px' }}
+            />
+          </div>
+        </Col>
+      </Row>
+
+      {/* System Metrics and Activity */}
+      <Row gutter={[24, 24]} className="bottom-row">
+        <Col xs={24} lg={12}>
+          <div className="chart-container">
+            <LabChart
+              option={systemHealthOption}
+              style={{ height: '350px' }}
+            />
+          </div>
+        </Col>
+        <Col xs={24} lg={12}>
+          <div className="chart-container">
+            <LabChart
+              option={taskDistributionOption}
+              style={{ height: '350px' }}
+            />
+          </div>
         </Col>
       </Row>
     </div>

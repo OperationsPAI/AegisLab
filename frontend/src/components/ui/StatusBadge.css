@@ -1,0 +1,32 @@
+.status-tag {
+  transition: all 0.3s ease;
+  cursor: default;
+}
+
+.status-tag:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.status-tag.pulse {
+  animation: pulse 2s infinite;
+}
+
+.status-badge-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+[data-theme='dark'] .status-tag:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}

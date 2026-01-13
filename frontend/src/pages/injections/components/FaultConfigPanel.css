@@ -1,0 +1,112 @@
+.fault-config-panel {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.fault-config-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.fault-config-form {
+  padding: 16px 0;
+}
+
+.empty-config {
+  text-align: center;
+  padding: 48px;
+  color: #8c8c8c;
+  font-size: 14px;
+}
+
+.no-parameters {
+  text-align: center;
+  padding: 24px;
+  color: #8c8c8c;
+  background: #fafafa;
+  border-radius: 6px;
+  border: 1px dashed #d9d9d9;
+}
+
+.preset-section {
+  margin-bottom: 16px;
+  padding: 0 24px;
+}
+
+.fault-description {
+  padding: 0 24px 16px;
+  color: #595959;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.fault-description p {
+  margin: 0;
+}
+
+.dynamic-form-item {
+  margin-bottom: 16px;
+}
+
+.dynamic-form-item .ant-form-item {
+  margin-bottom: 0;
+}
+
+.dynamic-form-item .ant-form-item-label {
+  padding-bottom: 4px;
+}
+
+.dynamic-form-item .ant-form-item-label > label {
+  font-size: 13px;
+  color: #595959;
+}
+
+/* Parameter type specific styles */
+.ant-input-number {
+  width: 100%;
+}
+
+.ant-slider {
+  margin: 12px 0;
+}
+
+.ant-slider-mark {
+  font-size: 11px;
+}
+
+/* Form layout adjustments */
+.fault-config-form .ant-row {
+  margin-left: -12px !important;
+  margin-right: -12px !important;
+}
+
+.fault-config-form .ant-col {
+  padding-left: 12px !important;
+  padding-right: 12px !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .fault-config-form .ant-col {
+    span: 24;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .fault-config-panel {
+    background: #141414;
+    color: rgba(255, 255, 255, 0.85);
+  }
+
+  .empty-config,
+  .no-parameters {
+    color: rgba(255, 255, 255, 0.45);
+  }
+
+  .fault-description {
+    color: rgba(255, 255, 255, 0.65);
+  }
+}

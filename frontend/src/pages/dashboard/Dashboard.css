@@ -1,0 +1,127 @@
+/* Dashboard Styles */
+
+.dashboard {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.dashboard-header {
+  margin-bottom: 2rem;
+  animation: fadeIn 0.6s ease-out;
+}
+
+.dashboard-title {
+  margin-bottom: 0.5rem !important;
+  font-family: var(--font-family-display) !important;
+  font-weight: 700 !important;
+  color: var(--color-secondary-800) !important;
+  font-size: 2rem !important;
+}
+
+[data-theme='dark'] .dashboard-title {
+  color: var(--color-secondary-100) !important;
+}
+
+.dashboard-subtitle {
+  font-size: var(--font-size-lg);
+  color: var(--color-secondary-500);
+}
+
+/* Metrics Row */
+.metrics-row {
+  margin-bottom: 2rem;
+}
+
+.metrics-row > div {
+  animation: fadeIn 0.6s ease-out;
+  animation-fill-mode: both;
+}
+
+.metrics-row > div:nth-child(1) {
+  animation-delay: 0.1s;
+}
+
+.metrics-row > div:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.metrics-row > div:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.metrics-row > div:nth-child(4) {
+  animation-delay: 0.4s;
+}
+
+/* Charts Row */
+.charts-row {
+  margin-bottom: 2rem;
+}
+
+.chart-container {
+  background: var(--color-secondary-0);
+  border-radius: var(--radius-xl);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--color-secondary-200);
+  transition: all 0.3s ease;
+  animation: fadeIn 0.8s ease-out;
+  animation-fill-mode: both;
+}
+
+[data-theme='dark'] .chart-container {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: var(--color-secondary-700);
+}
+
+.chart-container:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.chart-container:nth-child(1) {
+  animation-delay: 0.5s;
+}
+
+.chart-container:nth-child(2) {
+  animation-delay: 0.6s;
+}
+
+/* Bottom Row */
+.bottom-row {
+  animation: fadeIn 1s ease-out;
+  animation-fill-mode: both;
+  animation-delay: 0.7s;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .dashboard {
+    padding: 1rem;
+  }
+
+  .dashboard-title {
+    font-size: 1.5rem !important;
+  }
+
+  .dashboard-subtitle {
+    font-size: var(--font-size-base);
+  }
+
+  .chart-container {
+    padding: 1rem;
+  }
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

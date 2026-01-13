@@ -1,0 +1,22 @@
+# 依赖目录
+node_modules/
+
+# 构建输出
+dist/
+build/
+
+# 环境变量
+.env*
+
+# 日志文件
+*.log
+
+# 包管理器锁文件
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# 某些配置文件
+*.config.js
+.eslintrc.js
+.prettierrc.js

@@ -1,0 +1,88 @@
+.tag-manager {
+  padding: 8px 0;
+}
+
+.tag-list {
+  margin-bottom: 12px;
+}
+
+.tag-item {
+  margin-bottom: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.tag-item:hover {
+  opacity: 0.8;
+}
+
+.tag-input {
+  width: 100px;
+  margin-right: 8px;
+  vertical-align: top;
+}
+
+.tag-edit-input {
+  margin-right: 0;
+}
+
+.site-tag-plus {
+  background: #fff;
+  border-style: dashed;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.site-tag-plus:hover {
+  border-color: #1890ff;
+  color: #1890ff;
+}
+
+.common-tags {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed #e8e8e8;
+}
+
+.common-tags-label {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin-bottom: 8px;
+}
+
+.common-tags .ant-btn {
+  font-size: 12px;
+  height: 24px;
+  padding: 0 8px;
+}
+
+.common-tags .ant-btn[disabled] {
+  opacity: 0.4;
+}
+
+.tag-stats {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #bfbfbf;
+  text-align: right;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .site-tag-plus {
+    background: transparent;
+    color: rgba(255, 255, 255, 0.85);
+  }
+
+  .common-tags {
+    border-top-color: #434343;
+  }
+
+  .common-tags-label {
+    color: rgba(255, 255, 255, 0.45);
+  }
+
+  .tag-stats {
+    color: rgba(255, 255, 255, 0.45);
+  }
+}

@@ -1,5 +1,3 @@
-import { Layout, Menu, Avatar, Dropdown, Space, Typography } from 'antd'
-import type { MenuProps } from 'antd'
 import {
   DashboardOutlined,
   ProjectOutlined,
@@ -12,9 +10,21 @@ import {
   SettingOutlined,
   UserOutlined,
   LogoutOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+  BulbOutlined,
+  ApiOutlined,
+  CloudServerOutlined,
+  SafetyCertificateOutlined,
 } from '@ant-design/icons'
+import { Layout, Menu, Avatar, Dropdown, Space, Typography, Button, type MenuProps } from 'antd'
+import { useEffect, useState } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
+
+import ThemeToggle from '@/components/ui/ThemeToggle'
 import { useAuthStore } from '@/store/auth'
+import { useThemeStore } from '@/store/theme'
+import './MainLayout.css'
 
 const { Header, Sider, Content } = Layout
 const { Text } = Typography
@@ -23,62 +33,97 @@ const MainLayout = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuthStore()
+  const { sidebarCollapsed, toggleSidebar } = useThemeStore()
+  const [selectedKeys, setSelectedKeys] = useState<string[]>([])
+  const [openKeys, setOpenKeys] = useState<string[]>([])
 
   // Menu items
   const menuItems: MenuProps['items'] = [
     {
       key: '/dashboard',
       icon: <DashboardOutlined />,
-      label: '仪表盘',
+      label: 'Dashboard',
     },
     {
       type: 'divider',
+      style: { margin: '8px 0' },
     },
     {
-      key: '/projects',
-      icon: <ProjectOutlined />,
-      label: '项目管理',
-    },
-    {
-      key: '/containers',
-      icon: <ContainerOutlined />,
-      label: '容器管理',
-    },
-    {
-      key: '/datasets',
-      icon: <DatabaseOutlined />,
-      label: '数据集管理',
-    },
-    {
-      type: 'divider',
-    },
-    {
-      key: '/injections',
+      key: 'experiments',
       icon: <ExperimentOutlined />,
-      label: '故障注入',
+      label: 'Experiments',
+      children: [
+        {
+          key: '/projects',
+          icon: <ProjectOutlined />,
+          label: 'Projects',
+        },
+        {
+          key: '/injections',
+          icon: <BulbOutlined />,
+          label: 'Fault Injections',
+        },
+        {
+          key: '/executions',
+          icon: <PlayCircleOutlined />,
+          label: 'Algorithm Runs',
+        },
+      ],
     },
     {
-      key: '/executions',
-      icon: <PlayCircleOutlined />,
-      label: '算法执行',
+      key: 'infrastructure',
+      icon: <CloudServerOutlined />,
+      label: 'Infrastructure',
+      children: [
+        {
+          key: '/containers',
+          icon: <ContainerOutlined />,
+          label: 'Containers',
+        },
+        {
+          key: '/datasets',
+          icon: <DatabaseOutlined />,
+          label: 'Datasets',
+        },
+      ],
     },
     {
-      key: '/evaluations',
+      key: 'analysis',
       icon: <BarChartOutlined />,
-      label: '评估',
+      label: 'Analysis',
+      children: [
+        {
+          key: '/evaluations',
+          icon: <SafetyCertificateOutlined />,
+          label: 'Evaluations',
+        },
+        {
+          key: '/tasks',
+          icon: <UnorderedListOutlined />,
+          label: 'Task Monitor',
+        },
+      ],
     },
     {
       type: 'divider',
+      style: { margin: '8px 0' },
     },
     {
-      key: '/tasks',
-      icon: <UnorderedListOutlined />,
-      label: '任务监控',
-    },
-    {
-      key: '/system',
+      key: 'system',
       icon: <SettingOutlined />,
-      label: '系统管理',
+      label: 'System',
+      children: [
+        {
+          key: '/system',
+          icon: <ApiOutlined />,
+          label: 'API & Config',
+        },
+        {
+          key: '/settings',
+          icon: <SettingOutlined />,
+          label: 'Settings',
+        },
+      ],
     },
   ]
 
@@ -87,12 +132,7 @@ const MainLayout = () => {
     {
       key: 'profile',
       icon: <UserOutlined />,
-      label: '个人资料',
-    },
-    {
-      key: 'settings',
-      icon: <SettingOutlined />,
-      label: '设置',
+      label: 'Profile',
     },
     {
       type: 'divider',
@@ -100,13 +140,15 @@ const MainLayout = () => {
     {
       key: 'logout',
       icon: <LogoutOutlined />,
-      label: '退出登录',
+      label: 'Sign Out',
       danger: true,
     },
   ]
 
   const handleMenuClick = ({ key }: { key: string }) => {
-    navigate(key)
+    if (key.startsWith('/')) {
+      navigate(key)
+    }
   }
 
   const handleUserMenuClick = async ({ key }: { key: string }) => {
@@ -115,96 +157,127 @@ const MainLayout = () => {
       navigate('/login')
     } else if (key === 'profile') {
       navigate('/settings/profile')
-    } else if (key === 'settings') {
-      navigate('/settings')
     }
   }
 
-  // Get current selected key from location
-  const selectedKey = '/' + location.pathname.split('/')[1]
+  const handleOpenChange = (keys: string[]) => {
+    setOpenKeys(keys)
+  }
+
+  // Update selected keys based on location
+  useEffect(() => {
+    const path = location.pathname
+    setSelectedKeys([path])
+
+    // Set open keys for parent menus
+    if (path.startsWith('/projects') || path.startsWith('/injections') || path.startsWith('/executions')) {
+      setOpenKeys(['experiments'])
+    } else if (path.startsWith('/containers') || path.startsWith('/datasets')) {
+      setOpenKeys(['infrastructure'])
+    } else if (path.startsWith('/evaluations') || path.startsWith('/tasks')) {
+      setOpenKeys(['analysis'])
+    } else if (path.startsWith('/system') || path.startsWith('/settings')) {
+      setOpenKeys(['system'])
+    }
+  }, [location.pathname])
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout className="main-layout">
       {/* Header */}
-      <Header
-        style={{
-          position: 'fixed',
-          zIndex: 1,
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          backgroundColor: '#ffffff',
-          borderBottom: '1px solid #e5e7eb',
-          padding: '0 24px',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div
-            style={{
-              fontSize: '20px',
-              fontWeight: 600,
-              color: '#2563eb',
-              cursor: 'pointer',
-            }}
-            onClick={() => navigate('/dashboard')}
-          >
-            🔬 RCABench
+      <Header className="main-header">
+        <div className="header-left">
+          <Button
+            type="text"
+            icon={sidebarCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+            onClick={toggleSidebar}
+            className="sidebar-toggle"
+          />
+          <div className="logo-section" onClick={() => navigate('/dashboard')}>
+            <div className="logo-icon">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                <path
+                  d="M16 2L30 8.5V23.5L16 30L2 23.5V8.5L16 2Z"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M16 16L30 8.5M16 16V30M16 16L2 8.5"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinejoin="round"
+                  opacity="0.3"
+                />
+                <circle cx="16" cy="16" r="4" fill="currentColor" />
+              </svg>
+            </div>
+            {!sidebarCollapsed && (
+              <div className="logo-text">
+                <span className="logo-title">AegisLab</span>
+                <span className="logo-subtitle">RCA Benchmark Platform</span>
+              </div>
+            )}
           </div>
-          <Text type="secondary" style={{ fontSize: '12px' }}>
-            微服务根因分析基准测试平台
-          </Text>
         </div>
 
-        <Dropdown
-          menu={{ items: userMenuItems, onClick: handleUserMenuClick }}
-          placement="bottomRight"
-        >
-          <Space style={{ cursor: 'pointer' }}>
-            <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#2563eb' }} />
-            <Text>{user?.username || '用户'}</Text>
-          </Space>
-        </Dropdown>
+        <div className="header-right">
+          <ThemeToggle />
+          <Dropdown
+            menu={{ items: userMenuItems, onClick: handleUserMenuClick }}
+            placement="bottomRight"
+            arrow
+            overlayClassName="user-dropdown"
+          >
+            <Space className="user-section">
+              <Avatar
+                size="small"
+                icon={<UserOutlined />}
+                style={{ backgroundColor: 'var(--color-primary-500)' }}
+              />
+              {!sidebarCollapsed && (
+                <Text className="username">{user?.username || 'User'}</Text>
+              )}
+            </Space>
+          </Dropdown>
+        </div>
       </Header>
 
-      <Layout style={{ marginTop: 64 }}>
+      <Layout className="main-body">
         {/* Sidebar */}
         <Sider
-          width={220}
-          style={{
-            overflow: 'auto',
-            height: 'calc(100vh - 64px)',
-            position: 'fixed',
-            left: 0,
-            top: 64,
-            backgroundColor: '#f9fafb',
-            borderRight: '1px solid #e5e7eb',
-          }}
+          width={240}
+          collapsed={sidebarCollapsed}
+          collapsedWidth={64}
+          className="main-sidebar"
         >
-          <Menu
-            mode="inline"
-            selectedKeys={[selectedKey]}
-            items={menuItems}
-            onClick={handleMenuClick}
-            style={{
-              borderRight: 'none',
-              backgroundColor: 'transparent',
-            }}
-          />
+          <div className="sidebar-content">
+            <Menu
+              mode="inline"
+              selectedKeys={selectedKeys}
+              openKeys={openKeys}
+              items={menuItems}
+              onClick={handleMenuClick}
+              onOpenChange={handleOpenChange}
+              className="sidebar-menu"
+              inlineCollapsed={sidebarCollapsed}
+            />
+          </div>
+
+          {/* Sidebar Footer */}
+          <div className="sidebar-footer">
+            <div className="system-status">
+              <div className="status-indicator" />
+              <span className="status-text">System Online</span>
+            </div>
+          </div>
         </Sider>
 
         {/* Main Content */}
-        <Layout style={{ marginLeft: 220 }}>
-          <Content
-            style={{
-              margin: '24px',
-              padding: '24px',
-              minHeight: 'calc(100vh - 64px - 48px)',
-              backgroundColor: '#ffffff',
-              borderRadius: '8px',
-            }}
-          >
-            <Outlet />
+        <Layout className="main-content-wrapper">
+          <Content className="main-content">
+            <div className="content-inner">
+              <Outlet />
+            </div>
           </Content>
         </Layout>
       </Layout>

@@ -1,5 +1,5 @@
-import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios'
 import { message } from 'antd'
+import axios, { type AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios'
 
 // Create axios instance
 const apiClient: AxiosInstance = axios.create({
@@ -42,15 +42,16 @@ apiClient.interceptors.response.use(
         const refreshToken = localStorage.getItem('refresh_token')
         if (refreshToken) {
           const response = await axios.post('/api/v2/auth/refresh', {
-            refresh_token: refreshToken,
+            token: refreshToken,
           })
 
-          const { access_token, refresh_token: newRefreshToken } = response.data
-          localStorage.setItem('access_token', access_token)
-          localStorage.setItem('refresh_token', newRefreshToken)
+          // Backend returns single 'token' field
+          const { token } = response.data
+          localStorage.setItem('access_token', token)
+          localStorage.setItem('refresh_token', token)
 
           if (originalRequest.headers) {
-            originalRequest.headers.Authorization = `Bearer ${access_token}`
+            originalRequest.headers.Authorization = `Bearer ${token}`
           }
           return apiClient(originalRequest)
         }

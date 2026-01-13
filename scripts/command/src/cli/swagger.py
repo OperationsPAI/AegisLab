@@ -1,7 +1,7 @@
 import typer
 
 from src.common.common import settings
-from src.swagger import generate_python_sdk, init
+from src.swagger import generate_python_sdk, generate_typescript_sdk, init
 
 app = typer.Typer()
 
@@ -35,3 +35,5 @@ def generate_sdk(
 
     if language.lower() == "python":
         generate_python_sdk(version)
+    elif language.lower() == "typescript":
+        generate_typescript_sdk(version)

@@ -15,7 +15,7 @@ from src.common.common import ScopeType, console, settings
 from src.formatter.python import PythonFormatter
 from src.util import get_longest_common_substring
 
-__all__ = ["generate_python_sdk", "init"]
+__all__ = ["generate_python_sdk", "generate_typescript_sdk", "init"]
 
 # Project root: /home/nn/workspace/AegisLab
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
@@ -27,6 +27,10 @@ CONVERTED_DIR = SWAGGER_ROOT / "converted"
 PYTHON_SDK_DIR = PROJECT_ROOT / "sdk" / "python"
 PYTHON_SDK_GEN_DIR = PROJECT_ROOT / "sdk" / "python-gen"
 PYTHON_GENERATOR_CONFIG_DIR = PROJECT_ROOT / ".openapi-generator" / "python"
+
+TYPESCRIPT_SDK_DIR = PROJECT_ROOT / "sdk" / "typescript"
+TYPESCRIPT_SDK_GEN_DIR = PROJECT_ROOT / "sdk" / "typescript-gen"
+TYPESCRIPT_GENERATOR_CONFIG_DIR = PROJECT_ROOT / ".openapi-generator" / "typescript"
 
 
 class PostProcesser:
@@ -754,3 +758,163 @@ def _update_version(version: str) -> None:
     helm_values["configmap"]["version"] = version
     with open(helm_values_path, "w", encoding="utf-8") as f:
         yaml.dump(helm_values, f)
+
+
+def generate_typescript_sdk(version: str) -> None:
+    """
+    Generate TypeScript SDK from Swagger JSON using OpenAPI Generator.
+
+    Post-process the generated SDK to adjust package structure and formatting.
+    """
+    # 1. Update generator config with the specified version
+    sdk_config = TYPESCRIPT_GENERATOR_CONFIG_DIR / "config.json"
+    with open(sdk_config) as f:
+        config_data = json.load(f)
+
+    config_data["npmVersion"] = version
+
+    tmp_sdk_config = TYPESCRIPT_GENERATOR_CONFIG_DIR / "config_tmp.json"
+    with open(tmp_sdk_config, "w") as f:
+        json.dump(config_data, f, indent=2)
+
+    console.print(f"[bold green]✅ Updated npmVersion to {version}[/bold green]")
+
+    # 2. Generate SDK using OpenAPI Generator
+    console.print("[bold blue]Step 1: Generating TypeScript SDK...[/bold blue]")
+
+    if TYPESCRIPT_SDK_GEN_DIR.exists():
+        shutil.rmtree(TYPESCRIPT_SDK_GEN_DIR)
+
+    TYPESCRIPT_SDK_GEN_DIR.mkdir(parents=True)
+
+    volume_path = Path("/local")
+    relative_swagger = SWAGGER_ROOT.relative_to(PROJECT_ROOT)
+    relative_sdk_gen = TYPESCRIPT_SDK_GEN_DIR.relative_to(PROJECT_ROOT)
+    relative_generator_config = TYPESCRIPT_GENERATOR_CONFIG_DIR.relative_to(PROJECT_ROOT)
+
+    container_input_path = volume_path / relative_swagger / "converted" / "sdk.json"
+    container_output_path = volume_path / relative_sdk_gen
+    container_config_path = volume_path / relative_generator_config / "config_tmp.json"
+
+    # Get current user UID and GID to avoid permission issues
+    import os
+
+    current_user = os.getuid()
+    current_group = os.getgid()
+
+    try:
+        docker.run(
+            settings.generator_image,
+            command=[
+                "generate",
+                "-i",
+                container_input_path.as_posix(),
+                "-g",
+                "typescript-axios",
+                "-o",
+                container_output_path.as_posix(),
+                "-c",
+                container_config_path.as_posix(),
+            ],
+            volumes=[(PROJECT_ROOT, volume_path)],
+            user=f"{current_user}:{current_group}",
+            remove=True,
+        )
+    except Exception as e:
+        console.print(
+            f"[bold_red]❌ Error during typescript sdk generation: {e}[/bold_red]"
+        )
+        sys.exit(1)
+    finally:
+        if tmp_sdk_config.exists():
+            tmp_sdk_config.unlink(missing_ok=True)
+
+    console.print(
+        "[bold green]✅ Original TypeScript SDK generated successfully![/bold green]"
+    )
+    console.print()
+
+    # 3. Post-process generated SDK
+    console.print("[bold blue]Step 2: Post-processing generated SDK...[/bold blue]")
+
+    # Clean up existing SDK
+    if TYPESCRIPT_SDK_DIR.exists():
+        shutil.rmtree(TYPESCRIPT_SDK_DIR)
+
+    # Copy the generated SDK
+    shutil.copytree(TYPESCRIPT_SDK_GEN_DIR, TYPESCRIPT_SDK_DIR)
+
+    # Create a package.json for the SDK if it doesn't exist
+    package_json_path = TYPESCRIPT_SDK_DIR / "package.json"
+    if package_json_path.exists():
+        # Update the package name and version
+        with open(package_json_path) as f:
+            package_data = json.load(f)
+
+        package_data["name"] = "@rcabench/client"
+        package_data["version"] = version
+        package_data["description"] = "TypeScript client SDK for RCABench API"
+        package_data["main"] = "dist/index.js"
+        package_data["module"] = "dist/esm/index.js"
+        package_data["types"] = "dist/index.d.ts"
+        package_data["exports"] = {
+            ".": {
+                "import": "./dist/esm/index.js",
+                "require": "./dist/index.js",
+                "types": "./dist/index.d.ts"
+            }
+        }
+        package_data["files"] = ["dist"]
+        package_data["scripts"] = {
+            "build": "tsc && tsc -p tsconfig.esm.json",
+            "prepublishOnly": "npm run build"
+        }
+
+        with open(package_json_path, "w") as f:
+            json.dump(package_data, f, indent=2)
+
+    # Create tsconfig.json for the SDK
+    tsconfig_path = TYPESCRIPT_SDK_DIR / "tsconfig.json"
+    tsconfig = {
+        "compilerOptions": {
+            "target": "ES2020",
+            "module": "commonjs",
+            "lib": ["ES2020", "DOM", "DOM.Iterable"],
+            "declaration": True,
+            "outDir": "./dist",
+            "rootDir": "./",
+            "strict": True,
+            "esModuleInterop": True,
+            "skipLibCheck": True,
+            "forceConsistentCasingInFileNames": True,
+            "moduleResolution": "node",
+            "resolveJsonModule": True
+        },
+        "include": ["*.ts"],
+        "exclude": ["node_modules", "dist", "**/*.test.ts"]
+    }
+
+    with open(tsconfig_path, "w") as f:
+        json.dump(tsconfig, f, indent=2)
+
+    # Create tsconfig.esm.json for ESM build
+    tsconfig_esm_path = TYPESCRIPT_SDK_DIR / "tsconfig.esm.json"
+    tsconfig_esm = {
+        "extends": "./tsconfig.json",
+        "compilerOptions": {
+            "module": "esnext",
+            "outDir": "dist/esm"
+        }
+    }
+
+    with open(tsconfig_esm_path, "w") as f:
+        json.dump(tsconfig_esm, f, indent=2)
+
+    console.print(
+        "[bold green]✅ TypeScript SDK post-processing completed successfully![/bold green]"
+    )
+    console.print()
+
+    # 4. Clean up temporary directory
+    if TYPESCRIPT_SDK_GEN_DIR.exists():
+        shutil.rmtree(TYPESCRIPT_SDK_GEN_DIR)

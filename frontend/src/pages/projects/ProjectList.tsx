@@ -1,180 +1,294 @@
-import { useState } from 'react'
 import {
-  Table,
-  Button,
-  Input,
-  Space,
-  Tag,
-  Typography,
-  Popconfirm,
-  message,
-} from 'antd'
-import type { ColumnsType } from 'antd/es/table'
-import { PlusOutlined, SearchOutlined, DeleteOutlined } from '@ant-design/icons'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { projectApi } from '@/api/projects'
-import type { Project } from '@/types/api'
+  PlusOutlined,
+  SearchOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  PlayCircleOutlined,
+  FolderOutlined,
+  CalendarOutlined,
+  TeamOutlined,
+  ExperimentOutlined,
+  CheckCircleOutlined,
+} from '@ant-design/icons'
+import type { ProjectResp as Project } from '@rcabench/client'
+import { useQuery } from '@tanstack/react-query'
+import { Table, Button, Space, Input, Typography, Row, Col, Card, Avatar, type TablePaginationConfig } from 'antd'
 import dayjs from 'dayjs'
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
-const { Title } = Typography
+import { projectApi } from '@/api/projects'
+import StatCard from '@/components/ui/StatCard'
+import StatusBadge, { type StatusBadgeProps } from '@/components/ui/StatusBadge'
+import { ProjectState } from '@/types/api'
+
+const { Title, Text } = Typography
+const { Search } = Input
 
 const ProjectList = () => {
-  const queryClient = useQueryClient()
-  const [page, setPage] = useState(1)
-  const [size, setSize] = useState(10)
+  const navigate = useNavigate()
   const [searchText, setSearchText] = useState('')
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  })
 
   // Fetch projects
-  const { data, isLoading } = useQuery({
-    queryKey: ['projects', { page, size }],
-    queryFn: () => projectApi.getProjects({ page, size }),
+  const { data: projectsData, isLoading } = useQuery({
+    queryKey: ['projects', pagination.current, pagination.pageSize, searchText],
+    queryFn: () =>
+      projectApi.getProjects({
+        page: pagination.current,
+        size: pagination.pageSize,
+      }),
   })
 
-  // Delete mutation
-  const deleteMutation = useMutation({
-    mutationFn: (id: number) => projectApi.deleteProject(id),
-    onSuccess: () => {
-      message.success('项目删除成功')
-      queryClient.invalidateQueries({ queryKey: ['projects'] })
-    },
-    onError: () => {
-      message.error('项目删除失败')
-    },
-  })
+  // Statistics - mock data for now
+  const stats = {
+    total: projectsData?.total || 0,
+    active: projectsData?.data.filter(p => p.state === ProjectState.ACTIVE).length || 0,
+    completedThisMonth: projectsData?.data.filter(p =>
+      dayjs(p.created_at).isAfter(dayjs().subtract(1, 'month'))
+    ).length || 0,
+    totalExperiments: projectsData?.data.reduce((sum, p) => sum + (p.experiment_count || 0), 0) || 0
+  }
 
-  const columns: ColumnsType<Project> = [
+  const handleTableChange = (newPagination: TablePaginationConfig) => {
+    setPagination({
+      ...pagination,
+      current: newPagination.current || 1,
+      pageSize: newPagination.pageSize || 10,
+    })
+  }
+
+  const handleSearch = (value: string) => {
+    setSearchText(value)
+    setPagination({ ...pagination, current: 1 })
+  }
+
+  const handleCreateProject = () => {
+    navigate('/projects/new')
+  }
+
+  const handleEditProject = (_id: number) => {
+    // TODO: Navigate to edit page when implemented
+    // console.log('Edit project:', id)
+  }
+
+  const handleRunExperiment = (_project: Project) => {
+    // TODO: Navigate to create injection with project data when implemented
+    // console.log('Run experiment for project:', _project.id)
+    navigate('/injections/create')
+  }
+
+  const columns = [
     {
-      title: '项目名称',
+      title: 'Project',
       dataIndex: 'name',
       key: 'name',
-      filteredValue: searchText ? [searchText] : null,
-      onFilter: (value, record) =>
-        record.name.toLowerCase().includes((value as string).toLowerCase()),
-      render: (text: string) => (
-        <Typography.Text strong style={{ color: '#2563eb' }}>
-          {text}
-        </Typography.Text>
-      ),
-    },
-    {
-      title: '描述',
-      dataIndex: 'description',
-      key: 'description',
-      ellipsis: true,
-      render: (text: string) => (
-        <Typography.Text type="secondary">{text || '-'}</Typography.Text>
-      ),
-    },
-    {
-      title: '可见性',
-      dataIndex: 'is_public',
-      key: 'is_public',
-      width: 100,
-      render: (isPublic: boolean) => (
-        <Tag color={isPublic ? 'green' : 'orange'}>
-          {isPublic ? '公开' : '私有'}
-        </Tag>
-      ),
-    },
-    {
-      title: '创建时间',
-      dataIndex: 'created_at',
-      key: 'created_at',
-      width: 180,
-      render: (time: string) => dayjs(time).format('YYYY-MM-DD HH:mm'),
-    },
-    {
-      title: '标签',
-      dataIndex: 'labels',
-      key: 'labels',
-      width: 200,
-      render: (labels: { key: string; value: string }[]) => (
-        <Space size={[0, 4]} wrap>
-          {labels?.map((label, index) => (
-            <Tag key={index} style={{ fontSize: '12px' }}>
-              {label.key}: {label.value}
-            </Tag>
-          )) || '-'}
+      width: '30%',
+      render: (name: string, record: Project) => (
+        <Space>
+          <Avatar
+            size="large"
+            style={{
+              backgroundColor: '#3b82f6',
+              fontSize: '1.25rem',
+            }}
+            icon={<FolderOutlined />}
+          />
+          <div>
+            <Text strong style={{ fontSize: '1rem' }}>
+              {name}
+            </Text>
+            <br />
+            <Text type="secondary" style={{ fontSize: '0.875rem' }}>
+              ID: {record.id}
+            </Text>
+          </div>
         </Space>
       ),
     },
     {
-      title: '操作',
-      key: 'actions',
-      width: 150,
-      render: (_, record) => (
+      title: 'Status',
+      dataIndex: 'state',
+      key: 'state',
+      width: '15%',
+      render: (state: ProjectState) => {
+        const statusMap = {
+          [ProjectState.ACTIVE]: { text: 'Active', color: 'success' },
+          [ProjectState.PAUSED]: { text: 'Paused', color: 'warning' },
+          [ProjectState.COMPLETED]: { text: 'Completed', color: 'info' },
+          [ProjectState.ARCHIVED]: { text: 'Archived', color: 'default' },
+        }
+        const config = statusMap[state] || { text: 'Unknown', color: 'default' }
+        return <StatusBadge status={config.color as StatusBadgeProps['status']} text={config.text} />
+      },
+    },
+    {
+      title: 'Experiments',
+      dataIndex: 'experiment_count',
+      key: 'experiment_count',
+      width: '12%',
+      render: (count: number) => (
+        <Text>
+          <ExperimentOutlined /> {count || 0}
+        </Text>
+      ),
+    },
+    {
+      title: 'Team',
+      dataIndex: 'team_size',
+      key: 'team_size',
+      width: '12%',
+      render: (size: number) => (
+        <Text>
+          <TeamOutlined /> {size || 1} member{size !== 1 ? 's' : ''}
+        </Text>
+      ),
+    },
+    {
+      title: 'Created',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      width: '15%',
+      render: (date: string) => (
         <Space>
-          <Button type="link" size="small">
-            查看
-          </Button>
-          <Button type="link" size="small">
-            编辑
-          </Button>
-          <Popconfirm
-            title="确认删除"
-            description="确定要删除这个项目吗?"
-            onConfirm={() => deleteMutation.mutate(record.id)}
-            okText="确认"
-            cancelText="取消"
-          >
-            <Button
-              type="link"
-              size="small"
-              danger
-              icon={<DeleteOutlined />}
-              loading={deleteMutation.isPending}
-            />
-          </Popconfirm>
+          <CalendarOutlined />
+          <Text>{dayjs(date).format('MMM D, YYYY')}</Text>
+        </Space>
+      ),
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      width: '16%',
+      render: (_: string, record: Project) => (
+        <Space>
+          <Button
+            type="text"
+            icon={<PlayCircleOutlined />}
+            onClick={() => handleRunExperiment(record)}
+            title="Run Experiment"
+          />
+          <Button
+            type="text"
+            icon={<EditOutlined />}
+            onClick={() => handleEditProject(record.id)}
+            title="Edit Project"
+          />
+          <Button
+            type="text"
+            danger
+            icon={<DeleteOutlined />}
+            title="Delete Project"
+          />
         </Space>
       ),
     },
   ]
 
   return (
-    <div>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '24px',
-        }}
-      >
-        <Title level={3} style={{ margin: 0 }}>
-          项目管理
-        </Title>
-        <Space>
-          <Input
-            placeholder="搜索项目名称"
-            prefix={<SearchOutlined />}
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: 250 }}
-            allowClear
-          />
-          <Button type="primary" icon={<PlusOutlined />}>
-            创建项目
-          </Button>
-        </Space>
+    <div className="project-list">
+      {/* Page Header */}
+      <div className="page-header">
+        <div className="page-header-left">
+          <Title level={2} className="page-title">
+            Projects
+          </Title>
+          <Text type="secondary">
+            Manage your RCA benchmarking projects and experiments
+          </Text>
+        </div>
+        <Button
+          type="primary"
+          size="large"
+          icon={<PlusOutlined />}
+          onClick={handleCreateProject}
+          className="create-button"
+        >
+          New Project
+        </Button>
       </div>
 
-      <Table
-        columns={columns}
-        dataSource={data?.data.data || []}
-        rowKey="id"
-        loading={isLoading}
-        pagination={{
-          current: page,
-          pageSize: size,
-          total: data?.data.total || 0,
-          showSizeChanger: true,
-          showTotal: (total) => `共 ${total} 个项目`,
-          onChange: (newPage, newSize) => {
-            setPage(newPage)
-            setSize(newSize)
-          },
-        }}
-      />
+      {/* Statistics Cards */}
+      <Row gutter={[24, 24]} className="stats-row">
+        <Col xs={24} sm={12} lg={6}>
+          <StatCard
+            title="Total Projects"
+            value={stats?.total || 0}
+            prefix={<FolderOutlined />}
+            color="primary"
+          />
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <StatCard
+            title="Active Projects"
+            value={stats?.active || 0}
+            prefix={<ExperimentOutlined />}
+            color="success"
+          />
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <StatCard
+            title="Completed This Month"
+            value={stats?.completedThisMonth || 0}
+            prefix={<CheckCircleOutlined />}
+            color="info"
+          />
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <StatCard
+            title="Total Experiments"
+            value={stats?.totalExperiments || 0}
+            prefix={<PlayCircleOutlined />}
+            color="warning"
+          />
+        </Col>
+      </Row>
+
+      {/* Search and Filters */}
+      <Card className="search-card">
+        <Row gutter={[24, 24]} align="middle">
+          <Col flex="auto">
+            <Search
+              placeholder="Search projects by name or ID..."
+              allowClear
+              enterButton={<SearchOutlined />}
+              size="large"
+              onSearch={handleSearch}
+              style={{ maxWidth: 400 }}
+            />
+          </Col>
+          <Col>
+            <Space>
+              <Button size="large">Filter</Button>
+              <Button size="large">Sort</Button>
+            </Space>
+          </Col>
+        </Row>
+      </Card>
+
+      {/* Projects Table */}
+      <Card className="table-card">
+        <Table
+          columns={columns}
+          dataSource={projectsData?.data || []}
+          loading={isLoading}
+          pagination={{
+            ...pagination,
+            total: projectsData?.total || 0,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total) => `Total ${total} projects`,
+          }}
+          onChange={handleTableChange}
+          rowKey="id"
+          className="projects-table"
+          rowClassName="project-row"
+        />
+      </Card>
     </div>
   )
 }

@@ -17,6 +17,15 @@ export interface PaginatedResponse<T> {
   size: number
 }
 
+// ==================== Project State Enums ====================
+
+export enum ProjectState {
+  ACTIVE = 0,
+  PAUSED = 1,
+  COMPLETED = 2,
+  ARCHIVED = 3,
+}
+
 // ==================== Task State Enums ====================
 
 export enum TaskState {
@@ -28,13 +37,20 @@ export enum TaskState {
 }
 
 export enum InjectionState {
-  BUILDING_DATAPACK = 0,
-  DATAPACK_READY = 1,
-  INJECTING = 2,
-  INJECTION_COMPLETE = 3,
-  COLLECTING_RESULT = 4,
-  COMPLETED = 5,
-  ERROR = -1,
+  PENDING = 0,
+  RUNNING = 1,
+  COMPLETED = 2,
+  ERROR = 3,
+  STOPPED = 4,
+}
+
+export enum InjectionType {
+  NETWORK = 0,
+  CPU = 1,
+  MEMORY = 2,
+  DISK = 3,
+  PROCESS = 4,
+  KUBERNETES = 5,
 }
 
 export enum ExecutionState {
@@ -112,12 +128,15 @@ export interface Project {
   name: string
   description: string
   is_public: boolean
+  state: ProjectState
   created_at: string
   updated_at: string
   creator_id: number
   labels?: Label[]
   containers?: Container[]
   datasets?: Dataset[]
+  experiment_count?: number
+  team_size?: number
 }
 
 // ==================== Injection Types ====================
@@ -137,6 +156,10 @@ export interface Injection {
   name: string
   project_id: number
   state: InjectionState
+  type: InjectionType
+  progress: number
+  duration: number
+  target?: string
   pedestal: InjectionContainer
   benchmark: InjectionContainer
   interval: number
@@ -175,7 +198,7 @@ export interface SubmitInjectionReq {
   interval: number
   pre_duration: number
   specs: FaultSpec[][]
-  algorithms?: { name: string; version: string }[]
+  algorithms?: Array<{ name: string; version: string }>
   labels?: Label[]
   name_prefix?: string
 }
@@ -253,6 +276,10 @@ export interface User {
   id: number
   username: string
   email: string
+  full_name?: string
+  avatar?: string
+  phone?: string
+  last_login_at?: string
   status: number
   created_at: string
 }
@@ -282,8 +309,8 @@ export interface LoginReq {
 }
 
 export interface LoginRes {
-  access_token: string
-  refresh_token: string
+  token: string
+  expires_at: string
   user: User
 }
 
@@ -309,4 +336,30 @@ export interface DatapackEvaluationResult {
   datapack: string
   groundtruths: GroundTruth[]
   execution_refs: ExecutionRef[]
+}
+
+// ==================== Fault Injection Types ====================
+
+export interface FaultType {
+  id: number
+  name: string
+  type: string
+  category?: string
+  description?: string
+  parameters?: FaultParameter[]
+  created_at?: string
+  updated_at?: string
+}
+
+export interface FaultParameter {
+  name: string
+  type: 'string' | 'number' | 'boolean' | 'select' | 'range'
+  label: string
+  description?: string
+  required?: boolean
+  default?: any
+  options?: string[]
+  min?: number
+  max?: number
+  step?: number
 }

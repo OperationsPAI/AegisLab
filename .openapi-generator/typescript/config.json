@@ -1,0 +1,19 @@
+{
+  "npmName": "rcabench-client",
+  "npmVersion": "0.0.0",
+  "npmDescription": "TypeScript client SDK for RCABench API",
+  "npmAuthor": "RCABench Team",
+  "npmRepository": "https://github.com/OperationsPAI/AegisLab",
+  "npmLicense": "MIT",
+  "supportsES6": true,
+  "modelPropertyNaming": "original",
+  "withInterfaces": true,
+  "useSingleRequestParameter": true,
+  "typescriptThreePlus": true,
+  "enumNameSuffix": "",
+  "enumPropertyNaming": "original",
+  "hideGenerationTimestamp": true,
+  "disallowAdditionalPropertiesIfNotPresent": false,
+  "sortParamsByRequiredFlag": true,
+  "stringEnums": true
+}

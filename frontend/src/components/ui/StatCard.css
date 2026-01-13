@@ -1,0 +1,137 @@
+.stat-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  transition: all 0.3s ease;
+  background: var(--color-secondary-50);
+}
+
+[data-theme='dark'] .stat-card {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--card-accent-color) !important;
+}
+
+.stat-card-content {
+  position: relative;
+  z-index: 2;
+}
+
+.stat-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.stat-card-title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-secondary-600);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.stat-card-prefix {
+  font-size: var(--font-size-lg);
+  opacity: 0.7;
+}
+
+.stat-card-body {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.stat-card-value {
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  font-family: var(--font-family-display);
+  line-height: 1;
+}
+
+.stat-card-suffix {
+  font-size: var(--font-size-base);
+  color: var(--color-secondary-500);
+}
+
+.stat-card-trend {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.trend-up {
+  color: var(--color-success);
+}
+
+.trend-down {
+  color: var(--color-error);
+}
+
+.trend-neutral {
+  color: var(--color-secondary-500);
+}
+
+.trend-icon {
+  font-weight: var(--font-weight-bold);
+}
+
+.stat-card-bg-effect {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 100px;
+  height: 100px;
+  background: radial-gradient(
+    circle at center,
+    var(--card-accent-color) 0%,
+    transparent 70%
+  );
+  opacity: 0.1;
+  filter: blur(20px);
+  transition: all 0.5s ease;
+}
+
+.stat-card:hover .stat-card-bg-effect {
+  opacity: 0.2;
+  transform: scale(1.2);
+}
+
+/* Loading state */
+.stat-card-loading {
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card-loading::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}

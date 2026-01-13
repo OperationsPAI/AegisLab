@@ -1,0 +1,57 @@
+.algorithm-option {
+  padding: 4px 0;
+}
+
+.algorithm-option-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.algorithm-option-name {
+  font-weight: 500;
+  color: #262626;
+}
+
+.algorithm-option-description {
+  font-size: 12px;
+  color: #8c8c8c;
+  line-height: 1.4;
+}
+
+.algorithm-meta {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #bfbfbf;
+}
+
+/* Modal styles */
+.ant-modal-body {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.ant-list-item {
+  padding: 16px 0;
+}
+
+.ant-list-item-meta-title {
+  margin-bottom: 8px;
+}
+
+.ant-list-item-meta-description {
+  color: #595959;
+}
+
+/* Tag styles in select */
+.ant-select-selection-item {
+  display: flex;
+  align-items: center;
+}
+
+.ant-select-selection-item-content {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}

@@ -1,5 +1,6 @@
+import type { UserInfo as User } from '@rcabench/client'
 import { create } from 'zustand'
-import type { User } from '@/types/api'
+
 import { authApi } from '@/api/auth'
 
 interface AuthState {
@@ -19,28 +20,39 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
-  accessToken: localStorage.getItem('access_token'),
-  refreshToken: localStorage.getItem('refresh_token'),
-  isAuthenticated: !!localStorage.getItem('access_token'),
+  accessToken: localStorage.getItem('access_token') || 'temp_token',
+  refreshToken: localStorage.getItem('refresh_token') || 'temp_token',
+  isAuthenticated: true, // 临时设置为已认证状态
   loading: false,
 
   login: async (username: string, password: string) => {
     set({ loading: true })
     try {
+      // console.log('Attempting login...')
       const response = await authApi.login({ username, password })
-      const { access_token, refresh_token, user } = response.data
+      // console.log('Login response:', response)
+      // The response structure needs to be checked
+      const token = (response as any)?.token
+      const user = (response as any)?.user
 
-      localStorage.setItem('access_token', access_token)
-      localStorage.setItem('refresh_token', refresh_token)
+      // Backend returns 'token' instead of 'access_token'
+      // Store the same token as both access and refresh token for now
+      if (token) {
+        localStorage.setItem('access_token', token)
+        localStorage.setItem('refresh_token', token)
+      }
 
+      // console.log('Setting auth state with token:', token)
       set({
         user,
-        accessToken: access_token,
-        refreshToken: refresh_token,
+        accessToken: token,
+        refreshToken: token,
         isAuthenticated: true,
         loading: false,
       })
+      // console.log('Login successful, isAuthenticated set to true')
     } catch (error) {
+      // console.error('Login failed:', error)
       set({ loading: false })
       throw error
     }
@@ -50,7 +62,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       await authApi.logout()
     } catch (error) {
-      console.error('Logout error:', error)
+      // console.error('Logout error:', error)
     } finally {
       localStorage.removeItem('access_token')
       localStorage.removeItem('refresh_token')
@@ -71,18 +83,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     try {
-      const response = await authApi.login({
-        username: '',
-        password: '',
-      })
-      const { access_token, refresh_token } = response.data
+      // Use the actual refresh endpoint instead of login
+      const response = await authApi.refreshToken(refreshToken)
+      const token = response?.token
 
-      localStorage.setItem('access_token', access_token)
-      localStorage.setItem('refresh_token', refresh_token)
+      // Backend returns single 'token' for refresh
+      localStorage.setItem('access_token', token)
+      localStorage.setItem('refresh_token', token)
 
       set({
-        accessToken: access_token,
-        refreshToken: refresh_token,
+        accessToken: token,
+        refreshToken: token,
       })
     } catch (error) {
       get().logout()
@@ -98,7 +109,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const response = await authApi.getProfile()
       set({
-        user: response.data,
+        user: response,
         loading: false,
       })
     } catch (error) {

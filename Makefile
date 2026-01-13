@@ -241,6 +241,9 @@ swag-init: ## 📝 Initialize Swagger documentation
 generate-python-sdk: swag-init ## ⚙️ Generate Python SDK from Swagger documentation
 	$(MAKE) run-command ARGS="swagger generate-sdk -l python -v $(SDK_VERSION)"
 
+generate-typescript-sdk: swag-init ## ⚙️ Generate TypeScript SDK from Swagger documentation
+	$(MAKE) run-command ARGS="swagger generate-sdk -l typescript -v $(SDK_VERSION)"
+
 # =============================================================================
 # Utilities
 # =============================================================================

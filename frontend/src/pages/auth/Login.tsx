@@ -1,7 +1,8 @@
-import { Form, Input, Button, Card, Typography, message } from 'antd'
 import { UserOutlined, LockOutlined } from '@ant-design/icons'
-import { useNavigate } from 'react-router-dom'
+import { Form, Input, Button, Card, Typography, message } from 'antd'
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+
 import { useAuthStore } from '@/store/auth'
 
 const { Title, Text } = Typography
@@ -16,7 +17,10 @@ const Login = () => {
     try {
       await login(values.username, values.password)
       message.success('登录成功')
-      navigate('/dashboard')
+      // Add a small delay to ensure state is updated
+      setTimeout(() => {
+        navigate('/dashboard')
+      }, 100)
     } catch (error) {
       message.error('登录失败，请检查用户名和密码')
     } finally {
