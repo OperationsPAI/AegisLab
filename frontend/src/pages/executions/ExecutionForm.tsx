@@ -1,62 +1,65 @@
+
 import {
-  PlayCircleOutlined,
   CloseOutlined,
-  FunctionOutlined,
   DatabaseOutlined,
-  TagsOutlined,
+  FunctionOutlined,
   InfoCircleOutlined,
-} from '@ant-design/icons'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+  PlayCircleOutlined,
+  TagsOutlined,
+} from '@ant-design/icons';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  Alert,
+  Button,
+  Card,
+  Col,
+  Descriptions,
+  Divider,
+  Empty,
   Form,
   Input,
-  Select,
-  Button,
-  Space,
-  Card,
-  Typography,
-  Row,
-  Col,
-  Tag,
-  Switch,
   message,
-  Divider,
-  Alert,
-  Descriptions,
-  Empty,
-} from 'antd'
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+  Row,
+  Select,
+  Space,
+  Switch,
+  Tag,
+  Typography,
+} from 'antd';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-import { containerApi } from '@/api/containers'
-import { executionApi } from '@/api/executions'
-import type { Container, Label } from '@/types/api'
+import { containerApi } from '@/api/containers';
+import { executionApi } from '@/api/executions';
+import type { Container, Label } from '@/types/api';
 
-const { Title, Text } = Typography
-const { TextArea } = Input
-const { Option } = Select
+const { Title, Text } = Typography;
+const { TextArea } = Input;
+const { Option } = Select;
 
 interface ExecutionFormData {
-  algorithm_name: string
-  algorithm_version: string
-  datapack_id: string
-  labels?: Label[]
+  algorithm_name: string;
+  algorithm_version: string;
+  datapack_id: string;
+  labels?: Label[];
 }
 
 const ExecutionForm = () => {
-  const navigate = useNavigate()
-  const queryClient = useQueryClient()
-  const [form] = Form.useForm<ExecutionFormData>()
-  const [selectedAlgorithm, setSelectedAlgorithm] = useState<Container | null>(null)
-  const [selectedVersion, setSelectedVersion] = useState<string>('')
-  const [labelInput, setLabelInput] = useState('')
-  const [labels, setLabels] = useState<Label[]>([])
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [form] = Form.useForm<ExecutionFormData>();
+  const [selectedAlgorithm, setSelectedAlgorithm] = useState<Container | null>(
+    null
+  );
+  const [selectedVersion, setSelectedVersion] = useState<string>('');
+  const [labelInput, setLabelInput] = useState('');
+  const [labels, setLabels] = useState<Label[]>([]);
 
   // Fetch algorithms
   const { data: algorithmsData } = useQuery({
     queryKey: ['algorithms'],
     queryFn: () => containerApi.getContainers({ type: 'Algorithm' }),
-  })
+  });
 
   // Fetch datapacks (simulated - in real app would fetch from datapack API)
   const { data: datapacksData } = useQuery({
@@ -66,92 +69,107 @@ const ExecutionForm = () => {
       return {
         data: {
           data: [
-            { id: 'dp-12345678', name: 'Test Datapack 1', created_at: '2024-01-01' },
-            { id: 'dp-87654321', name: 'Test Datapack 2', created_at: '2024-01-02' },
-            { id: 'dp-11223344', name: 'Production Datapack', created_at: '2024-01-03' },
+            {
+              id: 'dp-12345678',
+              name: 'Test Datapack 1',
+              created_at: '2024-01-01',
+            },
+            {
+              id: 'dp-87654321',
+              name: 'Test Datapack 2',
+              created_at: '2024-01-02',
+            },
+            {
+              id: 'dp-11223344',
+              name: 'Production Datapack',
+              created_at: '2024-01-03',
+            },
           ],
         },
-      }
+      };
     },
-  })
+  });
 
   // Create execution mutation
   const createMutation = useMutation({
-    mutationFn: (data: ExecutionFormData) => executionApi.executeAlgorithm(data),
+    mutationFn: (data: ExecutionFormData) =>
+      executionApi.executeAlgorithm(data),
     onSuccess: (response) => {
-      message.success('Execution started successfully')
-      queryClient.invalidateQueries({ queryKey: ['executions'] })
-      navigate(`/executions/${response.id}`)
+      message.success('Execution started successfully');
+      queryClient.invalidateQueries({ queryKey: ['executions'] });
+      navigate(`/executions/${response.id}`);
     },
     onError: (error) => {
-      message.error('Failed to start execution')
-      console.error('Create execution error:', error)
+      message.error('Failed to start execution');
+      console.error('Create execution error:', error);
     },
-  })
+  });
 
   const handleAlgorithmChange = (algorithmId: string) => {
-    const algorithm = algorithmsData?.data.find(a => a.id === Number(algorithmId))
-    setSelectedAlgorithm(algorithm || null)
+    const algorithm = algorithmsData?.data.find(
+      (a) => a.id === Number(algorithmId)
+    );
+    setSelectedAlgorithm(algorithm || null);
     if (algorithm?.versions?.[0]) {
-      setSelectedVersion(algorithm.versions[0].version)
-      form.setFieldsValue({ algorithm_version: algorithm.versions[0].version })
+      setSelectedVersion(algorithm.versions[0].version);
+      form.setFieldsValue({ algorithm_version: algorithm.versions[0].version });
     }
-  }
+  };
 
   const handleVersionChange = (version: string) => {
-    setSelectedVersion(version)
-  }
+    setSelectedVersion(version);
+  };
 
   const handleSubmit = async (values: ExecutionFormData) => {
     const data = {
       ...values,
       labels,
-    }
+    };
 
-    createMutation.mutate(data)
-  }
+    createMutation.mutate(data);
+  };
 
   const handleCancel = () => {
-    navigate('/executions')
-  }
+    navigate('/executions');
+  };
 
   const addLabel = () => {
-    if (!labelInput.trim()) return
+    if (!labelInput.trim()) return;
 
-    const [key, value] = labelInput.split(':').map(s => s.trim())
+    const [key, value] = labelInput.split(':').map((s) => s.trim());
     if (!key || !value) {
-      message.warning('Please enter label in format: key:value')
-      return
+      message.warning('Please enter label in format: key:value');
+      return;
     }
 
-    if (labels.some(l => l.key === key)) {
-      message.warning('Label key already exists')
-      return
+    if (labels.some((l) => l.key === key)) {
+      message.warning('Label key already exists');
+      return;
     }
 
-    setLabels([...labels, { key, value }])
-    setLabelInput('')
-  }
+    setLabels([...labels, { key, value }]);
+    setLabelInput('');
+  };
 
   const removeLabel = (key: string) => {
-    setLabels(labels.filter(l => l.key !== key))
-  }
+    setLabels(labels.filter((l) => l.key !== key));
+  };
 
   if (!algorithmsData?.data.length) {
     return (
       <div style={{ padding: 24 }}>
         <Card>
           <Empty
-            description="No algorithms available. Please create an algorithm container first."
+            description='No algorithms available. Please create an algorithm container first.'
             image={Empty.PRESENTED_IMAGE_SIMPLE}
           >
-            <Button type="primary" onClick={() => navigate('/containers/new')}>
+            <Button type='primary' onClick={() => navigate('/containers/new')}>
               Create Algorithm
             </Button>
           </Empty>
         </Card>
       </div>
-    )
+    );
   }
 
   return (
@@ -180,38 +198,43 @@ const ExecutionForm = () => {
           >
             <Form
               form={form}
-              layout="vertical"
+              layout='vertical'
               onFinish={handleSubmit}
               initialValues={{
                 algorithm_version: selectedVersion,
               }}
             >
               <Alert
-                message="Execution Setup"
-                description="Configure the algorithm execution by selecting an algorithm, datapack, and optional parameters."
-                type="info"
+                message='Execution Setup'
+                description='Configure the algorithm execution by selecting an algorithm, datapack, and optional parameters.'
+                type='info'
                 showIcon
                 icon={<InfoCircleOutlined />}
                 style={{ marginBottom: 24 }}
               />
 
               <Form.Item
-                label="Algorithm"
-                name="algorithm_name"
-                rules={[{ required: true, message: 'Please select an algorithm' }]}
+                label='Algorithm'
+                name='algorithm_name'
+                rules={[
+                  { required: true, message: 'Please select an algorithm' },
+                ]}
               >
                 <Select
-                  placeholder="Select algorithm"
-                  size="large"
+                  placeholder='Select algorithm'
+                  size='large'
                   onChange={handleAlgorithmChange}
                 >
-                  {algorithmsData.data.map(algorithm => (
+                  {algorithmsData.data.map((algorithm) => (
                     <Option key={algorithm.id} value={algorithm.name}>
                       <Space>
                         <FunctionOutlined style={{ color: '#f59e0b' }} />
                         <div>
                           <div>{algorithm.name}</div>
-                          <Text type="secondary" style={{ fontSize: '0.75rem' }}>
+                          <Text
+                            type='secondary'
+                            style={{ fontSize: '0.75rem' }}
+                          >
                             {algorithm.versions?.length || 0} versions available
                           </Text>
                         </div>
@@ -224,22 +247,31 @@ const ExecutionForm = () => {
               {selectedAlgorithm && (
                 <>
                   <Form.Item
-                    label="Algorithm Version"
-                    name="algorithm_version"
-                    rules={[{ required: true, message: 'Please select algorithm version' }]}
+                    label='Algorithm Version'
+                    name='algorithm_version'
+                    rules={[
+                      {
+                        required: true,
+                        message: 'Please select algorithm version',
+                      },
+                    ]}
                   >
                     <Select
-                      placeholder="Select version"
-                      size="large"
+                      placeholder='Select version'
+                      size='large'
                       onChange={handleVersionChange}
                       value={selectedVersion}
                     >
-                      {selectedAlgorithm.versions?.map(version => (
+                      {selectedAlgorithm.versions?.map((version) => (
                         <Option key={version.id} value={version.version}>
                           <Space>
                             <Text>{version.version}</Text>
-                            <Text type="secondary" style={{ fontSize: '0.75rem' }}>
-                              ({version.registry}/{version.repository}:{version.tag})
+                            <Text
+                              type='secondary'
+                              style={{ fontSize: '0.75rem' }}
+                            >
+                              ({version.registry}/{version.repository}:
+                              {version.tag})
                             </Text>
                           </Space>
                         </Option>
@@ -247,21 +279,25 @@ const ExecutionForm = () => {
                     </Select>
                   </Form.Item>
 
-                  <Card size="small" style={{ marginBottom: 24 }}>
-                    <Descriptions column={2} size="small">
-                      <Descriptions.Item label="Type">{selectedAlgorithm.type}</Descriptions.Item>
-                      <Descriptions.Item label="Public">
+                  <Card size='small' style={{ marginBottom: 24 }}>
+                    <Descriptions column={2} size='small'>
+                      <Descriptions.Item label='Type'>
+                        {selectedAlgorithm.type}
+                      </Descriptions.Item>
+                      <Descriptions.Item label='Public'>
                         <Switch
                           checked={selectedAlgorithm.is_public}
                           disabled
-                          size="small"
+                          size='small'
                         />
                       </Descriptions.Item>
-                      <Descriptions.Item label="Versions">
+                      <Descriptions.Item label='Versions'>
                         {selectedAlgorithm.versions?.length || 0}
                       </Descriptions.Item>
-                      <Descriptions.Item label="Created">
-                        {new Date(selectedAlgorithm.created_at).toLocaleDateString()}
+                      <Descriptions.Item label='Created'>
+                        {new Date(
+                          selectedAlgorithm.created_at
+                        ).toLocaleDateString()}
                       </Descriptions.Item>
                     </Descriptions>
                   </Card>
@@ -269,21 +305,23 @@ const ExecutionForm = () => {
               )}
 
               <Form.Item
-                label="Datapack"
-                name="datapack_id"
-                rules={[{ required: true, message: 'Please select a datapack' }]}
+                label='Datapack'
+                name='datapack_id'
+                rules={[
+                  { required: true, message: 'Please select a datapack' },
+                ]}
               >
-                <Select
-                  placeholder="Select datapack"
-                  size="large"
-                >
-                  {datapacksData?.data.map(datapack => (
+                <Select placeholder='Select datapack' size='large'>
+                  {datapacksData?.data.map((datapack) => (
                     <Option key={datapack.id} value={datapack.id}>
                       <Space>
                         <DatabaseOutlined style={{ color: '#3b82f6' }} />
                         <div>
                           <div>{datapack.name}</div>
-                          <Text type="secondary" style={{ fontSize: '0.75rem' }}>
+                          <Text
+                            type='secondary'
+                            style={{ fontSize: '0.75rem' }}
+                          >
                             ID: {datapack.id}
                           </Text>
                         </div>
@@ -295,16 +333,20 @@ const ExecutionForm = () => {
 
               <Divider />
 
-              <Form.Item label="Labels">
-                <Space direction="vertical" style={{ width: '100%' }}>
+              <Form.Item label='Labels'>
+                <Space direction='vertical' style={{ width: '100%' }}>
                   <Space.Compact style={{ width: '100%' }}>
                     <Input
-                      placeholder="Enter label (key:value)"
+                      placeholder='Enter label (key:value)'
                       value={labelInput}
                       onChange={(e) => setLabelInput(e.target.value)}
                       onPressEnter={addLabel}
                     />
-                    <Button type="primary" onClick={addLabel} icon={<TagsOutlined />}>
+                    <Button
+                      type='primary'
+                      onClick={addLabel}
+                      icon={<TagsOutlined />}
+                    >
                       Add
                     </Button>
                   </Space.Compact>
@@ -327,8 +369,8 @@ const ExecutionForm = () => {
               <Form.Item>
                 <Space>
                   <Button
-                    type="primary"
-                    htmlType="submit"
+                    type='primary'
+                    htmlType='submit'
                     icon={<PlayCircleOutlined />}
                     loading={createMutation.isPending}
                   >
@@ -352,7 +394,7 @@ const ExecutionForm = () => {
               </Space>
             }
           >
-            <Space direction="vertical" style={{ width: '100%' }}>
+            <Space direction='vertical' style={{ width: '100%' }}>
               <div>
                 <Text strong>Algorithm Selection:</Text>
                 <ul style={{ marginTop: 8, marginBottom: 16 }}>
@@ -368,7 +410,8 @@ const ExecutionForm = () => {
                   </li>
                   <li>
                     <Text>
-                      Ensure the algorithm is compatible with your datapack format
+                      Ensure the algorithm is compatible with your datapack
+                      format
                     </Text>
                   </li>
                 </ul>
@@ -391,7 +434,8 @@ const ExecutionForm = () => {
                   </li>
                   <li>
                     <Text>
-                      Ensure the datapack contains relevant traces, logs, or metrics
+                      Ensure the datapack contains relevant traces, logs, or
+                      metrics
                     </Text>
                   </li>
                 </ul>
@@ -421,7 +465,10 @@ const ExecutionForm = () => {
 
               <div>
                 <Text strong>Labels:</Text>
-                <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
+                <Text
+                  type='secondary'
+                  style={{ display: 'block', marginTop: 4 }}
+                >
                   Use labels to organize and categorize your executions. Format:
                   key:value
                 </Text>
@@ -431,7 +478,7 @@ const ExecutionForm = () => {
         </Col>
       </Row>
     </div>
-  )
-}
+  );
+};
 
-export default ExecutionForm
+export default ExecutionForm;

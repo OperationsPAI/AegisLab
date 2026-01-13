@@ -1,43 +1,44 @@
 import {
-  SettingOutlined,
-  DeleteOutlined,
-  ThunderboltOutlined,
-  DatabaseOutlined,
-  CloudServerOutlined,
-  DisconnectOutlined,
-  StopOutlined,
-  PauseCircleOutlined,
   ClockCircleOutlined,
+  CloudServerOutlined,
+  DatabaseOutlined,
+  DeleteOutlined,
+  DisconnectOutlined,
+  PauseCircleOutlined,
   QuestionCircleOutlined,
+  SettingOutlined,
+  StopOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
-import { Button, Tooltip, Tag } from 'antd';
+import { Button, Tag, Tooltip } from 'antd';
 import type React from 'react';
 import { memo } from 'react';
 import type { NodeProps } from 'reactflow';
 import { Handle, Position } from 'reactflow';
 
+
 import type { FaultType } from '../../../types/api';
 
 const faultTypeIcons: Record<string, React.ReactNode> = {
-  'cpu': <ThunderboltOutlined />,
-  'memory': <DatabaseOutlined />,
-  'disk': <CloudServerOutlined />,
-  'network': <DisconnectOutlined />,
-  'process': <StopOutlined />,
-  'io': <PauseCircleOutlined />,
-  'time': <ClockCircleOutlined />,
-  'default': <QuestionCircleOutlined />,
+  cpu: <ThunderboltOutlined />,
+  memory: <DatabaseOutlined />,
+  disk: <CloudServerOutlined />,
+  network: <DisconnectOutlined />,
+  process: <StopOutlined />,
+  io: <PauseCircleOutlined />,
+  time: <ClockCircleOutlined />,
+  default: <QuestionCircleOutlined />,
 };
 
 const faultTypeColors: Record<string, string> = {
-  'cpu': 'red',
-  'memory': 'orange',
-  'disk': 'blue',
-  'network': 'green',
-  'process': 'purple',
-  'io': 'cyan',
-  'time': 'gold',
-  'default': 'default',
+  cpu: 'red',
+  memory: 'orange',
+  disk: 'blue',
+  network: 'green',
+  process: 'purple',
+  io: 'cyan',
+  time: 'gold',
+  default: 'default',
 };
 
 interface FaultNodeData {
@@ -46,81 +47,81 @@ interface FaultNodeData {
   onConfigure: (fault: FaultType) => void;
 }
 
-export const FaultNode = memo<NodeProps<FaultNodeData>>(({ data, id, selected }) => {
-  const { fault, onDelete, onConfigure } = data;
+export const FaultNode = memo<NodeProps<FaultNodeData>>(
+  ({ data, id, selected }) => {
+    const { fault, onDelete, onConfigure } = data;
 
-  const handleDelete = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onDelete(id);
-  };
+    const handleDelete = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onDelete(id);
+    };
 
-  const handleConfigure = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onConfigure(fault);
-  };
+    const handleConfigure = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onConfigure(fault);
+    };
 
-  const getFaultIcon = () => {
-    const key = fault.category?.toLowerCase() || 'default';
-    return faultTypeIcons[key] || faultTypeIcons.default;
-  };
+    const getFaultIcon = () => {
+      const key = fault.category?.toLowerCase() || 'default';
+      return faultTypeIcons[key] || faultTypeIcons.default;
+    };
 
-  const getFaultColor = () => {
-    const key = fault.category?.toLowerCase() || 'default';
-    return faultTypeColors[key] || faultTypeColors.default;
-  };
+    const getFaultColor = () => {
+      const key = fault.category?.toLowerCase() || 'default';
+      return faultTypeColors[key] || faultTypeColors.default;
+    };
 
-  return (
-    <div className={`fault-node ${selected ? 'selected' : ''}`}>
-      <Handle type="target" position={Position.Top} />
+    return (
+      <div className={`fault-node ${selected ? 'selected' : ''}`}>
+        <Handle type='target' position={Position.Top} />
 
-      <div className="fault-node-header">
-        <div className="fault-node-title-wrapper">
-          <span className="fault-node-icon">{getFaultIcon()}</span>
-          <span className="fault-node-title">{fault.name}</span>
+        <div className='fault-node-header'>
+          <div className='fault-node-title-wrapper'>
+            <span className='fault-node-icon'>{getFaultIcon()}</span>
+            <span className='fault-node-title'>{fault.name}</span>
+          </div>
+          <div className='fault-node-actions'>
+            <Tooltip title='Configure'>
+              <Button
+                type='text'
+                size='small'
+                icon={<SettingOutlined />}
+                onClick={handleConfigure}
+                className='fault-node-action'
+              />
+            </Tooltip>
+            <Tooltip title='Delete'>
+              <Button
+                type='text'
+                size='small'
+                danger
+                icon={<DeleteOutlined />}
+                onClick={handleDelete}
+                className='fault-node-action'
+              />
+            </Tooltip>
+          </div>
         </div>
-        <div className="fault-node-actions">
-          <Tooltip title="Configure">
-            <Button
-              type="text"
-              size="small"
-              icon={<SettingOutlined />}
-              onClick={handleConfigure}
-              className="fault-node-action"
-            />
-          </Tooltip>
-          <Tooltip title="Delete">
-            <Button
-              type="text"
-              size="small"
-              danger
-              icon={<DeleteOutlined />}
-              onClick={handleDelete}
-              className="fault-node-action"
-            />
-          </Tooltip>
-        </div>
-      </div>
 
-      {fault.description && (
-        <div className="fault-node-description">
-          {fault.description}
-        </div>
-      )}
-
-      <div className="fault-node-footer">
-        <Tag color={getFaultColor()} size="small">
-          {fault.type}
-        </Tag>
-        {fault.parameters && (
-          <span className="fault-node-params">
-            {fault.parameters.length} params
-          </span>
+        {fault.description && (
+          <div className='fault-node-description'>{fault.description}</div>
         )}
-      </div>
 
-      <Handle type="source" position={Position.Bottom} />
-    </div>
-  );
-});
+        <div className='fault-node-footer'>
+          <Tag color={getFaultColor()} size='small'>
+            {fault.type}
+          </Tag>
+          {fault.parameters && (
+            <span className='fault-node-params'>
+              {fault.parameters.length} params
+            </span>
+          )}
+        </div>
+
+        <Handle type='source' position={Position.Bottom} />
+      </div>
+    );
+  }
+);
 
 FaultNode.displayName = 'FaultNode';

@@ -1,38 +1,52 @@
+
 import {
+  CalendarOutlined,
+  CheckCircleOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  ExperimentOutlined,
+  FolderOutlined,
+  PlayCircleOutlined,
   PlusOutlined,
   SearchOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  PlayCircleOutlined,
-  FolderOutlined,
-  CalendarOutlined,
   TeamOutlined,
-  ExperimentOutlined,
-  CheckCircleOutlined,
-} from '@ant-design/icons'
-import type { ProjectResp as Project } from '@rcabench/client'
-import { useQuery } from '@tanstack/react-query'
-import { Table, Button, Space, Input, Typography, Row, Col, Card, Avatar, type TablePaginationConfig } from 'antd'
-import dayjs from 'dayjs'
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+} from '@ant-design/icons';
+import type { ProjectResp as Project } from '@rcabench/client';
+import { useQuery } from '@tanstack/react-query';
+import {
+  Avatar,
+  Button,
+  Card,
+  Col,
+  Input,
+  Row,
+  Space,
+  Table,
+  type TablePaginationConfig,
+  Typography,
+} from 'antd';
+import dayjs from 'dayjs';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-import { projectApi } from '@/api/projects'
-import StatCard from '@/components/ui/StatCard'
-import StatusBadge, { type StatusBadgeProps } from '@/components/ui/StatusBadge'
-import { ProjectState } from '@/types/api'
+import { projectApi } from '@/api/projects';
+import StatCard from '@/components/ui/StatCard';
+import StatusBadge, {
+  type StatusBadgeProps,
+} from '@/components/ui/StatusBadge';
+import { ProjectState } from '@/types/api';
 
-const { Title, Text } = Typography
-const { Search } = Input
+const { Title, Text } = Typography;
+const { Search } = Input;
 
 const ProjectList = () => {
-  const navigate = useNavigate()
-  const [searchText, setSearchText] = useState('')
+  const navigate = useNavigate();
+  const [searchText, setSearchText] = useState('');
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 10,
     total: 0,
-  })
+  });
 
   // Fetch projects
   const { data: projectsData, isLoading } = useQuery({
@@ -42,45 +56,52 @@ const ProjectList = () => {
         page: pagination.current,
         size: pagination.pageSize,
       }),
-  })
+  });
 
   // Statistics - mock data for now
   const stats = {
     total: projectsData?.total || 0,
-    active: projectsData?.data.filter(p => p.state === ProjectState.ACTIVE).length || 0,
-    completedThisMonth: projectsData?.data.filter(p =>
-      dayjs(p.created_at).isAfter(dayjs().subtract(1, 'month'))
-    ).length || 0,
-    totalExperiments: projectsData?.data.reduce((sum, p) => sum + (p.experiment_count || 0), 0) || 0
-  }
+    active:
+      projectsData?.data.filter((p) => p.state === ProjectState.ACTIVE)
+        .length || 0,
+    completedThisMonth:
+      projectsData?.data.filter((p) =>
+        dayjs(p.created_at).isAfter(dayjs().subtract(1, 'month'))
+      ).length || 0,
+    totalExperiments:
+      projectsData?.data.reduce(
+        (sum, p) => sum + (p.experiment_count || 0),
+        0
+      ) || 0,
+  };
 
   const handleTableChange = (newPagination: TablePaginationConfig) => {
     setPagination({
       ...pagination,
       current: newPagination.current || 1,
       pageSize: newPagination.pageSize || 10,
-    })
-  }
+    });
+  };
 
   const handleSearch = (value: string) => {
-    setSearchText(value)
-    setPagination({ ...pagination, current: 1 })
-  }
+    setSearchText(value);
+    setPagination({ ...pagination, current: 1 });
+  };
 
   const handleCreateProject = () => {
-    navigate('/projects/new')
-  }
+    navigate('/projects/new');
+  };
 
   const handleEditProject = (_id: number) => {
     // TODO: Navigate to edit page when implemented
     // console.log('Edit project:', id)
-  }
+  };
 
   const handleRunExperiment = (_project: Project) => {
     // TODO: Navigate to create injection with project data when implemented
     // console.log('Run experiment for project:', _project.id)
-    navigate('/injections/create')
-  }
+    navigate('/injections/create');
+  };
 
   const columns = [
     {
@@ -91,7 +112,7 @@ const ProjectList = () => {
       render: (name: string, record: Project) => (
         <Space>
           <Avatar
-            size="large"
+            size='large'
             style={{
               backgroundColor: '#3b82f6',
               fontSize: '1.25rem',
@@ -103,7 +124,7 @@ const ProjectList = () => {
               {name}
             </Text>
             <br />
-            <Text type="secondary" style={{ fontSize: '0.875rem' }}>
+            <Text type='secondary' style={{ fontSize: '0.875rem' }}>
               ID: {record.id}
             </Text>
           </div>
@@ -121,9 +142,17 @@ const ProjectList = () => {
           [ProjectState.PAUSED]: { text: 'Paused', color: 'warning' },
           [ProjectState.COMPLETED]: { text: 'Completed', color: 'info' },
           [ProjectState.ARCHIVED]: { text: 'Archived', color: 'default' },
-        }
-        const config = statusMap[state] || { text: 'Unknown', color: 'default' }
-        return <StatusBadge status={config.color as StatusBadgeProps['status']} text={config.text} />
+        };
+        const config = statusMap[state] || {
+          text: 'Unknown',
+          color: 'default',
+        };
+        return (
+          <StatusBadge
+            status={config.color as StatusBadgeProps['status']}
+            text={config.text}
+          />
+        );
       },
     },
     {
@@ -167,111 +196,111 @@ const ProjectList = () => {
       render: (_: string, record: Project) => (
         <Space>
           <Button
-            type="text"
+            type='text'
             icon={<PlayCircleOutlined />}
             onClick={() => handleRunExperiment(record)}
-            title="Run Experiment"
+            title='Run Experiment'
           />
           <Button
-            type="text"
+            type='text'
             icon={<EditOutlined />}
             onClick={() => handleEditProject(record.id)}
-            title="Edit Project"
+            title='Edit Project'
           />
           <Button
-            type="text"
+            type='text'
             danger
             icon={<DeleteOutlined />}
-            title="Delete Project"
+            title='Delete Project'
           />
         </Space>
       ),
     },
-  ]
+  ];
 
   return (
-    <div className="project-list">
+    <div className='project-list'>
       {/* Page Header */}
-      <div className="page-header">
-        <div className="page-header-left">
-          <Title level={2} className="page-title">
+      <div className='page-header'>
+        <div className='page-header-left'>
+          <Title level={2} className='page-title'>
             Projects
           </Title>
-          <Text type="secondary">
+          <Text type='secondary'>
             Manage your RCA benchmarking projects and experiments
           </Text>
         </div>
         <Button
-          type="primary"
-          size="large"
+          type='primary'
+          size='large'
           icon={<PlusOutlined />}
           onClick={handleCreateProject}
-          className="create-button"
+          className='create-button'
         >
           New Project
         </Button>
       </div>
 
       {/* Statistics Cards */}
-      <Row gutter={[24, 24]} className="stats-row">
+      <Row gutter={[24, 24]} className='stats-row'>
         <Col xs={24} sm={12} lg={6}>
           <StatCard
-            title="Total Projects"
+            title='Total Projects'
             value={stats?.total || 0}
             prefix={<FolderOutlined />}
-            color="primary"
+            color='primary'
           />
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <StatCard
-            title="Active Projects"
+            title='Active Projects'
             value={stats?.active || 0}
             prefix={<ExperimentOutlined />}
-            color="success"
+            color='success'
           />
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <StatCard
-            title="Completed This Month"
+            title='Completed This Month'
             value={stats?.completedThisMonth || 0}
             prefix={<CheckCircleOutlined />}
-            color="info"
+            color='info'
           />
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <StatCard
-            title="Total Experiments"
+            title='Total Experiments'
             value={stats?.totalExperiments || 0}
             prefix={<PlayCircleOutlined />}
-            color="warning"
+            color='warning'
           />
         </Col>
       </Row>
 
       {/* Search and Filters */}
-      <Card className="search-card">
-        <Row gutter={[24, 24]} align="middle">
-          <Col flex="auto">
+      <Card className='search-card'>
+        <Row gutter={[24, 24]} align='middle'>
+          <Col flex='auto'>
             <Search
-              placeholder="Search projects by name or ID..."
+              placeholder='Search projects by name or ID...'
               allowClear
               enterButton={<SearchOutlined />}
-              size="large"
+              size='large'
               onSearch={handleSearch}
               style={{ maxWidth: 400 }}
             />
           </Col>
           <Col>
             <Space>
-              <Button size="large">Filter</Button>
-              <Button size="large">Sort</Button>
+              <Button size='large'>Filter</Button>
+              <Button size='large'>Sort</Button>
             </Space>
           </Col>
         </Row>
       </Card>
 
       {/* Projects Table */}
-      <Card className="table-card">
+      <Card className='table-card'>
         <Table
           columns={columns}
           dataSource={projectsData?.data || []}
@@ -284,13 +313,13 @@ const ProjectList = () => {
             showTotal: (total) => `Total ${total} projects`,
           }}
           onChange={handleTableChange}
-          rowKey="id"
-          className="projects-table"
-          rowClassName="project-row"
+          rowKey='id'
+          className='projects-table'
+          rowClassName='project-row'
         />
       </Card>
     </div>
-  )
-}
+  );
+};
 
-export default ProjectList
+export default ProjectList;

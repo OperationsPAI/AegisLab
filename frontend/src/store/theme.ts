@@ -1,12 +1,12 @@
-import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 interface ThemeState {
-  theme: 'light' | 'dark'
-  sidebarCollapsed: boolean
-  setTheme: (theme: 'light' | 'dark') => void
-  toggleTheme: () => void
-  toggleSidebar: () => void
+  theme: 'light' | 'dark';
+  sidebarCollapsed: boolean;
+  setTheme: (theme: 'light' | 'dark') => void;
+  toggleTheme: () => void;
+  toggleSidebar: () => void;
 }
 
 export const useThemeStore = create<ThemeState>()(
@@ -15,16 +15,16 @@ export const useThemeStore = create<ThemeState>()(
       theme: 'light',
       sidebarCollapsed: false,
       setTheme: (theme) => {
-        set({ theme })
-        document.documentElement.setAttribute('data-theme', theme)
+        set({ theme });
+        document.documentElement.setAttribute('data-theme', theme);
       },
       toggleTheme: () => {
-        const newTheme = get().theme === 'light' ? 'dark' : 'light'
-        set({ theme: newTheme })
-        document.documentElement.setAttribute('data-theme', newTheme)
+        const newTheme = get().theme === 'light' ? 'dark' : 'light';
+        set({ theme: newTheme });
+        document.documentElement.setAttribute('data-theme', newTheme);
       },
       toggleSidebar: () => {
-        set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed }))
+        set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed }));
       },
     }),
     {
@@ -35,10 +35,10 @@ export const useThemeStore = create<ThemeState>()(
       }),
     }
   )
-)
+);
 
 // Initialize theme on app load
 export const initializeTheme = () => {
-  const theme = useThemeStore.getState().theme
-  document.documentElement.setAttribute('data-theme', theme)
-}
+  const theme = useThemeStore.getState().theme;
+  document.documentElement.setAttribute('data-theme', theme);
+};

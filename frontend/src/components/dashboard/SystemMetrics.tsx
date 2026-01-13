@@ -1,12 +1,12 @@
 import {
-  DatabaseOutlined,
-  CloudServerOutlined,
-  ThunderboltOutlined,
   ClockCircleOutlined,
-} from '@ant-design/icons'
-import { Row, Col, Progress, Typography } from 'antd'
+  CloudServerOutlined,
+  DatabaseOutlined,
+  ThunderboltOutlined,
+} from '@ant-design/icons';
+import { Col, Progress, Row, Typography } from 'antd';
 
-const { Text } = Typography
+const { Text } = Typography;
 
 const SystemMetrics = () => {
   const metrics = [
@@ -46,25 +46,28 @@ const SystemMetrics = () => {
       color: '#8b5cf6',
       status: 'normal',
     },
-  ]
+  ];
 
   return (
-    <div className="system-metrics">
-      <h3 className="activity-feed-title">System Metrics</h3>
+    <div className='system-metrics'>
+      <h3 className='activity-feed-title'>System Metrics</h3>
       <Row gutter={[24, 24]}>
         {metrics.map((metric) => (
           <Col key={metric.label} xs={24} md={12}>
-            <div className="metric-card">
-              <div className="metric-header">
+            <div className='metric-card'>
+              <div className='metric-header'>
                 <div
-                  className="metric-icon"
-                  style={{ backgroundColor: `${metric.color}20`, color: metric.color }}
+                  className='metric-icon'
+                  style={{
+                    backgroundColor: `${metric.color}20`,
+                    color: metric.color,
+                  }}
                 >
                   {metric.icon}
                 </div>
-                <div className="metric-info">
-                  <Text className="metric-label">{metric.label}</Text>
-                  <Text className="metric-value" strong>
+                <div className='metric-info'>
+                  <Text className='metric-label'>{metric.label}</Text>
+                  <Text className='metric-value' strong>
                     {metric.value} {metric.unit}
                   </Text>
                 </div>
@@ -73,10 +76,12 @@ const SystemMetrics = () => {
                 percent={(metric.value / metric.max) * 100}
                 strokeColor={metric.color}
                 showInfo={false}
-                status={metric.status as 'normal' | 'exception' | 'active' | 'success'}
+                status={
+                  metric.status as 'normal' | 'exception' | 'active' | 'success'
+                }
               />
-              <div className="metric-footer">
-                <Text type="secondary" style={{ fontSize: '0.75rem' }}>
+              <div className='metric-footer'>
+                <Text type='secondary' style={{ fontSize: '0.75rem' }}>
                   {metric.max} {metric.unit} max
                 </Text>
                 <Text
@@ -100,34 +105,46 @@ const SystemMetrics = () => {
         </h4>
         <Row gutter={[16, 16]}>
           <Col span={8}>
-            <div className="metric-card">
-              <Text className="metric-label">Kubernetes Nodes</Text>
-              <Text className="metric-value" strong style={{ fontSize: '1.25rem' }}>
+            <div className='metric-card'>
+              <Text className='metric-label'>Kubernetes Nodes</Text>
+              <Text
+                className='metric-value'
+                strong
+                style={{ fontSize: '1.25rem' }}
+              >
                 12/12
               </Text>
-              <Text type="success" style={{ fontSize: '0.75rem' }}>
+              <Text type='success' style={{ fontSize: '0.75rem' }}>
                 All healthy
               </Text>
             </div>
           </Col>
           <Col span={8}>
-            <div className="metric-card">
-              <Text className="metric-label">Active Jobs</Text>
-              <Text className="metric-value" strong style={{ fontSize: '1.25rem' }}>
+            <div className='metric-card'>
+              <Text className='metric-label'>Active Jobs</Text>
+              <Text
+                className='metric-value'
+                strong
+                style={{ fontSize: '1.25rem' }}
+              >
                 24
               </Text>
-              <Text type="secondary" style={{ fontSize: '0.75rem' }}>
+              <Text type='secondary' style={{ fontSize: '0.75rem' }}>
                 3 pending
               </Text>
             </div>
           </Col>
           <Col span={8}>
-            <div className="metric-card">
-              <Text className="metric-label">Success Rate</Text>
-              <Text className="metric-value" strong style={{ fontSize: '1.25rem' }}>
+            <div className='metric-card'>
+              <Text className='metric-label'>Success Rate</Text>
+              <Text
+                className='metric-value'
+                strong
+                style={{ fontSize: '1.25rem' }}
+              >
                 98.2%
               </Text>
-              <Text type="success" style={{ fontSize: '0.75rem' }}>
+              <Text type='success' style={{ fontSize: '0.75rem' }}>
                 +0.3% from last week
               </Text>
             </div>
@@ -135,7 +152,7 @@ const SystemMetrics = () => {
         </Row>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default SystemMetrics
+export default SystemMetrics;

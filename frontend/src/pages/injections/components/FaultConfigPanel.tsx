@@ -1,9 +1,30 @@
-import { InfoCircleOutlined, SaveOutlined, ReloadOutlined } from '@ant-design/icons';
-import { Form, Card, Input, InputNumber, Select, Switch, Slider, Row, Col, Button, Space, Tag, Tooltip, Divider } from 'antd';
+import {
+  InfoCircleOutlined,
+  ReloadOutlined,
+  SaveOutlined,
+} from '@ant-design/icons';
+import {
+  Button,
+  Card,
+  Col,
+  Divider,
+  Form,
+  Input,
+  InputNumber,
+  Row,
+  Select,
+  Slider,
+  Space,
+  Switch,
+  Tag,
+  Tooltip,
+} from 'antd';
 import type React from 'react';
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+
 
 import type { FaultType } from '../../../types/api';
+
 import './FaultConfigPanel.css';
 
 const { Option } = Select;
@@ -32,7 +53,9 @@ export const FaultConfigPanel: React.FC<FaultConfigPanelProps> = ({
   onConfigChange,
 }) => {
   const [form] = Form.useForm();
-  const [config, setConfig] = useState<Record<string, string | number | boolean>>({});
+  const [config, setConfig] = useState<
+    Record<string, string | number | boolean>
+  >({});
   const [presets, setPresets] = useState<string[]>([]);
 
   // Initialize form with fault parameters
@@ -40,7 +63,8 @@ export const FaultConfigPanel: React.FC<FaultConfigPanelProps> = ({
     if (fault && fault.parameters) {
       const initialValues: Record<string, string | number | boolean> = {};
       fault.parameters.forEach((param: FaultParameter) => {
-        initialValues[param.name] = param.default ?? getDefaultValue(param.type);
+        initialValues[param.name] =
+          param.default ?? getDefaultValue(param.type);
       });
       form.setFieldsValue(initialValues);
       setConfig(initialValues);
@@ -79,7 +103,9 @@ export const FaultConfigPanel: React.FC<FaultConfigPanelProps> = ({
   };
 
   const handleLoadPreset = (presetName: string) => {
-    const saved = localStorage.getItem(`fault-preset-${fault.id}-${presetName}`);
+    const saved = localStorage.getItem(
+      `fault-preset-${fault.id}-${presetName}`
+    );
     if (saved) {
       const preset = JSON.parse(saved);
       form.setFieldsValue(preset);
@@ -112,7 +138,9 @@ export const FaultConfigPanel: React.FC<FaultConfigPanelProps> = ({
           )}
         </span>
       ),
-      rules: param.required ? [{ required: true, message: `${param.label} is required` }] : [],
+      rules: param.required
+        ? [{ required: true, message: `${param.label} is required` }]
+        : [],
     };
 
     switch (param.type) {
@@ -138,7 +166,7 @@ export const FaultConfigPanel: React.FC<FaultConfigPanelProps> = ({
 
       case 'boolean':
         return (
-          <Form.Item key={param.name} {...commonProps} valuePropName="checked">
+          <Form.Item key={param.name} {...commonProps} valuePropName='checked'>
             <Switch />
           </Form.Item>
         );
@@ -192,8 +220,8 @@ export const FaultConfigPanel: React.FC<FaultConfigPanelProps> = ({
 
   if (!fault) {
     return (
-      <Card title="Fault Configuration" className="fault-config-panel">
-        <div className="empty-config">
+      <Card title='Fault Configuration' className='fault-config-panel'>
+        <div className='empty-config'>
           Select a fault from the canvas to configure its parameters
         </div>
       </Card>
@@ -203,39 +231,35 @@ export const FaultConfigPanel: React.FC<FaultConfigPanelProps> = ({
   return (
     <Card
       title={
-        <div className="fault-config-header">
+        <div className='fault-config-header'>
           <span>Configure: {fault.name}</span>
-          <Tag color="blue">{fault.type}</Tag>
+          <Tag color='blue'>{fault.type}</Tag>
         </div>
       }
-      className="fault-config-panel"
+      className='fault-config-panel'
       extra={
         <Space>
           <Button
             icon={<SaveOutlined />}
-            size="small"
+            size='small'
             onClick={handleSavePreset}
           >
             Save Preset
           </Button>
-          <Button
-            icon={<ReloadOutlined />}
-            size="small"
-            onClick={handleReset}
-          >
+          <Button icon={<ReloadOutlined />} size='small' onClick={handleReset}>
             Reset
           </Button>
         </Space>
       }
     >
       {presets.length > 0 && (
-        <div className="preset-section">
-          <Divider orientation="left">Presets</Divider>
+        <div className='preset-section'>
+          <Divider orientation='left'>Presets</Divider>
           <Space wrap>
             {presets.map((preset) => (
               <Button
                 key={preset}
-                size="small"
+                size='small'
                 onClick={() => handleLoadPreset(preset)}
               >
                 {preset}
@@ -247,9 +271,9 @@ export const FaultConfigPanel: React.FC<FaultConfigPanelProps> = ({
 
       <Form
         form={form}
-        layout="vertical"
+        layout='vertical'
         onValuesChange={handleFormChange}
-        className="fault-config-form"
+        className='fault-config-form'
       >
         {fault.parameters && fault.parameters.length > 0 ? (
           <Row gutter={24}>
@@ -260,15 +284,15 @@ export const FaultConfigPanel: React.FC<FaultConfigPanelProps> = ({
             ))}
           </Row>
         ) : (
-          <div className="no-parameters">
+          <div className='no-parameters'>
             This fault type has no configurable parameters
           </div>
         )}
       </Form>
 
       {fault.description && (
-        <div className="fault-description">
-          <Divider orientation="left">Description</Divider>
+        <div className='fault-description'>
+          <Divider orientation='left'>Description</Divider>
           <p>{fault.description}</p>
         </div>
       )}

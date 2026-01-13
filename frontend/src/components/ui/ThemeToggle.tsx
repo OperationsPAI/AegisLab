@@ -1,21 +1,21 @@
-import { SunOutlined, MoonOutlined } from '@ant-design/icons'
-import { Button } from 'antd'
-import { useEffect } from 'react'
 
-import { useThemeStore } from '@/store/theme'
+import { MoonOutlined, SunOutlined } from '@ant-design/icons';
+import { Button } from 'antd';
+import { useEffect } from 'react';
 
+import { useThemeStore } from '@/store/theme';
 
 const ThemeToggle = () => {
-  const { theme, toggleTheme } = useThemeStore()
+  const { theme, toggleTheme } = useThemeStore();
 
   // Initialize theme on mount
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme)
-  }, [theme])
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
 
   return (
     <Button
-      type="text"
+      type='text'
       icon={theme === 'light' ? <MoonOutlined /> : <SunOutlined />}
       onClick={toggleTheme}
       style={{
@@ -28,7 +28,7 @@ const ThemeToggle = () => {
         transition: 'all 0.3s ease',
       }}
     />
-  )
-}
+  );
+};
 
-export default ThemeToggle
+export default ThemeToggle;

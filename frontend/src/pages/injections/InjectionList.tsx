@@ -1,93 +1,120 @@
+
 import {
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  ExperimentOutlined,
+  PauseCircleOutlined,
+  PlayCircleOutlined,
   PlusOutlined,
   SearchOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  PlayCircleOutlined,
-  PauseCircleOutlined,
-  ExperimentOutlined,
-  ClockCircleOutlined,
-  CheckCircleOutlined,
   SyncOutlined,
-} from '@ant-design/icons'
-import type { InjectionDetailResp as Injection } from '@rcabench/client'
-import { useQuery } from '@tanstack/react-query'
-import { Table, Button, Space, Input, Tag, Typography, Row, Col, Card, Avatar, Progress, Tooltip, type TablePaginationConfig } from 'antd'
-import dayjs from 'dayjs'
-import relativeTime from 'dayjs/plugin/relativeTime'
-import type { EChartsOption } from 'echarts'
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+} from '@ant-design/icons';
+import type { InjectionDetailResp as Injection } from '@rcabench/client';
+import { useQuery } from '@tanstack/react-query';
+import {
+  Avatar,
+  Button,
+  Card,
+  Col,
+  Input,
+  Progress,
+  Row,
+  Space,
+  Table,
+  type TablePaginationConfig,
+  Tag,
+  Tooltip,
+  Typography,
+} from 'antd';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+import type { EChartsOption } from 'echarts';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-import { injectionApi } from '@/api/injections'
-import LabChart from '@/components/charts/LabChart'
-import StatCard from '@/components/ui/StatCard'
-import StatusBadge, { type StatusBadgeProps } from '@/components/ui/StatusBadge'
-import { InjectionState, InjectionType } from '@/types/api'
+import { injectionApi } from '@/api/injections';
+import LabChart from '@/components/charts/LabChart';
+import StatCard from '@/components/ui/StatCard';
+import StatusBadge, {
+  type StatusBadgeProps,
+} from '@/components/ui/StatusBadge';
+import { InjectionState, InjectionType } from '@/types/api';
 
-const { Title, Text } = Typography
-const { Search } = Input
+const { Title, Text } = Typography;
+const { Search } = Input;
 
-dayjs.extend(relativeTime)
+dayjs.extend(relativeTime);
 
 const InjectionList = () => {
-  const navigate = useNavigate()
-  const [searchText, setSearchText] = useState('')
-  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
+  const navigate = useNavigate();
+  const [searchText, setSearchText] = useState('');
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 10,
     total: 0,
-  })
+  });
 
   // Fetch injections
   const { data: injectionsData, isLoading } = useQuery({
-    queryKey: ['injections', pagination.current, pagination.pageSize, searchText],
+    queryKey: [
+      'injections',
+      pagination.current,
+      pagination.pageSize,
+      searchText,
+    ],
     queryFn: () =>
       injectionApi.getInjections({
         page: pagination.current,
         size: pagination.pageSize,
       }),
-  })
+  });
 
   // Fetch statistics - mock for now
   const stats = {
     total: injectionsData?.total || 0,
-    running: injectionsData?.data.filter(i => i.state === InjectionState.RUNNING).length || 0,
+    running:
+      injectionsData?.data.filter((i) => i.state === InjectionState.RUNNING)
+        .length || 0,
     successRate: 87,
-    avgDuration: 45
-  }
+    avgDuration: 45,
+  };
 
   const handleTableChange = (newPagination: TablePaginationConfig) => {
     setPagination({
       ...pagination,
       current: newPagination.current || 1,
       pageSize: newPagination.pageSize || 10,
-    })
-  }
+    });
+  };
 
   const handleSearch = (value: string) => {
-    setSearchText(value)
-    setPagination({ ...pagination, current: 1 })
-  }
+    setSearchText(value);
+    setPagination({ ...pagination, current: 1 });
+  };
 
   const handleCreateInjection = () => {
-    navigate('/injections/create')
-  }
+    navigate('/injections/create');
+  };
 
   const handleEditInjection = (_id: number) => {
     // Navigate to edit page when implemented
     // console.log('Edit injection:', id)
-  }
+  };
 
-  const handleControlInjection = async (_injection: Injection, _action: 'start' | 'stop') => {
+  const handleControlInjection = async (
+    _injection: Injection,
+    _action: 'start' | 'stop'
+  ) => {
     // TODO: Implement start/stop injection when API is ready
     // console.log(`${_action} injection:`, _injection.id)
     // Simulate API call
     setTimeout(() => {
       // refetch()
-    }, 1000)
-  }
+    }, 1000);
+  };
 
   const getInjectionTypeColor = (type: InjectionType) => {
     const colors = {
@@ -97,9 +124,9 @@ const InjectionList = () => {
       [InjectionType.DISK]: 'green',
       [InjectionType.PROCESS]: 'red',
       [InjectionType.KUBERNETES]: 'cyan',
-    }
-    return colors[type] || 'default'
-  }
+    };
+    return colors[type] || 'default';
+  };
 
   const getInjectionTypeIcon = (type: InjectionType) => {
     const icons = {
@@ -109,9 +136,9 @@ const InjectionList = () => {
       [InjectionType.DISK]: '💾',
       [InjectionType.PROCESS]: '⚙️',
       [InjectionType.KUBERNETES]: '☸️',
-    }
-    return icons[type] || '🔧'
-  }
+    };
+    return icons[type] || '🔧';
+  };
 
   // Injection timeline chart
   const timelineData: EChartsOption = {
@@ -132,8 +159,10 @@ const InjectionList = () => {
     xAxis: {
       type: 'category',
       data: Array.from({ length: 24 }, (_, i) => {
-        const hour = dayjs().subtract(23 - i, 'hour').hour()
-        return `${hour}:00`
+        const hour = dayjs()
+          .subtract(23 - i, 'hour')
+          .hour();
+        return `${hour}:00`;
       }),
     },
     yAxis: {
@@ -170,7 +199,7 @@ const InjectionList = () => {
         itemStyle: { color: '#10b981' },
       },
     ],
-  }
+  };
 
   // Success rate chart
   const successRateData: EChartsOption = {
@@ -250,7 +279,7 @@ const InjectionList = () => {
         ],
       },
     ],
-  }
+  };
 
   const columns = [
     {
@@ -261,7 +290,7 @@ const InjectionList = () => {
       render: (name: string, record: Injection) => (
         <Space>
           <Avatar
-            size="large"
+            size='large'
             style={{
               backgroundColor: getInjectionTypeColor(record.type),
               fontSize: '1.25rem',
@@ -293,9 +322,17 @@ const InjectionList = () => {
           [InjectionState.COMPLETED]: { text: 'Completed', color: 'success' },
           [InjectionState.ERROR]: { text: 'Error', color: 'error' },
           [InjectionState.STOPPED]: { text: 'Stopped', color: 'default' },
-        }
-        const config = statusMap[state] || { text: 'Unknown', color: 'default' }
-        return <StatusBadge status={config.color as StatusBadgeProps['status']} text={config.text} />
+        };
+        const config = statusMap[state] || {
+          text: 'Unknown',
+          color: 'default',
+        };
+        return (
+          <StatusBadge
+            status={config.color as StatusBadgeProps['status']}
+            text={config.text}
+          />
+        );
       },
     },
     {
@@ -307,11 +344,15 @@ const InjectionList = () => {
         <div>
           <Progress
             percent={progress || 0}
-            size="small"
-            status={record.state === InjectionState.ERROR ? 'exception' : 'active'}
-            strokeColor={record.state === InjectionState.COMPLETED ? '#10b981' : undefined}
+            size='small'
+            status={
+              record.state === InjectionState.ERROR ? 'exception' : 'active'
+            }
+            strokeColor={
+              record.state === InjectionState.COMPLETED ? '#10b981' : undefined
+            }
           />
-          <Text type="secondary" style={{ fontSize: '0.75rem' }}>
+          <Text type='secondary' style={{ fontSize: '0.75rem' }}>
             {progress || 0}% Complete
           </Text>
         </div>
@@ -347,9 +388,7 @@ const InjectionList = () => {
       key: 'created_at',
       width: '12%',
       render: (date: string) => (
-        <Text type="secondary">
-          {dayjs(date).fromNow()}
-        </Text>
+        <Text type='secondary'>{dayjs(date).fromNow()}</Text>
       ),
     },
     {
@@ -360,127 +399,127 @@ const InjectionList = () => {
         <Space>
           {record.state === InjectionState.PENDING && (
             <Button
-              type="text"
+              type='text'
               icon={<PlayCircleOutlined />}
               onClick={() => handleControlInjection(record, 'start')}
-              title="Start Injection"
+              title='Start Injection'
             />
           )}
           {record.state === InjectionState.RUNNING && (
             <Button
-              type="text"
+              type='text'
               danger
               icon={<PauseCircleOutlined />}
               onClick={() => handleControlInjection(record, 'stop')}
-              title="Stop Injection"
+              title='Stop Injection'
             />
           )}
           <Button
-            type="text"
+            type='text'
             icon={<EditOutlined />}
             onClick={() => handleEditInjection(record.id)}
-            title="Edit Injection"
+            title='Edit Injection'
           />
           <Button
-            type="text"
+            type='text'
             danger
             icon={<DeleteOutlined />}
-            title="Delete Injection"
+            title='Delete Injection'
           />
         </Space>
       ),
     },
-  ]
+  ];
 
   const rowSelection = {
     selectedRowKeys,
     onChange: (newSelectedRowKeys: React.Key[]) => {
-      setSelectedRowKeys(newSelectedRowKeys)
+      setSelectedRowKeys(newSelectedRowKeys);
     },
-  }
+  };
 
   return (
-    <div className="injection-list">
+    <div className='injection-list'>
       {/* Page Header */}
-      <div className="page-header">
-        <div className="page-header-left">
-          <Title level={2} className="page-title">
+      <div className='page-header'>
+        <div className='page-header-left'>
+          <Title level={2} className='page-title'>
             Fault Injections
           </Title>
-          <Text type="secondary">
+          <Text type='secondary'>
             Manage chaos engineering experiments for your microservices
           </Text>
         </div>
         <Button
-          type="primary"
-          size="large"
+          type='primary'
+          size='large'
           icon={<PlusOutlined />}
           onClick={handleCreateInjection}
-          className="create-button"
+          className='create-button'
         >
           New Injection
         </Button>
       </div>
 
       {/* Statistics Cards */}
-      <Row gutter={[24, 24]} className="stats-row">
+      <Row gutter={[24, 24]} className='stats-row'>
         <Col xs={24} sm={12} lg={6}>
           <StatCard
-            title="Total Injections"
+            title='Total Injections'
             value={stats?.total || 0}
             prefix={<ExperimentOutlined />}
-            color="primary"
+            color='primary'
           />
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <StatCard
-            title="Running Now"
+            title='Running Now'
             value={stats?.running || 0}
             prefix={<SyncOutlined spin={stats?.running > 0} />}
-            color="info"
+            color='info'
           />
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <StatCard
-            title="Success Rate"
+            title='Success Rate'
             value={`${stats?.successRate || 0}%`}
             prefix={<CheckCircleOutlined />}
-            color="success"
+            color='success'
           />
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <StatCard
-            title="Avg Duration"
+            title='Avg Duration'
             value={`${stats?.avgDuration || 0}s`}
             prefix={<ClockCircleOutlined />}
-            color="warning"
+            color='warning'
           />
         </Col>
       </Row>
 
       {/* Charts */}
-      <Row gutter={[24, 24]} className="charts-row">
+      <Row gutter={[24, 24]} className='charts-row'>
         <Col xs={24} lg={16}>
-          <Card className="chart-card">
+          <Card className='chart-card'>
             <LabChart option={timelineData} style={{ height: '300px' }} />
           </Card>
         </Col>
         <Col xs={24} lg={8}>
-          <Card className="chart-card">
+          <Card className='chart-card'>
             <LabChart option={successRateData} style={{ height: '300px' }} />
           </Card>
         </Col>
       </Row>
 
       {/* Search and Bulk Actions */}
-      <Card className="search-card">
-        <Row gutter={[24, 24]} align="middle">
-          <Col flex="auto">
+      <Card className='search-card'>
+        <Row gutter={[24, 24]} align='middle'>
+          <Col flex='auto'>
             <Search
-              placeholder="Search injections by name, type, or target..."
+              placeholder='Search injections by name, type, or target...'
               allowClear
               enterButton={<SearchOutlined />}
-              size="large"
+              size='large'
               onSearch={handleSearch}
               style={{ maxWidth: 400 }}
             />
@@ -488,19 +527,19 @@ const InjectionList = () => {
           <Col>
             <Space>
               {selectedRowKeys.length > 0 && (
-                <Button size="large" danger>
+                <Button size='large' danger>
                   Delete Selected ({selectedRowKeys.length})
                 </Button>
               )}
-              <Button size="large">Filter by Type</Button>
-              <Button size="large">Export</Button>
+              <Button size='large'>Filter by Type</Button>
+              <Button size='large'>Export</Button>
             </Space>
           </Col>
         </Row>
       </Card>
 
       {/* Injections Table */}
-      <Card className="table-card">
+      <Card className='table-card'>
         <Table
           rowSelection={rowSelection}
           columns={columns}
@@ -514,13 +553,13 @@ const InjectionList = () => {
             showTotal: (total) => `Total ${total} injections`,
           }}
           onChange={handleTableChange}
-          rowKey="id"
-          className="injections-table"
-          rowClassName="injection-row"
+          rowKey='id'
+          className='injections-table'
+          rowClassName='injection-row'
         />
       </Card>
     </div>
-  )
-}
+  );
+};
 
-export default InjectionList
+export default InjectionList;

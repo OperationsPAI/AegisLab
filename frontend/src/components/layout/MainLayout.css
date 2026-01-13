@@ -250,7 +250,7 @@
   transition: margin-left 0.3s ease;
 }
 
-.main-sidebar[style*="width: 64px"] + .main-content-wrapper {
+.main-sidebar[style*='width: 64px'] + .main-content-wrapper {
   margin-left: 64px;
 }
 
@@ -311,7 +311,8 @@
 
 /* Animations */
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {

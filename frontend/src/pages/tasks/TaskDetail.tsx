@@ -1,101 +1,113 @@
+
 import {
   ArrowLeftOutlined,
-  SyncOutlined,
-  ClockCircleOutlined,
   CheckCircleOutlined,
+  ClockCircleOutlined,
   CloseCircleOutlined,
+  CopyOutlined,
+  DashboardOutlined,
+  DatabaseOutlined,
+  DownloadOutlined,
+  FunctionOutlined,
   PauseCircleOutlined,
   PlayCircleOutlined,
-  DatabaseOutlined,
-  FunctionOutlined,
-  DashboardOutlined,
-  TagsOutlined,
-  CopyOutlined,
-  DownloadOutlined,
   ReloadOutlined,
-} from '@ant-design/icons'
-import { useQuery } from '@tanstack/react-query'
+  SyncOutlined,
+  TagsOutlined,
+} from '@ant-design/icons';
+import { useQuery } from '@tanstack/react-query';
 import {
-  Card,
-  Button,
-  Space,
-  Typography,
-  Row,
-  Col,
-  Tag,
-  Descriptions,
-  Modal,
-  message,
-  Tabs,
   Badge,
+  Button,
+  Card,
+  Col,
+  Descriptions,
   Divider,
-  Progress,
   Empty,
-  Timeline,
+  message,
+  Modal,
+  Progress,
+  Row,
+  Space,
   Switch,
-} from 'antd'
-import dayjs from 'dayjs'
-import duration from 'dayjs/plugin/duration'
-import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+  Tabs,
+  Tag,
+  Timeline,
+  Typography,
+} from 'antd';
+import dayjs from 'dayjs';
+import duration from 'dayjs/plugin/duration';
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 
-import { taskApi } from '@/api/tasks'
-import StatusBadge from '@/components/ui/StatusBadge'
-import type { Task, TaskState, TaskType } from '@/types/api'
+import { taskApi } from '@/api/tasks';
+import StatusBadge from '@/components/ui/StatusBadge';
+import type { Task, TaskType } from '@/types/api';
+import { TaskState } from '@/types/api';
 
-dayjs.extend(duration)
+dayjs.extend(duration);
 
-const { Title, Text } = Typography
-const { TabPane } = Tabs
+const { Title, Text } = Typography;
+// Removed deprecated TabPane destructuring - using items prop instead
 
 const TaskDetail = () => {
-  const navigate = useNavigate()
-  const { id } = useParams<{ id: string }>()
-  const taskId = id!
-  const [activeTab, setActiveTab] = useState('overview')
-  const [logs, setLogs] = useState<string[]>([])
-  const [autoRefresh, setAutoRefresh] = useState(true)
+  const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  const taskId = id!;
+  const [activeTab, setActiveTab] = useState('overview');
+  const [logs, setLogs] = useState<string[]>([]);
+  const [autoRefresh, setAutoRefresh] = useState(true);
 
   // Fetch task details
-  const { data: task, isLoading, refetch } = useQuery({
+  const {
+    data: task,
+    isLoading,
+    refetch,
+  } = useQuery({
     queryKey: ['task', taskId],
     queryFn: () => taskApi.getTask(taskId),
     refetchInterval: autoRefresh ? 2000 : false,
-  })
+  });
 
   // Real-time log streaming via SSE
   useEffect(() => {
-    if (!task || !task.data || task.data.state !== 1) return // 1 = RUNNING
+    if (!task || !task.data || task.data.state !== 1) return; // 1 = RUNNING
 
-    const eventSource = new EventSource(`/api/v2/traces/${task.data.trace_id}/stream`)
+    const eventSource = new EventSource(
+      `/api/v2/traces/${task.data.trace_id}/stream`
+    );
 
     eventSource.onmessage = (event) => {
       try {
-        const data = JSON.parse(event.data)
+        const data = JSON.parse(event.data);
         if (data.type === 'log') {
-          setLogs(prev => [...prev, `[${dayjs().format('HH:mm:ss')}] ${data.message}`])
+          setLogs((prev) => [
+            ...prev,
+            `[${dayjs().format('HH:mm:ss')}] ${data.message}`,
+          ]);
         } else if (data.type === 'task_update') {
-          refetch()
+          refetch();
         }
       } catch (error) {
-        console.error('Error parsing SSE data:', error)
+        console.error('Error parsing SSE data:', error);
       }
-    }
+    };
 
     eventSource.onerror = (error) => {
-      console.error('SSE error:', error)
-      eventSource.close()
-    }
+      console.error('SSE error:', error);
+      eventSource.close();
+    };
 
     return () => {
-      eventSource.close()
-    }
-  }, [task, refetch])
+      eventSource.close();
+    };
+  }, [task, refetch]);
 
   const handleCancelTask = () => {
-    if (task?.data?.state !== 1 && task?.data?.state !== 0) { // Not RUNNING or PENDING
-      message.warning('Only running or pending tasks can be cancelled')
-      return
+    if (task?.data?.state !== 1 && task?.data?.state !== 0) {
+      // Not RUNNING or PENDING
+      message.warning('Only running or pending tasks can be cancelled');
+      return;
     }
 
     Modal.confirm({
@@ -107,19 +119,19 @@ const TaskDetail = () => {
       onOk: async () => {
         try {
           // TODO: Implement task cancellation when API is ready
-          message.success('Task cancellation requested')
-          refetch()
+          message.success('Task cancellation requested');
+          refetch();
         } catch (error) {
-          message.error('Failed to cancel task')
+          message.error('Failed to cancel task');
         }
       },
-    })
-  }
+    });
+  };
 
   const handleRetryTask = () => {
     if (task?.data.state !== TaskState.ERROR) {
-      message.warning('Only failed tasks can be retried')
-      return
+      message.warning('Only failed tasks can be retried');
+      return;
     }
 
     Modal.confirm({
@@ -130,118 +142,118 @@ const TaskDetail = () => {
       onOk: async () => {
         try {
           // TODO: Implement task retry when API is ready
-          message.success('Task retry requested')
-          refetch()
+          message.success('Task retry requested');
+          refetch();
         } catch (error) {
-          message.error('Failed to retry task')
+          message.error('Failed to retry task');
         }
       },
-    })
-  }
+    });
+  };
 
   const handleDownloadLogs = () => {
-    const logContent = logs.join('\n')
-    const blob = new Blob([logContent], { type: 'text/plain' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `task-${taskId}-logs.txt`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-    message.success('Logs downloaded successfully')
-  }
+    const logContent = logs.join('\n');
+    const blob = new Blob([logContent], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `task-${taskId}-logs.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    message.success('Logs downloaded successfully');
+  };
 
   const getTaskTypeIcon = (type: TaskType) => {
     switch (type) {
       case 'SubmitInjection':
-        return <PlayCircleOutlined style={{ color: '#3b82f6' }} />
+        return <PlayCircleOutlined style={{ color: '#3b82f6' }} />;
       case 'BuildDatapack':
-        return <DashboardOutlined style={{ color: '#10b981' }} />
+        return <DashboardOutlined style={{ color: '#10b981' }} />;
       case 'FaultInjection':
-        return <SyncOutlined style={{ color: '#f59e0b' }} />
+        return <SyncOutlined style={{ color: '#f59e0b' }} />;
       case 'CollectResult':
-        return <DatabaseOutlined style={{ color: '#8b5cf6' }} />
+        return <DatabaseOutlined style={{ color: '#8b5cf6' }} />;
       case 'AlgorithmExecution':
-        return <FunctionOutlined style={{ color: '#ec4899' }} />
+        return <FunctionOutlined style={{ color: '#ec4899' }} />;
       default:
-        return <ClockCircleOutlined />
+        return <ClockCircleOutlined />;
     }
-  }
+  };
 
   const getTaskTypeColor = (type: TaskType) => {
     switch (type) {
       case 'SubmitInjection':
-        return '#3b82f6'
+        return '#3b82f6';
       case 'BuildDatapack':
-        return '#10b981'
+        return '#10b981';
       case 'FaultInjection':
-        return '#f59e0b'
+        return '#f59e0b';
       case 'CollectResult':
-        return '#8b5cf6'
+        return '#8b5cf6';
       case 'AlgorithmExecution':
-        return '#ec4899'
+        return '#ec4899';
       default:
-        return '#6b7280'
+        return '#6b7280';
     }
-  }
+  };
 
   const getStateColor = (state: TaskState) => {
     switch (state) {
       case 0: // PENDING
-        return '#d1d5db'
+        return '#d1d5db';
       case 1: // RUNNING
-        return '#3b82f6'
+        return '#3b82f6';
       case 2: // COMPLETED
-        return '#10b981'
+        return '#10b981';
       case 3: // ERROR
-        return '#ef4444'
+        return '#ef4444';
       case 4: // CANCELLED
-        return '#6b7280'
+        return '#6b7280';
       default:
-        return '#6b7280'
+        return '#6b7280';
     }
-  }
+  };
 
   const getStateIcon = (state: TaskState) => {
     switch (state) {
       case 0: // PENDING
-        return <ClockCircleOutlined />
+        return <ClockCircleOutlined />;
       case 1: // RUNNING
-        return <SyncOutlined spin />
+        return <SyncOutlined spin />;
       case 2: // COMPLETED
-        return <CheckCircleOutlined />
+        return <CheckCircleOutlined />;
       case 3: // ERROR
-        return <CloseCircleOutlined />
+        return <CloseCircleOutlined />;
       case 4: // CANCELLED
-        return <PauseCircleOutlined />
+        return <PauseCircleOutlined />;
       default:
-        return <ClockCircleOutlined />
+        return <ClockCircleOutlined />;
     }
-  }
+  };
 
   const formatDuration = (start?: string, end?: string) => {
-    if (!start) return '-'
-    const startTime = dayjs(start)
-    const endTime = end ? dayjs(end) : dayjs()
-    const duration = dayjs.duration(endTime.diff(startTime))
+    if (!start) return '-';
+    const startTime = dayjs(start);
+    const endTime = end ? dayjs(end) : dayjs();
+    const duration = dayjs.duration(endTime.diff(startTime));
 
     if (duration.asHours() >= 1) {
-      return `${Math.floor(duration.asHours())}h ${duration.minutes()}m ${duration.seconds()}s`
+      return `${Math.floor(duration.asHours())}h ${duration.minutes()}m ${duration.seconds()}s`;
     } else if (duration.asMinutes() >= 1) {
-      return `${duration.minutes()}m ${duration.seconds()}s`
+      return `${duration.minutes()}m ${duration.seconds()}s`;
     } else {
-      return `${duration.seconds()}s`
+      return `${duration.seconds()}s`;
     }
-  }
+  };
 
   const getTaskProgress = (task: Task) => {
-    if (task.state === 2) return 100 // COMPLETED
-    if (task.state === 3 || task.state === 4) return 0 // ERROR or CANCELLED
-    if (task.state === 1) return 50 // RUNNING
-    return 0
-  }
+    if (task.state === 2) return 100; // COMPLETED
+    if (task.state === 3 || task.state === 4) return 0; // ERROR or CANCELLED
+    if (task.state === 1) return 50; // RUNNING
+    return 0;
+  };
 
   if (isLoading) {
     return (
@@ -250,19 +262,19 @@ const TaskDetail = () => {
           <div style={{ minHeight: 400 }} />
         </Card>
       </div>
-    )
+    );
   }
 
   if (!task) {
     return (
       <div style={{ padding: 24, textAlign: 'center' }}>
-        <Text type="secondary">Task not found</Text>
+        <Text type='secondary'>Task not found</Text>
       </div>
-    )
+    );
   }
 
-  const taskData = task?.data
-  const progress = getTaskProgress(taskData)
+  const taskData = task?.data;
+  const progress = getTaskProgress(taskData);
 
   return (
     <div style={{ padding: 24 }}>
@@ -280,22 +292,34 @@ const TaskDetail = () => {
           </Title>
           <Badge
             status={
-              task?.data?.state === 2 ? 'success' : // COMPLETED
-              task?.data?.state === 3 ? 'error' : // ERROR
-              task?.data?.state === 1 ? 'processing' : // RUNNING
-              task?.data?.state === 4 ? 'warning' : // CANCELLED
-              'default'
+              task?.data?.state === 2
+                ? 'success' // COMPLETED
+                : task?.data?.state === 3
+                  ? 'error' // ERROR
+                  : task?.data?.state === 1
+                    ? 'processing' // RUNNING
+                    : task?.data?.state === 4
+                      ? 'warning' // CANCELLED
+                      : 'default'
             }
             text={
               <Space>
                 {getStateIcon(task?.data?.state || 0)}
-                <Text strong style={{ color: getStateColor(task?.data?.state || 0) }}>
-                  {task?.data?.state === 0 ? 'Pending' : // PENDING
-                   task?.data?.state === 1 ? 'Running' : // RUNNING
-                   task?.data?.state === 2 ? 'Completed' : // COMPLETED
-                   task?.data?.state === 3 ? 'Error' : // ERROR
-                   task?.data?.state === 4 ? 'Cancelled' : // CANCELLED
-                   'Unknown'}
+                <Text
+                  strong
+                  style={{ color: getStateColor(task?.data?.state || 0) }}
+                >
+                  {task?.data?.state === 0
+                    ? 'Pending' // PENDING
+                    : task?.data?.state === 1
+                      ? 'Running' // RUNNING
+                      : task?.data?.state === 2
+                        ? 'Completed' // COMPLETED
+                        : task?.data?.state === 3
+                          ? 'Error' // ERROR
+                          : task?.data?.state === 4
+                            ? 'Cancelled' // CANCELLED
+                            : 'Unknown'}
                 </Text>
               </Space>
             }
@@ -305,7 +329,7 @@ const TaskDetail = () => {
 
       {/* Actions */}
       <Card style={{ marginBottom: 24 }}>
-        <Row justify="space-between" align="middle">
+        <Row justify='space-between' align='middle'>
           <Col>
             <Space>
               {(taskData?.state === 1 || taskData?.state === 0) && ( // RUNNING or PENDING
@@ -319,7 +343,7 @@ const TaskDetail = () => {
               )}
               {taskData?.state === 3 && ( // ERROR
                 <Button
-                  type="primary"
+                  type='primary'
                   icon={<ReloadOutlined />}
                   onClick={handleRetryTask}
                 >
@@ -336,8 +360,8 @@ const TaskDetail = () => {
               <Button
                 icon={<CopyOutlined />}
                 onClick={() => {
-                  navigator.clipboard.writeText(taskId)
-                  message.success('Task ID copied to clipboard')
+                  navigator.clipboard.writeText(taskId);
+                  message.success('Task ID copied to clipboard');
                 }}
               >
                 Copy ID
@@ -346,12 +370,12 @@ const TaskDetail = () => {
           </Col>
           <Col>
             <Space>
-              <Text type="secondary">Auto-refresh:</Text>
+              <Text type='secondary'>Auto-refresh:</Text>
               <Switch
                 checked={autoRefresh}
                 onChange={setAutoRefresh}
-                checkedChildren="ON"
-                unCheckedChildren="OFF"
+                checkedChildren='ON'
+                unCheckedChildren='OFF'
               />
             </Space>
           </Col>
@@ -366,12 +390,14 @@ const TaskDetail = () => {
         <Progress
           percent={progress}
           status={
-            taskData.state === TaskState.ERROR ? 'exception' :
-            taskData.state === TaskState.COMPLETED ? 'success' :
-            'active'
+            taskData.state === TaskState.ERROR
+              ? 'exception'
+              : taskData.state === TaskState.COMPLETED
+                ? 'success'
+                : 'active'
           }
           strokeColor={getStateColor(taskData.state)}
-          format={percent => (
+          format={(percent) => (
             <Space>
               {getStateIcon(taskData.state)}
               <Text>{percent}%</Text>
@@ -381,27 +407,30 @@ const TaskDetail = () => {
       </Card>
 
       {/* Tabs */}
-      <Tabs activeKey={activeTab} onChange={setActiveTab}>
-        <TabPane tab="Overview" key="overview">
+      <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
+        {
+          key: 'overview',
+          label: 'Overview',
+          children: (
           <Row gutter={[16, 16]}>
             <Col xs={24} lg={16}>
-              <Card title="Task Information">
+              <Card title='Task Information'>
                 <Descriptions column={2} bordered>
-                  <Descriptions.Item label="Task ID">
+                  <Descriptions.Item label='Task ID'>
                     <Space>
                       <Text code>{taskId}</Text>
                       <Button
-                        type="text"
-                        size="small"
+                        type='text'
+                        size='small'
                         icon={<CopyOutlined />}
                         onClick={() => {
-                          navigator.clipboard.writeText(taskId)
-                          message.success('Task ID copied to clipboard')
+                          navigator.clipboard.writeText(taskId);
+                          message.success('Task ID copied to clipboard');
                         }}
                       />
                     </Space>
                   </Descriptions.Item>
-                  <Descriptions.Item label="Type">
+                  <Descriptions.Item label='Type'>
                     <Tag
                       color={getTaskTypeColor(taskData.type)}
                       style={{ fontWeight: 500, fontSize: '1rem' }}
@@ -412,71 +441,84 @@ const TaskDetail = () => {
                       </Space>
                     </Tag>
                   </Descriptions.Item>
-                  <Descriptions.Item label="Status">
+                  <Descriptions.Item label='Status'>
                     <StatusBadge
                       status={
-                        taskData.state === TaskState.COMPLETED ? 'success' :
-                        taskData.state === TaskState.ERROR ? 'error' :
-                        taskData.state === TaskState.RUNNING ? 'processing' :
-                        taskData.state === TaskState.CANCELLED ? 'warning' :
-                        'default'
+                        taskData.state === TaskState.COMPLETED
+                          ? 'success'
+                          : taskData.state === TaskState.ERROR
+                            ? 'error'
+                            : taskData.state === TaskState.RUNNING
+                              ? 'processing'
+                              : taskData.state === TaskState.CANCELLED
+                                ? 'warning'
+                                : 'default'
                       }
                       text={
-                        taskData.state === TaskState.PENDING ? 'Pending' :
-                        taskData.state === TaskState.RUNNING ? 'Running' :
-                        taskData.state === TaskState.COMPLETED ? 'Completed' :
-                        taskData.state === TaskState.ERROR ? 'Error' :
-                        taskData.state === TaskState.CANCELLED ? 'Cancelled' :
-                        'Unknown'
+                        taskData.state === TaskState.PENDING
+                          ? 'Pending'
+                          : taskData.state === TaskState.RUNNING
+                            ? 'Running'
+                            : taskData.state === TaskState.COMPLETED
+                              ? 'Completed'
+                              : taskData.state === TaskState.ERROR
+                                ? 'Error'
+                                : taskData.state === TaskState.CANCELLED
+                                  ? 'Cancelled'
+                                  : 'Unknown'
                       }
                     />
                   </Descriptions.Item>
-                  <Descriptions.Item label="Retry Count">
+                  <Descriptions.Item label='Retry Count'>
                     <Text code>
                       {taskData.retry_count}/{taskData.max_retry}
                     </Text>
                   </Descriptions.Item>
-                  <Descriptions.Item label="Immediate">
+                  <Descriptions.Item label='Immediate'>
                     <Text>{taskData.immediate ? 'Yes' : 'No'}</Text>
                   </Descriptions.Item>
-                  <Descriptions.Item label="Trace ID">
+                  <Descriptions.Item label='Trace ID'>
                     <Text code>{taskData.trace_id}</Text>
                   </Descriptions.Item>
-                  <Descriptions.Item label="Group ID">
+                  <Descriptions.Item label='Group ID'>
                     <Text code>{taskData.group_id}</Text>
                   </Descriptions.Item>
                   {taskData.parent_id && (
-                    <Descriptions.Item label="Parent ID">
+                    <Descriptions.Item label='Parent ID'>
                       <Text code>{taskData.parent_id}</Text>
                     </Descriptions.Item>
                   )}
-                  <Descriptions.Item label="Project ID">
+                  <Descriptions.Item label='Project ID'>
                     <Text>{taskData.project_id || 'N/A'}</Text>
                   </Descriptions.Item>
-                  <Descriptions.Item label="Status Code">
+                  <Descriptions.Item label='Status Code'>
                     <Text code>{taskData.status}</Text>
                   </Descriptions.Item>
                 </Descriptions>
               </Card>
             </Col>
             <Col xs={24} lg={8}>
-              <Card title="Timing Information">
-                <Space direction="vertical" style={{ width: '100%' }}>
+              <Card title='Timing Information'>
+                <Space direction='vertical' style={{ width: '100%' }}>
                   <div>
-                    <Text type="secondary">Created</Text>
+                    <Text type='secondary'>Created</Text>
                     <br />
                     <Text strong>
-                      {dayjs(taskData.created_at).format('MMM D, YYYY HH:mm:ss')}
+                      {dayjs(taskData.created_at).format(
+                        'MMM D, YYYY HH:mm:ss'
+                      )}
                     </Text>
                   </div>
                   <Divider />
                   {taskData.started_at && (
                     <>
                       <div>
-                        <Text type="secondary">Started</Text>
+                        <Text type='secondary'>Started</Text>
                         <br />
                         <Text strong>
-                          {dayjs(taskData.started_at).format('MMM D, YYYY HH:mm:ss')}
+                          {dayjs(taskData.started_at).format(
+                            'MMM D, YYYY HH:mm:ss'
+                          )}
                         </Text>
                       </div>
                       <Divider />
@@ -485,20 +527,25 @@ const TaskDetail = () => {
                   {taskData.finished_at && (
                     <>
                       <div>
-                        <Text type="secondary">Finished</Text>
+                        <Text type='secondary'>Finished</Text>
                         <br />
                         <Text strong>
-                          {dayjs(taskData.finished_at).format('MMM D, YYYY HH:mm:ss')}
+                          {dayjs(taskData.finished_at).format(
+                            'MMM D, YYYY HH:mm:ss'
+                          )}
                         </Text>
                       </div>
                       <Divider />
                     </>
                   )}
                   <div>
-                    <Text type="secondary">Duration</Text>
+                    <Text type='secondary'>Duration</Text>
                     <br />
                     <Title level={3} style={{ margin: 0, color: '#3b82f6' }}>
-                      {formatDuration(taskData.started_at, taskData.finished_at)}
+                      {formatDuration(
+                        taskData.started_at,
+                        taskData.finished_at
+                      )}
                     </Title>
                   </div>
                 </Space>
@@ -506,8 +553,8 @@ const TaskDetail = () => {
             </Col>
           </Row>
 
-          {taskData.labels && taskData.labels.length > 0 && (
-            <Card title="Labels" style={{ marginTop: 16 }}>
+          {taskData?.labels && taskData.labels.length > 0 && (
+            <Card title='Labels' style={{ marginTop: 16 }}>
               <Space wrap>
                 {taskData.labels.map((label, index) => (
                   <Tag key={index} icon={<TagsOutlined />}>
@@ -518,24 +565,32 @@ const TaskDetail = () => {
             </Card>
           )}
 
-          {taskData.payload && (
-            <Card title="Payload" style={{ marginTop: 16 }}>
-              <pre style={{ margin: 0, fontSize: '0.875rem', whiteSpace: 'pre-wrap' }}>
+          {taskData?.payload && (
+            <Card title='Payload' style={{ marginTop: 16 }}>
+              <pre
+                style={{
+                  margin: 0,
+                  fontSize: '0.875rem',
+                  whiteSpace: 'pre-wrap',
+                }}
+              >
                 {JSON.stringify(taskData.payload, null, 2)}
               </pre>
             </Card>
           )}
-        </TabPane>
+    </>
+  )
+},
 
-        <TabPane tab="Logs" key="logs">
+        {
+          key: 'logs',
+          label: 'Logs',
+          children: (
           <Card
-            title="Task Logs"
+            title='Task Logs'
             extra={
               <Space>
-                <Button
-                  icon={<ReloadOutlined />}
-                  onClick={() => setLogs([])}
-                >
+                <Button icon={<ReloadOutlined />} onClick={() => setLogs([])}>
                   Clear Logs
                 </Button>
                 <Button
@@ -549,102 +604,109 @@ const TaskDetail = () => {
             }
           >
             {logs.length > 0 ? (
-              <div style={{ background: '#f5f5f5', padding: 16, borderRadius: 4, maxHeight: 400, overflow: 'auto' }}>
-                <pre style={{ margin: 0, fontSize: '0.875rem', fontFamily: 'monospace' }}>
+              <div
+                style={{
+                  background: '#f5f5f5',
+                  padding: 16,
+                  borderRadius: 4,
+                  maxHeight: 400,
+                  overflow: 'auto',
+                }}
+              >
+                <pre
+                  style={{
+                    margin: 0,
+                    fontSize: '0.875rem',
+                    fontFamily: 'monospace',
+                  }}
+                >
                   {logs.join('\n')}
                 </pre>
               </div>
             ) : (
               <Empty
-                description="No logs available. Logs will appear when the task starts running."
+                description='No logs available. Logs will appear when the task starts running.'
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
               />
             )}
           </Card>
-        </TabPane>
+    )
+  },
 
-        <TabPane tab="Timeline" key="timeline">
-          <Card title="Task Execution Timeline">
+        {
+          key: 'timeline',
+          label: 'Timeline',
+          children: (
+          <Card title='Task Execution Timeline'>
             <Timeline>
-              <Timeline.Item
-                color="blue"
-                dot={<ClockCircleOutlined />}
-              >
+              <Timeline.Item color='blue' dot={<ClockCircleOutlined />}>
                 <Text strong>Task Created</Text>
                 <br />
-                <Text type="secondary">
+                <Text type='secondary'>
                   {dayjs(taskData.created_at).format('MMM D, YYYY HH:mm:ss')}
                 </Text>
               </Timeline.Item>
 
-              {taskData.started_at && (
-                <Timeline.Item
-                  color="green"
-                  dot={<PlayCircleOutlined />}
-                >
+              {taskData?.started_at && (
+                <Timeline.Item color='green' dot={<PlayCircleOutlined />}>
                   <Text strong>Task Started</Text>
                   <br />
-                  <Text type="secondary">
+                  <Text type='secondary'>
                     {dayjs(taskData.started_at).format('MMM D, YYYY HH:mm:ss')}
                   </Text>
                 </Timeline.Item>
               )}
 
-              {taskData.state === TaskState.RUNNING && (
-                <Timeline.Item
-                  color="blue"
-                  dot={<SyncOutlined spin />}
-                >
+              {taskData?.state === TaskState.RUNNING && (
+                <Timeline.Item color='blue' dot={<SyncOutlined spin />}>
                   <Text strong>Task Running</Text>
                   <br />
-                  <Text type="secondary">In progress...</Text>
+                  <Text type='secondary'>In progress...</Text>
                 </Timeline.Item>
               )}
 
-              {taskData.state === TaskState.COMPLETED && taskData.finished_at && (
-                <Timeline.Item
-                  color="green"
-                  dot={<CheckCircleOutlined />}
-                >
-                  <Text strong>Task Completed</Text>
-                  <br />
-                  <Text type="secondary">
-                    {dayjs(taskData.finished_at).format('MMM D, YYYY HH:mm:ss')}
-                  </Text>
-                </Timeline.Item>
-              )}
+              {taskData?.state === TaskState.COMPLETED &&
+                taskData?.finished_at && (
+                  <Timeline.Item color='green' dot={<CheckCircleOutlined />}>
+                    <Text strong>Task Completed</Text>
+                    <br />
+                    <Text type='secondary'>
+                      {dayjs(taskData.finished_at).format(
+                        'MMM D, YYYY HH:mm:ss'
+                      )}
+                    </Text>
+                  </Timeline.Item>
+                )}
 
-              {taskData.state === TaskState.ERROR && taskData.finished_at && (
-                <Timeline.Item
-                  color="red"
-                  dot={<CloseCircleOutlined />}
-                >
+              {taskData?.state === TaskState.ERROR && taskData?.finished_at && (
+                <Timeline.Item color='red' dot={<CloseCircleOutlined />}>
                   <Text strong>Task Failed</Text>
                   <br />
-                  <Text type="secondary">
+                  <Text type='secondary'>
                     {dayjs(taskData.finished_at).format('MMM D, YYYY HH:mm:ss')}
                   </Text>
                 </Timeline.Item>
               )}
 
-              {taskData.state === TaskState.CANCELLED && taskData.finished_at && (
-                <Timeline.Item
-                  color="orange"
-                  dot={<PauseCircleOutlined />}
-                >
-                  <Text strong>Task Cancelled</Text>
-                  <br />
-                  <Text type="secondary">
-                    {dayjs(taskData.finished_at).format('MMM D, YYYY HH:mm:ss')}
-                  </Text>
-                </Timeline.Item>
-              )}
+              {taskData?.state === TaskState.CANCELLED &&
+                taskData?.finished_at && (
+                  <Timeline.Item color='orange' dot={<PauseCircleOutlined />}>
+                    <Text strong>Task Cancelled</Text>
+                    <br />
+                    <Text type='secondary'>
+                      {dayjs(taskData.finished_at).format(
+                        'MMM D, YYYY HH:mm:ss'
+                      )}
+                    </Text>
+                  </Timeline.Item>
+                )}
             </Timeline>
           </Card>
-        </TabPane>
-      </Tabs>
+    )
+  }
+]} />
     </div>
-  )
-}
+  );
+};
 
-export default TaskDetail
+export default TaskDetail;

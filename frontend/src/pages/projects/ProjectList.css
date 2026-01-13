@@ -36,7 +36,11 @@
   padding: 0 1.5rem;
   font-weight: 600;
   border-radius: var(--radius-lg);
-  background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-600));
+  background: linear-gradient(
+    135deg,
+    var(--color-primary-500),
+    var(--color-primary-600)
+  );
   border: none;
   box-shadow: var(--shadow-md);
   transition: all 0.3s ease;

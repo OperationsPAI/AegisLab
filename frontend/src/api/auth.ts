@@ -1,10 +1,10 @@
-import { Configuration, AuthenticationApi } from '@rcabench/client'
-import { message } from 'antd'
-import axios, { type AxiosRequestConfig } from 'axios'
+import { AuthenticationApi, Configuration } from '@rcabench/client';
+import { message } from 'antd';
+import axios, { type AxiosRequestConfig } from 'axios';
 
 // Create configuration with dynamic token
 const createAuthConfig = () => {
-  const token = localStorage.getItem('access_token')
+  const token = localStorage.getItem('access_token');
 
   return new Configuration({
     basePath: '/api/v2',
@@ -15,8 +15,8 @@ const createAuthConfig = () => {
         'Content-Type': 'application/json',
       },
     } as AxiosRequestConfig,
-  })
-}
+  });
+};
 
 // Create axios instance for manual API calls
 const apiClient = axios.create({
@@ -25,57 +25,60 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-})
+});
 
 // Request interceptor for auth
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('access_token')
+    const token = localStorage.getItem('access_token');
     if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`
+      config.headers.Authorization = `Bearer ${token}`;
     }
-    return config
+    return config;
   },
   (error) => {
-    return Promise.reject(error)
+    return Promise.reject(error);
   }
-)
+);
 
 // Response interceptor for token refresh
 apiClient.interceptors.response.use(
   (response) => {
-    return response
+    return response;
   },
   async (error) => {
-    const originalRequest = error.config as { _retry?: boolean; headers?: Record<string, string> } // TODO: Fix this type properly
+    const originalRequest = error.config as {
+      _retry?: boolean;
+      headers?: Record<string, string>;
+    }; // TODO: Fix this type properly
 
     // Handle 401 Unauthorized - refresh token
     if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true
+      originalRequest._retry = true;
 
       try {
-        const refreshToken = localStorage.getItem('refresh_token')
+        const refreshToken = localStorage.getItem('refresh_token');
         if (refreshToken) {
           const response = await apiClient.post('/auth/refresh', {
             token: refreshToken,
-          })
+          });
 
           // Backend returns single 'token' field
-          const { token } = response.data
-          localStorage.setItem('access_token', token)
-          localStorage.setItem('refresh_token', token)
+          const { token } = response.data;
+          localStorage.setItem('access_token', token);
+          localStorage.setItem('refresh_token', token);
 
           if (originalRequest.headers) {
-            originalRequest.headers.Authorization = `Bearer ${token}`
+            originalRequest.headers.Authorization = `Bearer ${token}`;
           }
-          return apiClient(originalRequest)
+          return apiClient(originalRequest);
         }
       } catch (refreshError) {
         // Refresh failed, redirect to login
-        localStorage.removeItem('access_token')
-        localStorage.removeItem('refresh_token')
-        window.location.href = '/login'
-        return Promise.reject(refreshError)
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        window.location.href = '/login';
+        return Promise.reject(refreshError);
       }
     }
 
@@ -83,27 +86,31 @@ apiClient.interceptors.response.use(
     const errorMessage =
       (error.response?.data as { message?: string })?.message ||
       error.message ||
-      '请求失败'
+      '请求失败';
 
-    message.error(errorMessage)
-    return Promise.reject(error)
+    message.error(errorMessage);
+    return Promise.reject(error);
   }
-)
+);
 
 // Export the auth API using generated SDK where available
 export const authApi = {
   // Login - using generated SDK
   login: async (data: { username: string; password: string }) => {
-    const authApi = new AuthenticationApi(createAuthConfig())
-    const response = await authApi.login({ request: data })
-    return response.data
+    const authApi = new AuthenticationApi(createAuthConfig());
+    const response = await authApi.login({ request: data });
+    return response.data;
   },
 
   // Register - using generated SDK
-  register: async (data: { username: string; password: string; email: string }) => {
-    const authApi = new AuthenticationApi(createAuthConfig())
-    const response = await authApi.registerUser({ request: data })
-    return response.data
+  register: async (data: {
+    username: string;
+    password: string;
+    email: string;
+  }) => {
+    const authApi = new AuthenticationApi(createAuthConfig());
+    const response = await authApi.registerUser({ request: data });
+    return response.data;
   },
 
   // Logout - manual endpoint (not in generated SDK)
@@ -111,8 +118,8 @@ export const authApi = {
 
   // Get profile - manual endpoint (not in generated SDK)
   getProfile: async () => {
-    const response = await apiClient.get('/auth/profile')
-    return response.data
+    const response = await apiClient.get('/auth/profile');
+    return response.data;
   },
 
   // Change password - manual endpoint (not in generated SDK)
@@ -121,9 +128,11 @@ export const authApi = {
 
   // Refresh token - manual endpoint (not in generated SDK)
   refreshToken: async (token: string) => {
-    const response = await apiClient.post<{ token: string }>('/auth/refresh', { token })
-    return response.data
+    const response = await apiClient.post<{ token: string }>('/auth/refresh', {
+      token,
+    });
+    return response.data;
   },
-}
+};
 
-export default apiClient
+export default apiClient;

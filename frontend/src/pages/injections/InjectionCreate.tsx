@@ -1,8 +1,20 @@
 import { useQuery } from '@tanstack/react-query';
-import { Form, Card, Row, Col, Select, Input, InputNumber, Button, Space, message } from 'antd';
+import {
+  Button,
+  Card,
+  Col,
+  Form,
+  Input,
+  InputNumber,
+  message,
+  Row,
+  Select,
+  Space,
+} from 'antd';
 import type React from 'react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+
 
 import { containerApi } from '../../api/containers';
 import { injectionApi } from '../../api/injections';
@@ -15,6 +27,8 @@ import { FaultConfigPanel } from './components/FaultConfigPanel';
 import { FaultTypePanel } from './components/FaultTypePanel';
 import { TagManager } from './components/TagManager';
 import { VisualCanvas } from './components/VisualCanvas';
+
+
 import './InjectionCreate.css';
 
 const { Option } = Select;
@@ -57,14 +71,26 @@ const InjectionCreate: React.FC = () => {
   // Fetch containers when project is selected
   const { data: containers = [], isLoading: containersLoading } = useQuery({
     queryKey: ['containers', selectedProject],
-    queryFn: () => containerApi.getContainers({ projectId: selectedProject!, page: 1, size: 100 }),
+    queryFn: () =>
+      containerApi.getContainers({
+        projectId: selectedProject!,
+        page: 1,
+        size: 100,
+      }),
     enabled: !!selectedProject,
     select: (data) => data.data || [],
   });
 
   // Group containers by type
   const groupedContainers = containers.reduce(
-    (acc: { pedestals: Container[]; benchmarks: Container[]; algorithms: Container[] }, container: Container) => {
+    (
+      acc: {
+        pedestals: Container[];
+        benchmarks: Container[];
+        algorithms: Container[];
+      },
+      container: Container
+    ) => {
       if (container.type === 'pedestal') {
         acc.pedestals.push(container);
       } else if (container.type === 'benchmark') {
@@ -123,10 +149,10 @@ const InjectionCreate: React.FC = () => {
 
   return (
     <MainLayout>
-      <div className="injection-create">
+      <div className='injection-create'>
         <Form
           form={form}
-          layout="vertical"
+          layout='vertical'
           onFinish={handleSubmit}
           initialValues={{
             experiment_params: {
@@ -139,14 +165,16 @@ const InjectionCreate: React.FC = () => {
           <Row gutter={24}>
             {/* Left Panel - Basic Configuration */}
             <Col span={8}>
-              <Card title="Basic Configuration" className="injection-card">
+              <Card title='Basic Configuration' className='injection-card'>
                 <Form.Item
-                  name="project_id"
-                  label="Project"
-                  rules={[{ required: true, message: 'Please select a project' }]}
+                  name='project_id'
+                  label='Project'
+                  rules={[
+                    { required: true, message: 'Please select a project' },
+                  ]}
                 >
                   <Select
-                    placeholder="Select project"
+                    placeholder='Select project'
                     loading={projectsLoading}
                     onChange={handleProjectChange}
                   >
@@ -159,24 +187,31 @@ const InjectionCreate: React.FC = () => {
                 </Form.Item>
 
                 <Form.Item
-                  name="name"
-                  label="Injection Name"
-                  rules={[{ required: true, message: 'Please input injection name' }]}
+                  name='name'
+                  label='Injection Name'
+                  rules={[
+                    { required: true, message: 'Please input injection name' },
+                  ]}
                 >
-                  <Input placeholder="Enter injection name" />
+                  <Input placeholder='Enter injection name' />
                 </Form.Item>
 
-                <Form.Item name="description" label="Description">
-                  <TextArea rows={3} placeholder="Enter description" />
+                <Form.Item name='description' label='Description'>
+                  <TextArea rows={3} placeholder='Enter description' />
                 </Form.Item>
 
                 <Form.Item
                   name={['container_config', 'pedestal_container_id']}
-                  label="Pedestal Container"
-                  rules={[{ required: true, message: 'Please select pedestal container' }]}
+                  label='Pedestal Container'
+                  rules={[
+                    {
+                      required: true,
+                      message: 'Please select pedestal container',
+                    },
+                  ]}
                 >
                   <Select
-                    placeholder="Select pedestal container"
+                    placeholder='Select pedestal container'
                     loading={containersLoading}
                     disabled={!selectedProject}
                   >
@@ -190,19 +225,26 @@ const InjectionCreate: React.FC = () => {
 
                 <Form.Item
                   name={['container_config', 'benchmark_container_id']}
-                  label="Benchmark Container"
-                  rules={[{ required: true, message: 'Please select benchmark container' }]}
+                  label='Benchmark Container'
+                  rules={[
+                    {
+                      required: true,
+                      message: 'Please select benchmark container',
+                    },
+                  ]}
                 >
                   <Select
-                    placeholder="Select benchmark container"
+                    placeholder='Select benchmark container'
                     loading={containersLoading}
                     disabled={!selectedProject}
                   >
-                    {groupedContainers.benchmarks.map((container: Container) => (
-                      <Option key={container.id} value={container.id}>
-                        {container.name}
-                      </Option>
-                    ))}
+                    {groupedContainers.benchmarks.map(
+                      (container: Container) => (
+                        <Option key={container.id} value={container.id}>
+                          {container.name}
+                        </Option>
+                      )
+                    )}
                   </Select>
                 </Form.Item>
 
@@ -215,39 +257,39 @@ const InjectionCreate: React.FC = () => {
                 <TagManager value={tags} onChange={handleTagChange} />
               </Card>
 
-              <Card title="Experiment Parameters" className="injection-card">
+              <Card title='Experiment Parameters' className='injection-card'>
                 <Form.Item
                   name={['experiment_params', 'duration']}
-                  label="Duration (seconds)"
+                  label='Duration (seconds)'
                   rules={[{ required: true, message: 'Please input duration' }]}
                 >
                   <InputNumber
                     min={60}
                     max={3600}
                     style={{ width: '100%' }}
-                    placeholder="300"
+                    placeholder='300'
                   />
                 </Form.Item>
 
                 <Form.Item
                   name={['experiment_params', 'interval']}
-                  label="Interval (seconds)"
+                  label='Interval (seconds)'
                   rules={[{ required: true, message: 'Please input interval' }]}
                 >
                   <InputNumber
                     min={10}
                     max={600}
                     style={{ width: '100%' }}
-                    placeholder="60"
+                    placeholder='60'
                   />
                 </Form.Item>
 
                 <Form.Item
                   name={['experiment_params', 'parallel']}
-                  label="Parallel Execution"
-                  valuePropName="checked"
+                  label='Parallel Execution'
+                  valuePropName='checked'
                 >
-                  <Select placeholder="Select execution mode">
+                  <Select placeholder='Select execution mode'>
                     <Option value={false}>Sequential</Option>
                     <Option value>Parallel</Option>
                   </Select>
@@ -289,12 +331,10 @@ const InjectionCreate: React.FC = () => {
           <Row gutter={24} style={{ marginTop: 24 }}>
             <Col span={24}>
               <Space>
-                <Button type="primary" htmlType="submit">
+                <Button type='primary' htmlType='submit'>
                   Create Injection
                 </Button>
-                <Button onClick={() => navigate('/injections')}>
-                  Cancel
-                </Button>
+                <Button onClick={() => navigate('/injections')}>Cancel</Button>
               </Space>
             </Col>
           </Row>

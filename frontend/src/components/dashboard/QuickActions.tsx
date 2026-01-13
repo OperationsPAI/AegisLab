@@ -1,14 +1,15 @@
+
 import {
-  PlusOutlined,
+  BarChartOutlined,
   ExperimentOutlined,
   PlayCircleOutlined,
-  BarChartOutlined,
-} from '@ant-design/icons'
-import { Button, Row, Col } from 'antd'
-import { useNavigate } from 'react-router-dom'
+  PlusOutlined,
+} from '@ant-design/icons';
+import { Button, Col, Row } from 'antd';
+import { useNavigate } from 'react-router-dom';
 
 const QuickActions = () => {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
   const actions = [
     {
@@ -43,16 +44,16 @@ const QuickActions = () => {
       color: 'var(--color-info)',
       path: '/evaluations',
     },
-  ]
+  ];
 
   return (
-    <div className="quick-actions">
-      <h3 className="quick-actions-title">Quick Actions</h3>
-      <Row gutter={[16, 16]} className="quick-actions-grid">
+    <div className='quick-actions'>
+      <h3 className='quick-actions-title'>Quick Actions</h3>
+      <Row gutter={[16, 16]} className='quick-actions-grid'>
         {actions.map((action) => (
           <Col key={action.key} xs={24} sm={12} md={6}>
             <Button
-              className="quick-action-btn"
+              className='quick-action-btn'
               onClick={() => navigate(action.path)}
               style={{
                 background: `linear-gradient(135deg, ${action.color}15, ${action.color}25)`,
@@ -60,21 +61,21 @@ const QuickActions = () => {
               }}
             >
               <div
-                className="quick-action-icon"
+                className='quick-action-icon'
                 style={{ color: action.color }}
               >
                 {action.icon}
               </div>
-              <div className="quick-action-content">
-                <div className="quick-action-label">{action.label}</div>
-                <div className="quick-action-desc">{action.description}</div>
+              <div className='quick-action-content'>
+                <div className='quick-action-label'>{action.label}</div>
+                <div className='quick-action-desc'>{action.description}</div>
               </div>
             </Button>
           </Col>
         ))}
       </Row>
     </div>
-  )
-}
+  );
+};
 
-export default QuickActions
+export default QuickActions;

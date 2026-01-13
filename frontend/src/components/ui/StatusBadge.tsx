@@ -1,13 +1,14 @@
-import { Badge, Tag } from 'antd'
-import type { CSSProperties } from 'react'
+import { Badge, Tag } from 'antd';
+import type { CSSProperties } from 'react';
+
 
 interface StatusBadgeProps {
-  status: 'pending' | 'running' | 'completed' | 'error' | 'warning' | 'info'
-  text?: string
-  size?: 'small' | 'default'
-  showDot?: boolean
-  style?: CSSProperties
-  className?: string
+  status: 'pending' | 'running' | 'completed' | 'error' | 'warning' | 'info';
+  text?: string;
+  size?: 'small' | 'default';
+  showDot?: boolean;
+  style?: CSSProperties;
+  className?: string;
 }
 
 const statusConfig = {
@@ -42,7 +43,7 @@ const statusConfig = {
     text: 'Info',
     icon: 'ℹ️',
   },
-}
+};
 
 const StatusBadge = ({
   status,
@@ -52,8 +53,8 @@ const StatusBadge = ({
   style,
   className = '',
 }: StatusBadgeProps) => {
-  const config = statusConfig[status]
-  const displayText = text || config.text
+  const config = statusConfig[status];
+  const displayText = text || config.text;
 
   if (showDot) {
     return (
@@ -73,7 +74,7 @@ const StatusBadge = ({
           </span>
         }
       />
-    )
+    );
   }
 
   return (
@@ -93,8 +94,8 @@ const StatusBadge = ({
     >
       {config.icon} {displayText}
     </Tag>
-  )
-}
+  );
+};
 
-export default StatusBadge
-export type { StatusBadgeProps }
+export default StatusBadge;
+export type { StatusBadgeProps };

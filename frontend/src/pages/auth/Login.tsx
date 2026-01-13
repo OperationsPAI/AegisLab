@@ -1,32 +1,33 @@
-import { UserOutlined, LockOutlined } from '@ant-design/icons'
-import { Form, Input, Button, Card, Typography, message } from 'antd'
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { LockOutlined, UserOutlined } from '@ant-design/icons';
+import { Button, Card, Form, Input, message, Typography } from 'antd';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-import { useAuthStore } from '@/store/auth'
 
-const { Title, Text } = Typography
+import { useAuthStore } from '@/store/auth';
+
+const { Title, Text } = Typography;
 
 const Login = () => {
-  const navigate = useNavigate()
-  const { login } = useAuthStore()
-  const [loading, setLoading] = useState(false)
+  const navigate = useNavigate();
+  const { login } = useAuthStore();
+  const [loading, setLoading] = useState(false);
 
   const onFinish = async (values: { username: string; password: string }) => {
-    setLoading(true)
+    setLoading(true);
     try {
-      await login(values.username, values.password)
-      message.success('登录成功')
+      await login(values.username, values.password);
+      message.success('登录成功');
       // Add a small delay to ensure state is updated
       setTimeout(() => {
-        navigate('/dashboard')
-      }, 100)
+        navigate('/dashboard');
+      }, 100);
     } catch (error) {
-      message.error('登录失败，请检查用户名和密码')
+      message.error('登录失败，请检查用户名和密码');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div
@@ -56,56 +57,45 @@ const Login = () => {
           <Title level={2} style={{ marginBottom: '8px' }}>
             RCABench
           </Title>
-          <Text type="secondary">微服务根因分析基准测试平台</Text>
+          <Text type='secondary'>微服务根因分析基准测试平台</Text>
         </div>
 
-        <Form
-          name="login"
-          size="large"
-          onFinish={onFinish}
-          autoComplete="off"
-        >
+        <Form name='login' size='large' onFinish={onFinish} autoComplete='off'>
           <Form.Item
-            name="username"
+            name='username'
             rules={[{ required: true, message: '请输入用户名' }]}
           >
-            <Input
-              prefix={<UserOutlined />}
-              placeholder="用户名"
-            />
+            <Input prefix={<UserOutlined />} placeholder='用户名' />
           </Form.Item>
 
           <Form.Item
-            name="password"
+            name='password'
             rules={[{ required: true, message: '请输入密码' }]}
           >
-            <Input.Password
-              prefix={<LockOutlined />}
-              placeholder="密码"
-            />
+            <Input.Password prefix={<LockOutlined />} placeholder='密码' />
           </Form.Item>
 
           <Form.Item>
             <Button
-              type="primary"
-              htmlType="submit"
+              type='primary'
+              htmlType='submit'
               block
               loading={loading}
-              size="large"
+              size='large'
             >
               登录
             </Button>
           </Form.Item>
 
           <div style={{ textAlign: 'center' }}>
-            <Text type="secondary" style={{ fontSize: '12px' }}>
+            <Text type='secondary' style={{ fontSize: '12px' }}>
               AegisLab - Root Cause Analysis Benchmark Platform
             </Text>
           </div>
         </Form>
       </Card>
     </div>
-  )
-}
+  );
+};
 
-export default Login
+export default Login;

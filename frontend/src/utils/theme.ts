@@ -66,11 +66,11 @@ export const theme = {
 
   // Task state colors
   taskStates: {
-    pending: '#9ca3af',    // Gray
-    running: '#3b82f6',    // Blue (with animation)
-    completed: '#10b981',  // Green
-    error: '#ef4444',      // Red
-    cancelled: '#f59e0b',  // Orange
+    pending: '#9ca3af', // Gray
+    running: '#3b82f6', // Blue (with animation)
+    completed: '#10b981', // Green
+    error: '#ef4444', // Red
+    cancelled: '#f59e0b', // Orange
   },
 
   // Spacing
@@ -105,4 +105,4 @@ export const theme = {
     sans: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
     mono: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
   },
-}
+};

@@ -1,7 +1,13 @@
-import { PlusOutlined, TagsOutlined, InfoCircleOutlined } from '@ant-design/icons';
-import { Form, Tag, Input, Tooltip, Button, Space, message } from 'antd';
+import {
+  InfoCircleOutlined,
+  PlusOutlined,
+  TagsOutlined,
+} from '@ant-design/icons';
+import { Button, Form, Input, message, Space, Tag, Tooltip } from 'antd';
 import type React from 'react';
-import { useState, useRef, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
+
+
 import './TagManager.css';
 
 interface TagManagerProps {
@@ -86,7 +92,10 @@ export const TagManager: React.FC<TagManagerProps> = ({
     setEditInputValue('');
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, isEdit = false) => {
+  const handleKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+    isEdit = false
+  ) => {
     if (e.key === 'Enter') {
       if (isEdit) {
         handleEditInputConfirm();
@@ -144,22 +153,22 @@ export const TagManager: React.FC<TagManagerProps> = ({
         <Space>
           <TagsOutlined />
           <span>Tags</span>
-          <Tooltip title="Add tags to categorize and search for this injection">
+          <Tooltip title='Add tags to categorize and search for this injection'>
             <InfoCircleOutlined style={{ color: '#8c8c8c' }} />
           </Tooltip>
         </Space>
       }
     >
-      <div className="tag-manager">
-        <Space wrap className="tag-list">
+      <div className='tag-manager'>
+        <Space wrap className='tag-list'>
           {value.map((tag, index) => {
             if (editInputIndex === index) {
               return (
                 <Input
                   ref={editInputRef}
                   key={tag}
-                  size="small"
-                  className="tag-input tag-edit-input"
+                  size='small'
+                  className='tag-input tag-edit-input'
                   value={editInputValue}
                   onChange={handleEditInputChange}
                   onBlur={handleEditInputConfirm}
@@ -174,7 +183,7 @@ export const TagManager: React.FC<TagManagerProps> = ({
               <Tag
                 key={tag}
                 closable
-                className="tag-item"
+                className='tag-item'
                 onClose={() => handleClose(tag)}
               >
                 <span
@@ -203,37 +212,34 @@ export const TagManager: React.FC<TagManagerProps> = ({
           {inputVisible && (
             <Input
               ref={inputRef}
-              type="text"
-              size="small"
-              className="tag-input"
+              type='text'
+              size='small'
+              className='tag-input'
               value={inputValue}
               onChange={handleInputChange}
               onBlur={handleInputConfirm}
               onKeyDown={handleKeyDown}
-              placeholder="Enter tag"
+              placeholder='Enter tag'
               maxLength={maxLength}
               style={{ width: 100 }}
             />
           )}
 
           {!inputVisible && (
-            <Tag
-              className="site-tag-plus"
-              onClick={showInput}
-            >
+            <Tag className='site-tag-plus' onClick={showInput}>
               <PlusOutlined /> New Tag
             </Tag>
           )}
         </Space>
 
-        <div className="common-tags">
-          <div className="common-tags-label">Quick add:</div>
-          <Space wrap size="small">
+        <div className='common-tags'>
+          <div className='common-tags-label'>Quick add:</div>
+          <Space wrap size='small'>
             {commonTags.slice(0, 8).map((tag) => (
               <Button
                 key={tag}
-                size="small"
-                type="text"
+                size='small'
+                type='text'
                 onClick={() => handleQuickAdd(tag)}
                 disabled={value.includes(tag)}
               >
@@ -243,7 +249,7 @@ export const TagManager: React.FC<TagManagerProps> = ({
           </Space>
         </div>
 
-        <div className="tag-stats">
+        <div className='tag-stats'>
           {value.length} / {maxTags} tags
         </div>
       </div>

@@ -1,14 +1,15 @@
-import type { EChartsOption } from 'echarts'
-import ReactECharts from 'echarts-for-react'
-import type { CSSProperties } from 'react'
+
+import type { EChartsOption } from 'echarts';
+import ReactECharts from 'echarts-for-react';
+import type { CSSProperties } from 'react';
 
 interface LabChartProps {
-  option: EChartsOption
-  style?: CSSProperties
-  className?: string
-  showLoading?: boolean
-  onEvents?: Record<string, (...args: unknown[]) => void>
-  theme?: 'light' | 'dark'
+  option: EChartsOption;
+  style?: CSSProperties;
+  className?: string;
+  showLoading?: boolean;
+  onEvents?: Record<string, (...args: unknown[]) => void>;
+  theme?: 'light' | 'dark';
 }
 
 const LabChart = ({
@@ -105,7 +106,7 @@ const LabChart = ({
       '#ec4899',
       '#f97316',
     ],
-  }
+  };
 
   // Dark theme overrides
   const darkThemeOverrides: EChartsOption = {
@@ -172,14 +173,14 @@ const LabChart = ({
       '#f472b6',
       '#fb923c',
     ],
-  }
+  };
 
   // Merge options
   const mergedOption = {
     ...baseOption,
     ...(theme === 'dark' && darkThemeOverrides),
     ...option,
-  }
+  };
 
   return (
     <ReactECharts
@@ -190,7 +191,7 @@ const LabChart = ({
       onEvents={onEvents}
       opts={{ renderer: 'svg' }}
     />
-  )
-}
+  );
+};
 
-export default LabChart
+export default LabChart;

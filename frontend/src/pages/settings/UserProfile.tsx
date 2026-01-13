@@ -1,51 +1,52 @@
+
 import {
-  UserOutlined,
+  CloseOutlined,
+  EditOutlined,
+  EyeInvisibleOutlined,
+  EyeOutlined,
+  GlobalOutlined,
+  HistoryOutlined,
+  KeyOutlined,
   MailOutlined,
   PhoneOutlined,
-  EditOutlined,
   SaveOutlined,
-  CloseOutlined,
-  KeyOutlined,
-  HistoryOutlined,
-  GlobalOutlined,
-  EyeOutlined,
-  EyeInvisibleOutlined,
-} from '@ant-design/icons'
+  UserOutlined,
+} from '@ant-design/icons';
 import {
-  Card,
-  Form,
-  Input,
-  Button,
-  Space,
-  Typography,
-  Row,
-  Col,
   Avatar,
+  Button,
+  Card,
+  Col,
   Descriptions,
   Divider,
-  Modal,
+  Form,
+  Input,
   message,
-  Tabs,
-  Timeline,
-  Tag,
-  Statistic,
+  Modal,
   Progress,
+  Row,
+  Space,
+  Statistic,
   Switch,
-} from 'antd'
-import dayjs from 'dayjs'
-import { useState } from 'react'
+  Tabs,
+  Tag,
+  Timeline,
+  Typography,
+} from 'antd';
+import dayjs from 'dayjs';
+import { useState } from 'react';
 
-const { Title, Text } = Typography
-const { TabPane } = Tabs
+const { Title, Text } = Typography;
+// Removed deprecated TabPane destructuring - using items prop instead
 
 const UserProfile = () => {
-  const [isEditing, setIsEditing] = useState(false)
-  const [form] = Form.useForm()
-  const [passwordModalVisible, setPasswordModalVisible] = useState(false)
-  const [passwordForm] = Form.useForm()
-  const [showOldPassword, setShowOldPassword] = useState(false)
-  const [showNewPassword, setShowNewPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [isEditing, setIsEditing] = useState(false);
+  const [form] = Form.useForm();
+  const [passwordModalVisible, setPasswordModalVisible] = useState(false);
+  const [passwordForm] = Form.useForm();
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Mock user data
   const userData = {
@@ -63,7 +64,7 @@ const UserProfile = () => {
     twoFactorEnabled: true,
     emailVerified: true,
     phoneVerified: false,
-  }
+  };
 
   // Mock activity data
   const recentActivity = [
@@ -95,7 +96,7 @@ const UserProfile = () => {
       timestamp: '2024-01-15T10:20:00Z',
       type: 'execution',
     },
-  ]
+  ];
 
   // Mock statistics
   const userStats = {
@@ -105,76 +106,76 @@ const UserProfile = () => {
     successRate: 87,
     avgExperimentDuration: '23m 45s',
     last30DaysActivity: 28,
-  }
+  };
 
   const handleEditProfile = () => {
-    setIsEditing(true)
+    setIsEditing(true);
     form.setFieldsValue({
       fullName: userData.fullName,
       email: userData.email,
       phone: userData.phone,
-    })
-  }
+    });
+  };
 
   const handleSaveProfile = async (values: Record<string, unknown>) => {
     try {
       // TODO: Implement API call to update profile
-      console.log('Updating profile:', values)
-      message.success('Profile updated successfully')
-      setIsEditing(false)
+      console.log('Updating profile:', values);
+      message.success('Profile updated successfully');
+      setIsEditing(false);
     } catch (error) {
-      message.error('Failed to update profile')
-      console.error('Update profile error:', error)
+      message.error('Failed to update profile');
+      console.error('Update profile error:', error);
     }
-  }
+  };
 
   const handleCancelEdit = () => {
-    setIsEditing(false)
-    form.resetFields()
-  }
+    setIsEditing(false);
+    form.resetFields();
+  };
 
   const handleChangePassword = async (values: Record<string, unknown>) => {
     try {
       // TODO: Implement API call to change password
-      console.log('Changing password:', values)
-      message.success('Password changed successfully')
-      setPasswordModalVisible(false)
-      passwordForm.resetFields()
+      console.log('Changing password:', values);
+      message.success('Password changed successfully');
+      setPasswordModalVisible(false);
+      passwordForm.resetFields();
     } catch (error) {
-      message.error('Failed to change password')
-      console.error('Change password error:', error)
+      message.error('Failed to change password');
+      console.error('Change password error:', error);
     }
-  }
+  };
 
   const getActivityColor = (type: string) => {
     switch (type) {
       case 'project':
-        return '#3b82f6'
+        return '#3b82f6';
       case 'experiment':
-        return '#10b981'
+        return '#10b981';
       case 'dataset':
-        return '#f59e0b'
+        return '#f59e0b';
       case 'execution':
-        return '#8b5cf6'
+        return '#8b5cf6';
       default:
-        return '#6b7280'
+        return '#6b7280';
     }
-  }
+  };
 
   const getActivityIcon = (type: string) => {
     switch (type) {
       case 'project':
-        return '🔧'
+        return '🔧';
       case 'experiment':
-        return '🧪'
+        return '🧪';
       case 'dataset':
-        return '📊'
+        return '📊';
       case 'execution':
-        return '⚡'
+        return '⚡';
       default:
-        return '📝'
+        return '📝';
     }
-  }
+  };
 
   return (
     <div style={{ padding: 24 }}>
@@ -184,14 +185,14 @@ const UserProfile = () => {
           <UserOutlined style={{ marginRight: 8 }} />
           User Profile
         </Title>
-        <Text type="secondary">
+        <Text type='secondary'>
           Manage your profile information and account settings
         </Text>
       </div>
 
       {/* Profile Overview */}
       <Card style={{ marginBottom: 24 }}>
-        <Row gutter={[24, 24]} align="middle">
+        <Row gutter={[24, 24]} align='middle'>
           <Col xs={24} sm={6} md={4}>
             <div style={{ textAlign: 'center' }}>
               <Avatar
@@ -204,27 +205,35 @@ const UserProfile = () => {
                 <Title level={4} style={{ margin: 0 }}>
                   {userData.fullName}
                 </Title>
-                <Text type="secondary">@{userData.username}</Text>
+                <Text type='secondary'>@{userData.username}</Text>
               </div>
             </div>
           </Col>
           <Col xs={24} sm={18} md={20}>
             <Descriptions
-              title="Profile Information"
+              title='Profile Information'
               bordered
               column={{ xs: 1, sm: 2, md: 3 }}
               extra={
                 !isEditing && (
-                  <Button type="primary" icon={<EditOutlined />} onClick={handleEditProfile}>
+                  <Button
+                    type='primary'
+                    icon={<EditOutlined />}
+                    onClick={handleEditProfile}
+                  >
                     Edit Profile
                   </Button>
                 )
               }
             >
-              <Descriptions.Item label="Full Name">
+              <Descriptions.Item label='Full Name'>
                 {isEditing ? (
-                  <Form form={form} layout="inline" onFinish={handleSaveProfile}>
-                    <Form.Item name="fullName" style={{ margin: 0 }}>
+                  <Form
+                    form={form}
+                    layout='inline'
+                    onFinish={handleSaveProfile}
+                  >
+                    <Form.Item name='fullName' style={{ margin: 0 }}>
                       <Input />
                     </Form.Item>
                   </Form>
@@ -232,10 +241,10 @@ const UserProfile = () => {
                   userData.fullName
                 )}
               </Descriptions.Item>
-              <Descriptions.Item label="Email">
+              <Descriptions.Item label='Email'>
                 {isEditing ? (
-                  <Form form={form} layout="inline">
-                    <Form.Item name="email" style={{ margin: 0 }}>
+                  <Form form={form} layout='inline'>
+                    <Form.Item name='email' style={{ margin: 0 }}>
                       <Input />
                     </Form.Item>
                   </Form>
@@ -243,17 +252,17 @@ const UserProfile = () => {
                   <Space>
                     {userData.email}
                     {userData.emailVerified && (
-                      <Tag color="green" icon={<GlobalOutlined />}>
+                      <Tag color='green' icon={<GlobalOutlined />}>
                         Verified
                       </Tag>
                     )}
                   </Space>
                 )}
               </Descriptions.Item>
-              <Descriptions.Item label="Phone">
+              <Descriptions.Item label='Phone'>
                 {isEditing ? (
-                  <Form form={form} layout="inline">
-                    <Form.Item name="phone" style={{ margin: 0 }}>
+                  <Form form={form} layout='inline'>
+                    <Form.Item name='phone' style={{ margin: 0 }}>
                       <Input />
                     </Form.Item>
                   </Form>
@@ -261,40 +270,40 @@ const UserProfile = () => {
                   <Space>
                     {userData.phone}
                     {userData.phoneVerified ? (
-                      <Tag color="green" icon={<PhoneOutlined />}>
+                      <Tag color='green' icon={<PhoneOutlined />}>
                         Verified
                       </Tag>
                     ) : (
-                      <Tag color="orange">Not Verified</Tag>
+                      <Tag color='orange'>Not Verified</Tag>
                     )}
                   </Space>
                 )}
               </Descriptions.Item>
-              <Descriptions.Item label="Role">
-                <Tag color="blue">{userData.role}</Tag>
+              <Descriptions.Item label='Role'>
+                <Tag color='blue'>{userData.role}</Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="Department">
+              <Descriptions.Item label='Department'>
                 {userData.department}
               </Descriptions.Item>
-              <Descriptions.Item label="Status">
+              <Descriptions.Item label='Status'>
                 <Tag color={userData.status === 'active' ? 'green' : 'orange'}>
                   {userData.status.toUpperCase()}
                 </Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="Member Since">
+              <Descriptions.Item label='Member Since'>
                 {dayjs(userData.createdAt).format('MMMM D, YYYY')}
               </Descriptions.Item>
-              <Descriptions.Item label="Last Login">
+              <Descriptions.Item label='Last Login'>
                 {dayjs(userData.lastLoginAt).format('MMMM D, YYYY HH:mm')}
               </Descriptions.Item>
-              <Descriptions.Item label="Two-Factor Auth">
+              <Descriptions.Item label='Two-Factor Auth'>
                 <Switch
                   checked={userData.twoFactorEnabled}
-                  checkedChildren="Enabled"
-                  unCheckedChildren="Disabled"
+                  checkedChildren='Enabled'
+                  unCheckedChildren='Disabled'
                   onChange={(checked) => {
                     // TODO: Implement 2FA toggle
-                    message.info(`2FA ${checked ? 'enabled' : 'disabled'}`)
+                    message.info(`2FA ${checked ? 'enabled' : 'disabled'}`);
                   }}
                 />
               </Descriptions.Item>
@@ -307,7 +316,7 @@ const UserProfile = () => {
                     Cancel
                   </Button>
                   <Button
-                    type="primary"
+                    type='primary'
                     icon={<SaveOutlined />}
                     onClick={() => form.submit()}
                   >
@@ -327,9 +336,9 @@ const UserProfile = () => {
         </Title>
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={12} md={6}>
-            <Card size="small">
+            <Card size='small'>
               <Statistic
-                title="Total Projects"
+                title='Total Projects'
                 value={userStats.totalProjects}
                 prefix={<span style={{ fontSize: 20 }}>📁</span>}
                 valueStyle={{ color: '#3b82f6' }}
@@ -337,9 +346,9 @@ const UserProfile = () => {
             </Card>
           </Col>
           <Col xs={24} sm={12} md={6}>
-            <Card size="small">
+            <Card size='small'>
               <Statistic
-                title="Total Experiments"
+                title='Total Experiments'
                 value={userStats.totalExperiments}
                 prefix={<span style={{ fontSize: 20 }}>🧪</span>}
                 valueStyle={{ color: '#10b981' }}
@@ -347,9 +356,9 @@ const UserProfile = () => {
             </Card>
           </Col>
           <Col xs={24} sm={12} md={6}>
-            <Card size="small">
+            <Card size='small'>
               <Statistic
-                title="Total Datasets"
+                title='Total Datasets'
                 value={userStats.totalDatasets}
                 prefix={<span style={{ fontSize: 20 }}>📊</span>}
                 valueStyle={{ color: '#f59e0b' }}
@@ -357,11 +366,11 @@ const UserProfile = () => {
             </Card>
           </Col>
           <Col xs={24} sm={12} md={6}>
-            <Card size="small">
+            <Card size='small'>
               <Statistic
-                title="Success Rate"
+                title='Success Rate'
                 value={userStats.successRate}
-                suffix="%"
+                suffix='%'
                 prefix={<span style={{ fontSize: 20 }}>✅</span>}
                 valueStyle={{ color: '#10b981' }}
               />
@@ -379,7 +388,7 @@ const UserProfile = () => {
             <Progress
               percent={userStats.successRate}
               status={userStats.successRate > 80 ? 'success' : 'active'}
-              format={percent => `${percent}%`}
+              format={(percent) => `${percent}%`}
             />
           </Col>
           <Col xs={24} sm={12} md={12}>
@@ -388,24 +397,24 @@ const UserProfile = () => {
             </div>
             <Progress
               percent={(userStats.last30DaysActivity / 30) * 100}
-              format={percent => `${userStats.last30DaysActivity}/30 days`}
+              format={(percent) => `${userStats.last30DaysActivity}/30 days`}
             />
           </Col>
         </Row>
       </Card>
 
       {/* Tabs */}
-      <Tabs activeKey="activity" onChange={() => {}}>
-        <TabPane
-          tab={
+      <Tabs activeKey='activity' onChange={() => {}} items={[
+        {
+          key: 'activity',
+          label: (
             <span>
               <HistoryOutlined />
               Recent Activity
             </span>
-          }
-          key="activity"
-        >
-          <Card title="Recent Activity">
+          ),
+          children: (
+          <Card title='Recent Activity'>
             <Timeline>
               {recentActivity.map((activity) => (
                 <Timeline.Item
@@ -420,9 +429,9 @@ const UserProfile = () => {
                   <div>
                     <Text strong>{activity.action}</Text>
                     <br />
-                    <Text type="secondary">{activity.description}</Text>
+                    <Text type='secondary'>{activity.description}</Text>
                     <br />
-                    <Text type="secondary" style={{ fontSize: '0.75rem' }}>
+                    <Text type='secondary' style={{ fontSize: '0.75rem' }}>
                       {dayjs(activity.timestamp).format('MMMM D, YYYY HH:mm')}
                     </Text>
                   </div>
@@ -430,22 +439,23 @@ const UserProfile = () => {
               ))}
             </Timeline>
           </Card>
-        </TabPane>
+    )
+  },
 
-        <TabPane
-          tab={
+        {
+          key: 'security',
+          label: (
             <span>
               <KeyOutlined />
               Security
             </span>
-          }
-          key="security"
-        >
+          ),
+          children: (
           <Card
-            title="Security Settings"
+            title='Security Settings'
             extra={
               <Button
-                type="primary"
+                type='primary'
                 icon={<KeyOutlined />}
                 onClick={() => setPasswordModalVisible(true)}
               >
@@ -454,78 +464,79 @@ const UserProfile = () => {
             }
           >
             <Descriptions bordered column={1}>
-              <Descriptions.Item label="Two-Factor Authentication">
+              <Descriptions.Item label='Two-Factor Authentication'>
                 <Switch
                   checked={userData.twoFactorEnabled}
-                  checkedChildren="Enabled"
-                  unCheckedChildren="Disabled"
+                  checkedChildren='Enabled'
+                  unCheckedChildren='Disabled'
                   onChange={(checked) => {
                     // TODO: Implement 2FA setup
                     message.info(
                       checked
                         ? 'Two-factor authentication setup initiated'
                         : 'Two-factor authentication disabled'
-                    )
+                    );
                   }}
                 />
               </Descriptions.Item>
-              <Descriptions.Item label="Email Verification">
+              <Descriptions.Item label='Email Verification'>
                 {userData.emailVerified ? (
-                  <Tag color="green" icon={<MailOutlined />}>
+                  <Tag color='green' icon={<MailOutlined />}>
                     Verified
                   </Tag>
                 ) : (
-                  <Button type="link" size="small">
+                  <Button type='link' size='small'>
                     Verify Email
                   </Button>
                 )}
               </Descriptions.Item>
-              <Descriptions.Item label="Phone Verification">
+              <Descriptions.Item label='Phone Verification'>
                 {userData.phoneVerified ? (
-                  <Tag color="green" icon={<PhoneOutlined />}>
+                  <Tag color='green' icon={<PhoneOutlined />}>
                     Verified
                   </Tag>
                 ) : (
-                  <Button type="link" size="small">
+                  <Button type='link' size='small'>
                     Verify Phone
                   </Button>
                 )}
               </Descriptions.Item>
-              <Descriptions.Item label="Last Password Change">
+              <Descriptions.Item label='Last Password Change'>
                 {dayjs().subtract(30, 'days').format('MMMM D, YYYY')}
               </Descriptions.Item>
-              <Descriptions.Item label="Active Sessions">
+              <Descriptions.Item label='Active Sessions'>
                 2 sessions active
-                <Button type="link" size="small" style={{ marginLeft: 8 }}>
+                <Button type='link' size='small' style={{ marginLeft: 8 }}>
                   View Sessions
                 </Button>
               </Descriptions.Item>
             </Descriptions>
           </Card>
-        </TabPane>
-      </Tabs>
+    )
+  }
+]} />
 
       {/* Change Password Modal */}
       <Modal
-        title="Change Password"
+        title='Change Password'
         visible={passwordModalVisible}
         onCancel={() => {
-          setPasswordModalVisible(false)
-          passwordForm.resetFields()
+          setPasswordModalVisible(false);
+          passwordForm.resetFields();
         }}
         footer={[
           <Button
-            key="cancel"
+            key='cancel'
             onClick={() => {
-              setPasswordModalVisible(false)
-              passwordForm.resetFields()
+              setPasswordModalVisible(false);
+              passwordForm.resetFields();
             }}
           >
             Cancel
           </Button>,
           <Button
-            key="submit"
-            type="primary"
+            key='submit'
+            type='primary'
             icon={<SaveOutlined />}
             onClick={() => passwordForm.submit()}
           >
@@ -535,16 +546,18 @@ const UserProfile = () => {
       >
         <Form
           form={passwordForm}
-          layout="vertical"
+          layout='vertical'
           onFinish={handleChangePassword}
         >
           <Form.Item
-            label="Current Password"
-            name="oldPassword"
-            rules={[{ required: true, message: 'Please enter your current password' }]}
+            label='Current Password'
+            name='oldPassword'
+            rules={[
+              { required: true, message: 'Please enter your current password' },
+            ]}
           >
             <Input.Password
-              placeholder="Enter current password"
+              placeholder='Enter current password'
               iconRender={(visible) =>
                 visible ? <EyeOutlined /> : <EyeInvisibleOutlined />
               }
@@ -552,15 +565,15 @@ const UserProfile = () => {
           </Form.Item>
 
           <Form.Item
-            label="New Password"
-            name="newPassword"
+            label='New Password'
+            name='newPassword'
             rules={[
               { required: true, message: 'Please enter a new password' },
               { min: 8, message: 'Password must be at least 8 characters' },
             ]}
           >
             <Input.Password
-              placeholder="Enter new password"
+              placeholder='Enter new password'
               iconRender={(visible) =>
                 visible ? <EyeOutlined /> : <EyeInvisibleOutlined />
               }
@@ -568,23 +581,23 @@ const UserProfile = () => {
           </Form.Item>
 
           <Form.Item
-            label="Confirm New Password"
-            name="confirmPassword"
+            label='Confirm New Password'
+            name='confirmPassword'
             dependencies={['newPassword']}
             rules={[
               { required: true, message: 'Please confirm your new password' },
               ({ getFieldValue }) => ({
                 validator(_, value) {
                   if (!value || getFieldValue('newPassword') === value) {
-                    return Promise.resolve()
+                    return Promise.resolve();
                   }
-                  return Promise.reject(new Error('Passwords do not match'))
+                  return Promise.reject(new Error('Passwords do not match'));
                 },
               }),
             ]}
           >
             <Input.Password
-              placeholder="Confirm new password"
+              placeholder='Confirm new password'
               iconRender={(visible) =>
                 visible ? <EyeOutlined /> : <EyeInvisibleOutlined />
               }
@@ -593,7 +606,7 @@ const UserProfile = () => {
         </Form>
       </Modal>
     </div>
-  )
-}
+  );
+};
 
-export default UserProfile
+export default UserProfile;

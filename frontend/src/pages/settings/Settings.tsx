@@ -1,59 +1,61 @@
+
 import {
-  SettingOutlined,
-  UserOutlined,
+  ApiOutlined,
   BellOutlined,
-  LockOutlined,
-  GlobalOutlined,
-  SaveOutlined,
-  EyeOutlined,
   EyeInvisibleOutlined,
+  EyeOutlined,
+  GlobalOutlined,
+  HistoryOutlined,
+  KeyOutlined,
+  LockOutlined,
   MailOutlined,
   PhoneOutlined,
+  SaveOutlined,
   SecurityScanOutlined,
-  ApiOutlined,
-  KeyOutlined,
-  HistoryOutlined,
-} from '@ant-design/icons'
+  SettingOutlined,
+  UserOutlined,
+} from '@ant-design/icons';
 import {
+  Alert,
+  Avatar,
+  Button,
   Card,
+  Col,
+  Descriptions,
+  Divider,
   Form,
   Input,
-  Button,
-  Space,
-  Typography,
-  Row,
-  Col,
-  Switch,
-  Select,
   InputNumber,
-  Tabs,
-  Alert,
-  Divider,
-  Modal,
-  message,
   List,
+  message,
+  Modal,
+  Row,
+  Select,
+  Space,
+  Switch,
+  Tabs,
   Tag,
   Timeline,
-  Descriptions,
-  Avatar,
-} from 'antd'
-import { useState } from 'react'
+  Typography,
+} from 'antd';
+import { useState } from 'react';
+import dayjs from 'dayjs';
 
-const { Title, Text } = Typography
-const { TabPane } = Tabs
-const { TextArea } = Input
+const { Title, Text } = Typography;
+// Removed deprecated TabPane destructuring - using items prop instead
+const { TextArea } = Input;
 
 const Settings = () => {
-  const [activeTab, setActiveTab] = useState('profile')
-  const [profileForm] = Form.useForm()
-  const [notificationForm] = Form.useForm()
-  const [securityForm] = Form.useForm()
-  const [apiForm] = Form.useForm()
-  const [loading, setLoading] = useState(false)
-  const [apiKeyModalVisible, setApiKeyModalVisible] = useState(false)
-  const [showOldPassword, setShowOldPassword] = useState(false)
-  const [showNewPassword, setShowNewPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [activeTab, setActiveTab] = useState('profile');
+  const [profileForm] = Form.useForm();
+  const [notificationForm] = Form.useForm();
+  const [securityForm] = Form.useForm();
+  const [apiForm] = Form.useForm();
+  const [loading, setLoading] = useState(false);
+  const [apiKeyModalVisible, setApiKeyModalVisible] = useState(false);
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Mock user data
   const userData = {
@@ -67,7 +69,7 @@ const Settings = () => {
     createdAt: '2023-01-15T10:30:00Z',
     lastLoginAt: '2024-01-15T09:30:00Z',
     avatar: null,
-  }
+  };
 
   // Mock API keys
   const [apiKeys, setApiKeys] = useState([
@@ -89,7 +91,7 @@ const Settings = () => {
       status: 'active',
       permissions: ['read'],
     },
-  ])
+  ]);
 
   // Mock recent activity
   const recentActivity = [
@@ -117,103 +119,104 @@ const Settings = () => {
       timestamp: '2024-01-12T11:15:00Z',
       type: 'settings',
     },
-  ]
+  ];
 
   const handleSaveProfile = async (values: Record<string, unknown>) => {
-    setLoading(true)
+    setLoading(true);
     try {
       // TODO: Implement API call to update profile
-      console.log('Updating profile:', values)
-      message.success('Profile updated successfully')
+      console.log('Updating profile:', values);
+      message.success('Profile updated successfully');
     } catch (error) {
-      message.error('Failed to update profile')
-      console.error('Update profile error:', error)
+      message.error('Failed to update profile');
+      console.error('Update profile error:', error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleSaveNotifications = async (values: Record<string, unknown>) => {
-    setLoading(true)
+    setLoading(true);
     try {
       // TODO: Implement API call to update notification settings
-      console.log('Updating notifications:', values)
-      message.success('Notification settings updated successfully')
+      console.log('Updating notifications:', values);
+      message.success('Notification settings updated successfully');
     } catch (error) {
-      message.error('Failed to update notification settings')
-      console.error('Update notifications error:', error)
+      message.error('Failed to update notification settings');
+      console.error('Update notifications error:', error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleSaveSecurity = async (values: Record<string, unknown>) => {
-    setLoading(true)
+    setLoading(true);
     try {
       // TODO: Implement API call to update security settings
-      console.log('Updating security:', values)
-      message.success('Security settings updated successfully')
+      console.log('Updating security:', values);
+      message.success('Security settings updated successfully');
     } catch (error) {
-      message.error('Failed to update security settings')
-      console.error('Update security error:', error)
+      message.error('Failed to update security settings');
+      console.error('Update security error:', error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleChangePassword = async (values: Record<string, unknown>) => {
-    setLoading(true)
+    setLoading(true);
     try {
       // TODO: Implement API call to change password
-      console.log('Changing password:', values)
-      message.success('Password changed successfully')
-      securityForm.resetFields()
+      console.log('Changing password:', values);
+      message.success('Password changed successfully');
+      securityForm.resetFields();
     } catch (error) {
-      message.error('Failed to change password')
-      console.error('Change password error:', error)
+      message.error('Failed to change password');
+      console.error('Change password error:', error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  const handleCreateApiKey = async (values: Record<string, unknown>) => {
-    setLoading(true)
+  const handleCreateApiKey = async (values: Record<string, any>) => {
+    setLoading(true);
     try {
       // Generate a mock API key
       const newKey = {
         id: apiKeys.length + 1,
-        name: values.name,
+        name: values.name as string,
         key: `ak_${values.environment}_${Math.random().toString(36).substring(2, 18)}`,
         createdAt: new Date().toISOString(),
         lastUsed: null,
         status: 'active',
-        permissions: values.permissions,
-      }
-      setApiKeys([...apiKeys, newKey])
-      message.success('API key created successfully')
-      setApiKeyModalVisible(false)
-      apiForm.resetFields()
+        permissions: values.permissions as string[],
+      };
+      setApiKeys([...apiKeys, newKey]);
+      message.success('API key created successfully');
+      setApiKeyModalVisible(false);
+      apiForm.resetFields();
     } catch (error) {
-      message.error('Failed to create API key')
-      console.error('Create API key error:', error)
+      message.error('Failed to create API key');
+      console.error('Create API key error:', error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleDeleteApiKey = (keyId: number) => {
     Modal.confirm({
       title: 'Delete API Key',
-      content: 'Are you sure you want to delete this API key? This action cannot be undone.',
+      content:
+        'Are you sure you want to delete this API key? This action cannot be undone.',
       okText: 'Yes, Delete',
       okButtonProps: { danger: true },
       cancelText: 'Cancel',
       onOk: () => {
-        setApiKeys(apiKeys.filter(key => key.id !== keyId))
-        message.success('API key deleted successfully')
+        setApiKeys(apiKeys.filter((key) => key.id !== keyId));
+        message.success('API key deleted successfully');
       },
-    })
-  }
+    });
+  };
 
   const handleRevokeApiKey = (keyId: number) => {
     Modal.confirm({
@@ -223,43 +226,45 @@ const Settings = () => {
       okButtonProps: { danger: true },
       cancelText: 'Cancel',
       onOk: () => {
-        setApiKeys(apiKeys.map(key =>
-          key.id === keyId ? { ...key, status: 'revoked' } : key
-        ))
-        message.success('API key revoked successfully')
+        setApiKeys(
+          apiKeys.map((key) =>
+            key.id === keyId ? { ...key, status: 'revoked' } : key
+          )
+        );
+        message.success('API key revoked successfully');
       },
-    })
-  }
+    });
+  };
 
   const getActivityColor = (type: string) => {
     switch (type) {
       case 'security':
-        return 'red'
+        return 'red';
       case 'api':
-        return 'blue'
+        return 'blue';
       case 'login':
-        return 'green'
+        return 'green';
       case 'settings':
-        return 'orange'
+        return 'orange';
       default:
-        return 'default'
+        return 'default';
     }
-  }
+  };
 
   const getActivityIcon = (type: string) => {
     switch (type) {
       case 'security':
-        return <SecurityScanOutlined />
+        return <SecurityScanOutlined />;
       case 'api':
-        return <ApiOutlined />
+        return <ApiOutlined />;
       case 'login':
-        return <KeyOutlined />
+        return <KeyOutlined />;
       case 'settings':
-        return <SettingOutlined />
+        return <SettingOutlined />;
       default:
-        return <GlobalOutlined />
+        return <GlobalOutlined />;
     }
-  }
+  };
 
   return (
     <div style={{ padding: 24 }}>
@@ -269,14 +274,14 @@ const Settings = () => {
           <SettingOutlined style={{ marginRight: 8 }} />
           Settings
         </Title>
-        <Text type="secondary">
+        <Text type='secondary'>
           Manage your account settings and preferences
         </Text>
       </div>
 
       {/* Profile Overview */}
       <Card style={{ marginBottom: 24 }}>
-        <Row gutter={[24, 24]} align="middle">
+        <Row gutter={[24, 24]} align='middle'>
           <Col xs={24} sm={6} md={4}>
             <div style={{ textAlign: 'center' }}>
               <Avatar
@@ -289,38 +294,38 @@ const Settings = () => {
                 <Title level={4} style={{ margin: 0 }}>
                   {userData.fullName}
                 </Title>
-                <Text type="secondary">@{userData.username}</Text>
+                <Text type='secondary'>@{userData.username}</Text>
               </div>
             </div>
           </Col>
           <Col xs={24} sm={18} md={20}>
             <Descriptions
-              title="Account Overview"
+              title='Account Overview'
               bordered
               column={{ xs: 1, sm: 2, md: 3 }}
             >
-              <Descriptions.Item label="Email">
+              <Descriptions.Item label='Email'>
                 <Space>
                   <MailOutlined />
                   {userData.email}
                 </Space>
               </Descriptions.Item>
-              <Descriptions.Item label="Phone">
+              <Descriptions.Item label='Phone'>
                 <Space>
                   <PhoneOutlined />
                   {userData.phone}
                 </Space>
               </Descriptions.Item>
-              <Descriptions.Item label="Role">
-                <Tag color="blue">{userData.role}</Tag>
+              <Descriptions.Item label='Role'>
+                <Tag color='blue'>{userData.role}</Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="Department">
+              <Descriptions.Item label='Department'>
                 {userData.department}
               </Descriptions.Item>
-              <Descriptions.Item label="Member Since">
+              <Descriptions.Item label='Member Since'>
                 {dayjs(userData.createdAt).format('MMMM D, YYYY')}
               </Descriptions.Item>
-              <Descriptions.Item label="Last Login">
+              <Descriptions.Item label='Last Login'>
                 {dayjs(userData.lastLoginAt).format('MMMM D, YYYY HH:mm')}
               </Descriptions.Item>
             </Descriptions>
@@ -329,21 +334,21 @@ const Settings = () => {
       </Card>
 
       {/* Settings Tabs */}
-      <Tabs activeKey={activeTab} onChange={setActiveTab}>
-        <TabPane
-          tab={
+      <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
+        {
+          key: 'profile',
+          label: (
             <span>
               <UserOutlined />
               Profile
             </span>
-          }
-          key="profile"
-        >
+          ),
+          children: (
           <Card
-            title="Profile Settings"
+            title='Profile Settings'
             extra={
               <Button
-                type="primary"
+                type='primary'
                 icon={<SaveOutlined />}
                 loading={loading}
                 onClick={() => profileForm.submit()}
@@ -354,7 +359,7 @@ const Settings = () => {
           >
             <Form
               form={profileForm}
-              layout="vertical"
+              layout='vertical'
               onFinish={handleSaveProfile}
               initialValues={{
                 fullName: userData.fullName,
@@ -370,16 +375,21 @@ const Settings = () => {
               <Row gutter={[24, 24]}>
                 <Col xs={24} lg={12}>
                   <Form.Item
-                    label="Full Name"
-                    name="fullName"
-                    rules={[{ required: true, message: 'Please enter your full name' }]}
+                    label='Full Name'
+                    name='fullName'
+                    rules={[
+                      {
+                        required: true,
+                        message: 'Please enter your full name',
+                      },
+                    ]}
                   >
                     <Input prefix={<UserOutlined />} />
                   </Form.Item>
 
                   <Form.Item
-                    label="Email"
-                    name="email"
+                    label='Email'
+                    name='email'
                     rules={[
                       { required: true, message: 'Please enter your email' },
                       { type: 'email', message: 'Please enter a valid email' },
@@ -388,89 +398,110 @@ const Settings = () => {
                     <Input prefix={<MailOutlined />} />
                   </Form.Item>
 
-                  <Form.Item
-                    label="Phone"
-                    name="phone"
-                  >
+                  <Form.Item label='Phone' name='phone'>
                     <Input prefix={<PhoneOutlined />} />
                   </Form.Item>
 
-                  <Form.Item
-                    label="Department"
-                    name="department"
-                  >
+                  <Form.Item label='Department' name='department'>
                     <Input />
                   </Form.Item>
                 </Col>
 
                 <Col xs={24} lg={12}>
                   <Form.Item
-                    label="Timezone"
-                    name="timezone"
-                    rules={[{ required: true, message: 'Please select your timezone' }]}
+                    label='Timezone'
+                    name='timezone'
+                    rules={[
+                      {
+                        required: true,
+                        message: 'Please select your timezone',
+                      },
+                    ]}
                   >
                     <Select>
-                      <Select.Option value="UTC">UTC</Select.Option>
-                      <Select.Option value="America/New_York">America/New_York</Select.Option>
-                      <Select.Option value="Europe/London">Europe/London</Select.Option>
-                      <Select.Option value="Asia/Shanghai">Asia/Shanghai</Select.Option>
+                      <Select.Option value='UTC'>UTC</Select.Option>
+                      <Select.Option value='America/New_York'>
+                        America/New_York
+                      </Select.Option>
+                      <Select.Option value='Europe/London'>
+                        Europe/London
+                      </Select.Option>
+                      <Select.Option value='Asia/Shanghai'>
+                        Asia/Shanghai
+                      </Select.Option>
                     </Select>
                   </Form.Item>
 
                   <Form.Item
-                    label="Language"
-                    name="language"
-                    rules={[{ required: true, message: 'Please select your language' }]}
+                    label='Language'
+                    name='language'
+                    rules={[
+                      {
+                        required: true,
+                        message: 'Please select your language',
+                      },
+                    ]}
                   >
                     <Select>
-                      <Select.Option value="en">English</Select.Option>
-                      <Select.Option value="zh">中文</Select.Option>
-                      <Select.Option value="es">Español</Select.Option>
+                      <Select.Option value='en'>English</Select.Option>
+                      <Select.Option value='zh'>中文</Select.Option>
+                      <Select.Option value='es'>Español</Select.Option>
                     </Select>
                   </Form.Item>
 
                   <Form.Item
-                    label="Date Format"
-                    name="dateFormat"
-                    rules={[{ required: true, message: 'Please select date format' }]}
+                    label='Date Format'
+                    name='dateFormat'
+                    rules={[
+                      { required: true, message: 'Please select date format' },
+                    ]}
                   >
                     <Select>
-                      <Select.Option value="YYYY-MM-DD">YYYY-MM-DD</Select.Option>
-                      <Select.Option value="MM/DD/YYYY">MM/DD/YYYY</Select.Option>
-                      <Select.Option value="DD/MM/YYYY">DD/MM/YYYY</Select.Option>
+                      <Select.Option value='YYYY-MM-DD'>
+                        YYYY-MM-DD
+                      </Select.Option>
+                      <Select.Option value='MM/DD/YYYY'>
+                        MM/DD/YYYY
+                      </Select.Option>
+                      <Select.Option value='DD/MM/YYYY'>
+                        DD/MM/YYYY
+                      </Select.Option>
                     </Select>
                   </Form.Item>
 
                   <Form.Item
-                    label="Time Format"
-                    name="timeFormat"
-                    rules={[{ required: true, message: 'Please select time format' }]}
+                    label='Time Format'
+                    name='timeFormat'
+                    rules={[
+                      { required: true, message: 'Please select time format' },
+                    ]}
                   >
                     <Select>
-                      <Select.Option value="24h">24-hour</Select.Option>
-                      <Select.Option value="12h">12-hour</Select.Option>
+                      <Select.Option value='24h'>24-hour</Select.Option>
+                      <Select.Option value='12h'>12-hour</Select.Option>
                     </Select>
                   </Form.Item>
                 </Col>
               </Row>
             </Form>
           </Card>
-        </TabPane>
+    )
+  },
 
-        <TabPane
-          tab={
+        {
+          key: 'notifications',
+          label: (
             <span>
               <BellOutlined />
               Notifications
             </span>
-          }
-          key="notifications"
-        >
+          ),
+          children: (
           <Card
-            title="Notification Settings"
+            title='Notification Settings'
             extra={
               <Button
-                type="primary"
+                type='primary'
                 icon={<SaveOutlined />}
                 loading={loading}
                 onClick={() => notificationForm.submit()}
@@ -481,7 +512,7 @@ const Settings = () => {
           >
             <Form
               form={notificationForm}
-              layout="vertical"
+              layout='vertical'
               onFinish={handleSaveNotifications}
               initialValues={{
                 emailNotifications: true,
@@ -495,34 +526,34 @@ const Settings = () => {
               }}
             >
               <Alert
-                message="Notification Preferences"
-                description="Choose how you want to be notified about different events."
-                type="info"
+                message='Notification Preferences'
+                description='Choose how you want to be notified about different events.'
+                type='info'
                 showIcon
                 style={{ marginBottom: 24 }}
               />
 
               <Title level={4}>Notification Channels</Title>
               <Form.Item
-                label="Email Notifications"
-                name="emailNotifications"
-                valuePropName="checked"
+                label='Email Notifications'
+                name='emailNotifications'
+                valuePropName='checked'
               >
                 <Switch />
               </Form.Item>
 
               <Form.Item
-                label="Push Notifications"
-                name="pushNotifications"
-                valuePropName="checked"
+                label='Push Notifications'
+                name='pushNotifications'
+                valuePropName='checked'
               >
                 <Switch />
               </Form.Item>
 
               <Form.Item
-                label="SMS Notifications"
-                name="smsNotifications"
-                valuePropName="checked"
+                label='SMS Notifications'
+                name='smsNotifications'
+                valuePropName='checked'
               >
                 <Switch />
               </Form.Item>
@@ -531,61 +562,62 @@ const Settings = () => {
 
               <Title level={4}>Event Notifications</Title>
               <Form.Item
-                label="Experiment Completed"
-                name="experimentCompleted"
-                valuePropName="checked"
+                label='Experiment Completed'
+                name='experimentCompleted'
+                valuePropName='checked'
               >
                 <Switch />
               </Form.Item>
 
               <Form.Item
-                label="Experiment Failed"
-                name="experimentFailed"
-                valuePropName="checked"
+                label='Experiment Failed'
+                name='experimentFailed'
+                valuePropName='checked'
               >
                 <Switch />
               </Form.Item>
 
               <Form.Item
-                label="System Alerts"
-                name="systemAlerts"
-                valuePropName="checked"
+                label='System Alerts'
+                name='systemAlerts'
+                valuePropName='checked'
               >
                 <Switch />
               </Form.Item>
 
               <Form.Item
-                label="Weekly Reports"
-                name="weeklyReports"
-                valuePropName="checked"
+                label='Weekly Reports'
+                name='weeklyReports'
+                valuePropName='checked'
               >
                 <Switch />
               </Form.Item>
 
               <Form.Item
-                label="Marketing Emails"
-                name="marketingEmails"
-                valuePropName="checked"
+                label='Marketing Emails'
+                name='marketingEmails'
+                valuePropName='checked'
               >
                 <Switch />
               </Form.Item>
             </Form>
           </Card>
-        </TabPane>
+    )
+  },
 
-        <TabPane
-          tab={
+        {
+          key: 'security',
+          label: (
             <span>
               <LockOutlined />
               Security
             </span>
-          }
-          key="security"
-        >
-          <Card title="Security Settings">
+          ),
+          children: (
+          <Card title='Security Settings'>
             <Form
               form={securityForm}
-              layout="vertical"
+              layout='vertical'
               onFinish={handleChangePassword}
               initialValues={{
                 twoFactorAuth: true,
@@ -595,34 +627,36 @@ const Settings = () => {
               }}
             >
               <Alert
-                message="Security Recommendations"
-                description="Enable two-factor authentication and login alerts for enhanced security."
-                type="warning"
+                message='Security Recommendations'
+                description='Enable two-factor authentication and login alerts for enhanced security.'
+                type='warning'
                 showIcon
                 style={{ marginBottom: 24 }}
               />
 
               <Title level={4}>Authentication</Title>
               <Form.Item
-                label="Two-Factor Authentication"
-                name="twoFactorAuth"
-                valuePropName="checked"
+                label='Two-Factor Authentication'
+                name='twoFactorAuth'
+                valuePropName='checked'
               >
                 <Switch />
               </Form.Item>
 
               <Form.Item
-                label="Login Alerts"
-                name="loginAlerts"
-                valuePropName="checked"
+                label='Login Alerts'
+                name='loginAlerts'
+                valuePropName='checked'
               >
                 <Switch />
               </Form.Item>
 
               <Form.Item
-                label="Session Timeout (seconds)"
-                name="sessionTimeout"
-                rules={[{ required: true, message: 'Please enter session timeout' }]}
+                label='Session Timeout (seconds)'
+                name='sessionTimeout'
+                rules={[
+                  { required: true, message: 'Please enter session timeout' },
+                ]}
               >
                 <InputNumber
                   min={300}
@@ -633,15 +667,16 @@ const Settings = () => {
               </Form.Item>
 
               <Form.Item
-                label="Max Login Attempts"
-                name="maxLoginAttempts"
-                rules={[{ required: true, message: 'Please enter max login attempts' }]}
+                label='Max Login Attempts'
+                name='maxLoginAttempts'
+                rules={[
+                  {
+                    required: true,
+                    message: 'Please enter max login attempts',
+                  },
+                ]}
               >
-                <InputNumber
-                  min={1}
-                  max={10}
-                  style={{ width: '100%' }}
-                />
+                <InputNumber min={1} max={10} style={{ width: '100%' }} />
               </Form.Item>
 
               <Divider />
@@ -650,28 +685,17 @@ const Settings = () => {
               <Row gutter={[24, 24]}>
                 <Col xs={24} lg={12}>
                   <Form.Item
-                    label="Current Password"
-                    name="oldPassword"
-                    rules={[{ required: true, message: 'Please enter current password' }]}
-                  >
-                    <Input.Password
-                      placeholder="Enter current password"
-                      iconRender={(visible) =>
-                        visible ? <EyeOutlined /> : <EyeInvisibleOutlined />
-                      }
-                    />
-                  </Form.Item>
-
-                  <Form.Item
-                    label="New Password"
-                    name="newPassword"
+                    label='Current Password'
+                    name='oldPassword'
                     rules={[
-                      { required: true, message: 'Please enter new password' },
-                      { min: 8, message: 'Password must be at least 8 characters' },
+                      {
+                        required: true,
+                        message: 'Please enter current password',
+                      },
                     ]}
                   >
                     <Input.Password
-                      placeholder="Enter new password"
+                      placeholder='Enter current password'
                       iconRender={(visible) =>
                         visible ? <EyeOutlined /> : <EyeInvisibleOutlined />
                       }
@@ -679,23 +703,50 @@ const Settings = () => {
                   </Form.Item>
 
                   <Form.Item
-                    label="Confirm New Password"
-                    name="confirmPassword"
+                    label='New Password'
+                    name='newPassword'
+                    rules={[
+                      { required: true, message: 'Please enter new password' },
+                      {
+                        min: 8,
+                        message: 'Password must be at least 8 characters',
+                      },
+                    ]}
+                  >
+                    <Input.Password
+                      placeholder='Enter new password'
+                      iconRender={(visible) =>
+                        visible ? <EyeOutlined /> : <EyeInvisibleOutlined />
+                      }
+                    />
+                  </Form.Item>
+
+                  <Form.Item
+                    label='Confirm New Password'
+                    name='confirmPassword'
                     dependencies={['newPassword']}
                     rules={[
-                      { required: true, message: 'Please confirm new password' },
+                      {
+                        required: true,
+                        message: 'Please confirm new password',
+                      },
                       ({ getFieldValue }) => ({
                         validator(_, value) {
-                          if (!value || getFieldValue('newPassword') === value) {
-                            return Promise.resolve()
+                          if (
+                            !value ||
+                            getFieldValue('newPassword') === value
+                          ) {
+                            return Promise.resolve();
                           }
-                          return Promise.reject(new Error('Passwords do not match'))
+                          return Promise.reject(
+                            new Error('Passwords do not match')
+                          );
                         },
                       }),
                     ]}
                   >
                     <Input.Password
-                      placeholder="Confirm new password"
+                      placeholder='Confirm new password'
                       iconRender={(visible) =>
                         visible ? <EyeOutlined /> : <EyeInvisibleOutlined />
                       }
@@ -704,10 +755,10 @@ const Settings = () => {
 
                   <Form.Item>
                     <Button
-                      type="primary"
+                      type='primary'
                       icon={<SaveOutlined />}
                       loading={loading}
-                      htmlType="submit"
+                      htmlType='submit'
                     >
                       Change Password
                     </Button>
@@ -716,31 +767,32 @@ const Settings = () => {
 
                 <Col xs={24} lg={12}>
                   <Alert
-                    message="Password Requirements"
-                    description="Your password must be at least 8 characters long and contain uppercase letters, lowercase letters, numbers, and special characters."
-                    type="info"
+                    message='Password Requirements'
+                    description='Your password must be at least 8 characters long and contain uppercase letters, lowercase letters, numbers, and special characters.'
+                    type='info'
                     showIcon
                   />
                 </Col>
               </Row>
             </Form>
           </Card>
-        </TabPane>
+    )
+  },
 
-        <TabPane
-          tab={
+        {
+          key: 'api',
+          label: (
             <span>
               <KeyOutlined />
               API Keys
             </span>
-          }
-          key="api"
-        >
+          ),
+          children: (
           <Card
-            title="API Keys"
+            title='API Keys'
             extra={
               <Button
-                type="primary"
+                type='primary'
                 onClick={() => setApiKeyModalVisible(true)}
               >
                 Create API Key
@@ -748,35 +800,35 @@ const Settings = () => {
             }
           >
             <List
-              itemLayout="horizontal"
+              itemLayout='horizontal'
               dataSource={apiKeys}
-              renderItem={item => (
+              renderItem={(item) => (
                 <List.Item
                   actions={[
                     <Button
-                      type="link"
-                      size="small"
+                      type='link'
+                      size='small'
                       onClick={() => {
-                        navigator.clipboard.writeText(item.key)
-                        message.success('API key copied to clipboard')
+                        navigator.clipboard.writeText(item.key);
+                        message.success('API key copied to clipboard');
                       }}
                     >
                       Copy
                     </Button>,
                     item.status === 'active' ? (
                       <Button
-                        type="link"
+                        type='link'
                         danger
-                        size="small"
+                        size='small'
                         onClick={() => handleRevokeApiKey(item.id)}
                       >
                         Revoke
                       </Button>
                     ) : null,
                     <Button
-                      type="link"
+                      type='link'
                       danger
-                      size="small"
+                      size='small'
                       onClick={() => handleDeleteApiKey(item.id)}
                     >
                       Delete
@@ -794,18 +846,22 @@ const Settings = () => {
                       </Space>
                     }
                     description={
-                      <Space direction="vertical" size={0}>
+                      <Space direction='vertical' size={0}>
                         <Text code>{item.key}</Text>
                         <Space>
-                          <Text type="secondary">
-                            Created: {dayjs(item.createdAt).format('MMM D, YYYY')}
+                          <Text type='secondary'>
+                            Created:{' '}
+                            {dayjs(item.createdAt).format('MMM D, YYYY')}
                           </Text>
-                          <Text type="secondary">
-                            Last used: {item.lastUsed ? dayjs(item.lastUsed).format('MMM D, YYYY HH:mm') : 'Never'}
+                          <Text type='secondary'>
+                            Last used:{' '}
+                            {item.lastUsed
+                              ? dayjs(item.lastUsed).format('MMM D, YYYY HH:mm')
+                              : 'Never'}
                           </Text>
                         </Space>
                         <Space>
-                          {item.permissions.map(permission => (
+                          {item.permissions.map((permission) => (
                             <Tag key={permission}>{permission}</Tag>
                           ))}
                         </Space>
@@ -816,18 +872,19 @@ const Settings = () => {
               )}
             />
           </Card>
-        </TabPane>
+    )
+  },
 
-        <TabPane
-          tab={
+        {
+          key: 'activity',
+          label: (
             <span>
               <HistoryOutlined />
               Activity
             </span>
-          }
-          key="activity"
-        >
-          <Card title="Recent Activity">
+          ),
+          children: (
+          <Card title='Recent Activity'>
             <Timeline>
               {recentActivity.map((activity) => (
                 <Timeline.Item
@@ -835,9 +892,9 @@ const Settings = () => {
                   color={getActivityColor(activity.type)}
                   dot={getActivityIcon(activity.type)}
                 >
-                  <Space direction="vertical" size={0}>
+                  <Space direction='vertical' size={0}>
                     <Text strong>{activity.action}</Text>
-                    <Text type="secondary">
+                    <Text type='secondary'>
                       {dayjs(activity.timestamp).format('MMMM D, YYYY HH:mm')}
                     </Text>
                   </Space>
@@ -845,30 +902,31 @@ const Settings = () => {
               ))}
             </Timeline>
           </Card>
-        </TabPane>
-      </Tabs>
+    )
+  }
+]} />
 
       {/* Create API Key Modal */}
       <Modal
-        title="Create API Key"
-        visible={apiKeyModalVisible}
+        title='Create API Key'
+        open={apiKeyModalVisible}
         onCancel={() => {
-          setApiKeyModalVisible(false)
-          apiForm.resetFields()
+          setApiKeyModalVisible(false);
+          apiForm.resetFields();
         }}
         footer={[
           <Button
-            key="cancel"
+            key='cancel'
             onClick={() => {
-              setApiKeyModalVisible(false)
-              apiForm.resetFields()
+              setApiKeyModalVisible(false);
+              apiForm.resetFields();
             }}
           >
             Cancel
           </Button>,
           <Button
-            key="submit"
-            type="primary"
+            key='submit'
+            type='primary'
             loading={loading}
             onClick={() => apiForm.submit()}
           >
@@ -878,7 +936,7 @@ const Settings = () => {
       >
         <Form
           form={apiForm}
-          layout="vertical"
+          layout='vertical'
           onFinish={handleCreateApiKey}
           initialValues={{
             environment: 'development',
@@ -886,63 +944,64 @@ const Settings = () => {
           }}
         >
           <Form.Item
-            label="Key Name"
-            name="name"
-            rules={[{ required: true, message: 'Please enter a name for the API key' }]}
+            label='Key Name'
+            name='name'
+            rules={[
+              {
+                required: true,
+                message: 'Please enter a name for the API key',
+              },
+            ]}
           >
-            <Input placeholder="e.g., Production API Key" />
+            <Input placeholder='e.g., Production API Key' />
           </Form.Item>
 
           <Form.Item
-            label="Environment"
-            name="environment"
-            rules={[{ required: true, message: 'Please select an environment' }]}
+            label='Environment'
+            name='environment'
+            rules={[
+              { required: true, message: 'Please select an environment' },
+            ]}
           >
             <Select>
-              <Select.Option value="development">Development</Select.Option>
-              <Select.Option value="staging">Staging</Select.Option>
-              <Select.Option value="production">Production</Select.Option>
+              <Select.Option value='development'>Development</Select.Option>
+              <Select.Option value='staging'>Staging</Select.Option>
+              <Select.Option value='production'>Production</Select.Option>
             </Select>
           </Form.Item>
 
           <Form.Item
-            label="Permissions"
-            name="permissions"
+            label='Permissions'
+            name='permissions'
             rules={[{ required: true, message: 'Please select permissions' }]}
           >
-            <Select mode="multiple" placeholder="Select permissions">
-              <Select.Option value="read">Read</Select.Option>
-              <Select.Option value="write">Write</Select.Option>
-              <Select.Option value="delete">Delete</Select.Option>
-              <Select.Option value="admin">Admin</Select.Option>
+            <Select mode='multiple' placeholder='Select permissions'>
+              <Select.Option value='read'>Read</Select.Option>
+              <Select.Option value='write'>Write</Select.Option>
+              <Select.Option value='delete'>Delete</Select.Option>
+              <Select.Option value='admin'>Admin</Select.Option>
             </Select>
           </Form.Item>
 
-          <Form.Item
-            label="Expiration (days)"
-            name="expiration"
-          >
+          <Form.Item label='Expiration (days)' name='expiration'>
             <InputNumber
               min={1}
               max={365}
-              placeholder="Leave empty for no expiration"
+              placeholder='Leave empty for no expiration'
               style={{ width: '100%' }}
             />
           </Form.Item>
 
-          <Form.Item
-            label="Description"
-            name="description"
-          >
+          <Form.Item label='Description' name='description'>
             <TextArea
               rows={3}
-              placeholder="Optional description of the API key usage"
+              placeholder='Optional description of the API key usage'
             />
           </Form.Item>
         </Form>
       </Modal>
     </div>
-  )
-}
+  );
+};
 
-export default Settings
+export default Settings;

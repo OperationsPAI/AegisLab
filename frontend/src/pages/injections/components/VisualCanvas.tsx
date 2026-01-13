@@ -1,32 +1,31 @@
 import type { DragEvent } from 'react';
 import React, { useCallback, useRef } from 'react';
-import type {
-  Node,
-  Edge,
-  Connection} from 'reactflow';
+import type { Connection, Edge, Node } from 'reactflow';
 import ReactFlow, {
-  ReactFlowProvider,
   addEdge,
-  useNodesState,
-  useEdgesState,
-  Controls,
   Background,
-  MiniMap,
   ConnectionMode,
+  Controls,
+  MiniMap,
   Panel,
+  ReactFlowProvider,
+  useEdgesState,
+  useNodesState,
   useReactFlow,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Button, Space, message } from 'antd';
+
 import {
-  PlusOutlined,
   ClearOutlined,
   PlayCircleOutlined,
+  PlusOutlined,
 } from '@ant-design/icons';
+import { Button, message, Space } from 'antd';
 
 import type { FaultType } from '../../../types/api';
 
 import { FaultNode } from './FaultNode';
+
 import './VisualCanvas.css';
 
 const nodeTypes = {
@@ -108,17 +107,24 @@ const VisualCanvasContent: React.FC<VisualCanvasProps> = ({
     updateNodesFromMatrix();
   }, [updateNodesFromMatrix]);
 
-  const handleDeleteNode = useCallback((nodeId: string) => {
-    setNodes((nds) => nds.filter((node) => node.id !== nodeId));
-    setEdges((eds) => eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId));
+  const handleDeleteNode = useCallback(
+    (nodeId: string) => {
+      setNodes((nds) => nds.filter((node) => node.id !== nodeId));
+      setEdges((eds) =>
+        eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId)
+      );
 
-    // Update fault matrix
-    const newMatrix = faultMatrix.map((batch) =>
-      batch.filter((_, index) => !nodeId.includes(`-${index}-`))
-    ).filter(batch => batch.length > 0);
+      // Update fault matrix
+      const newMatrix = faultMatrix
+        .map((batch) =>
+          batch.filter((_, index) => !nodeId.includes(`-${index}-`))
+        )
+        .filter((batch) => batch.length > 0);
 
-    onFaultMatrixChange(newMatrix);
-  }, [faultMatrix, onFaultMatrixChange]);
+      onFaultMatrixChange(newMatrix);
+    },
+    [faultMatrix, onFaultMatrixChange]
+  );
 
   const handleConfigureFault = useCallback((fault: FaultType) => {
     message.info(`Configuring ${fault.name} fault...`);
@@ -146,7 +152,8 @@ const VisualCanvasContent: React.FC<VisualCanvasProps> = ({
 
         if (!reactFlowWrapper.current) return;
 
-        const reactFlowBounds = reactFlowWrapper.current.getBoundingClientRect();
+        const reactFlowBounds =
+          reactFlowWrapper.current.getBoundingClientRect();
         const position = project({
           x: event.clientX - reactFlowBounds.left,
           y: event.clientY - reactFlowBounds.top,
@@ -208,7 +215,7 @@ const VisualCanvasContent: React.FC<VisualCanvasProps> = ({
   }, [nodes]);
 
   return (
-    <div className="visual-canvas" ref={reactFlowWrapper}>
+    <div className='visual-canvas' ref={reactFlowWrapper}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -223,11 +230,11 @@ const VisualCanvasContent: React.FC<VisualCanvasProps> = ({
         nodeTypes={nodeTypes}
         connectionMode={ConnectionMode.Loose}
         fitView
-        attributionPosition="bottom-left"
+        attributionPosition='bottom-left'
       >
-        <Controls position="top-left" />
+        <Controls position='top-left' />
         <MiniMap
-          position="bottom-right"
+          position='bottom-right'
           style={{ backgroundColor: '#f5f5f5' }}
           nodeColor={(node) => {
             if (node.type === 'fault') return '#1890ff';
@@ -235,21 +242,21 @@ const VisualCanvasContent: React.FC<VisualCanvasProps> = ({
           }}
           nodeStrokeWidth={3}
         />
-        <Background color="#aaa" gap={16} />
+        <Background color='#aaa' gap={16} />
 
-        <Panel position="top-right" className="canvas-toolbar">
+        <Panel position='top-right' className='canvas-toolbar'>
           <Space>
             <Button
-              type="primary"
+              type='primary'
               icon={<PlusOutlined />}
-              size="small"
+              size='small'
               onClick={handleAddBatch}
             >
               Add Batch
             </Button>
             <Button
               icon={<PlayCircleOutlined />}
-              size="small"
+              size='small'
               onClick={handleAutoArrange}
             >
               Auto Arrange
@@ -257,7 +264,7 @@ const VisualCanvasContent: React.FC<VisualCanvasProps> = ({
             <Button
               danger
               icon={<ClearOutlined />}
-              size="small"
+              size='small'
               onClick={handleClearCanvas}
             >
               Clear
@@ -266,11 +273,11 @@ const VisualCanvasContent: React.FC<VisualCanvasProps> = ({
         </Panel>
 
         {nodes.length === 0 && (
-          <div className="empty-canvas">
-            <div className="empty-canvas-icon">
+          <div className='empty-canvas'>
+            <div className='empty-canvas-icon'>
               <PlayCircleOutlined />
             </div>
-            <div className="empty-canvas-text">
+            <div className='empty-canvas-text'>
               <p>Drag fault types from the left panel</p>
               <p>or click "Add Batch" to start</p>
             </div>

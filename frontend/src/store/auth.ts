@@ -1,21 +1,21 @@
-import type { UserInfo as User } from '@rcabench/client'
-import { create } from 'zustand'
+import type { UserInfo as User } from '@rcabench/client';
+import { create } from 'zustand';
 
-import { authApi } from '@/api/auth'
+import { authApi } from '@/api/auth';
 
 interface AuthState {
-  user: User | null
-  accessToken: string | null
-  refreshToken: string | null
-  isAuthenticated: boolean
-  loading: boolean
+  user: User | null;
+  accessToken: string | null;
+  refreshToken: string | null;
+  isAuthenticated: boolean;
+  loading: boolean;
 
   // Actions
-  login: (username: string, password: string) => Promise<void>
-  logout: () => Promise<void>
-  refreshAccessToken: () => Promise<void>
-  loadUser: () => Promise<void>
-  setUser: (user: User | null) => void
+  login: (username: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+  refreshAccessToken: () => Promise<void>;
+  loadUser: () => Promise<void>;
+  setUser: (user: User | null) => void;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -26,20 +26,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   loading: false,
 
   login: async (username: string, password: string) => {
-    set({ loading: true })
+    set({ loading: true });
     try {
       // console.log('Attempting login...')
-      const response = await authApi.login({ username, password })
+      const response = await authApi.login({ username, password });
       // console.log('Login response:', response)
       // The response structure needs to be checked
-      const token = (response as any)?.token
-      const user = (response as any)?.user
+      const token = (response as any)?.token;
+      const user = (response as any)?.user;
 
       // Backend returns 'token' instead of 'access_token'
       // Store the same token as both access and refresh token for now
       if (token) {
-        localStorage.setItem('access_token', token)
-        localStorage.setItem('refresh_token', token)
+        localStorage.setItem('access_token', token);
+        localStorage.setItem('refresh_token', token);
       }
 
       // console.log('Setting auth state with token:', token)
@@ -49,76 +49,76 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         refreshToken: token,
         isAuthenticated: true,
         loading: false,
-      })
+      });
       // console.log('Login successful, isAuthenticated set to true')
     } catch (error) {
       // console.error('Login failed:', error)
-      set({ loading: false })
-      throw error
+      set({ loading: false });
+      throw error;
     }
   },
 
   logout: async () => {
     try {
-      await authApi.logout()
+      await authApi.logout();
     } catch (error) {
       // console.error('Logout error:', error)
     } finally {
-      localStorage.removeItem('access_token')
-      localStorage.removeItem('refresh_token')
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
 
       set({
         user: null,
         accessToken: null,
         refreshToken: null,
         isAuthenticated: false,
-      })
+      });
     }
   },
 
   refreshAccessToken: async () => {
-    const { refreshToken } = get()
+    const { refreshToken } = get();
     if (!refreshToken) {
-      throw new Error('No refresh token available')
+      throw new Error('No refresh token available');
     }
 
     try {
       // Use the actual refresh endpoint instead of login
-      const response = await authApi.refreshToken(refreshToken)
-      const token = response?.token
+      const response = await authApi.refreshToken(refreshToken);
+      const token = response?.token;
 
       // Backend returns single 'token' for refresh
-      localStorage.setItem('access_token', token)
-      localStorage.setItem('refresh_token', token)
+      localStorage.setItem('access_token', token);
+      localStorage.setItem('refresh_token', token);
 
       set({
         accessToken: token,
         refreshToken: token,
-      })
+      });
     } catch (error) {
-      get().logout()
-      throw error
+      get().logout();
+      throw error;
     }
   },
 
   loadUser: async () => {
-    const { accessToken } = get()
-    if (!accessToken) return
+    const { accessToken } = get();
+    if (!accessToken) return;
 
-    set({ loading: true })
+    set({ loading: true });
     try {
-      const response = await authApi.getProfile()
+      const response = await authApi.getProfile();
       set({
         user: response,
         loading: false,
-      })
+      });
     } catch (error) {
-      set({ loading: false })
-      get().logout()
+      set({ loading: false });
+      get().logout();
     }
   },
 
   setUser: (user: User | null) => {
-    set({ user })
+    set({ user });
   },
-}))
+}));

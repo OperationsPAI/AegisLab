@@ -1,41 +1,52 @@
 import {
-  DashboardOutlined,
-  ProjectOutlined,
+  ApiOutlined,
+  BarChartOutlined,
+  BulbOutlined,
+  CloudServerOutlined,
   ContainerOutlined,
+  DashboardOutlined,
   DatabaseOutlined,
   ExperimentOutlined,
-  PlayCircleOutlined,
-  BarChartOutlined,
-  UnorderedListOutlined,
-  SettingOutlined,
-  UserOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  BulbOutlined,
-  ApiOutlined,
-  CloudServerOutlined,
+  PlayCircleOutlined,
+  ProjectOutlined,
   SafetyCertificateOutlined,
-} from '@ant-design/icons'
-import { Layout, Menu, Avatar, Dropdown, Space, Typography, Button, type MenuProps } from 'antd'
-import { useEffect, useState } from 'react'
-import { Outlet, useNavigate, useLocation } from 'react-router-dom'
+  SettingOutlined,
+  UnorderedListOutlined,
+  UserOutlined,
+} from '@ant-design/icons';
+import {
+  Avatar,
+  Button,
+  Dropdown,
+  Layout,
+  Menu,
+  type MenuProps,
+  Space,
+  Typography,
+} from 'antd';
+import { useEffect, useState } from 'react';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
-import ThemeToggle from '@/components/ui/ThemeToggle'
-import { useAuthStore } from '@/store/auth'
-import { useThemeStore } from '@/store/theme'
-import './MainLayout.css'
 
-const { Header, Sider, Content } = Layout
-const { Text } = Typography
+import ThemeToggle from '@/components/ui/ThemeToggle';
+import { useAuthStore } from '@/store/auth';
+import { useThemeStore } from '@/store/theme';
+
+import './MainLayout.css';
+
+const { Header, Sider, Content } = Layout;
+const { Text } = Typography;
 
 const MainLayout = () => {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const { user, logout } = useAuthStore()
-  const { sidebarCollapsed, toggleSidebar } = useThemeStore()
-  const [selectedKeys, setSelectedKeys] = useState<string[]>([])
-  const [openKeys, setOpenKeys] = useState<string[]>([])
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user, logout } = useAuthStore();
+  const { sidebarCollapsed, toggleSidebar } = useThemeStore();
+  const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
+  const [openKeys, setOpenKeys] = useState<string[]>([]);
 
   // Menu items
   const menuItems: MenuProps['items'] = [
@@ -125,7 +136,7 @@ const MainLayout = () => {
         },
       ],
     },
-  ]
+  ];
 
   // User dropdown menu
   const userMenuItems: MenuProps['items'] = [
@@ -143,146 +154,152 @@ const MainLayout = () => {
       label: 'Sign Out',
       danger: true,
     },
-  ]
+  ];
 
   const handleMenuClick = ({ key }: { key: string }) => {
     if (key.startsWith('/')) {
-      navigate(key)
+      navigate(key);
     }
-  }
+  };
 
   const handleUserMenuClick = async ({ key }: { key: string }) => {
     if (key === 'logout') {
-      await logout()
-      navigate('/login')
+      await logout();
+      navigate('/login');
     } else if (key === 'profile') {
-      navigate('/settings/profile')
+      navigate('/settings/profile');
     }
-  }
+  };
 
   const handleOpenChange = (keys: string[]) => {
-    setOpenKeys(keys)
-  }
+    setOpenKeys(keys);
+  };
 
   // Update selected keys based on location
   useEffect(() => {
-    const path = location.pathname
-    setSelectedKeys([path])
+    const path = location.pathname;
+    setSelectedKeys([path]);
 
     // Set open keys for parent menus
-    if (path.startsWith('/projects') || path.startsWith('/injections') || path.startsWith('/executions')) {
-      setOpenKeys(['experiments'])
+    if (
+      path.startsWith('/projects') ||
+      path.startsWith('/injections') ||
+      path.startsWith('/executions')
+    ) {
+      setOpenKeys(['experiments']);
     } else if (path.startsWith('/containers') || path.startsWith('/datasets')) {
-      setOpenKeys(['infrastructure'])
+      setOpenKeys(['infrastructure']);
     } else if (path.startsWith('/evaluations') || path.startsWith('/tasks')) {
-      setOpenKeys(['analysis'])
+      setOpenKeys(['analysis']);
     } else if (path.startsWith('/system') || path.startsWith('/settings')) {
-      setOpenKeys(['system'])
+      setOpenKeys(['system']);
     }
-  }, [location.pathname])
+  }, [location.pathname]);
 
   return (
-    <Layout className="main-layout">
+    <Layout className='main-layout'>
       {/* Header */}
-      <Header className="main-header">
-        <div className="header-left">
+      <Header className='main-header'>
+        <div className='header-left'>
           <Button
-            type="text"
-            icon={sidebarCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+            type='text'
+            icon={
+              sidebarCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />
+            }
             onClick={toggleSidebar}
-            className="sidebar-toggle"
+            className='sidebar-toggle'
           />
-          <div className="logo-section" onClick={() => navigate('/dashboard')}>
-            <div className="logo-icon">
-              <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+          <div className='logo-section' onClick={() => navigate('/dashboard')}>
+            <div className='logo-icon'>
+              <svg width='32' height='32' viewBox='0 0 32 32' fill='none'>
                 <path
-                  d="M16 2L30 8.5V23.5L16 30L2 23.5V8.5L16 2Z"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinejoin="round"
+                  d='M16 2L30 8.5V23.5L16 30L2 23.5V8.5L16 2Z'
+                  stroke='currentColor'
+                  strokeWidth='2'
+                  strokeLinejoin='round'
                 />
                 <path
-                  d="M16 16L30 8.5M16 16V30M16 16L2 8.5"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinejoin="round"
-                  opacity="0.3"
+                  d='M16 16L30 8.5M16 16V30M16 16L2 8.5'
+                  stroke='currentColor'
+                  strokeWidth='2'
+                  strokeLinejoin='round'
+                  opacity='0.3'
                 />
-                <circle cx="16" cy="16" r="4" fill="currentColor" />
+                <circle cx='16' cy='16' r='4' fill='currentColor' />
               </svg>
             </div>
             {!sidebarCollapsed && (
-              <div className="logo-text">
-                <span className="logo-title">AegisLab</span>
-                <span className="logo-subtitle">RCA Benchmark Platform</span>
+              <div className='logo-text'>
+                <span className='logo-title'>AegisLab</span>
+                <span className='logo-subtitle'>RCA Benchmark Platform</span>
               </div>
             )}
           </div>
         </div>
 
-        <div className="header-right">
+        <div className='header-right'>
           <ThemeToggle />
           <Dropdown
             menu={{ items: userMenuItems, onClick: handleUserMenuClick }}
-            placement="bottomRight"
+            placement='bottomRight'
             arrow
-            overlayClassName="user-dropdown"
+            overlayClassName='user-dropdown'
           >
-            <Space className="user-section">
+            <Space className='user-section'>
               <Avatar
-                size="small"
+                size='small'
                 icon={<UserOutlined />}
                 style={{ backgroundColor: 'var(--color-primary-500)' }}
               />
               {!sidebarCollapsed && (
-                <Text className="username">{user?.username || 'User'}</Text>
+                <Text className='username'>{user?.username || 'User'}</Text>
               )}
             </Space>
           </Dropdown>
         </div>
       </Header>
 
-      <Layout className="main-body">
+      <Layout className='main-body'>
         {/* Sidebar */}
         <Sider
           width={240}
           collapsed={sidebarCollapsed}
           collapsedWidth={64}
-          className="main-sidebar"
+          className='main-sidebar'
         >
-          <div className="sidebar-content">
+          <div className='sidebar-content'>
             <Menu
-              mode="inline"
+              mode='inline'
               selectedKeys={selectedKeys}
               openKeys={openKeys}
               items={menuItems}
               onClick={handleMenuClick}
               onOpenChange={handleOpenChange}
-              className="sidebar-menu"
+              className='sidebar-menu'
               inlineCollapsed={sidebarCollapsed}
             />
           </div>
 
           {/* Sidebar Footer */}
-          <div className="sidebar-footer">
-            <div className="system-status">
-              <div className="status-indicator" />
-              <span className="status-text">System Online</span>
+          <div className='sidebar-footer'>
+            <div className='system-status'>
+              <div className='status-indicator' />
+              <span className='status-text'>System Online</span>
             </div>
           </div>
         </Sider>
 
         {/* Main Content */}
-        <Layout className="main-content-wrapper">
-          <Content className="main-content">
-            <div className="content-inner">
+        <Layout className='main-content-wrapper'>
+          <Content className='main-content'>
+            <div className='content-inner'>
               <Outlet />
             </div>
           </Content>
         </Layout>
       </Layout>
     </Layout>
-  )
-}
+  );
+};
 
-export default MainLayout
+export default MainLayout;
