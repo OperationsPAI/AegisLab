@@ -46,13 +46,8 @@ function App() {
       {/* Public routes */}
       <Route path='/login' element={<Login />} />
 
-      {/* Protected routes */}
-      <Route
-        path='/*'
-        element={
-          isAuthenticated ? <MainLayout /> : <Navigate to='/login' replace />
-        }
-      >
+      {/* Protected routes - Authentication bypassed for development */}
+      <Route path='/*' element={<MainLayout />}>
         <Route index element={<Navigate to='/dashboard' replace />} />
         <Route path='dashboard' element={<Dashboard />} />
 

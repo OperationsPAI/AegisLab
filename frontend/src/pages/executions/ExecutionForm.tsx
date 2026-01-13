@@ -14,6 +14,7 @@ import type {
   ContainerResp,
   ContainerVersionResp,
   GenericResponseContainerDetailResp,
+  LabelItem,
   ListContainerResp,
 } from '@rcabench/client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -38,7 +39,6 @@ import {
 
 import { containerApi } from '@/api/containers';
 import { executionApi } from '@/api/executions';
-import type { Label } from '@/types/api';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -47,7 +47,7 @@ interface ExecutionFormData {
   algorithm_name: string;
   algorithm_version: string;
   datapack_id: string;
-  labels?: Label[];
+  labels?: LabelItem[];
 }
 
 const ExecutionForm = () => {
@@ -59,7 +59,7 @@ const ExecutionForm = () => {
   >(null);
   const [selectedVersion, setSelectedVersion] = useState<string>('');
   const [labelInput, setLabelInput] = useState('');
-  const [labels, setLabels] = useState<Label[]>([]);
+  const [labels, setLabels] = useState<LabelItem[]>([]);
 
   // Fetch algorithms
   const { data: algorithmsData } = useQuery<ListContainerResp>({
@@ -103,7 +103,9 @@ const ExecutionForm = () => {
         algorithmName: data.algorithm_name,
         algorithmVersion: data.algorithm_version,
         datapackId: data.datapack_id,
-        labels: data.labels,
+        labels: data.labels
+          ?.filter((l): l is { key: string; value?: string } => l.key !== undefined)
+          .map((l) => ({ key: l.key, value: l.value || '' })),
       }),
     onSuccess: (response: any) => {
       message.success('Execution started successfully');
@@ -396,7 +398,7 @@ const ExecutionForm = () => {
                       <Tag
                         key={label.key}
                         closable
-                        onClose={() => removeLabel(label.key)}
+                        onClose={() => label.key && removeLabel(label.key)}
                         icon={<TagsOutlined />}
                         style={{ marginBottom: 8 }}
                       >

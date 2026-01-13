@@ -12,7 +12,7 @@
 [data-theme='dark'] .chart-card,
 [data-theme='dark'] .search-card,
 [data-theme='dark'] .table-card {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-surface-elevated);
   border-color: var(--color-secondary-700);
 }
 
@@ -26,7 +26,7 @@
 }
 
 .search-card {
-  margin-bottom: 2rem;
+  margin-bottom: var(--space-8);
   animation: fadeIn 0.8s ease-out;
 }
 
@@ -34,16 +34,16 @@
 .chart-container {
   background: var(--color-secondary-0);
   border-radius: var(--radius-xl);
-  padding: 1.5rem;
+  padding: var(--space-6);
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--color-secondary-200);
-  transition: all 0.3s ease;
+  transition: all var(--transition-base);
   animation: fadeIn 0.8s ease-out;
   animation-fill-mode: both;
 }
 
 [data-theme='dark'] .chart-container {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-surface-elevated);
   border-color: var(--color-secondary-700);
 }
 

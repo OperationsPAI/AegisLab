@@ -1,6 +1,6 @@
 /* Injection Create Styles */
 .injection-create {
-  padding: 24px;
+  padding: var(--space-6);
   background-color: var(--color-secondary-50);
   min-height: 100vh;
 }
@@ -10,7 +10,7 @@
 }
 
 .injection-card {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
 }
@@ -21,7 +21,7 @@
 }
 
 [data-theme='dark'] .injection-card .ant-card-head {
-  background-color: rgba(255, 255, 255, 0.02);
+  background-color: var(--color-surface-elevated);
   border-bottom-color: var(--color-secondary-700);
 }
 
@@ -42,7 +42,7 @@
 }
 
 [data-theme='dark'] .fault-type-panel {
-  background-color: rgba(255, 255, 255, 0.02);
+  background-color: var(--color-surface-elevated);
 }
 
 .visual-canvas {
@@ -54,35 +54,35 @@
 }
 
 [data-theme='dark'] .visual-canvas {
-  background-color: rgba(255, 255, 255, 0.02);
+  background-color: var(--color-surface-elevated);
 }
 
 .fault-config-panel {
   background-color: var(--color-secondary-0);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
-  padding: 16px;
+  padding: var(--space-4);
 }
 
 [data-theme='dark'] .fault-config-panel {
-  background-color: rgba(255, 255, 255, 0.02);
+  background-color: var(--color-surface-elevated);
 }
 
 .algorithm-selector {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
 
 .tag-manager {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
 
 .fault-node {
   background-color: var(--color-primary-100);
   border: 2px solid var(--color-primary-500);
   border-radius: var(--radius-base);
-  padding: 8px 12px;
+  padding: var(--space-2) var(--space-3);
   cursor: move;
-  transition: all 0.3s ease;
+  transition: all var(--transition-base);
 }
 
 .fault-node:hover {
@@ -99,13 +99,13 @@
   background-color: var(--color-secondary-50);
   border: 2px dashed var(--color-secondary-300);
   border-radius: var(--radius-lg);
-  padding: 16px;
-  margin-bottom: 16px;
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
   min-height: 120px;
 }
 
 [data-theme='dark'] .batch-container {
-  background-color: rgba(255, 255, 255, 0.02);
+  background-color: var(--color-surface-elevated);
   border-color: var(--color-secondary-600);
 }
 
@@ -122,7 +122,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 
 .batch-title {
@@ -136,24 +136,24 @@
 
 .batch-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .fault-type-item {
   background-color: var(--color-secondary-100);
   border: 1px solid var(--color-secondary-300);
   border-radius: var(--radius-sm);
-  padding: 8px 12px;
-  margin-bottom: 8px;
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-2);
   cursor: grab;
-  transition: all 0.3s ease;
+  transition: all var(--transition-base);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 [data-theme='dark'] .fault-type-item {
-  background-color: rgba(255, 255, 255, 0.02);
+  background-color: var(--color-surface-elevated);
   border-color: var(--color-secondary-600);
 }
 
@@ -167,7 +167,7 @@
 }
 
 .fault-type-icon {
-  font-size: 20px;
+  font-size: var(--font-size-xl);
 }
 
 .fault-type-name {
@@ -176,19 +176,19 @@
 }
 
 .fault-type-description {
-  font-size: 12px;
+  font-size: var(--font-size-xs);
   color: var(--color-secondary-500);
-  margin-top: 4px;
+  margin-top: var(--space-1);
 }
 
 .form-group {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
 
 .form-label {
   font-weight: var(--font-weight-semibold);
   color: var(--color-secondary-800);
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
   display: block;
 }
 
@@ -200,12 +200,12 @@
   background-color: var(--color-secondary-50);
   border: 1px solid var(--color-secondary-200);
   border-radius: var(--radius-sm);
-  padding: 12px;
-  margin-bottom: 12px;
+  padding: var(--space-3);
+  margin-bottom: var(--space-3);
 }
 
 [data-theme='dark'] .dynamic-form-item {
-  background-color: rgba(255, 255, 255, 0.02);
+  background-color: var(--color-surface-elevated);
   border-color: var(--color-secondary-700);
 }
 
@@ -217,13 +217,13 @@
   background-color: var(--color-secondary-0);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
-  padding: 16px;
-  margin-top: 24px;
+  padding: var(--space-4);
+  margin-top: var(--space-6);
   text-align: right;
 }
 
 [data-theme='dark'] .submit-section {
-  background-color: rgba(255, 255, 255, 0.02);
+  background-color: var(--color-surface-elevated);
 }
 
 .empty-canvas {
@@ -236,13 +236,13 @@
 }
 
 .empty-canvas-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
+  font-size: var(--font-size-4xl);
+  margin-bottom: var(--space-4);
   opacity: 0.3;
 }
 
 .empty-canvas-text {
-  font-size: 16px;
+  font-size: var(--font-size-base);
   text-align: center;
 }
 
@@ -250,7 +250,7 @@
   background: var(--color-primary-100);
   border: 2px solid var(--color-primary-500);
   border-radius: var(--radius-base);
-  padding: 8px 12px;
+  padding: var(--space-2) var(--space-3);
   min-width: 120px;
 }
 
@@ -280,18 +280,18 @@
 }
 
 .react-flow__controls {
-  bottom: 16px;
-  left: 16px;
+  bottom: var(--space-4);
+  left: var(--space-4);
 }
 
 .react-flow__minimap {
-  bottom: 16px;
-  right: 16px;
+  bottom: var(--space-4);
+  right: var(--space-4);
 }
 
 @media (max-width: 1200px) {
   .injection-create {
-    padding: 16px;
+    padding: var(--space-4);
   }
 
   .injection-create .ant-row {
@@ -300,7 +300,7 @@
 
   .injection-create .ant-col {
     width: 100% !important;
-    margin-bottom: 16px;
+    margin-bottom: var(--space-4);
   }
 }
 
@@ -316,6 +316,6 @@
   }
 
   .injection-create {
-    padding: 12px;
+    padding: var(--space-3);
   }
 }

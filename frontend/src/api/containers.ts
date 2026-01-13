@@ -1,115 +1,158 @@
-import { Configuration, ContainersApi } from '@rcabench/client';
-import axios, { type AxiosRequestConfig } from 'axios';
-import type { Container } from '@/types/api';
-
-// Create configuration with dynamic token
-const createContainerConfig = () => {
-  const token = localStorage.getItem('access_token');
-
-  return new Configuration({
-    basePath: '/api/v2',
-    accessToken: token ? `Bearer ${token}` : undefined,
-    baseOptions: {
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    } as AxiosRequestConfig,
-  });
-};
-
-// Create axios instance for manual API calls
-const apiClient = axios.create({
-  baseURL: '/api/v2',
-  timeout: 30000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Request interceptor for auth
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('access_token');
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
+/**
+ * 容器 API
+ * 使用 @rcabench/client SDK，手工实现缺失的端点
+ */
+import {
+  ContainersApi,
+  type ContainerDetailResp,
+  type ContainerResp,
+  type ContainerType,
+  type ContainerVersionResp,
+  type CreateContainerReq,
+  type CreateContainerVersionReq,
+  type LabelItem,
+  type ListContainerResp,
+  type ListContainerVersionResp,
+  type StatusType,
+} from '@rcabench/client';
+import { apiClient, createApiConfig } from './config';
 
 export const containerApi = {
-  // Get containers list - using generated SDK
+  // ==================== SDK 方法 ====================
+
+  /**
+   * 获取容器列表 - 使用 SDK
+   */
   getContainers: async (params?: {
     page?: number;
     size?: number;
-    type?: number;
+    type?: ContainerType;
     isPublic?: boolean;
-    status?: number;
-    projectId?: number;
-  }) => {
-    const containersApi = new ContainersApi(createContainerConfig());
-    const response = await containersApi.listContainers({
+    status?: StatusType;
+  }): Promise<ListContainerResp> => {
+    const api = new ContainersApi(createApiConfig());
+    const response = await api.listContainers({
       page: params?.page,
       size: params?.size,
       type: params?.type,
       isPublic: params?.isPublic,
       status: params?.status,
     });
-    return response.data;
+    return response.data.data!;
   },
 
-  // Get container detail - manual API call
-  getContainer: (id: number) => apiClient.get(`/containers/${id}`),
+  /**
+   * 获取容器详情 - 使用 SDK
+   */
+  getContainer: async (id: number): Promise<ContainerDetailResp> => {
+    const api = new ContainersApi(createApiConfig());
+    const response = await api.getContainerById({ containerId: id });
+    return response.data.data!;
+  },
 
-  // Create container - manual API call
-  createContainer: (data: {
+  /**
+   * 创建容器 - 使用 SDK
+   */
+  createContainer: async (data: {
     name: string;
-    type: number;
+    type: ContainerType;
     readme?: string;
-    isPublic?: boolean;
-    labels?: Array<{ key: string; value: string }>;
-  }) => apiClient.post<Container>('/containers', data),
-
-  // Update container - manual endpoint (not in generated SDK)
-  updateContainer: (id: number, data: Record<string, unknown>) =>
-    apiClient.patch(`/containers/${id}`, data),
-
-  // Delete container - manual endpoint (not in generated SDK)
-  deleteContainer: (id: number) => apiClient.delete(`/containers/${id}`),
-
-  // Get versions - manual endpoint (not in generated SDK)
-  getVersions: async (containerId: number) => {
-    const response = await apiClient.get(`/containers/${containerId}/versions`);
-    return response.data;
+    is_public?: boolean;
+  }): Promise<ContainerResp | undefined> => {
+    const api = new ContainersApi(createApiConfig());
+    const request: CreateContainerReq = {
+      name: data.name,
+      type: data.type,
+      readme: data.readme,
+      is_public: data.is_public,
+    };
+    const response = await api.createContainer({ request });
+    return response.data.data;
   },
 
-  // Create version - manual endpoint (not in generated SDK)
-  createVersion: (
+  /**
+   * 获取容器版本列表 - 使用 SDK
+   */
+  getVersions: async (
+    containerId: number,
+    params?: { page?: number; size?: number; status?: StatusType }
+  ): Promise<ListContainerVersionResp> => {
+    const api = new ContainersApi(createApiConfig());
+    const response = await api.listContainerVersions({
+      containerId,
+      page: params?.page,
+      size: params?.size,
+      status: params?.status,
+    });
+    return response.data.data!;
+  },
+
+  /**
+   * 创建容器版本 - 使用 SDK
+   * 注意：SDK 使用 image_ref 格式，如 "registry/repository:tag"
+   */
+  createVersion: async (
     containerId: number,
     data: {
-      version: string;
-      registry: string;
-      repository: string;
-      tag: string;
+      name: string;
+      image_ref: string;
       command?: string;
     }
-  ) => apiClient.post(`/containers/${containerId}/versions`, data),
+  ): Promise<ContainerVersionResp | undefined> => {
+    const api = new ContainersApi(createApiConfig());
+    const request: CreateContainerVersionReq = {
+      name: data.name,
+      image_ref: data.image_ref,
+      command: data.command,
+    };
+    const response = await api.createContainerVersion({
+      containerId,
+      request,
+    });
+    return response.data.data;
+  },
 
-  // Update version - manual endpoint (not in generated SDK)
+  // ==================== 手工实现 (SDK 缺失) ====================
+
+  /**
+   * 更新容器 - 手工实现 (SDK 缺失)
+   */
+  updateContainer: (
+    id: number,
+    data: {
+      name?: string;
+      type?: ContainerType;
+      readme?: string;
+      is_public?: boolean;
+      labels?: LabelItem[];
+    }
+  ) => apiClient.patch<{ data: ContainerDetailResp }>(`/containers/${id}`, data),
+
+  /**
+   * 删除容器 - 手工实现 (SDK 缺失)
+   */
+  deleteContainer: (id: number) => apiClient.delete(`/containers/${id}`),
+
+  /**
+   * 更新容器版本 - 手工实现 (SDK 缺失)
+   */
   updateVersion: (
     containerId: number,
     versionId: number,
-    data: Record<string, unknown>
+    data: {
+      name?: string;
+      image_ref?: string;
+      command?: string;
+    }
   ) =>
-    apiClient.patch(`/containers/${containerId}/versions/${versionId}`, data),
+    apiClient.patch<{ data: ContainerVersionResp }>(
+      `/containers/${containerId}/versions/${versionId}`,
+      data
+    ),
 
-  // Delete version - manual endpoint (not in generated SDK)
+  /**
+   * 删除容器版本 - 手工实现 (SDK 缺失)
+   */
   deleteVersion: (containerId: number, versionId: number) =>
     apiClient.delete(`/containers/${containerId}/versions/${versionId}`),
 };
-
-export default apiClient;

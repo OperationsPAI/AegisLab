@@ -4,6 +4,11 @@ import {
   ProjectOutlined,
   SyncOutlined,
 } from '@ant-design/icons';
+import type {
+  ExecutionResp,
+  InjectionResp,
+  TaskResp,
+} from '@rcabench/client';
 import { useQuery } from '@tanstack/react-query';
 import { Col, Row, Typography } from 'antd';
 import dayjs from 'dayjs';
@@ -47,18 +52,18 @@ const Dashboard = () => {
 
   // Calculate statistics
   const stats = {
-    totalProjects: projects?.data?.pagination?.total || 0,
+    totalProjects: projects?.pagination?.total || 0,
     activeInjections:
-      injections?.data?.items?.filter((i) => i.state === '1').length || 0, // RUNNING
+      injections?.items?.filter((i: InjectionResp) => i.state === '1').length || 0, // RUNNING
     pendingTasks:
-      tasks?.data?.items?.filter((t) => t.state === '0').length || 0, // PENDING
+      tasks?.items?.filter((t: TaskResp) => t.state === '0').length || 0, // PENDING
     runningTasks:
-      tasks?.data?.items?.filter((t) => t.state === '1').length || 0, // RUNNING
+      tasks?.items?.filter((t: TaskResp) => t.state === '2').length || 0, // RUNNING
     completedTasks:
-      tasks?.data?.items?.filter((t) => t.state === '2').length || 0, // COMPLETED
-    errorTasks: tasks?.data?.items?.filter((t) => t.state === '3').length || 0, // ERROR
+      tasks?.items?.filter((t: TaskResp) => t.state === '3').length || 0, // COMPLETED
+    errorTasks: tasks?.items?.filter((t: TaskResp) => t.state === '-1').length || 0, // ERROR
     todayExecutions:
-      executions?.data?.data?.items?.filter((e: any) =>
+      executions?.items?.filter((e: ExecutionResp) =>
         dayjs(e.created_at).isAfter(dayjs().startOf('day'))
       ).length || 0,
   };

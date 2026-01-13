@@ -43,10 +43,10 @@ import { executionApi } from '@/api/executions';
 import StatCard from '@/components/ui/StatCard';
 import {
   ContainerType,
-  type Execution,
   ExecutionState,
-  type Label,
-} from '@/types/api';
+  type ExecutionResp,
+  type LabelItem,
+} from '@rcabench/client';
 
 dayjs.extend(duration);
 
@@ -58,7 +58,7 @@ const ExecutionList = () => {
   const navigate = useNavigate();
   const [searchText, setSearchText] = useState('');
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
-  const [stateFilter, setStateFilter] = useState<ExecutionState | undefined>();
+  const [stateFilter, setStateFilter] = useState<string | undefined>();
   const [algorithmFilter, setAlgorithmFilter] = useState<string | undefined>();
   const [pagination, setPagination] = useState({
     current: 1,
@@ -84,7 +84,7 @@ const ExecutionList = () => {
       executionApi.getExecutions({
         page: pagination.current,
         size: pagination.pageSize,
-        state: stateFilter,
+        state: stateFilter !== undefined ? Number(stateFilter) as ExecutionState : undefined,
       }),
   });
 
@@ -92,26 +92,27 @@ const ExecutionList = () => {
   const { data: algorithmsResponse } = useQuery({
     queryKey: ['algorithms'],
     queryFn: () =>
-      containerApi.getContainers({ type: ContainerType.ALGORITHM }),
+      containerApi.getContainers({ type: ContainerType.Algorithm }),
   });
 
-  const executionsData = executionsResponse?.data;
-  const algorithmsData = algorithmsResponse?.data;
+  // SDK returns ListExecutionResp directly with { items, pagination }
+  const executionsData = executionsResponse;
+  const algorithmsData = algorithmsResponse;
 
-  // Statistics
+  // Statistics - SDK uses string states: 'initial', 'running', 'success', 'failed'
   const stats = {
-    total: executionsData?.total || 0,
+    total: executionsData?.pagination?.total || 0,
     running:
-      executionsData?.data?.filter(
-        (e: any) => e.state === ExecutionState.RUNNING
+      executionsData?.items?.filter(
+        (e) => e.state === 'running'
       ).length || 0,
     completed:
-      executionsData?.data?.filter(
-        (e: any) => e.state === ExecutionState.COMPLETED
+      executionsData?.items?.filter(
+        (e) => e.state === 'success'
       ).length || 0,
     failed:
-      executionsData?.data?.filter(
-        (e: any) => e.state === ExecutionState.ERROR
+      executionsData?.items?.filter(
+        (e) => e.state === 'failed'
       ).length || 0,
   };
 
@@ -128,7 +129,7 @@ const ExecutionList = () => {
     setPagination({ ...pagination, current: 1 });
   };
 
-  const handleStateFilter = (state: ExecutionState | undefined) => {
+  const handleStateFilter = (state: string | undefined) => {
     setStateFilter(state);
     setPagination({ ...pagination, current: 1 });
   };
@@ -205,30 +206,33 @@ const ExecutionList = () => {
     }
   };
 
-  const getStateColor = (state: ExecutionState) => {
+  // SDK uses string states: 'initial', 'pending', 'running', 'success', 'failed'
+  const getStateColor = (state: string | undefined) => {
     switch (state) {
-      case ExecutionState.PENDING:
+      case 'initial':
+      case 'pending':
         return '#d1d5db';
-      case ExecutionState.RUNNING:
+      case 'running':
         return '#3b82f6';
-      case ExecutionState.COMPLETED:
+      case 'success':
         return '#10b981';
-      case ExecutionState.ERROR:
+      case 'failed':
         return '#ef4444';
       default:
         return '#6b7280';
     }
   };
 
-  const getStateIcon = (state: ExecutionState) => {
+  const getStateIcon = (state: string | undefined) => {
     switch (state) {
-      case ExecutionState.PENDING:
+      case 'initial':
+      case 'pending':
         return <ClockCircleOutlined />;
-      case ExecutionState.RUNNING:
+      case 'running':
         return <SyncOutlined spin />;
-      case ExecutionState.COMPLETED:
+      case 'success':
         return <CheckCircleOutlined />;
-      case ExecutionState.ERROR:
+      case 'failed':
         return <CloseCircleOutlined />;
       default:
         return <ClockCircleOutlined />;
@@ -295,47 +299,32 @@ const ExecutionList = () => {
       key: 'state',
       width: '12%',
       render: (state: string) => {
-        // 转换状态为本地 ExecutionState 枚举
-        let executionState: ExecutionState;
-        switch (state) {
-          case 'initial':
-          case 'pending':
-            executionState = ExecutionState.PENDING;
-            break;
-          case 'running':
-            executionState = ExecutionState.RUNNING;
-            break;
-          case 'success':
-            executionState = ExecutionState.COMPLETED;
-            break;
-          case 'failed':
-          default:
-            executionState = ExecutionState.ERROR;
-            break;
-        }
+        // SDK uses string states: 'initial', 'pending', 'running', 'success', 'failed'
+        const stateText =
+          state === 'initial' || state === 'pending'
+            ? 'Pending'
+            : state === 'running'
+              ? 'Running'
+              : state === 'success'
+                ? 'Completed'
+                : 'Error';
 
         return (
           <Badge
             status={
-              executionState === ExecutionState.COMPLETED
+              state === 'success'
                 ? 'success'
-                : executionState === ExecutionState.ERROR
+                : state === 'failed'
                   ? 'error'
-                  : executionState === ExecutionState.RUNNING
+                  : state === 'running'
                     ? 'processing'
                     : 'default'
             }
             text={
               <Space>
-                {getStateIcon(executionState)}
-                <Text strong style={{ color: getStateColor(executionState) }}>
-                  {executionState === ExecutionState.PENDING
-                    ? 'Pending'
-                    : executionState === ExecutionState.RUNNING
-                      ? 'Running'
-                      : executionState === ExecutionState.COMPLETED
-                        ? 'Completed'
-                        : 'Error'}
+                {getStateIcon(state)}
+                <Text strong style={{ color: getStateColor(state) }}>
+                  {stateText}
                 </Text>
               </Space>
             }
@@ -343,29 +332,15 @@ const ExecutionList = () => {
         );
       },
       filters: [
-        { text: 'Pending', value: ExecutionState.PENDING },
-        { text: 'Running', value: ExecutionState.RUNNING },
-        { text: 'Completed', value: ExecutionState.COMPLETED },
-        { text: 'Error', value: ExecutionState.ERROR },
+        { text: 'Pending', value: 'initial' },
+        { text: 'Running', value: 'running' },
+        { text: 'Completed', value: 'success' },
+        { text: 'Error', value: 'failed' },
       ],
-      onFilter: (value: ExecutionState, record: any) => {
-        // 转换状态进行比较
-        let recordState: ExecutionState;
-        switch (record.state) {
-          case 'initial':
-          case 'pending':
-            recordState = ExecutionState.PENDING;
-            break;
-          case 'running':
-            recordState = ExecutionState.RUNNING;
-            break;
-          case 'success':
-            recordState = ExecutionState.COMPLETED;
-            break;
-          case 'failed':
-          default:
-            recordState = ExecutionState.ERROR;
-            break;
+      onFilter: (value: boolean | React.Key, record: ExecutionResp) => {
+        const recordState = record.state;
+        if (value === 'initial') {
+          return recordState === 'initial' || recordState === 'pending';
         }
         return recordState === value;
       },
@@ -383,22 +358,22 @@ const ExecutionList = () => {
       title: 'Progress',
       key: 'progress',
       width: '12%',
-      render: (_: string, record: Execution) => {
+      render: (_: string, record: ExecutionResp) => {
         const progress =
-          record.state === ExecutionState.COMPLETED
+          record.state === 'success'
             ? 100
-            : record.state === ExecutionState.ERROR
+            : record.state === 'failed'
               ? 0
-              : record.state === ExecutionState.RUNNING
+              : record.state === 'running'
                 ? 50
                 : 0;
         return (
           <Progress
             percent={progress}
             status={
-              record.state === ExecutionState.ERROR
+              record.state === 'failed'
                 ? 'exception'
-                : record.state === ExecutionState.COMPLETED
+                : record.state === 'success'
                   ? 'success'
                   : 'active'
             }
@@ -413,7 +388,7 @@ const ExecutionList = () => {
       dataIndex: 'labels',
       key: 'labels',
       width: '12%',
-      render: (labels: Label[] = []) => (
+      render: (labels: LabelItem[] = []) => (
         <Space size='small' wrap>
           {labels.slice(0, 2).map((label, index) => (
             <Tag key={index} style={{ fontSize: '0.75rem' }}>
@@ -444,13 +419,13 @@ const ExecutionList = () => {
       title: 'Actions',
       key: 'actions',
       width: '10%',
-      render: (_: string, record: Execution) => (
+      render: (_: string, record: ExecutionResp) => (
         <Space size='small'>
           <Tooltip title='View Details'>
             <Button
               type='text'
               icon={<EyeOutlined />}
-              onClick={() => handleViewExecution(record.id)}
+              onClick={() => handleViewExecution(record.id!)}
             />
           </Tooltip>
           <Tooltip title='Delete Execution'>
@@ -458,7 +433,7 @@ const ExecutionList = () => {
               type='text'
               danger
               icon={<DeleteOutlined />}
-              onClick={() => handleDeleteExecution(record.id)}
+              onClick={() => handleDeleteExecution(record.id!)}
             />
           </Tooltip>
         </Space>
@@ -546,10 +521,9 @@ const ExecutionList = () => {
               onChange={handleStateFilter}
               value={stateFilter}
             >
-              <Option value={0}>Pending</Option>
-              <Option value={1}>Running</Option>
-              <Option value={2}>Completed</Option>
-              <Option value={-1}>Error</Option>
+              <Option value={String(ExecutionState.Initial)}>Pending</Option>
+              <Option value={String(ExecutionState.Failed)}>Error</Option>
+              <Option value={String(ExecutionState.Success)}>Completed</Option>
             </Select>
           </Col>
           <Col xs={24} sm={12} md={6}>
@@ -560,7 +534,7 @@ const ExecutionList = () => {
               onChange={handleAlgorithmFilter}
               value={algorithmFilter}
             >
-              {algorithmsData?.data?.map((algo: any) => (
+              {algorithmsData?.items?.map((algo) => (
                 <Option key={algo.id} value={algo.id}>
                   {algo.name}
                 </Option>

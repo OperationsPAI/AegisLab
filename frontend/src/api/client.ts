@@ -1,40 +1,46 @@
+/**
+ * Unified API client configuration for @rcabench/client SDK
+ * This module provides a shared axios instance and configuration factory
+ * for all SDK API classes.
+ */
+import { Configuration } from '@rcabench/client';
 import { message } from 'antd';
-import axios, {
-  type AxiosError,
-  type AxiosInstance,
-  type InternalAxiosRequestConfig,
-} from 'axios';
+import axios, { type AxiosInstance, type AxiosRequestConfig } from 'axios';
 
-// Create axios instance
-const apiClient: AxiosInstance = axios.create({
-  baseURL: '/api/v2',
-  timeout: 30000,
+// Base configuration
+const BASE_PATH = '/api/v2';
+const TIMEOUT = 30000;
+
+// Create shared axios instance
+export const axiosInstance: AxiosInstance = axios.create({
+  baseURL: BASE_PATH,
+  timeout: TIMEOUT,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Request interceptor
-apiClient.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
+// Request interceptor for auth
+axiosInstance.interceptors.request.use(
+  (config) => {
     const token = localStorage.getItem('access_token');
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
-  (error: AxiosError) => {
+  (error) => {
     return Promise.reject(error);
   }
 );
 
-// Response interceptor
-apiClient.interceptors.response.use(
+// Response interceptor for token refresh
+axiosInstance.interceptors.response.use(
   (response) => {
     return response;
   },
-  async (error: AxiosError) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & {
+  async (error) => {
+    const originalRequest = error.config as AxiosRequestConfig & {
       _retry?: boolean;
     };
 
@@ -45,7 +51,7 @@ apiClient.interceptors.response.use(
       try {
         const refreshToken = localStorage.getItem('refresh_token');
         if (refreshToken) {
-          const response = await axios.post('/api/v2/auth/refresh', {
+          const response = await axios.post(`${BASE_PATH}/auth/refresh`, {
             token: refreshToken,
           });
 
@@ -57,7 +63,7 @@ apiClient.interceptors.response.use(
           if (originalRequest.headers) {
             originalRequest.headers.Authorization = `Bearer ${token}`;
           }
-          return apiClient(originalRequest);
+          return axiosInstance(originalRequest);
         }
       } catch (refreshError) {
         // Refresh failed, redirect to login
@@ -79,4 +85,23 @@ apiClient.interceptors.response.use(
   }
 );
 
-export default apiClient;
+/**
+ * Create SDK Configuration with current auth token
+ * Use this function to create Configuration for SDK API classes
+ */
+export const createApiConfig = (): Configuration => {
+  const token = localStorage.getItem('access_token');
+
+  return new Configuration({
+    basePath: BASE_PATH,
+    accessToken: token ? `Bearer ${token}` : undefined,
+    baseOptions: {
+      timeout: TIMEOUT,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    } as AxiosRequestConfig,
+  });
+};
+
+export default axiosInstance;

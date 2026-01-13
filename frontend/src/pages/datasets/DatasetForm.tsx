@@ -30,8 +30,12 @@ import {
   Upload,
 } from 'antd';
 
+import type { LabelItem } from '@rcabench/client';
+
 import { datasetApi } from '@/api/datasets';
-import type { DatasetType, Label } from '@/types/api';
+
+// DatasetType enum for internal use
+type DatasetType = 'Trace' | 'Log' | 'Metric';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -43,7 +47,7 @@ interface DatasetFormData {
   type: DatasetType;
   description?: string;
   is_public: boolean;
-  labels?: Label[];
+  labels?: LabelItem[];
 }
 
 const DatasetForm = () => {
@@ -53,7 +57,7 @@ const DatasetForm = () => {
   const { id } = useParams<{ id: string }>();
   const datasetId = id ? Number(id) : undefined;
   const [labelInput, setLabelInput] = useState('');
-  const [labels, setLabels] = useState<Label[]>([]);
+  const [labels, setLabels] = useState<LabelItem[]>([]);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
 
   // Fetch dataset data if editing
@@ -66,14 +70,13 @@ const DatasetForm = () => {
   // Set form data when editing
   useEffect(() => {
     if (datasetData) {
-      const dataset = datasetData.data;
       form.setFieldsValue({
-        name: dataset.name,
-        type: dataset.type,
-        description: dataset.description,
-        is_public: dataset.is_public,
+        name: datasetData.name,
+        type: datasetData.type as DatasetType,
+        description: datasetData.description,
+        is_public: datasetData.is_public,
       });
-      setLabels(dataset.labels || []);
+      setLabels((datasetData.labels as LabelItem[]) || []);
     }
   }, [datasetData, form]);
 
@@ -351,7 +354,7 @@ const DatasetForm = () => {
                       <Tag
                         key={label.key}
                         closable
-                        onClose={() => removeLabel(label.key)}
+                        onClose={() => label.key && removeLabel(label.key)}
                         icon={<TagsOutlined />}
                         style={{ marginBottom: 8 }}
                       >

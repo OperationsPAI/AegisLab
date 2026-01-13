@@ -1,5 +1,12 @@
-/* Import utility classes */
+/* Design System Imports - Order matters! */
+/* 1. Theme variables must be loaded first (CSS custom properties) */
+@import './styles/theme.css';
+/* 2. Utility classes depend on theme variables */
 @import './styles/utility.css';
+/* 3. Shared component styles */
+@import './styles/shared/card.css';
+@import './styles/shared/form.css';
+@import './styles/shared/table.css';
 
 /* Global styles */
 * {
@@ -9,13 +16,13 @@
 }
 
 body {
-  font-family:
-    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu',
-    'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  font-family: var(--font-family-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--color-secondary-50);
   color: var(--color-secondary-800);
+  font-size: var(--font-size-base);
+  line-height: 1.6;
 }
 
 [data-theme='dark'] body {
@@ -24,12 +31,13 @@ body {
 }
 
 code {
-  font-family:
-    ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono',
-    monospace;
+  font-family: var(--font-family-mono);
 }
 
-/* Ant Design overrides */
+/* Ant Design overrides
+   Note: !important is sometimes necessary to override antd's inline styles
+   and high-specificity selectors. Consider using ConfigProvider for major
+   theme customizations instead. */
 .ant-layout {
   min-height: 100vh;
 }

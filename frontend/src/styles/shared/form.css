@@ -4,11 +4,11 @@
   border-radius: var(--radius-xl);
   border: 1px solid var(--color-secondary-200);
   box-shadow: var(--shadow-sm);
-  padding: 1.5rem;
+  padding: var(--space-6);
 }
 
 [data-theme='dark'] .form-card {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-surface-elevated);
   border-color: var(--color-secondary-700);
 }
 
@@ -23,10 +23,10 @@
 
 .form-button-group {
   display: flex;
-  gap: 1rem;
+  gap: var(--space-4);
   justify-content: flex-end;
-  margin-top: 2rem;
-  padding-top: 1.5rem;
+  margin-top: var(--space-8);
+  padding-top: var(--space-6);
   border-top: 1px solid var(--color-secondary-200);
 }
 
@@ -36,15 +36,15 @@
 
 /* Search Form */
 .search-form {
-  padding: 1.5rem;
+  padding: var(--space-6);
 }
 
 .search-form .ant-row {
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 .search-form .ant-form-item {
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-4);
 }
 
 /* Responsive Form */

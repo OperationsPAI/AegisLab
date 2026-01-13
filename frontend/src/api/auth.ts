@@ -1,138 +1,65 @@
-import { AuthenticationApi, Configuration } from '@rcabench/client';
-import { message } from 'antd';
-import axios, { type AxiosRequestConfig } from 'axios';
+/**
+ * 认证 API
+ * 使用 @rcabench/client SDK，手工实现缺失的端点
+ */
+import {
+  AuthenticationApi,
+  type LoginReq,
+  type LoginResp,
+  type RegisterReq,
+  type UserInfo,
+} from '@rcabench/client';
+import { apiClient, createApiConfig } from './config';
 
-// Create configuration with dynamic token
-const createAuthConfig = () => {
-  const token = localStorage.getItem('access_token');
-
-  return new Configuration({
-    basePath: '/api/v2',
-    accessToken: token ? `Bearer ${token}` : undefined,
-    baseOptions: {
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    } as AxiosRequestConfig,
-  });
-};
-
-// Create axios instance for manual API calls
-const apiClient = axios.create({
-  baseURL: '/api/v2',
-  timeout: 30000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Request interceptor for auth
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('access_token');
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// Response interceptor for token refresh
-apiClient.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  async (error) => {
-    const originalRequest = error.config as {
-      _retry?: boolean;
-      headers?: Record<string, string>;
-    }; // TODO: Fix this type properly
-
-    // Handle 401 Unauthorized - refresh token
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-
-      try {
-        const refreshToken = localStorage.getItem('refresh_token');
-        if (refreshToken) {
-          const response = await apiClient.post('/auth/refresh', {
-            token: refreshToken,
-          });
-
-          // Backend returns single 'token' field
-          const { token } = response.data;
-          localStorage.setItem('access_token', token);
-          localStorage.setItem('refresh_token', token);
-
-          if (originalRequest.headers) {
-            originalRequest.headers.Authorization = `Bearer ${token}`;
-          }
-          return apiClient(originalRequest);
-        }
-      } catch (refreshError) {
-        // Refresh failed, redirect to login
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        window.location.href = '/login';
-        return Promise.reject(refreshError);
-      }
-    }
-
-    // Handle other errors
-    const errorMessage =
-      (error.response?.data as { message?: string })?.message ||
-      error.message ||
-      '请求失败';
-
-    message.error(errorMessage);
-    return Promise.reject(error);
-  }
-);
-
-// Export the auth API using generated SDK where available
 export const authApi = {
-  // Login - using generated SDK
-  login: async (data: { username: string; password: string }) => {
-    const authApi = new AuthenticationApi(createAuthConfig());
-    const response = await authApi.login({ request: data });
-    return response.data;
+  // ==================== SDK 方法 ====================
+
+  /**
+   * 登录 - 使用 SDK
+   */
+  login: async (data: LoginReq): Promise<LoginResp | undefined> => {
+    const api = new AuthenticationApi(createApiConfig());
+    const response = await api.login({ request: data });
+    return response.data.data;
   },
 
-  // Register - using generated SDK
-  register: async (data: {
-    username: string;
-    password: string;
-    email: string;
-  }) => {
-    const authApi = new AuthenticationApi(createAuthConfig());
-    const response = await authApi.registerUser({ request: data });
-    return response.data;
+  /**
+   * 注册 - 使用 SDK
+   */
+  register: async (data: RegisterReq): Promise<UserInfo | undefined> => {
+    const api = new AuthenticationApi(createApiConfig());
+    const response = await api.registerUser({ request: data });
+    return response.data.data;
   },
 
-  // Logout - manual endpoint (not in generated SDK)
+  // ==================== 手工实现 (SDK 缺失) ====================
+
+  /**
+   * 登出 - 手工实现 (SDK 缺失)
+   */
   logout: () => apiClient.post('/auth/logout'),
 
-  // Get profile - manual endpoint (not in generated SDK)
-  getProfile: async () => {
-    const response = await apiClient.get('/auth/profile');
-    return response.data;
+  /**
+   * 获取用户信息 - 手工实现 (SDK 缺失)
+   */
+  getProfile: async (): Promise<UserInfo> => {
+    const response = await apiClient.get<{ data: UserInfo }>('/auth/profile');
+    return response.data.data;
   },
 
-  // Change password - manual endpoint (not in generated SDK)
+  /**
+   * 修改密码 - 手工实现 (SDK 缺失)
+   */
   changePassword: (data: { old_password: string; new_password: string }) =>
     apiClient.post('/auth/change-password', data),
 
-  // Refresh token - manual endpoint (not in generated SDK)
-  refreshToken: async (token: string) => {
+  /**
+   * 刷新 token - 手工实现 (SDK 缺失)
+   */
+  refreshToken: async (token: string): Promise<{ token: string }> => {
     const response = await apiClient.post<{ token: string }>('/auth/refresh', {
       token,
     });
     return response.data;
   },
 };
-
-export default apiClient;

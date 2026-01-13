@@ -14,16 +14,19 @@
   animation: fadeIn 0.6s ease-out;
 }
 
-.dashboard-title {
-  margin-bottom: 0.5rem !important;
-  font-family: var(--font-family-display) !important;
-  font-weight: 700 !important;
-  color: var(--color-secondary-800) !important;
-  font-size: 2rem !important;
+/* Using higher specificity to avoid !important where possible */
+.dashboard .dashboard-title,
+.dashboard .dashboard-title.ant-typography {
+  margin-bottom: 0.5rem;
+  font-family: var(--font-family-display);
+  font-weight: 700;
+  color: var(--color-secondary-800);
+  font-size: 2rem;
 }
 
-[data-theme='dark'] .dashboard-title {
-  color: var(--color-secondary-100) !important;
+[data-theme='dark'] .dashboard .dashboard-title,
+[data-theme='dark'] .dashboard .dashboard-title.ant-typography {
+  color: var(--color-secondary-100);
 }
 
 .dashboard-subtitle {
@@ -49,8 +52,9 @@
     gap: 1rem;
   }
 
-  .dashboard-title {
-    font-size: 1.5rem !important;
+  .dashboard .dashboard-title,
+  .dashboard .dashboard-title.ant-typography {
+    font-size: 1.5rem;
   }
 
   .dashboard-subtitle {

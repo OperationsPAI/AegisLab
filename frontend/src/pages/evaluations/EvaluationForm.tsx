@@ -32,11 +32,15 @@ import {
   Typography,
 } from 'antd';
 
+import {
+  type DatasetResp,
+  type EvaluateDatapackSpec,
+  type ExecutionResp,
+} from '@rcabench/client';
 import { containerApi } from '@/api/containers';
 import { datasetApi } from '@/api/datasets';
 import { evaluationApi } from '@/api/evaluations';
 import { executionApi } from '@/api/executions';
-import type { DatapackEvaluationSpec } from '@/types/api';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -84,7 +88,7 @@ const EvaluationForm = () => {
 
   // Evaluate mutation
   const evaluateMutation = useMutation({
-    mutationFn: (specs: DatapackEvaluationSpec[]) =>
+    mutationFn: (specs: EvaluateDatapackSpec[]) =>
       evaluationType === 'datapack'
         ? evaluationApi.evaluateDatapacks(specs as any)
         : evaluationApi.evaluateDatasets(specs as any),
@@ -147,7 +151,7 @@ const EvaluationForm = () => {
       return;
     }
 
-    const specs: DatapackEvaluationSpec[] = [
+    const specs: EvaluateDatapackSpec[] = [
       {
         algorithm: {
           name: selectedAlgorithm,
@@ -184,7 +188,7 @@ const EvaluationForm = () => {
     navigate('/evaluations');
   };
 
-  if (!algorithmsData?.data?.items?.length) {
+  if (!algorithmsData?.items?.length) {
     return (
       <div style={{ padding: 24 }}>
         <Card>
@@ -292,7 +296,7 @@ const EvaluationForm = () => {
                   size='large'
                   onChange={handleAlgorithmChange}
                 >
-                  {algorithmsData?.data?.items?.map((algorithm: any) => (
+                  {algorithmsData?.items?.map((algorithm) => (
                     <Option key={algorithm.id} value={algorithm.name}>
                       <Space>
                         <FunctionOutlined style={{ color: '#f59e0b' }} />
@@ -302,7 +306,7 @@ const EvaluationForm = () => {
                             type='secondary'
                             style={{ fontSize: '0.75rem' }}
                           >
-                            {algorithm.versions?.length || 0} versions available
+                            Algorithm
                           </Text>
                         </div>
                       </Space>
@@ -351,8 +355,8 @@ const EvaluationForm = () => {
                       <Descriptions.Item label='Public'>
                         <Switch
                           checked={
-                            algorithmsData?.data?.items?.find(
-                              (a: any) => a.name === selectedAlgorithm
+                            algorithmsData?.items?.find(
+                              (a) => a.name === selectedAlgorithm
                             )?.is_public
                           }
                           disabled
@@ -362,8 +366,8 @@ const EvaluationForm = () => {
                       <Descriptions.Item label='Versions'>1</Descriptions.Item>
                       <Descriptions.Item label='Created'>
                         {new Date(
-                          algorithmsData?.data?.items?.find(
-                            (a: any) => a.name === selectedAlgorithm
+                          algorithmsData?.items?.find(
+                            (a) => a.name === selectedAlgorithm
                           )?.created_at || ''
                         ).toLocaleDateString()}
                       </Descriptions.Item>
@@ -372,7 +376,7 @@ const EvaluationForm = () => {
                 </>
               )}
 
-              {evaluationType === 'datapack' && executionsData?.data && (
+              {evaluationType === 'datapack' && executionsData?.items && (
                 <Form.Item
                   label='Datapack'
                   name='datapack_id'
@@ -385,25 +389,25 @@ const EvaluationForm = () => {
                     size='large'
                     onChange={handleDatapackChange}
                   >
-                    {executionsData?.data?.data?.map(
-                      (execution: Execution) => (
+                    {executionsData?.items?.map(
+                      (execution: ExecutionResp) => (
                         <Option
                           key={execution.id}
-                          value={execution.datapack_id || ''}
+                          value={String(execution.datapack_id) || ''}
                         >
                           <Space>
                             <DatabaseOutlined style={{ color: '#3b82f6' }} />
                             <div>
                               <div>
                                 Datapack{' '}
-                                {execution.datapack_id?.substring(0, 8)}
+                                {execution.datapack_name || execution.datapack_id}
                               </div>
                               <Text
                                 type='secondary'
                                 style={{ fontSize: '0.75rem' }}
                               >
                                 From execution #{execution.id} -{' '}
-                                {execution.algorithm?.name}
+                                {execution.algorithm_name}
                               </Text>
                             </div>
                           </Space>
@@ -414,7 +418,7 @@ const EvaluationForm = () => {
                 </Form.Item>
               )}
 
-              {evaluationType === 'dataset' && datasetsData?.data.data && (
+              {evaluationType === 'dataset' && datasetsData?.items && (
                 <Form.Item
                   label='Dataset'
                   name='dataset_id'
@@ -427,7 +431,7 @@ const EvaluationForm = () => {
                     size='large'
                     onChange={handleDatasetChange}
                   >
-                    {datasetsData?.map((dataset: Dataset) => (
+                    {datasetsData?.items?.map((dataset: DatasetResp) => (
                       <Option key={dataset.id} value={String(dataset.id)}>
                         <Space>
                           <DatabaseOutlined style={{ color: '#10b981' }} />
@@ -437,8 +441,7 @@ const EvaluationForm = () => {
                               type='secondary'
                               style={{ fontSize: '0.75rem' }}
                             >
-                              {dataset.type} - {dataset.versions?.length || 0}{' '}
-                              versions
+                              {dataset.type}
                             </Text>
                           </div>
                         </Space>
@@ -457,7 +460,7 @@ const EvaluationForm = () => {
                   size='large'
                   allowClear
                 >
-                  {datasetsData?.data.map((dataset) => (
+                  {datasetsData?.items?.map((dataset) => (
                     <Option key={dataset.id} value={String(dataset.id)}>
                       <Space>
                         <CheckCircleOutlined style={{ color: '#10b981' }} />
@@ -618,7 +621,7 @@ const EvaluationForm = () => {
               <Col span={12}>
                 <Statistic
                   title='Available Algorithms'
-                  value={algorithmsData?.data?.items?.length || 0}
+                  value={algorithmsData?.items?.length || 0}
                   prefix={<FunctionOutlined />}
                   valueStyle={{ color: '#f59e0b' }}
                 />
@@ -626,7 +629,7 @@ const EvaluationForm = () => {
               <Col span={12}>
                 <Statistic
                   title='Available Datapacks'
-                  value={executionsData?.data?.data?.length || 0}
+                  value={executionsData?.items?.length || 0}
                   prefix={<DatabaseOutlined />}
                   valueStyle={{ color: '#3b82f6' }}
                 />
@@ -634,7 +637,7 @@ const EvaluationForm = () => {
               <Col span={12}>
                 <Statistic
                   title='Available Datasets'
-                  value={datasetsData?.data?.data?.length || 0}
+                  value={datasetsData?.items?.length || 0}
                   prefix={<DatabaseOutlined />}
                   valueStyle={{ color: '#10b981' }}
                 />

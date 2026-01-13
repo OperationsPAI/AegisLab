@@ -40,7 +40,10 @@ import dayjs from 'dayjs';
 
 import { datasetApi } from '@/api/datasets';
 import StatCard from '@/components/ui/StatCard';
-import type { Dataset, DatasetType } from '@/types/api';
+import type { DatasetResp } from '@rcabench/client';
+
+// DatasetType for internal use
+type DatasetType = 'Trace' | 'Log' | 'Metric';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -81,14 +84,14 @@ const DatasetList = () => {
       }),
   });
 
-  const datasetsData = datasetsResponse?.data;
+  const datasetsData = datasetsResponse;
 
   // Statistics
   const stats = {
-    total: datasetsData?.total || 0,
-    trace: datasetsData?.data.filter((d) => d.type === 'Trace').length || 0,
-    log: datasetsData?.data.filter((d) => d.type === 'Log').length || 0,
-    metric: datasetsData?.data.filter((d) => d.type === 'Metric').length || 0,
+    total: datasetsData?.pagination?.total || 0,
+    trace: datasetsData?.items?.filter((d) => d.type === 'Trace').length || 0,
+    log: datasetsData?.items?.filter((d) => d.type === 'Log').length || 0,
+    metric: datasetsData?.items?.filter((d) => d.type === 'Metric').length || 0,
   };
 
   const handleTableChange = (newPagination: TablePaginationConfig) => {
@@ -252,15 +255,15 @@ const DatasetList = () => {
       dataIndex: 'name',
       key: 'name',
       width: '30%',
-      render: (name: string, record: Dataset) => (
+      render: (name: string, record: DatasetResp) => (
         <Space>
           <Avatar
             size='large'
             style={{
-              backgroundColor: getTypeColor(record.type),
+              backgroundColor: getTypeColor(record.type as DatasetType),
               fontSize: '1.25rem',
             }}
-            icon={getTypeIcon(record.type)}
+            icon={getTypeIcon(record.type as DatasetType)}
           />
           <div>
             <Text strong style={{ fontSize: '1rem' }}>
@@ -279,8 +282,8 @@ const DatasetList = () => {
       dataIndex: 'type',
       key: 'type',
       width: '15%',
-      render: (type: DatasetType) => (
-        <Tag color={getTypeColor(type)} style={{ fontWeight: 500 }}>
+      render: (type: string) => (
+        <Tag color={getTypeColor(type as DatasetType)} style={{ fontWeight: 500 }}>
           {type}
         </Tag>
       ),
@@ -289,7 +292,7 @@ const DatasetList = () => {
         { text: 'Log', value: 'Log' },
         { text: 'Metric', value: 'Metric' },
       ],
-      onFilter: (value: any, record: Dataset) =>
+      onFilter: (value: unknown, record: DatasetResp) =>
         record.type === (value as string),
     },
     {
@@ -348,20 +351,20 @@ const DatasetList = () => {
       title: 'Actions',
       key: 'actions',
       width: '18%',
-      render: (_: string, record: Dataset) => (
+      render: (_: unknown, record: DatasetResp) => (
         <Space>
           <Tooltip title='View Details'>
             <Button
               type='text'
               icon={<EyeOutlined />}
-              onClick={() => handleViewDataset(record.id)}
+              onClick={() => record.id && handleViewDataset(record.id)}
             />
           </Tooltip>
           <Tooltip title='Edit Dataset'>
             <Button
               type='text'
               icon={<EditOutlined />}
-              onClick={() => handleEditDataset(record.id)}
+              onClick={() => record.id && handleEditDataset(record.id)}
             />
           </Tooltip>
           <Tooltip title='Manage Versions'>
@@ -376,7 +379,7 @@ const DatasetList = () => {
               type='text'
               danger
               icon={<DeleteOutlined />}
-              onClick={() => handleDeleteDataset(record.id)}
+              onClick={() => record.id && handleDeleteDataset(record.id)}
             />
           </Tooltip>
         </Space>
@@ -501,11 +504,11 @@ const DatasetList = () => {
           rowKey='id'
           rowSelection={rowSelection}
           columns={columns}
-          dataSource={datasetsData?.data || []}
+          dataSource={datasetsData?.items || []}
           loading={isLoading}
           pagination={{
             ...pagination,
-            total: datasetsData?.total || 0,
+            total: datasetsData?.pagination?.total || 0,
             showSizeChanger: true,
             showQuickJumper: true,
             showTotal: (total, range) =>

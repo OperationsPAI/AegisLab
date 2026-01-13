@@ -25,7 +25,9 @@ import { containerApi } from '../../api/containers';
 import { injectionApi } from '../../api/injections';
 import { projectApi } from '../../api/projects';
 import MainLayout from '../../components/layout/MainLayout';
-import type { Container, FaultType, Project } from '../../types/api';
+import type { ContainerResp, ProjectResp } from '@rcabench/client';
+
+import type { FaultType } from '../../types/api';
 
 import './InjectionCreate.css';
 
@@ -74,7 +76,6 @@ const InjectionCreate: React.FC = () => {
         return Promise.resolve({ items: [] });
       }
       return containerApi.getContainers({
-        projectId: selectedProject,
         page: 1,
         size: 100,
       });
@@ -183,7 +184,7 @@ const InjectionCreate: React.FC = () => {
                     loading={projectsLoading}
                     onChange={handleProjectChange}
                   >
-                    {projects.map((project: Project) => (
+                    {projects.map((project: ProjectResp) => (
                       <Option key={project.id} value={project.id}>
                         {project.name}
                       </Option>
@@ -220,7 +221,7 @@ const InjectionCreate: React.FC = () => {
                     loading={containersLoading}
                     disabled={!selectedProject}
                   >
-                    {groupedContainers.pedestals.map((container: Container) => (
+                    {groupedContainers.pedestals.map((container: ContainerResp) => (
                       <Option key={container.id} value={container.id}>
                         {container.name}
                       </Option>
@@ -244,7 +245,7 @@ const InjectionCreate: React.FC = () => {
                     disabled={!selectedProject}
                   >
                     {groupedContainers.benchmarks.map(
-                      (container: Container) => (
+                      (container: ContainerResp) => (
                         <Option key={container.id} value={container.id}>
                           {container.name}
                         </Option>

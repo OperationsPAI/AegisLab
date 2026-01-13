@@ -14,6 +14,7 @@ import {
   SyncOutlined,
 } from '@ant-design/icons';
 import type { InjectionDetailResp as Injection } from '@rcabench/client';
+import { InjectionState, InjectionType } from '@/types/api';
 import { useQuery } from '@tanstack/react-query';
 import {
   Avatar,
@@ -40,7 +41,6 @@ import StatCard from '@/components/ui/StatCard';
 import StatusBadge, {
   type StatusBadgeProps,
 } from '@/components/ui/StatusBadge';
-import { InjectionState, InjectionType } from '@/types/api';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -75,8 +75,7 @@ const InjectionList = () => {
   // Fetch statistics - mock for now
   const stats = {
     total: injectionsData?.pagination?.total || 0,
-    running:
-      injectionsData?.items?.filter((i) => i.state === '1').length || 0,
+    running: injectionsData?.items?.filter((i) => i.state === '1').length || 0,
     successRate: 87,
     avgDuration: 45,
   };

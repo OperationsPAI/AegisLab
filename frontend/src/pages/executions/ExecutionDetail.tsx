@@ -14,6 +14,7 @@ import {
   SyncOutlined,
   TagsOutlined,
 } from '@ant-design/icons';
+import type { GranularityResultItem } from '@rcabench/client';
 import { useQuery } from '@tanstack/react-query';
 import {
   Badge,
@@ -37,7 +38,6 @@ import duration from 'dayjs/plugin/duration';
 
 import { executionApi } from '@/api/executions';
 import StatusBadge from '@/components/ui/StatusBadge';
-import type { GranularityResultItem } from '@/types/api';
 
 dayjs.extend(duration);
 
@@ -82,30 +82,33 @@ const ExecutionDetail = () => {
     }
   };
 
-  const getStateColor = (state: string | number) => {
-    switch (String(state)) {
-      case '0': // PENDING
+  // SDK uses string states: 'initial', 'pending', 'running', 'success', 'failed'
+  const getStateColor = (state: string | undefined) => {
+    switch (state) {
+      case 'initial':
+      case 'pending':
         return '#d1d5db';
-      case '1': // RUNNING
+      case 'running':
         return '#3b82f6';
-      case '2': // COMPLETED
+      case 'success':
         return '#10b981';
-      case '-1': // ERROR
+      case 'failed':
         return '#ef4444';
       default:
         return '#6b7280';
     }
   };
 
-  const getStateIcon = (state: string | number) => {
-    switch (String(state)) {
-      case '0': // PENDING
+  const getStateIcon = (state: string | undefined) => {
+    switch (state) {
+      case 'initial':
+      case 'pending':
         return <ClockCircleOutlined />;
-      case '1': // RUNNING
+      case 'running':
         return <SyncOutlined spin />;
-      case '2': // COMPLETED
+      case 'success':
         return <CheckCircleOutlined />;
-      case '-1': // ERROR
+      case 'failed':
         return <CloseCircleOutlined />;
       default:
         return <ClockCircleOutlined />;
@@ -235,13 +238,14 @@ const ExecutionDetail = () => {
     );
   }
 
-  const executionData = execution?.data;
+  // SDK returns ExecutionDetailResp directly
+  const executionData = execution;
   const progress =
-    executionData?.state === 2
+    executionData?.state === 'success'
       ? 100
-      : executionData?.state === -1
+      : executionData?.state === 'failed'
         ? 0
-        : executionData?.state === 1
+        : executionData?.state === 'running'
           ? 50
           : 0;
 
@@ -261,28 +265,29 @@ const ExecutionDetail = () => {
           </Title>
           <Badge
             status={
-              executionData?.state === 2
+              executionData?.state === 'success'
                 ? 'success'
-                : executionData?.state === -1
+                : executionData?.state === 'failed'
                   ? 'error'
-                  : executionData?.state === 1
+                  : executionData?.state === 'running'
                     ? 'processing'
                     : 'default'
             }
             text={
               <Space>
-                {getStateIcon(executionData?.state || 0)}
+                {getStateIcon(executionData?.state)}
                 <Text
                   strong
-                  style={{ color: getStateColor(executionData?.state || 0) }}
+                  style={{ color: getStateColor(executionData?.state) }}
                 >
-                  {executionData?.state === 0
+                  {executionData?.state === 'initial' ||
+                  executionData?.state === 'pending'
                     ? 'Pending'
-                    : executionData?.state === 1
+                    : executionData?.state === 'running'
                       ? 'Running'
-                      : executionData?.state === 2
+                      : executionData?.state === 'success'
                         ? 'Completed'
-                        : executionData?.state === -1
+                        : executionData?.state === 'failed'
                           ? 'Error'
                           : 'Unknown'}
                 </Text>
@@ -301,7 +306,7 @@ const ExecutionDetail = () => {
                 type='primary'
                 icon={<DownloadOutlined />}
                 onClick={handleDownloadResults}
-                disabled={executionData?.state !== 2}
+                disabled={executionData?.state !== 'success'}
               >
                 Download Results
               </Button>
@@ -332,16 +337,16 @@ const ExecutionDetail = () => {
         <Progress
           percent={progress}
           status={
-            executionData?.state === -1
+            executionData?.state === 'failed'
               ? 'exception'
-              : executionData?.state === 2
+              : executionData?.state === 'success'
                 ? 'success'
                 : 'active'
           }
-          strokeColor={getStateColor(executionData?.state || '0')}
+          strokeColor={getStateColor(executionData?.state)}
           format={(percent) => (
             <Space>
-              {getStateIcon(executionData?.state || '0')}
+              {getStateIcon(executionData?.state)}
               <Text>{percent}%</Text>
             </Space>
           )}
@@ -388,22 +393,23 @@ const ExecutionDetail = () => {
                       <Descriptions.Item label='Status'>
                         <StatusBadge
                           status={
-                            executionData?.state === 2
+                            executionData?.state === 'success'
                               ? 'completed'
-                              : executionData?.state === -1
+                              : executionData?.state === 'failed'
                                 ? 'error'
-                                : executionData?.state === 1
+                                : executionData?.state === 'running'
                                   ? 'running'
                                   : 'pending'
                           }
                           text={
-                            executionData?.state === 0
+                            executionData?.state === 'initial' ||
+                            executionData?.state === 'pending'
                               ? 'Pending'
-                              : executionData?.state === 1
+                              : executionData?.state === 'running'
                                 ? 'Running'
-                                : executionData?.state === 2
+                                : executionData?.state === 'success'
                                   ? 'Completed'
-                                  : executionData?.state === -1
+                                  : executionData?.state === 'failed'
                                     ? 'Error'
                                     : 'Unknown'
                           }
@@ -466,11 +472,16 @@ const ExecutionDetail = () => {
                         <br />
                         {executionData?.labels?.length ? (
                           <Space wrap>
-                            {executionData.labels.map((label, index) => (
-                              <Tag key={index} icon={<TagsOutlined />}>
-                                {label.key}: {label.value}
-                              </Tag>
-                            ))}
+                            {executionData.labels.map(
+                              (
+                                label: { key?: string; value?: string },
+                                index: number
+                              ) => (
+                                <Tag key={index} icon={<TagsOutlined />}>
+                                  {label.key}: {label.value}
+                                </Tag>
+                              )
+                            )}
                           </Space>
                         ) : (
                           <Text type='secondary'>No labels</Text>
@@ -492,7 +503,7 @@ const ExecutionDetail = () => {
                   <Button
                     icon={<DownloadOutlined />}
                     onClick={handleDownloadResults}
-                    disabled={executionData?.state !== 2}
+                    disabled={executionData?.state !== 'success'}
                   >
                     Export
                   </Button>

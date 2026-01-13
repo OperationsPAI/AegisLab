@@ -20,8 +20,8 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
-  accessToken: localStorage.getItem('access_token') || 'temp_token',
-  refreshToken: localStorage.getItem('refresh_token') || 'temp_token',
+  accessToken: null, // 临时移除 token 以便查看页面
+  refreshToken: null,
   isAuthenticated: true, // 临时设置为已认证状态
   loading: false,
 

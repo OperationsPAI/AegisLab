@@ -13,14 +13,14 @@ import {
   Tooltip,
 } from 'antd';
 
-import type { Container } from '../../../types/api';
+import type { ContainerResp } from '@rcabench/client';
 
 import './AlgorithmSelector.css';
 
 const { Option } = Select;
 
 interface AlgorithmSelectorProps {
-  algorithms: Container[];
+  algorithms: ContainerResp[];
   value: number[];
   onChange: (algorithms: number[]) => void;
 }
@@ -38,15 +38,9 @@ export const AlgorithmSelector: React.FC<AlgorithmSelectorProps> = ({
     onChange(newValue);
   };
 
-  const getAlgorithmInfo = (algorithmId: number) => {
-    return algorithms.find((a) => a.id === algorithmId);
-  };
-
-  const getAlgorithmTags = (algorithm: Container) => {
-    const tags = [];
+  const getAlgorithmTags = (algorithm: ContainerResp) => {
+    const tags: string[] = [];
     if (algorithm.type) tags.push(algorithm.type);
-    if (algorithm.versions?.length)
-      tags.push(`v${algorithm.versions[0].version}`);
     return tags;
   };
 
@@ -56,8 +50,7 @@ export const AlgorithmSelector: React.FC<AlgorithmSelectorProps> = ({
     closable: boolean;
     onClose: () => void;
   }) => {
-    const { label, value: algorithmId, closable, onClose } = props;
-    const algorithm = getAlgorithmInfo(algorithmId);
+    const { label, closable, onClose } = props;
 
     const onPreventMouseDown = (event: React.MouseEvent) => {
       event.preventDefault();
@@ -123,11 +116,6 @@ export const AlgorithmSelector: React.FC<AlgorithmSelectorProps> = ({
                     ))}
                   </Space>
                 </div>
-                {algorithm.readme && (
-                  <div className='algorithm-option-description'>
-                    {algorithm.readme}
-                  </div>
-                )}
               </div>
             </Option>
           ))}
@@ -150,12 +138,13 @@ export const AlgorithmSelector: React.FC<AlgorithmSelectorProps> = ({
                 <Button
                   key='select'
                   type={
-                    selectedAlgorithms.includes(algorithm.id)
+                    algorithm.id !== undefined && selectedAlgorithms.includes(algorithm.id)
                       ? 'default'
                       : 'primary'
                   }
                   size='small'
                   onClick={() => {
+                    if (algorithm.id === undefined) return;
                     if (selectedAlgorithms.includes(algorithm.id)) {
                       handleChange(
                         selectedAlgorithms.filter((id) => id !== algorithm.id)
@@ -165,7 +154,7 @@ export const AlgorithmSelector: React.FC<AlgorithmSelectorProps> = ({
                     }
                   }}
                 >
-                  {selectedAlgorithms.includes(algorithm.id)
+                  {algorithm.id !== undefined && selectedAlgorithms.includes(algorithm.id)
                     ? 'Remove'
                     : 'Select'}
                 </Button>,
@@ -179,14 +168,9 @@ export const AlgorithmSelector: React.FC<AlgorithmSelectorProps> = ({
                 }
                 description={
                   <div>
-                    <div>{algorithm.readme}</div>
                     <div className='algorithm-meta'>
                       <Space size='large'>
                         <span>Type: {algorithm.type}</span>
-                        <span>
-                          Version:{' '}
-                          {algorithm.versions?.[0]?.version || 'Unknown'}
-                        </span>
                         <span>
                           Created:{' '}
                           {new Date(

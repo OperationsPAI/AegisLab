@@ -1,145 +1,177 @@
+/**
+ * 注入 API
+ * 使用 @rcabench/client SDK，手工实现缺失的端点
+ */
 import {
-  Configuration,
   InjectionsApi,
+  type BatchManageInjectionLabelReq,
+  type DatapackState,
+  type GetInjectionMetadataSystem,
+  type InjectionDetailResp,
+  type InjectionNoIssuesResp,
+  type InjectionWithIssuesResp,
+  type LabelItem,
+  type ListInjectionResp,
   type ListInjectionsType,
+  type ManageInjectionLabelReq,
+  type SubmitDatapackBuildingReq,
   type SubmitInjectionReq,
 } from '@rcabench/client';
-import axios, { type AxiosRequestConfig } from 'axios';
+import { apiClient, createApiConfig } from './config';
 
-import type { GenericResponse } from '../types/api';
-
-// Create configuration with dynamic token
-const createInjectionConfig = () => {
-  const token = localStorage.getItem('access_token');
-
-  return new Configuration({
-    basePath: '/api/v2',
-    accessToken: token ? `Bearer ${token}` : undefined,
-    baseOptions: {
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    } as AxiosRequestConfig,
-  });
-};
-
-// Create axios instance for manual API calls
-const apiClient = axios.create({
-  baseURL: '/api/v2',
-  timeout: 30000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Request interceptor for auth
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('access_token');
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// Export the injections API using generated SDK where available
 export const injectionApi = {
-  // Get injections list - using generated SDK
+  // ==================== SDK 方法 ====================
+
+  /**
+   * 获取注入列表 - 使用 SDK
+   */
   getInjections: async (params?: {
     page?: number;
     size?: number;
-    lookback?: string;
     fault_type?: string;
-    state?: number;
-    label?: string;
-    project_id?: number;
-  }) => {
-    const injectionsApi = new InjectionsApi(createInjectionConfig());
-    const response = await injectionsApi.listInjections({
+    benchmark?: string;
+    state?: DatapackState;
+    status?: number;
+    labels?: string[];
+  }): Promise<ListInjectionResp | undefined> => {
+    const api = new InjectionsApi(createApiConfig());
+    const response = await api.listInjections({
       page: params?.page,
       size: params?.size,
-      type: params?.fault_type as unknown as ListInjectionsType,
+      type: params?.fault_type as ListInjectionsType | undefined,
+      benchmark: params?.benchmark,
       state: params?.state,
-      labels: params?.label ? [params.label] : undefined,
+      status: params?.status,
+      labels: params?.labels,
     });
-    return response.data;
+    return response.data.data;
   },
 
-  // Get injection detail - using generated SDK
-  getInjection: async (id: number) => {
-    const injectionsApi = new InjectionsApi(createInjectionConfig());
-    const response = await injectionsApi.getInjectionById({ id });
-    return response.data;
+  /**
+   * 获取注入详情 - 使用 SDK
+   */
+  getInjection: async (id: number): Promise<InjectionDetailResp | undefined> => {
+    const api = new InjectionsApi(createApiConfig());
+    const response = await api.getInjectionById({ id });
+    return response.data.data;
   },
 
-  // Submit injection - using generated SDK
-  submitInjection: async (data: Record<string, unknown>) => {
-    const injectionsApi = new InjectionsApi(createInjectionConfig());
-    const response = await injectionsApi.injectFault({
-      body: data as unknown as SubmitInjectionReq,
+  /**
+   * 提交注入 - 使用 SDK
+   */
+  submitInjection: async (data: SubmitInjectionReq) => {
+    const api = new InjectionsApi(createApiConfig());
+    const response = await api.injectFault({ body: data });
+    return response.data.data;
+  },
+
+  /**
+   * 构建数据包 - 使用 SDK
+   */
+  buildDatapack: async (data: SubmitDatapackBuildingReq) => {
+    const api = new InjectionsApi(createApiConfig());
+    const response = await api.buildDatapack({ body: data });
+    return response.data.data;
+  },
+
+  /**
+   * 获取故障元数据 - 使用 SDK
+   */
+  getFaultMetadata: async (system: GetInjectionMetadataSystem) => {
+    const api = new InjectionsApi(createApiConfig());
+    const response = await api.getInjectionMetadata({ system });
+    return response.data.data;
+  },
+
+  /**
+   * 获取失败的注入 (无问题) - 使用 SDK
+   */
+  getNoIssues: async (params?: {
+    labels?: string[];
+    lookback?: string;
+    customStartTime?: string;
+    customEndTime?: string;
+  }): Promise<InjectionNoIssuesResp[] | undefined> => {
+    const api = new InjectionsApi(createApiConfig());
+    const response = await api.listFailedInjections({
+      labels: params?.labels,
+      lookback: params?.lookback,
+      customStartTime: params?.customStartTime,
+      customEndTime: params?.customEndTime,
     });
-    return response.data;
+    return response.data.data;
   },
 
-  // Build datapack - using generated SDK
-  buildDatapack: async (data: {
-    benchmark: { name: string; version: string; namespace: string };
-    datapack_id?: string;
-    dataset_id?: number;
-    dataset_version?: string;
-    pre_duration?: number;
+  /**
+   * 获取成功的注入 (有问题) - 使用 SDK
+   */
+  getWithIssues: async (params?: {
+    labels?: string[];
+    lookback?: string;
+    customStartTime?: string;
+    customEndTime?: string;
+  }): Promise<InjectionWithIssuesResp[] | undefined> => {
+    const api = new InjectionsApi(createApiConfig());
+    const response = await api.listSuccessfulInjections({
+      labels: params?.labels,
+      lookback: params?.lookback,
+      customStartTime: params?.customStartTime,
+      customEndTime: params?.customEndTime,
+    });
+    return response.data.data;
+  },
+
+  /**
+   * 管理注入标签 - 使用 SDK
+   */
+  manageLabels: async (
+    id: number,
+    manage: ManageInjectionLabelReq
+  ) => {
+    const api = new InjectionsApi(createApiConfig());
+    const response = await api.manageInjectionLabels({ id, manage });
+    return response.data.data;
+  },
+
+  /**
+   * 批量管理注入标签 - 使用 SDK
+   */
+  batchManageLabels: async (data: {
+    injection_ids: number[];
+    add_labels?: LabelItem[];
+    remove_labels?: string[];
   }) => {
-    const injectionsApi = new InjectionsApi(createInjectionConfig());
-    const response = await injectionsApi.buildDatapack({
-      body: {
-        project_name: 'default',
-        specs: [
-          {
-            benchmark: data.benchmark,
-          },
-        ],
-      },
-    });
-    return response.data;
+    const api = new InjectionsApi(createApiConfig());
+    // Convert to SDK expected format: items array with InjectionLabelOperation objects
+    // Note: SDK expects remove_labels as LabelItem[] (key only), convert from string[]
+    const batchManage: BatchManageInjectionLabelReq = {
+      items: data.injection_ids.map((id) => ({
+        injection_id: id,
+        add_labels: data.add_labels,
+        remove_labels: data.remove_labels?.map((key) => ({ key })),
+      })),
+    };
+    const response = await api.batchManageInjectionLabels({ batchManage });
+    return response.data.data;
   },
 
-  // Get fault metadata - using generated SDK
-  getFaultMetadata: async (params: { system: string }) => {
-    const injectionsApi = new InjectionsApi(createInjectionConfig());
-    const response = await injectionsApi.getInjectionMetadata({
-      system: params.system as any,
-    });
-    return response;
-  },
+  // ==================== 手工实现 (SDK 缺失) ====================
 
-  // Update labels - manual endpoint (not in generated SDK)
+  /**
+   * 更新标签 (替换所有) - 手工实现 (SDK 使用增量修改)
+   */
   updateLabels: (id: number, labels: Array<{ key: string; value: string }>) =>
     apiClient.patch(`/injections/${id}/labels`, { labels }),
 
-  // Batch delete - manual endpoint (not in generated SDK)
+  /**
+   * 批量删除注入 - 手工实现 (SDK 缺失)
+   */
   batchDelete: (ids: number[]) =>
-    apiClient.post<GenericResponse<null>>('/injections/batch-delete', { ids }),
+    apiClient.post('/injections/batch-delete', { ids }),
 
-  // Analysis - using generated SDK
-  getNoIssues: async () => {
-    const injectionsApi = new InjectionsApi(createInjectionConfig());
-    const response = await injectionsApi.listFailedInjections();
-    return response.data;
-  },
-
-  // Analysis - using generated SDK
-  getWithIssues: async () => {
-    const injectionsApi = new InjectionsApi(createInjectionConfig());
-    const response = await injectionsApi.listSuccessfulInjections();
-    return response.data;
-  },
-
-  // Create injection - manual endpoint for visual injection creation
+  /**
+   * 创建注入 (可视化创建) - 手工实现 (SDK 缺失)
+   */
   createInjection: async (data: {
     project_id: number;
     name: string;
@@ -169,11 +201,11 @@ export const injectionApi = {
     return response.data;
   },
 
-  // Get fault types - manual endpoint
+  /**
+   * 获取故障类型 - 手工实现 (SDK 缺失)
+   */
   getFaultTypes: async () => {
     const response = await apiClient.get('/injections/fault-types');
     return response.data;
   },
 };
-
-export default apiClient;

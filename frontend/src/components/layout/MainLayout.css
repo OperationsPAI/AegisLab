@@ -25,7 +25,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 1.5rem;
-  transition: all 0.3s ease;
+  transition: all var(--transition-base);
 }
 
 [data-theme='dark'] .main-header {
@@ -36,13 +36,13 @@
 .header-left {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 .header-right {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 .sidebar-toggle {
@@ -52,7 +52,7 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-base);
-  transition: all 0.3s ease;
+  transition: all var(--transition-base);
 }
 
 .sidebar-toggle:hover {
@@ -67,9 +67,9 @@
 .logo-section {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--space-3);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all var(--transition-base);
 }
 
 .logo-section:hover {
@@ -78,7 +78,7 @@
 
 .logo-icon {
   color: var(--color-primary-500);
-  transition: all 0.3s ease;
+  transition: all var(--transition-base);
 }
 
 .logo-section:hover .logo-icon {
@@ -113,7 +113,7 @@
   padding: 0.5rem;
   border-radius: var(--radius-lg);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all var(--transition-base);
 }
 
 .user-section:hover {
@@ -148,7 +148,7 @@
   bottom: 0;
   background: var(--color-secondary-100);
   border-right: 1px solid var(--color-secondary-200);
-  transition: all 0.3s ease;
+  transition: all var(--transition-base);
   z-index: var(--z-fixed);
 }
 
@@ -175,7 +175,7 @@
   height: 3rem;
   line-height: 3rem;
   border-radius: var(--radius-base);
-  transition: all 0.3s ease;
+  transition: all var(--transition-base);
 }
 
 .sidebar-menu .ant-menu-item:hover,
@@ -227,7 +227,7 @@
 .system-status {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   font-size: var(--font-size-sm);
   color: var(--color-secondary-600);
 }
@@ -237,8 +237,8 @@
 }
 
 .status-indicator {
-  width: 0.5rem;
-  height: 0.5rem;
+  width: var(--space-2);
+  height: var(--space-2);
   border-radius: 50%;
   background: var(--color-success);
   animation: pulse 2s infinite;
@@ -247,16 +247,16 @@
 /* Content Area */
 .main-content-wrapper {
   margin-left: 240px;
-  transition: margin-left 0.3s ease;
+  transition: margin-left var(--transition-base);
 }
 
-.main-sidebar[style*='width: 64px'] + .main-content-wrapper {
+.main-sidebar.ant-layout-sider-collapsed + .main-content-wrapper {
   margin-left: 64px;
 }
 
 .main-content {
   min-height: 100%;
-  padding: 1.5rem;
+  padding: var(--space-6);
 }
 
 .content-inner {

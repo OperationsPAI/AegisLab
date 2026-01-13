@@ -1,96 +1,87 @@
-import { Configuration, TasksApi } from '@rcabench/client';
-import axios, { type AxiosRequestConfig } from 'axios';
+/**
+ * 任务 API
+ * 使用 @rcabench/client SDK，手工实现缺失的端点
+ */
+import {
+  TasksApi,
+  TracesApi,
+  type GroupStats,
+  type ListTaskResp,
+  type ListTasksTaskType,
+  type StatusType,
+  type TaskDetailResp,
+  type TaskState,
+} from '@rcabench/client';
+import { apiClient, createApiConfig } from './config';
 
-// Create configuration with dynamic token
-const createTaskConfig = () => {
-  const token = localStorage.getItem('access_token');
-
-  return new Configuration({
-    basePath: '/api/v2',
-    accessToken: token ? `Bearer ${token}` : undefined,
-    baseOptions: {
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    } as AxiosRequestConfig,
-  });
-};
-
-// Create axios instance for manual API calls
-const apiClient = axios.create({
-  baseURL: '/api/v2',
-  timeout: 30000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Request interceptor for auth
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('access_token');
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// Export the tasks API using generated SDK where available
 export const taskApi = {
-  // Get tasks list - using generated SDK
+  // ==================== SDK 方法 ====================
+
+  /**
+   * 获取任务列表 - 使用 SDK
+   */
   getTasks: async (params?: {
     page?: number;
     size?: number;
-    taskType?: number;
-    state?: number;
-    status?: number;
+    taskType?: ListTasksTaskType;
+    immediate?: boolean;
     traceId?: string;
     groupId?: string;
     projectId?: number;
-  }) => {
-    const tasksApi = new TasksApi(createTaskConfig());
-    const response = await tasksApi.listTasks({
+    state?: TaskState;
+    status?: StatusType;
+  }): Promise<ListTaskResp | undefined> => {
+    const api = new TasksApi(createApiConfig());
+    const response = await api.listTasks({
       page: params?.page,
       size: params?.size,
       taskType: params?.taskType,
-      state: params?.state,
-      status: params?.status,
+      immediate: params?.immediate,
       traceId: params?.traceId,
       groupId: params?.groupId,
       projectId: params?.projectId,
+      state: params?.state,
+      status: params?.status,
     });
-    return response.data;
+    return response.data.data;
   },
 
-  // Get task detail - using generated SDK
-  getTask: async (taskId: string) => {
-    const tasksApi = new TasksApi(createTaskConfig());
-    const response = await tasksApi.getTaskById({ taskId });
-    return response.data;
+  /**
+   * 获取任务详情 - 使用 SDK
+   */
+  getTask: async (taskId: string): Promise<TaskDetailResp | undefined> => {
+    const api = new TasksApi(createApiConfig());
+    const response = await api.getTaskById({ taskId });
+    return response.data.data;
   },
 
-  // Batch delete - manual endpoint (not in generated SDK)
+  /**
+   * 获取追踪组统计 - 使用 SDK
+   */
+  getGroupStats: async (groupId: string): Promise<GroupStats | undefined> => {
+    const api = new TracesApi(createApiConfig());
+    const response = await api.getGroupStats({ groupId });
+    return response.data.data;
+  },
+
+  // ==================== 手工实现 (SDK 缺失) ====================
+
+  /**
+   * 批量删除任务 - 手工实现 (SDK 缺失)
+   */
   batchDelete: (ids: string[]) =>
     apiClient.post('/tasks/batch-delete', { ids }),
-
-  // Get group stats - manual endpoint (not in generated SDK)
-  getGroupStats: (groupId: string) =>
-    apiClient.get(`/traces/group/stats`, { params: { groupId } }),
 };
 
-// SSE stream helper
-export const createLogStream = (traceId: string) => {
+/**
+ * 创建实时日志流 (SSE)
+ * 注意：EventSource 不支持自定义 headers，
+ * 如果需要认证，后端需要支持通过 query params 传递 token
+ */
+export const createLogStream = (traceId: string): EventSource => {
   const token = localStorage.getItem('access_token');
-  const url = `/api/v2/traces/${traceId}/stream`;
+  // SSE 连接通常需要通过 URL 参数传递 token
+  const url = `/api/v2/traces/${traceId}/stream${token ? `?token=${encodeURIComponent(token)}` : ''}`;
 
-  return new EventSource(url, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  } as EventSourceInit);
+  return new EventSource(url);
 };

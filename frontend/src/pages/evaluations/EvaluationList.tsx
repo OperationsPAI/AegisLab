@@ -37,21 +37,21 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 
+import {
+  type EvaluateDatapackItem,
+  type EvaluateDatapackSpec,
+} from '@rcabench/client';
 import { containerApi } from '@/api/containers';
 import { datasetApi } from '@/api/datasets';
 import { evaluationApi } from '@/api/evaluations';
 import StatCard from '@/components/ui/StatCard';
-import type {
-  DatapackEvaluationResult,
-  DatapackEvaluationSpec,
-} from '@/types/api';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
 const { Option } = Select;
 
 // Mock evaluation data for demonstration
-const mockEvaluations: DatapackEvaluationResult[] = [
+const mockEvaluations: EvaluateDatapackItem[] = [
   {
     algorithm: 'MicroRank',
     algorithm_version: 'v1.0.0',
@@ -98,7 +98,7 @@ const EvaluationList = () => {
     total: 0,
   });
   const [evaluations, setEvaluations] =
-    useState<DatapackEvaluationResult[]>(mockEvaluations);
+    useState<EvaluateDatapackItem[]>(mockEvaluations);
   const [isLoading, _setIsLoading] = useState(false);
 
   // Fetch available algorithms and datasets for filters
@@ -114,7 +114,7 @@ const EvaluationList = () => {
 
   // Evaluate datapack mutation
   const evaluateDatapackMutation = useMutation({
-    mutationFn: (specs: DatapackEvaluationSpec[]) =>
+    mutationFn: (specs: EvaluateDatapackSpec[]) =>
       evaluationApi.evaluateDatapacks(specs as any),
     onSuccess: (data: any) => {
       message.success('Evaluation completed successfully');
@@ -129,7 +129,7 @@ const EvaluationList = () => {
 
   // Evaluate dataset mutation
   const evaluateDatasetMutation = useMutation({
-    mutationFn: (specs: DatapackEvaluationSpec[]) =>
+    mutationFn: (specs: EvaluateDatapackSpec[]) =>
       evaluationApi.evaluateDatasets(specs as any),
     onSuccess: (data: any) => {
       message.success('Evaluation completed successfully');
@@ -165,7 +165,7 @@ const EvaluationList = () => {
     setPagination({ ...pagination, current: 1 });
   };
 
-  const handleViewEvaluation = (_evaluation: DatapackEvaluationResult) => {
+  const handleViewEvaluation = (_evaluation: EvaluateDatapackItem) => {
     // TODO: Navigate to detailed evaluation view when implemented
     message.info('Detailed evaluation view will be implemented soon');
   };
@@ -218,7 +218,7 @@ const EvaluationList = () => {
       'Algorithm,Version,Datapack,Dataset,Execution Count,Created',
       ...evaluations.map(
         (e) =>
-          `${e.algorithm},${e.algorithm_version},${e.datapack},${e.groundtruths.length},${e.execution_refs[0]?.executed_at || ''}`
+          `${e.algorithm},${e.algorithm_version},${e.datapack},${e.groundtruths?.length ?? 0},${e.execution_refs?.[0]?.executed_at || ''}`
       ),
     ].join('\n');
 
@@ -256,7 +256,7 @@ const EvaluationList = () => {
       title: 'Algorithm',
       key: 'algorithm',
       width: '20%',
-      render: (_: string, record: DatapackEvaluationResult) => (
+      render: (_: string, record: EvaluateDatapackItem) => (
         <Space>
           <Avatar
             size='small'
@@ -381,7 +381,7 @@ const EvaluationList = () => {
       title: 'Actions',
       key: 'actions',
       width: '8%',
-      render: (_: string, record: DatapackEvaluationResult, index: number) => (
+      render: (_: string, record: EvaluateDatapackItem, index: number) => (
         <Space size='small'>
           <Tooltip title='View Details'>
             <Button
@@ -492,7 +492,7 @@ const EvaluationList = () => {
               onChange={handleAlgorithmFilter}
               value={algorithmFilter}
             >
-              {algorithmsData?.data?.items?.map((algo: any) => (
+              {algorithmsData?.items?.map((algo) => (
                 <Option key={algo.id} value={algo.name}>
                   {algo.name}
                 </Option>

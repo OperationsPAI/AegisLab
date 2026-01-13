@@ -42,9 +42,12 @@ import {
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
+import {
+  TaskState,
+  ListTasksTaskType,
+  type TaskResp,
+} from '@rcabench/client';
 import { taskApi } from '@/api/tasks';
-import { TaskState, TaskType } from '@/types/api';
-import type { Task } from '@/types/api';
 
 dayjs.extend(relativeTime);
 
@@ -56,7 +59,7 @@ const TaskList = () => {
   const navigate = useNavigate();
   const [searchText, setSearchText] = useState('');
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
-  const [typeFilter, setTypeFilter] = useState<TaskType | undefined>();
+  const [typeFilter, setTypeFilter] = useState<ListTasksTaskType | undefined>();
   const [stateFilter, setStateFilter] = useState<TaskState | undefined>();
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [refreshInterval] = useState(5000);
@@ -94,9 +97,9 @@ const TaskList = () => {
   useEffect(() => {
     if (!autoRefresh) return;
 
-    const runningTasks = tasksData?.data?.items?.filter(
-      (t) =>
-        String(t.state) === String(TaskState.RUNNING) ||
+    const runningTasks = tasksData?.items?.filter(
+      (t: TaskResp) =>
+        String(t.state) === String(TaskState.Running) ||
         t.state === '2' ||
         t.state === 'RUNNING'
     ); // RUNNING
@@ -138,26 +141,26 @@ const TaskList = () => {
 
   // Statistics
   const stats = {
-    total: tasksData?.data?.pagination?.total || 0,
+    total: tasksData?.pagination?.total || 0,
     pending:
-      tasksData?.data?.items?.filter(
-        (t) => String(t.state) === String(TaskState.PENDING)
+      tasksData?.items?.filter(
+        (t: TaskResp) => String(t.state) === String(TaskState.Pending)
       ).length || 0, // PENDING
     running:
-      tasksData?.data?.items?.filter(
-        (t) => String(t.state) === String(TaskState.RUNNING)
+      tasksData?.items?.filter(
+        (t: TaskResp) => String(t.state) === String(TaskState.Running)
       ).length || 0, // RUNNING
     completed:
-      tasksData?.data?.items?.filter(
-        (t) => String(t.state) === String(TaskState.COMPLETED)
+      tasksData?.items?.filter(
+        (t: TaskResp) => String(t.state) === String(TaskState.Completed)
       ).length || 0, // COMPLETED
     error:
-      tasksData?.data?.items?.filter(
-        (t) => String(t.state) === String(TaskState.ERROR)
+      tasksData?.items?.filter(
+        (t: TaskResp) => String(t.state) === String(TaskState.Error)
       ).length || 0, // ERROR
     cancelled:
-      tasksData?.data?.items?.filter(
-        (t) => String(t.state) === String(TaskState.CANCELLED)
+      tasksData?.items?.filter(
+        (t: TaskResp) => String(t.state) === String(TaskState.Cancelled)
       ).length || 0, // CANCELLED
   };
 
@@ -174,7 +177,7 @@ const TaskList = () => {
     setPagination({ ...pagination, current: 1 });
   };
 
-  const handleTypeFilter = (type: TaskType | undefined) => {
+  const handleTypeFilter = (type: ListTasksTaskType | undefined) => {
     setTypeFilter(type);
     setPagination({ ...pagination, current: 1 });
   };
@@ -190,10 +193,10 @@ const TaskList = () => {
     }
   };
 
-  const handleCancelTask = (task: Task) => {
+  const handleCancelTask = (task: TaskResp) => {
     if (
-      String(task.state) !== String(TaskState.RUNNING) &&
-      String(task.state) !== String(TaskState.PENDING)
+      String(task.state) !== String(TaskState.Running) &&
+      String(task.state) !== String(TaskState.Pending)
     ) {
       // Not RUNNING or PENDING
       message.warning('Only running or pending tasks can be cancelled');
@@ -272,56 +275,56 @@ const TaskList = () => {
     message.success('Tasks refreshed');
   };
 
-  const getTaskTypeIcon = (type: TaskType | string | undefined) => {
-    if (!type) return <ClockCircleOutlined />;
+  const getTaskTypeIcon = (type: ListTasksTaskType | string | undefined) => {
+    if (type === undefined || type === null) return <ClockCircleOutlined />;
 
     const taskType =
       typeof type === 'string'
-        ? (Object.values(TaskType).find((v) => v === type) as TaskType)
+        ? (Object.values(ListTasksTaskType).find((v) => v === type || String(v) === type) as ListTasksTaskType)
         : type;
 
     switch (taskType) {
-      case TaskType.BuildContainer:
+      case ListTasksTaskType.NUMBER_0: // BuildContainer
         return <FunctionOutlined style={{ color: '#3b82f6' }} />;
-      case TaskType.RestartPedestal:
+      case ListTasksTaskType.NUMBER_1: // RestartPedestal
         return <SyncOutlined style={{ color: '#10b981' }} />;
-      case TaskType.FaultInjection:
+      case ListTasksTaskType.NUMBER_2: // FaultInjection
         return <SyncOutlined style={{ color: '#f59e0b' }} />;
-      case TaskType.RunAlgorithm:
+      case ListTasksTaskType.NUMBER_3: // RunAlgorithm
         return <FunctionOutlined style={{ color: '#ec4899' }} />;
-      case TaskType.BuildDatapack:
+      case ListTasksTaskType.NUMBER_4: // BuildDatapack
         return <DashboardOutlined style={{ color: '#10b981' }} />;
-      case TaskType.CollectResult:
+      case ListTasksTaskType.NUMBER_5: // CollectResult
         return <DatabaseOutlined style={{ color: '#8b5cf6' }} />;
-      case TaskType.CronJob:
+      case ListTasksTaskType.NUMBER_6: // CronJob
         return <ClockCircleOutlined style={{ color: '#6b7280' }} />;
       default:
         return <ClockCircleOutlined />;
     }
   };
 
-  const getTaskTypeColor = (type: TaskType | string | undefined): string => {
-    if (!type) return '#6b7280';
+  const getTaskTypeColor = (type: ListTasksTaskType | string | undefined): string => {
+    if (type === undefined || type === null) return '#6b7280';
 
     const taskType =
       typeof type === 'string'
-        ? (Object.values(TaskType).find((v) => v === type) as TaskType)
+        ? (Object.values(ListTasksTaskType).find((v) => v === type || String(v) === type) as ListTasksTaskType)
         : type;
 
     switch (taskType) {
-      case TaskType.BuildContainer:
+      case ListTasksTaskType.NUMBER_0: // BuildContainer
         return '#3b82f6';
-      case TaskType.RestartPedestal:
+      case ListTasksTaskType.NUMBER_1: // RestartPedestal
         return '#10b981';
-      case TaskType.FaultInjection:
+      case ListTasksTaskType.NUMBER_2: // FaultInjection
         return '#f59e0b';
-      case TaskType.RunAlgorithm:
+      case ListTasksTaskType.NUMBER_3: // RunAlgorithm
         return '#ec4899';
-      case TaskType.BuildDatapack:
+      case ListTasksTaskType.NUMBER_4: // BuildDatapack
         return '#10b981';
-      case TaskType.CollectResult:
+      case ListTasksTaskType.NUMBER_5: // CollectResult
         return '#8b5cf6';
-      case TaskType.CronJob:
+      case ListTasksTaskType.NUMBER_6: // CronJob
         return '#6b7280';
       default:
         return '#6b7280';
@@ -330,15 +333,15 @@ const TaskList = () => {
 
   const getStateColor = (state: TaskState) => {
     switch (state) {
-      case TaskState.PENDING: // PENDING
+      case TaskState.Pending: // PENDING
         return '#d1d5db';
-      case TaskState.RUNNING: // RUNNING
+      case TaskState.Running: // RUNNING
         return '#3b82f6';
-      case TaskState.COMPLETED: // COMPLETED
+      case TaskState.Completed: // COMPLETED
         return '#10b981';
-      case TaskState.ERROR: // ERROR
+      case TaskState.Error: // ERROR
         return '#ef4444';
-      case TaskState.CANCELLED: // CANCELLED
+      case TaskState.Cancelled: // CANCELLED
         return '#6b7280';
       default:
         return '#6b7280';
@@ -347,35 +350,29 @@ const TaskList = () => {
 
   const getStateIcon = (state: TaskState) => {
     switch (state) {
-      case TaskState.PENDING: // PENDING
+      case TaskState.Pending: // PENDING
         return <ClockCircleOutlined />;
-      case TaskState.RUNNING: // RUNNING
+      case TaskState.Running: // RUNNING
         return <SyncOutlined spin />;
-      case TaskState.COMPLETED: // COMPLETED
+      case TaskState.Completed: // COMPLETED
         return <CheckCircleOutlined />;
-      case TaskState.ERROR: // ERROR
+      case TaskState.Error: // ERROR
         return <CloseCircleOutlined />;
-      case TaskState.CANCELLED: // CANCELLED
+      case TaskState.Cancelled: // CANCELLED
         return <PauseCircleOutlined />;
       default:
         return <ClockCircleOutlined />;
     }
   };
 
-  const formatRetryInfo = (retryCount?: number, maxRetry?: number): string => {
-    const count = retryCount ?? 0;
-    const max = maxRetry ?? 0;
-    return `${count}/${max}`;
-  };
-
-  const getTaskProgress = (task: Task) => {
-    if (String(task.state) === String(TaskState.COMPLETED)) return 100; // COMPLETED
+  const getTaskProgress = (task: TaskResp) => {
+    if (String(task.state) === String(TaskState.Completed)) return 100; // COMPLETED
     if (
-      String(task.state) === String(TaskState.ERROR) ||
-      String(task.state) === String(TaskState.CANCELLED)
+      String(task.state) === String(TaskState.Error) ||
+      String(task.state) === String(TaskState.Cancelled)
     )
       return 0; // ERROR or CANCELLED
-    if (String(task.state) === String(TaskState.RUNNING)) return 50; // RUNNING
+    if (String(task.state) === String(TaskState.Running)) return 50; // RUNNING
     return 0;
   };
 
@@ -390,7 +387,7 @@ const TaskList = () => {
       dataIndex: 'id',
       key: 'id',
       width: '15%',
-      render: (id: string, record: Task) => (
+      render: (id: string, record: TaskResp) => (
         <Space>
           <Avatar
             size='small'
@@ -414,20 +411,22 @@ const TaskList = () => {
       dataIndex: 'type',
       key: 'type',
       width: '15%',
-      render: (type: TaskType) => (
+      render: (type: ListTasksTaskType | string | undefined) => (
         <Tag color={getTaskTypeColor(type)} style={{ fontWeight: 500 }}>
           {type}
         </Tag>
       ),
       filters: [
-        { text: 'Submit Injection', value: 'SubmitInjection' },
-        { text: 'Build Datapack', value: 'BuildDatapack' },
-        { text: 'Fault Injection', value: 'FaultInjection' },
-        { text: 'Collect Result', value: 'CollectResult' },
-        { text: 'Algorithm Execution', value: 'AlgorithmExecution' },
+        { text: 'Build Container', value: ListTasksTaskType.NUMBER_0 },
+        { text: 'Restart Pedestal', value: ListTasksTaskType.NUMBER_1 },
+        { text: 'Fault Injection', value: ListTasksTaskType.NUMBER_2 },
+        { text: 'Run Algorithm', value: ListTasksTaskType.NUMBER_3 },
+        { text: 'Build Datapack', value: ListTasksTaskType.NUMBER_4 },
+        { text: 'Collect Result', value: ListTasksTaskType.NUMBER_5 },
+        { text: 'Cron Job', value: ListTasksTaskType.NUMBER_6 },
       ],
-      onFilter: (value: boolean | React.Key, record: Task) =>
-        record.type === value,
+      onFilter: (value: boolean | React.Key, record: TaskResp) =>
+        record.type === value || String(record.type) === String(value),
     },
     {
       title: 'Status',
@@ -440,19 +439,19 @@ const TaskList = () => {
         if (!isNaN(Number(stateStr))) {
           taskState = Number(stateStr) as TaskState;
         } else {
-          taskState = TaskState.PENDING;
+          taskState = TaskState.Pending;
         }
 
         return (
           <Badge
             status={
-              taskState === TaskState.COMPLETED
+              taskState === TaskState.Completed
                 ? 'success' // COMPLETED
-                : taskState === TaskState.ERROR
+                : taskState === TaskState.Error
                   ? 'error' // ERROR
-                  : taskState === TaskState.RUNNING
+                  : taskState === TaskState.Running
                     ? 'processing' // RUNNING
-                    : taskState === TaskState.CANCELLED
+                    : taskState === TaskState.Cancelled
                       ? 'warning' // CANCELLED
                       : 'default'
             }
@@ -466,15 +465,15 @@ const TaskList = () => {
                     fontSize: '0.875rem',
                   }}
                 >
-                  {taskState === TaskState.PENDING
+                  {taskState === TaskState.Pending
                     ? 'Pending' // PENDING
-                    : taskState === TaskState.RUNNING
+                    : taskState === TaskState.Running
                       ? 'Running' // RUNNING
-                      : taskState === TaskState.COMPLETED
+                      : taskState === TaskState.Completed
                         ? 'Completed' // COMPLETED
-                        : taskState === TaskState.ERROR
+                        : taskState === TaskState.Error
                           ? 'Error' // ERROR
-                          : taskState === TaskState.CANCELLED
+                          : taskState === TaskState.Cancelled
                             ? 'Cancelled' // CANCELLED
                             : 'Unknown'}
                 </Text>
@@ -484,26 +483,27 @@ const TaskList = () => {
         );
       },
       filters: [
-        { text: 'Pending', value: 0 },
-        { text: 'Running', value: 1 },
-        { text: 'Completed', value: 2 },
-        { text: 'Error', value: 3 },
-        { text: 'Cancelled', value: 4 },
+        { text: 'Pending', value: TaskState.Pending },
+        { text: 'Rescheduled', value: TaskState.Rescheduled },
+        { text: 'Running', value: TaskState.Running },
+        { text: 'Completed', value: TaskState.Completed },
+        { text: 'Error', value: TaskState.Error },
+        { text: 'Cancelled', value: TaskState.Cancelled },
       ],
-      onFilter: (value: boolean | React.Key, record: Task) =>
+      onFilter: (value: boolean | React.Key, record: TaskResp) =>
         String(record.state) === String(value),
     },
     {
       title: 'Progress',
       key: 'progress',
       width: '10%',
-      render: (_: unknown, record: Task) => (
+      render: (_: unknown, record: TaskResp) => (
         <Progress
           percent={getTaskProgress(record)}
           status={
-            String(record.state) === String(TaskState.ERROR)
+            String(record.state) === String(TaskState.Error)
               ? 'exception' // ERROR
-              : String(record.state) === String(TaskState.COMPLETED)
+              : String(record.state) === String(TaskState.Completed)
                 ? 'success' // COMPLETED
                 : 'active'
           }
@@ -516,9 +516,10 @@ const TaskList = () => {
       title: 'Retries',
       key: 'retries',
       width: '8%',
-      render: (_: unknown, record: Task) => (
+      render: () => (
         <Text code style={{ fontSize: '0.75rem' }}>
-          {formatRetryInfo(record.retry_count, record.max_retry)}
+          {/* TaskResp doesn't have retry_count/max_retry, display N/A */}
+          N/A
         </Text>
       ),
     },
@@ -537,7 +538,7 @@ const TaskList = () => {
       title: 'Actions',
       key: 'actions',
       width: '12%',
-      render: (_: unknown, record: Task) => (
+      render: (_: unknown, record: TaskResp) => (
         <Space size='small'>
           <Tooltip title='View Details'>
             <Button
@@ -547,7 +548,7 @@ const TaskList = () => {
               onClick={() => handleViewTask(record.id)}
             />
           </Tooltip>
-          {String(record.state) === String(TaskState.RUNNING) && ( // RUNNING
+          {String(record.state) === String(TaskState.Running) && ( // RUNNING
             <Tooltip title='Cancel Task'>
               <Button
                 type='text'
@@ -684,11 +685,13 @@ const TaskList = () => {
               onChange={handleTypeFilter}
               value={typeFilter}
             >
-              <Option value='SubmitInjection'>Submit Injection</Option>
-              <Option value='BuildDatapack'>Build Datapack</Option>
-              <Option value='FaultInjection'>Fault Injection</Option>
-              <Option value='CollectResult'>Collect Result</Option>
-              <Option value='AlgorithmExecution'>Algorithm Execution</Option>
+              <Option value={ListTasksTaskType.NUMBER_0}>Build Container</Option>
+              <Option value={ListTasksTaskType.NUMBER_1}>Restart Pedestal</Option>
+              <Option value={ListTasksTaskType.NUMBER_2}>Fault Injection</Option>
+              <Option value={ListTasksTaskType.NUMBER_3}>Run Algorithm</Option>
+              <Option value={ListTasksTaskType.NUMBER_4}>Build Datapack</Option>
+              <Option value={ListTasksTaskType.NUMBER_5}>Collect Result</Option>
+              <Option value={ListTasksTaskType.NUMBER_6}>Cron Job</Option>
             </Select>
           </Col>
           <Col xs={24} sm={12} md={4}>
@@ -699,11 +702,12 @@ const TaskList = () => {
               onChange={handleStateFilter}
               value={stateFilter}
             >
-              <Option value={0}>Pending</Option>
-              <Option value={1}>Running</Option>
-              <Option value={2}>Completed</Option>
-              <Option value={3}>Error</Option>
-              <Option value={4}>Cancelled</Option>
+              <Option value={TaskState.Pending}>Pending</Option>
+              <Option value={TaskState.Rescheduled}>Rescheduled</Option>
+              <Option value={TaskState.Running}>Running</Option>
+              <Option value={TaskState.Completed}>Completed</Option>
+              <Option value={TaskState.Error}>Error</Option>
+              <Option value={TaskState.Cancelled}>Cancelled</Option>
             </Select>
           </Col>
           <Col xs={24} sm={24} md={10} style={{ textAlign: 'right' }}>
@@ -730,11 +734,11 @@ const TaskList = () => {
           rowKey='id'
           rowSelection={rowSelection}
           columns={columns}
-          dataSource={(tasksData?.data?.items as Task[] | undefined) || []}
+          dataSource={(tasksData?.items as TaskResp[] | undefined) || []}
           loading={isLoading}
           pagination={{
             ...pagination,
-            total: tasksData?.data?.pagination?.total || 0,
+            total: tasksData?.pagination?.total || 0,
             showSizeChanger: true,
             showQuickJumper: true,
             showTotal: (total, range) =>

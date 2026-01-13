@@ -14,6 +14,7 @@ import {
   TeamOutlined,
 } from '@ant-design/icons';
 import type { ProjectResp as Project } from '@rcabench/client';
+import { ProjectState } from '@/types/api';
 import { useQuery } from '@tanstack/react-query';
 import {
   Avatar,
@@ -34,7 +35,7 @@ import StatCard from '@/components/ui/StatCard';
 import StatusBadge, {
   type StatusBadgeProps,
 } from '@/components/ui/StatusBadge';
-import { ProjectState } from '@/types/api';
+
 import './ProjectList.css';
 
 const { Title, Text } = Typography;

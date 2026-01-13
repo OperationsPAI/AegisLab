@@ -13,10 +13,8 @@
   --color-primary-800: #075985;
   --color-primary-900: #0c4a6e;
 
-  /* Secondary Color Palette - Data Visualization */
+  /* Secondary Color Palette - Neutral Colors */
   --color-secondary-0: #ffffff;
-
-  /* Secondary Color Palette - Data Visualization */
   --color-secondary-50: #f8fafc;
   --color-secondary-100: #f1f5f9;
   --color-secondary-200: #e2e8f0;
@@ -40,6 +38,15 @@
   --color-warning-light: #fef3c7;
   --color-error-light: #fee2e2;
   --color-info-light: #cffafe;
+  --color-primary-light: #e0f2fe;
+
+  /* Surface colors for elevated components */
+  --color-surface-elevated: var(--color-secondary-0);
+  --color-surface-hover: var(--color-secondary-100);
+
+  /* Sidebar Widths - for layout consistency */
+  --sidebar-width-expanded: 240px;
+  --sidebar-width-collapsed: 64px;
 
   /* Typography - Modern Research Platform */
   --font-family-display:
@@ -102,7 +109,6 @@
 
   /* Layout */
   --header-height: 4rem;
-  --sidebar-width: 18rem;
   --content-max-width: 90rem;
 
   /* Z-index Scale */
@@ -123,6 +129,10 @@
 
 /* Dark Theme - Research Lab at Night */
 [data-theme='dark'] {
+  /* Dark mode background surfaces */
+  --color-surface-elevated: rgba(255, 255, 255, 0.02);
+  --color-surface-hover: rgba(255, 255, 255, 0.05);
+
   --color-secondary-0: #0f172a;
   --color-primary-50: #0c4a6e;
   --color-primary-100: #075985;
@@ -151,6 +161,13 @@
   --color-warning: #fbbf24;
   --color-error: #f87171;
   --color-info: #22d3ee;
+
+  /* Extended Status Palette for dark mode */
+  --color-success-light: rgba(16, 185, 129, 0.2);
+  --color-warning-light: rgba(245, 158, 11, 0.2);
+  --color-error-light: rgba(239, 68, 68, 0.2);
+  --color-info-light: rgba(6, 182, 212, 0.2);
+  --color-primary-light: rgba(14, 165, 233, 0.2);
 
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
   --shadow-base: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4);
@@ -235,6 +252,60 @@
   );
   background-size: 1000px 100%;
   animation: shimmer 2s infinite;
+}
+
+/* Accessibility - Respect user's motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .animate-fade-in,
+  .animate-slide-in,
+  .animate-pulse,
+  .animate-bounce,
+  .shimmer {
+    animation: none !important;
+  }
+}
+
+/* Focus styles for accessibility */
+:focus-visible {
+  outline: 2px solid var(--color-primary-500);
+  outline-offset: 2px;
+}
+
+/* Remove default focus for mouse users, keep for keyboard */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Enhanced focus for interactive elements */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--color-primary-500);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--color-primary-100);
+}
+
+[data-theme='dark'] button:focus-visible,
+[data-theme='dark'] a:focus-visible,
+[data-theme='dark'] input:focus-visible,
+[data-theme='dark'] select:focus-visible,
+[data-theme='dark'] textarea:focus-visible,
+[data-theme='dark'] [role="button"]:focus-visible,
+[data-theme='dark'] [tabindex]:focus-visible {
+  box-shadow: 0 0 0 4px var(--color-primary-900);
 }
 
 /* Custom Scrollbar */

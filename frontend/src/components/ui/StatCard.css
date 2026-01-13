@@ -2,12 +2,12 @@
   position: relative;
   overflow: hidden;
   border-radius: var(--radius-lg);
-  transition: all 0.3s ease;
+  transition: all var(--transition-base);
   background: var(--color-secondary-50);
 }
 
 [data-theme='dark'] .stat-card {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-surface-elevated);
 }
 
 .stat-card:hover {
@@ -97,7 +97,7 @@
   );
   opacity: 0.1;
   filter: blur(20px);
-  transition: all 0.5s ease;
+  transition: all var(--transition-slow);
 }
 
 .stat-card:hover .stat-card-bg-effect {

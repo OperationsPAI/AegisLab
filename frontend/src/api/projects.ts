@@ -1,99 +1,90 @@
-import { Configuration, ProjectsApi } from '@rcabench/client';
-import axios, { type AxiosRequestConfig } from 'axios';
+/**
+ * 项目 API
+ * 使用 @rcabench/client SDK，手工实现缺失的端点
+ */
+import {
+  ProjectsApi,
+  type CreateProjectReq,
+  type LabelItem,
+  type ListProjectResp,
+  type ProjectDetailResp,
+  type ProjectResp,
+  type StatusType,
+} from '@rcabench/client';
+import { apiClient, createApiConfig } from './config';
 
-// Create configuration with dynamic token
-const createProjectConfig = () => {
-  const token = localStorage.getItem('access_token');
-
-  return new Configuration({
-    basePath: '/api/v2',
-    accessToken: token ? `Bearer ${token}` : undefined,
-    baseOptions: {
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    } as AxiosRequestConfig,
-  });
-};
-
-// Create axios instance for manual API calls
-const apiClient = axios.create({
-  baseURL: '/api/v2',
-  timeout: 30000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Request interceptor for auth
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('access_token');
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// Export the projects API using generated SDK where available
 export const projectApi = {
-  // Get projects list - using generated SDK
+  // ==================== SDK 方法 ====================
+
+  /**
+   * 获取项目列表 - 使用 SDK
+   */
   getProjects: async (params?: {
     page?: number;
     size?: number;
     isPublic?: boolean;
-    status?: number;
-  }) => {
-    const projectsApi = new ProjectsApi(createProjectConfig());
-    const response = await projectsApi.listProjects({
+    status?: StatusType;
+  }): Promise<ListProjectResp | undefined> => {
+    const api = new ProjectsApi(createApiConfig());
+    const response = await api.listProjects({
       page: params?.page,
       size: params?.size,
       isPublic: params?.isPublic,
       status: params?.status,
     });
-    return response.data.data; // 返回 ListProjectResp 类型
+    return response.data.data;
   },
 
-  // Get project detail - using generated SDK
-  getProject: async (id: number) => {
-    const projectsApi = new ProjectsApi(createProjectConfig());
-    const response = await projectsApi.getProjectById({ projectId: id });
-    return response.data;
+  /**
+   * 获取项目详情 - 使用 SDK
+   */
+  getProject: async (id: number): Promise<ProjectDetailResp | undefined> => {
+    const api = new ProjectsApi(createApiConfig());
+    const response = await api.getProjectById({ projectId: id });
+    return response.data.data;
   },
 
-  // Create project - using generated SDK
+  /**
+   * 创建项目 - 使用 SDK
+   */
   createProject: async (data: {
     name: string;
     description?: string;
-    isPublic?: boolean;
-    labels?: Array<{ key: string; value: string }>;
-  }) => {
-    const projectsApi = new ProjectsApi(createProjectConfig());
-    const response = await projectsApi.createProject({
-      request: {
-        name: data.name,
-        description: data.description,
-        is_public: data.isPublic || false,
-      },
-    });
-    return response.data;
+    is_public?: boolean;
+  }): Promise<ProjectResp | undefined> => {
+    const api = new ProjectsApi(createApiConfig());
+    const request: CreateProjectReq = {
+      name: data.name,
+      description: data.description,
+      is_public: data.is_public ?? false,
+    };
+    const response = await api.createProject({ request });
+    return response.data.data;
   },
 
-  // Update project - manual endpoint (not in generated SDK)
-  updateProject: (id: number, data: Record<string, unknown>) =>
-    apiClient.patch(`/projects/${id}`, data),
+  // ==================== 手工实现 (SDK 缺失) ====================
 
-  // Delete project - manual endpoint (not in generated SDK)
+  /**
+   * 更新项目 - 手工实现 (SDK 缺失)
+   */
+  updateProject: (
+    id: number,
+    data: {
+      name?: string;
+      description?: string;
+      is_public?: boolean;
+      labels?: LabelItem[];
+    }
+  ) => apiClient.patch<{ data: ProjectDetailResp }>(`/projects/${id}`, data),
+
+  /**
+   * 删除项目 - 手工实现 (SDK 缺失)
+   */
   deleteProject: (id: number) => apiClient.delete(`/projects/${id}`),
 
-  // Manage labels - manual endpoint (not in generated SDK)
+  /**
+   * 管理标签 - 手工实现 (SDK 缺失)
+   */
   updateLabels: (id: number, labels: Array<{ key: string; value: string }>) =>
     apiClient.patch(`/projects/${id}/labels`, { labels }),
 };
-
-export default apiClient;

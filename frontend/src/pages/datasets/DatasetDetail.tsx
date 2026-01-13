@@ -32,7 +32,7 @@ import {
 import dayjs from 'dayjs';
 
 import { datasetApi } from '@/api/datasets';
-import type { DatasetVersion } from '@/types/api';
+import type { DatasetVersionResp } from '@rcabench/client';
 
 const { Title, Text } = Typography;
 // Removed deprecated TabPane destructuring - using items prop instead
@@ -56,7 +56,7 @@ const DatasetDetail = () => {
     queryFn: () => datasetApi.getVersions(datasetId),
     enabled: !!datasetId,
   });
-  const versions = versionsData?.data || [];
+  const versions = versionsData?.items || [];
 
   const handleEdit = () => {
     navigate(`/datasets/${datasetId}/edit`);
@@ -65,7 +65,7 @@ const DatasetDetail = () => {
   const handleDelete = () => {
     Modal.confirm({
       title: 'Delete Dataset',
-      content: `Are you sure you want to delete dataset "${dataset?.data?.name}"? This action cannot be undone.`,
+      content: `Are you sure you want to delete dataset "${dataset?.name}"? This action cannot be undone.`,
       okText: 'Yes, delete it',
       okButtonProps: { danger: true },
       cancelText: 'Cancel',
@@ -81,12 +81,12 @@ const DatasetDetail = () => {
     });
   };
 
-  const handleDownloadVersion = (_version: DatasetVersion) => {
+  const handleDownloadVersion = (_version: DatasetVersionResp) => {
     // TODO: Implement download logic
     message.info('Download functionality will be implemented soon');
   };
 
-  const handlePreviewVersion = (_version: DatasetVersion) => {
+  const handlePreviewVersion = (_version: DatasetVersionResp) => {
     // TODO: Implement preview logic
     message.info('Preview functionality will be implemented soon');
   };
@@ -104,45 +104,25 @@ const DatasetDetail = () => {
     }
   };
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
-  };
-
   const versionColumns = [
     {
       title: 'Version',
-      dataIndex: 'version',
-      key: 'version',
+      dataIndex: 'name',
+      key: 'name',
       width: 120,
-      render: (version: string) => (
+      render: (name: string) => (
         <Badge
-          count={version}
+          count={name}
           style={{ backgroundColor: '#3b82f6', fontWeight: 'bold' }}
         />
       ),
     },
     {
-      title: 'File Path',
-      dataIndex: 'file_path',
-      key: 'file_path',
-      render: (filePath: string) => (
-        <Tooltip title={filePath}>
-          <Text ellipsis style={{ maxWidth: 200 }}>
-            {filePath}
-          </Text>
-        </Tooltip>
-      ),
-    },
-    {
-      title: 'Size',
-      dataIndex: 'size',
-      key: 'size',
+      title: 'File Count',
+      dataIndex: 'file_count',
+      key: 'file_count',
       width: 100,
-      render: (size: number) => <Text code>{formatFileSize(size)}</Text>,
+      render: (count?: number) => <Text code>{count || 0}</Text>,
     },
     {
       title: 'Checksum',
@@ -161,14 +141,14 @@ const DatasetDetail = () => {
         ),
     },
     {
-      title: 'Created',
-      dataIndex: 'created_at',
-      key: 'created_at',
+      title: 'Updated',
+      dataIndex: 'updated_at',
+      key: 'updated_at',
       width: 150,
-      render: (date: string) => (
+      render: (date?: string) => (
         <Space>
           <ClockCircleOutlined />
-          <Text>{dayjs(date).format('MMM D, YYYY HH:mm')}</Text>
+          <Text>{date ? dayjs(date).format('MMM D, YYYY HH:mm') : '-'}</Text>
         </Space>
       ),
     },
@@ -177,7 +157,7 @@ const DatasetDetail = () => {
       key: 'actions',
       width: 120,
       fixed: 'right' as const,
-      render: (_: string, record: DatasetVersion) => (
+      render: (_: unknown, record: DatasetVersionResp) => (
         <Space size='small'>
           <Tooltip title='Preview'>
             <Button
@@ -216,7 +196,7 @@ const DatasetDetail = () => {
     );
   }
 
-  const datasetData = dataset.data;
+  const datasetData = dataset;
 
   return (
     <div style={{ padding: 24 }}>
@@ -285,7 +265,7 @@ const DatasetDetail = () => {
                         </Descriptions.Item>
                         <Descriptions.Item label='Type'>
                           <Tag
-                            color={getTypeColor(datasetData.type)}
+                            color={getTypeColor(datasetData.type || '')}
                             style={{ fontWeight: 500, fontSize: '1rem' }}
                           >
                             {datasetData.type}
@@ -348,19 +328,17 @@ const DatasetDetail = () => {
                           <Text type='secondary'>Latest Version</Text>
                           <br />
                           <Text strong style={{ fontSize: '1.25rem' }}>
-                            {versions[0]?.version || 'N/A'}
+                            {versions[0]?.name || 'N/A'}
                           </Text>
                         </div>
                         <Divider />
                         <div>
-                          <Text type='secondary'>Total Size</Text>
+                          <Text type='secondary'>Total Files</Text>
                           <br />
                           <Text strong style={{ fontSize: '1.25rem' }}>
-                            {formatFileSize(
-                              versions.reduce(
-                                (sum, v) => sum + (v.size || 0),
-                                0
-                              )
+                            {versions.reduce(
+                              (sum, v) => sum + (v.file_count || 0),
+                              0
                             )}
                           </Text>
                         </div>

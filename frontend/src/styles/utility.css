@@ -188,6 +188,9 @@
 
 /* ============================================
    Spacing (Margin & Padding)
+   Note: !important is intentional for utility classes.
+   Utility classes are designed to override component defaults,
+   following the Tailwind CSS methodology.
    ============================================ */
 /* Margin */
 .m-0 { margin: 0 !important; }
@@ -378,6 +381,7 @@
   left: 0;
 }
 
+/* Z-index utilities using design system variables */
 .z-10 {
   z-index: 10;
 }
@@ -396,6 +400,34 @@
 
 .z-50 {
   z-index: 50;
+}
+
+.z-dropdown {
+  z-index: var(--z-dropdown);
+}
+
+.z-sticky {
+  z-index: var(--z-sticky);
+}
+
+.z-fixed {
+  z-index: var(--z-fixed);
+}
+
+.z-modal-backdrop {
+  z-index: var(--z-modal-backdrop);
+}
+
+.z-modal {
+  z-index: var(--z-modal);
+}
+
+.z-popover {
+  z-index: var(--z-popover);
+}
+
+.z-tooltip {
+  z-index: var(--z-tooltip);
 }
 
 /* ============================================
@@ -693,32 +725,24 @@
 
 /* ============================================
    Animation Classes
+   Note: Keyframes are defined in theme.css
    ============================================ */
-.animate-fade-in {
-  animation: fadeIn 0.5s ease-out forwards;
-}
-
-.animate-slide-in {
-  animation: slideIn 0.3s ease-out forwards;
-}
-
-.animate-pulse {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
+/* Animation utility classes use keyframes from theme.css */
 
 .animate-bounce {
   animation: bounce 1s infinite;
 }
 
-.shimmer {
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.2),
-    transparent
-  );
-  background-size: 1000px 100%;
-  animation: shimmer 2s infinite;
+@keyframes bounce {
+  0%,
+  100% {
+    transform: translateY(-25%);
+    animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+  }
+  50% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+  }
 }
 
 /* ============================================
