@@ -1,9 +1,8 @@
 import {
   Configuration,
-  type GetInjectionMetadataSystem,
   InjectionsApi,
-  type ListInjectionsType,
-  type SubmitInjectionReq,
+  type ListInjectionsTypeEnum,
+  type DtoSubmitInjectionReq,
 } from '@rcabench/client';
 import axios, { type AxiosRequestConfig } from 'axios';
 
@@ -64,7 +63,7 @@ export const injectionApi = {
     const response = await injectionsApi.listInjections({
       page: params?.page,
       size: params?.size,
-      type: params?.fault_type as unknown as ListInjectionsType,
+      type: params?.fault_type as unknown as ListInjectionsTypeEnum,
       state: params?.state,
       labels: params?.label ? [params.label] : undefined,
     });
@@ -82,7 +81,7 @@ export const injectionApi = {
   submitInjection: async (data: Record<string, unknown>) => {
     const injectionsApi = new InjectionsApi(createInjectionConfig());
     const response = await injectionsApi.injectFault({
-      body: data as unknown as SubmitInjectionReq,
+      body: data as unknown as DtoSubmitInjectionReq,
     });
     return response.data;
   },
@@ -113,7 +112,7 @@ export const injectionApi = {
   getFaultMetadata: async (params: { system: string }) => {
     const injectionsApi = new InjectionsApi(createInjectionConfig());
     const response = await injectionsApi.getInjectionMetadata({
-      system: params.system as unknown as GetInjectionMetadataSystem,
+      namespace: params.system,
     });
     return response;
   },

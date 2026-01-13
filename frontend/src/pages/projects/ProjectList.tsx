@@ -193,7 +193,7 @@ const ProjectList = () => {
       title: 'Actions',
       key: 'actions',
       width: '16%',
-      render: (_: string, record: Project) => (
+      render: (_: unknown, record: Project) => (
         <Space>
           <Button
             type='text'

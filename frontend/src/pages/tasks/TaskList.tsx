@@ -395,7 +395,7 @@ const TaskList = () => {
         { text: 'Collect Result', value: 'CollectResult' },
         { text: 'Algorithm Execution', value: 'AlgorithmExecution' },
       ],
-      onFilter: (value: React.Key, record: Task) => record.type === value,
+      onFilter: (value: boolean | React.Key, record: Task) => record.type === value,
     },
     {
       title: 'Status',
@@ -445,13 +445,13 @@ const TaskList = () => {
         { text: 'Error', value: 3 },
         { text: 'Cancelled', value: 4 },
       ],
-      onFilter: (value: React.Key, record: Task) => record.state === value,
+      onFilter: (value: boolean | React.Key, record: Task) => record.state === value,
     },
     {
       title: 'Progress',
       key: 'progress',
       width: '10%',
-      render: (_: string, record: Task) => (
+      render: (_: unknown, record: Task) => (
         <Progress
           percent={getTaskProgress(record)}
           status={
@@ -470,7 +470,7 @@ const TaskList = () => {
       title: 'Retries',
       key: 'retries',
       width: '8%',
-      render: (_: string, record: Task) => (
+      render: (_: unknown, record: Task) => (
         <Text code style={{ fontSize: '0.75rem' }}>
           {formatRetryInfo(record.retry_count, record.max_retry)}
         </Text>
@@ -491,7 +491,7 @@ const TaskList = () => {
       title: 'Actions',
       key: 'actions',
       width: '12%',
-      render: (_: string, record: Task) => (
+      render: (_: unknown, record: Task) => (
         <Space size='small'>
           <Tooltip title='View Details'>
             <Button
@@ -688,7 +688,7 @@ const TaskList = () => {
           loading={isLoading}
           pagination={{
             ...pagination,
-            total: (tasksData?.data as any)?.total || 0,
+            total: tasksData?.data?.pagination?.total || 0,
             showSizeChanger: true,
             showQuickJumper: true,
             showTotal: (total, range) =>

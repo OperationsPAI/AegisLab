@@ -11,8 +11,7 @@ import {
   Select,
   Space,
 } from 'antd';
-import type React from 'react';
-import { useState } from 'react';
+import { useState, type React } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 
@@ -20,7 +19,7 @@ import { containerApi } from '../../api/containers';
 import { injectionApi } from '../../api/injections';
 import { projectApi } from '../../api/projects';
 import MainLayout from '../../components/layout/MainLayout';
-import type { Container, FaultType } from '../../types/api';
+import type { Container, FaultType, Project } from '../../types/api';
 
 import { AlgorithmSelector } from './components/AlgorithmSelector';
 import { FaultConfigPanel } from './components/FaultConfigPanel';
@@ -71,12 +70,16 @@ const InjectionCreate: React.FC = () => {
   // Fetch containers when project is selected
   const { data: containers = [], isLoading: containersLoading } = useQuery({
     queryKey: ['containers', selectedProject],
-    queryFn: () =>
-      containerApi.getContainers({
-        projectId: selectedProject!,
+    queryFn: () => {
+      if (!selectedProject) {
+        return Promise.resolve({ data: [] });
+      }
+      return containerApi.getContainers({
+        projectId: selectedProject,
         page: 1,
         size: 100,
-      }),
+      });
+    },
     enabled: !!selectedProject,
     select: (data) => data.data || [],
   });
@@ -178,7 +181,7 @@ const InjectionCreate: React.FC = () => {
                     loading={projectsLoading}
                     onChange={handleProjectChange}
                   >
-                    {projects.map((project: any) => (
+                    {projects.map((project: Project) => (
                       <Option key={project.id} value={project.id}>
                         {project.name}
                       </Option>
@@ -320,7 +323,7 @@ const InjectionCreate: React.FC = () => {
                   fault={selectedFault}
                   onConfigChange={(config) => {
                     // Update fault configuration in matrix
-                    console.log('Fault config updated:', config);
+                    console.error('Fault config updated:', config);
                   }}
                 />
               </Col>

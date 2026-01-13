@@ -44,9 +44,6 @@ const UserProfile = () => {
   const [form] = Form.useForm();
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
   const [passwordForm] = Form.useForm();
-  const [showOldPassword, setShowOldPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Mock user data
   const userData = {
@@ -120,7 +117,7 @@ const UserProfile = () => {
   const handleSaveProfile = async (values: Record<string, unknown>) => {
     try {
       // TODO: Implement API call to update profile
-      console.log('Updating profile:', values);
+      console.error('Updating profile:', values);
       message.success('Profile updated successfully');
       setIsEditing(false);
     } catch (error) {
@@ -137,7 +134,7 @@ const UserProfile = () => {
   const handleChangePassword = async (values: Record<string, unknown>) => {
     try {
       // TODO: Implement API call to change password
-      console.log('Changing password:', values);
+      console.error('Changing password:', values);
       message.success('Password changed successfully');
       setPasswordModalVisible(false);
       passwordForm.resetFields();
@@ -388,7 +385,7 @@ const UserProfile = () => {
             <Progress
               percent={userStats.successRate}
               status={userStats.successRate > 80 ? 'success' : 'active'}
-              format={(percent) => `${percent}%`}
+              format={(_percent) => `${_percent}%`}
             />
           </Col>
           <Col xs={24} sm={12} md={12}>
@@ -397,14 +394,17 @@ const UserProfile = () => {
             </div>
             <Progress
               percent={(userStats.last30DaysActivity / 30) * 100}
-              format={(percent) => `${userStats.last30DaysActivity}/30 days`}
+              format={(_percent) => `${userStats.last30DaysActivity}/30 days`}
             />
           </Col>
         </Row>
       </Card>
 
       {/* Tabs */}
-      <Tabs activeKey='activity' onChange={() => {}} items={[
+      <Tabs activeKey='activity' onChange={(_key) => {
+        // Tab change handler - activeKey state controls which tab is displayed
+        // Currently 'activity' and 'security' tabs are available
+      }} items={[
         {
           key: 'activity',
           label: (

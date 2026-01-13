@@ -34,7 +34,6 @@ import { executionApi } from '@/api/executions';
 import type { Container, Label } from '@/types/api';
 
 const { Title, Text } = Typography;
-const { TextArea } = Input;
 const { Option } = Select;
 
 interface ExecutionFormData {

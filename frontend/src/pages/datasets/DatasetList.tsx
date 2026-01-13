@@ -40,7 +40,6 @@ import { useNavigate } from 'react-router-dom';
 
 import { datasetApi } from '@/api/datasets';
 import StatCard from '@/components/ui/StatCard';
-import StatusBadge from '@/components/ui/StatusBadge';
 import type { Dataset, DatasetType } from '@/types/api';
 
 const { Title, Text } = Typography;

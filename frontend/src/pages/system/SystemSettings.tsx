@@ -40,7 +40,6 @@ import { useState } from 'react'
 
 const { Title, Text } = Typography
 const { TabPane } = Tabs
-const { TextArea } = Input
 const { Option } = Select
 
 const SystemSettings = () => {
@@ -93,7 +92,7 @@ const SystemSettings = () => {
     setLoading(true)
     try {
       // TODO: Implement API call to save settings
-      console.log('Saving settings:', values)
+      console.error('Saving settings:', values)
       message.success('Settings saved successfully')
     } catch (error) {
       message.error('Failed to save settings')
@@ -116,7 +115,7 @@ const SystemSettings = () => {
     }
   }
 
-  const handleUserAction = (userId: number, action: string) => {
+  const handleUserAction = (_userId: number, action: string) => {
     Modal.confirm({
       title: `Confirm ${action}`,
       content: `Are you sure you want to ${action.toLowerCase()} this user?`,
@@ -561,8 +560,10 @@ const SystemSettings = () => {
               dataSource={users}
               renderItem={item => (
                 <List.Item
+                  key={item.id}
                   actions={[
                     <Button
+                      key="edit"
                       type="link"
                       size="small"
                       onClick={() => handleUserAction(item.id, 'Edit')}
@@ -571,6 +572,7 @@ const SystemSettings = () => {
                     </Button>,
                     item.status === 'active' ? (
                       <Button
+                        key="deactivate"
                         type="link"
                         danger
                         size="small"
@@ -580,6 +582,7 @@ const SystemSettings = () => {
                       </Button>
                     ) : (
                       <Button
+                        key="activate"
                         type="link"
                         size="small"
                         onClick={() => handleUserAction(item.id, 'Activate')}
@@ -588,6 +591,7 @@ const SystemSettings = () => {
                       </Button>
                     ),
                     <Button
+                      key="delete"
                       type="link"
                       danger
                       size="small"

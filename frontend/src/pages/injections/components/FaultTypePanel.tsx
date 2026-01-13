@@ -11,8 +11,7 @@ import {
 } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { Card, Empty, List, Spin, Tag, Tooltip } from 'antd';
-import { useState } from 'react';
-import type React from 'react';
+import { useState, type React } from 'react';
 
 import { injectionApi } from '../../../api/injections';
 import type { FaultType } from '../../../types/api';

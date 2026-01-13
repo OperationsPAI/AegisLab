@@ -1,6 +1,10 @@
-import type { DragEvent } from 'react';
-import React, { useCallback, useRef } from 'react';
-import type { Connection, Edge, Node } from 'reactflow';
+import {
+  ClearOutlined,
+  PlayCircleOutlined,
+  PlusOutlined,
+} from '@ant-design/icons';
+import { Button, message, Space } from 'antd';
+import React, { useCallback, useRef, type DragEvent } from 'react';
 import ReactFlow, {
   addEdge,
   Background,
@@ -12,15 +16,11 @@ import ReactFlow, {
   useEdgesState,
   useNodesState,
   useReactFlow,
+  type Connection,
+  type Edge,
+  type Node,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-
-import {
-  ClearOutlined,
-  PlayCircleOutlined,
-  PlusOutlined,
-} from '@ant-design/icons';
-import { Button, message, Space } from 'antd';
 
 import type { FaultType } from '../../../types/api';
 
@@ -49,6 +49,29 @@ const VisualCanvasContent: React.FC<VisualCanvasProps> = ({
   const { project } = useReactFlow();
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+
+  const handleConfigureFault = useCallback((fault: FaultType) => {
+    message.info(`Configuring ${fault.name} fault...`);
+  }, []);
+
+  const handleDeleteNode = useCallback(
+    (nodeId: string) => {
+      setNodes((nds) => nds.filter((node) => node.id !== nodeId));
+      setEdges((eds) =>
+        eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId)
+      );
+
+      // Update fault matrix
+      const newMatrix = faultMatrix
+        .map((batch) =>
+          batch.filter((_, index) => !nodeId.includes(`-${index}-`))
+        )
+        .filter((batch) => batch.length > 0);
+
+      onFaultMatrixChange(newMatrix);
+    },
+    [faultMatrix, onFaultMatrixChange, setNodes, setEdges]
+  );
 
   // Convert fault matrix to nodes and edges
   const updateNodesFromMatrix = useCallback(() => {
@@ -100,35 +123,12 @@ const VisualCanvasContent: React.FC<VisualCanvasProps> = ({
 
     setNodes(newNodes);
     setEdges(newEdges);
-  }, [faultMatrix]);
+  }, [faultMatrix, setNodes, setEdges, handleDeleteNode, handleConfigureFault]);
 
   // Update nodes when matrix changes
   React.useEffect(() => {
     updateNodesFromMatrix();
   }, [updateNodesFromMatrix]);
-
-  const handleDeleteNode = useCallback(
-    (nodeId: string) => {
-      setNodes((nds) => nds.filter((node) => node.id !== nodeId));
-      setEdges((eds) =>
-        eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId)
-      );
-
-      // Update fault matrix
-      const newMatrix = faultMatrix
-        .map((batch) =>
-          batch.filter((_, index) => !nodeId.includes(`-${index}-`))
-        )
-        .filter((batch) => batch.length > 0);
-
-      onFaultMatrixChange(newMatrix);
-    },
-    [faultMatrix, onFaultMatrixChange]
-  );
-
-  const handleConfigureFault = useCallback((fault: FaultType) => {
-    message.info(`Configuring ${fault.name} fault...`);
-  }, []);
 
   const onConnect = useCallback(
     (params: Edge | Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -192,7 +192,7 @@ const VisualCanvasContent: React.FC<VisualCanvasProps> = ({
     setEdges([]);
     onFaultMatrixChange([]);
     message.success('Canvas cleared');
-  }, [onFaultMatrixChange]);
+  }, [onFaultMatrixChange, setNodes, setEdges]);
 
   const handleAutoArrange = useCallback(() => {
     // Auto-arrange nodes in a grid pattern
@@ -212,7 +212,7 @@ const VisualCanvasContent: React.FC<VisualCanvasProps> = ({
     });
     setNodes(newNodes);
     message.success('Nodes auto-arranged');
-  }, [nodes]);
+  }, [nodes, setNodes]);
 
   return (
     <div className='visual-canvas' ref={reactFlowWrapper}>
@@ -279,7 +279,7 @@ const VisualCanvasContent: React.FC<VisualCanvasProps> = ({
             </div>
             <div className='empty-canvas-text'>
               <p>Drag fault types from the left panel</p>
-              <p>or click "Add Batch" to start</p>
+              <p>or click &quot;Add Batch&quot; to start</p>
             </div>
           </div>
         )}

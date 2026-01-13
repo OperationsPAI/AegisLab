@@ -1,7 +1,6 @@
 import {
   Configuration,
-  type EvaluateDatapackSpec,
-  type EvaluateDatasetSpec,
+  type DtoEvaluateDatapackSpec,
   EvaluationsApi,
 } from '@rcabench/client';
 import axios, { type AxiosRequestConfig } from 'axios';
@@ -52,7 +51,7 @@ export const evaluationApi = {
     const evaluationsApi = new EvaluationsApi(createEvaluationConfig());
     const response = await evaluationsApi.evaluateAlgorithmOnDatapacks({
       request: {
-        specs: specs as unknown as EvaluateDatapackSpec[],
+        specs: specs as unknown as DtoEvaluateDatapackSpec[],
       },
     });
     return response;
@@ -63,7 +62,7 @@ export const evaluationApi = {
     const evaluationsApi = new EvaluationsApi(createEvaluationConfig());
     const response = await evaluationsApi.evaluateAlgorithmOnDatasets({
       request: {
-        specs: specs as unknown as EvaluateDatasetSpec[],
+        specs: specs as unknown as DtoEvaluateDatapackSpec[],
       },
     });
     return response;

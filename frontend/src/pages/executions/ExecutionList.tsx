@@ -41,8 +41,7 @@ import { useNavigate } from 'react-router-dom';
 import { containerApi } from '@/api/containers';
 import { executionApi } from '@/api/executions';
 import StatCard from '@/components/ui/StatCard';
-import type { Execution } from '@/types/api';
-import { ExecutionState } from '@/types/api';
+import { ExecutionState, type Execution, type Label } from '@/types/api';
 
 dayjs.extend(duration);
 
@@ -363,7 +362,7 @@ const ExecutionList = () => {
       dataIndex: 'labels',
       key: 'labels',
       width: '12%',
-      render: (labels: any[] = []) => (
+      render: (labels: Label[] = []) => (
         <Space size='small' wrap>
           {labels.slice(0, 2).map((label, index) => (
             <Tag key={index} style={{ fontSize: '0.75rem' }}>

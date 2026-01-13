@@ -135,7 +135,7 @@ const EvaluationForm = () => {
     setSelectedDataset('');
   };
 
-  const handleSubmit = async (values: EvaluationFormData) => {
+  const handleSubmit = async (_values: EvaluationFormData) => {
     if (!selectedAlgorithm || !selectedVersion) {
       message.error('Please select an algorithm and version');
       return;

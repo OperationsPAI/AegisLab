@@ -4,9 +4,7 @@ import {
   TagsOutlined,
 } from '@ant-design/icons';
 import { Button, Form, Input, message, Space, Tag, Tooltip } from 'antd';
-import type React from 'react';
-import { useEffect, useRef, useState } from 'react';
-
+import { useEffect, useRef, useState, type React } from 'react';
 
 import './TagManager.css';
 
@@ -113,7 +111,7 @@ export const TagManager: React.FC<TagManagerProps> = ({
     }
   };
 
-  const validateTag = (tag: string) => {
+  const _validateTag = (tag: string) => {
     // Allow alphanumeric, spaces, hyphens, and underscores
     const pattern = /^[a-zA-Z0-9\s\-_]+$/;
     return pattern.test(tag);

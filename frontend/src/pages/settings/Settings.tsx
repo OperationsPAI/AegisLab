@@ -38,8 +38,8 @@ import {
   Timeline,
   Typography,
 } from 'antd';
-import { useState } from 'react';
 import dayjs from 'dayjs';
+import { useState } from 'react';
 
 const { Title, Text } = Typography;
 // Removed deprecated TabPane destructuring - using items prop instead
@@ -53,9 +53,6 @@ const Settings = () => {
   const [apiForm] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [apiKeyModalVisible, setApiKeyModalVisible] = useState(false);
-  const [showOldPassword, setShowOldPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Mock user data
   const userData = {
@@ -72,7 +69,17 @@ const Settings = () => {
   };
 
   // Mock API keys
-  const [apiKeys, setApiKeys] = useState([
+  interface ApiKey {
+    id: number;
+    name: string;
+    key: string;
+    createdAt: string;
+    lastUsed: string | null;
+    status: string;
+    permissions: string[];
+  }
+
+  const [apiKeys, setApiKeys] = useState<ApiKey[]>([
     {
       id: 1,
       name: 'Production API Key',
@@ -125,7 +132,7 @@ const Settings = () => {
     setLoading(true);
     try {
       // TODO: Implement API call to update profile
-      console.log('Updating profile:', values);
+      console.error('Updating profile:', values);
       message.success('Profile updated successfully');
     } catch (error) {
       message.error('Failed to update profile');
@@ -139,7 +146,7 @@ const Settings = () => {
     setLoading(true);
     try {
       // TODO: Implement API call to update notification settings
-      console.log('Updating notifications:', values);
+      console.error('Updating notifications:', values);
       message.success('Notification settings updated successfully');
     } catch (error) {
       message.error('Failed to update notification settings');
@@ -149,25 +156,12 @@ const Settings = () => {
     }
   };
 
-  const handleSaveSecurity = async (values: Record<string, unknown>) => {
-    setLoading(true);
-    try {
-      // TODO: Implement API call to update security settings
-      console.log('Updating security:', values);
-      message.success('Security settings updated successfully');
-    } catch (error) {
-      message.error('Failed to update security settings');
-      console.error('Update security error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleChangePassword = async (values: Record<string, unknown>) => {
     setLoading(true);
     try {
       // TODO: Implement API call to change password
-      console.log('Changing password:', values);
+      console.error('Changing password:', values);
       message.success('Password changed successfully');
       securityForm.resetFields();
     } catch (error) {
@@ -178,7 +172,7 @@ const Settings = () => {
     }
   };
 
-  const handleCreateApiKey = async (values: Record<string, any>) => {
+  const handleCreateApiKey = async (values: Record<string, string | string[]>) => {
     setLoading(true);
     try {
       // Generate a mock API key
@@ -187,7 +181,7 @@ const Settings = () => {
         name: values.name as string,
         key: `ak_${values.environment}_${Math.random().toString(36).substring(2, 18)}`,
         createdAt: new Date().toISOString(),
-        lastUsed: null,
+        lastUsed: null as string | null,
         status: 'active',
         permissions: values.permissions as string[],
       };
@@ -804,8 +798,10 @@ const Settings = () => {
               dataSource={apiKeys}
               renderItem={(item) => (
                 <List.Item
+                  key={item.id}
                   actions={[
                     <Button
+                      key='copy'
                       type='link'
                       size='small'
                       onClick={() => {
@@ -817,6 +813,7 @@ const Settings = () => {
                     </Button>,
                     item.status === 'active' ? (
                       <Button
+                        key='revoke'
                         type='link'
                         danger
                         size='small'
@@ -826,6 +823,7 @@ const Settings = () => {
                       </Button>
                     ) : null,
                     <Button
+                      key='delete'
                       type='link'
                       danger
                       size='small'

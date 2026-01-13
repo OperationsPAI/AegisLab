@@ -42,8 +42,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { taskApi } from '@/api/tasks';
 import StatusBadge from '@/components/ui/StatusBadge';
-import type { Task, TaskType } from '@/types/api';
-import { TaskState } from '@/types/api';
+import { TaskState, type Task, type TaskType, type Label } from '@/types/api';
 
 dayjs.extend(duration);
 
@@ -53,10 +52,12 @@ const { Title, Text } = Typography;
 const TaskDetail = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const taskId = id!;
   const [activeTab, setActiveTab] = useState('overview');
   const [logs, setLogs] = useState<string[]>([]);
   const [autoRefresh, setAutoRefresh] = useState(true);
+
+  // Validate taskId exists - must be before hooks
+  const taskId = id;
 
   // Fetch task details
   const {
@@ -65,8 +66,14 @@ const TaskDetail = () => {
     refetch,
   } = useQuery({
     queryKey: ['task', taskId],
-    queryFn: () => taskApi.getTask(taskId),
+    queryFn: async () => {
+      if (!taskId) {
+        throw new Error('Task ID is required');
+      }
+      return taskApi.getTask(taskId);
+    },
     refetchInterval: autoRefresh ? 2000 : false,
+    enabled: !!taskId,
   });
 
   // Real-time log streaming via SSE
@@ -265,6 +272,14 @@ const TaskDetail = () => {
     );
   }
 
+  if (!taskId) {
+    return (
+      <div style={{ padding: 24, textAlign: 'center' }}>
+        <Text type='secondary'>Task ID not provided</Text>
+      </div>
+    );
+  }
+
   if (!task) {
     return (
       <div style={{ padding: 24, textAlign: 'center' }}>
@@ -292,7 +307,7 @@ const TaskDetail = () => {
           </Title>
           <Badge
             status={
-              task?.data?.state === 2
+              (task?.data?.state === 2
                 ? 'success' // COMPLETED
                 : task?.data?.state === 3
                   ? 'error' // ERROR
@@ -300,7 +315,7 @@ const TaskDetail = () => {
                     ? 'processing' // RUNNING
                     : task?.data?.state === 4
                       ? 'warning' // CANCELLED
-                      : 'default'
+                      : 'default') as 'success' | 'processing' | 'error' | 'default' | 'warning'
             }
             text={
               <Space>
@@ -412,6 +427,7 @@ const TaskDetail = () => {
           key: 'overview',
           label: 'Overview',
           children: (
+          <>
           <Row gutter={[16, 16]}>
             <Col xs={24} lg={16}>
               <Card title='Task Information'>
@@ -556,7 +572,7 @@ const TaskDetail = () => {
           {taskData?.labels && taskData.labels.length > 0 && (
             <Card title='Labels' style={{ marginTop: 16 }}>
               <Space wrap>
-                {taskData.labels.map((label, index) => (
+                {taskData.labels.map((label: Label, index: number) => (
                   <Tag key={index} icon={<TagsOutlined />}>
                     {label.key}: {label.value}
                   </Tag>

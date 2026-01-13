@@ -10,9 +10,7 @@ import {
   Tag,
   Tooltip,
 } from 'antd';
-import type React from 'react';
-import { useState } from 'react';
-
+import { useState, type React } from 'react';
 
 import type { Container } from '../../../types/api';
 

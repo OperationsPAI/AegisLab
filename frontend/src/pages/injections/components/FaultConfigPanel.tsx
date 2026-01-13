@@ -19,16 +19,13 @@ import {
   Tag,
   Tooltip,
 } from 'antd';
-import type React from 'react';
-import { useEffect, useState } from 'react';
-
+import { useEffect, useState, type React } from 'react';
 
 import type { FaultType } from '../../../types/api';
 
 import './FaultConfigPanel.css';
 
 const { Option } = Select;
-const { TextArea } = Input;
 
 interface FaultParameter {
   name: string;
@@ -86,9 +83,9 @@ export const FaultConfigPanel: React.FC<FaultConfigPanelProps> = ({
     }
   };
 
-  const handleFormChange = (_: any, values: Record<string, any>) => {
-    setConfig(values);
-    onConfigChange(values);
+  const handleFormChange = (_: Record<string, unknown>, values: Record<string, unknown>) => {
+    setConfig(values as Record<string, string | number | boolean>);
+    onConfigChange(values as Record<string, string | number | boolean>);
   };
 
   const handleSavePreset = () => {
@@ -116,7 +113,7 @@ export const FaultConfigPanel: React.FC<FaultConfigPanelProps> = ({
 
   const handleReset = () => {
     form.resetFields();
-    const initialValues: Record<string, any> = {};
+    const initialValues: Record<string, string | number | boolean> = {};
     fault.parameters?.forEach((param: FaultParameter) => {
       initialValues[param.name] = param.default ?? getDefaultValue(param.type);
     });
@@ -277,7 +274,7 @@ export const FaultConfigPanel: React.FC<FaultConfigPanelProps> = ({
       >
         {fault.parameters && fault.parameters.length > 0 ? (
           <Row gutter={24}>
-            {fault.parameters.map((param: FaultParameter, index: number) => (
+            {fault.parameters.map((param: FaultParameter) => (
               <Col span={12} key={param.name}>
                 {renderParameterField(param)}
               </Col>
