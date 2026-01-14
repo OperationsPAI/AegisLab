@@ -29,8 +29,8 @@ def setup_environment() -> Generator[ApiClient, None, None]:
     with RCABenchClient(
         base_url=port_manager.get_service_url("rcabench-exp"),
         # base_url="http://localhost:28080",
-        username=settings.get("RCABENCH_USERNAME"),
-        password=settings.get("RCABENCH_PASSWORD"),
+        username="admin",
+        password="admin123",
     ).get_client() as client:
         yield client
 

@@ -16,14 +16,20 @@ def start(
         False, "--keep-alive", "-k", help="Keep forwarding in foreground"
     ),
 ):
-    if env == ENV.DEV or env == ENV.STAGING:
+    if env == ENV.DEV:
         console.print(
-            "[bold red]❌ Port forwarding is not supported for 'dev' or 'staging' environments.[/bold red]"
+            "[bold red]❌ Port forwarding is not supported for 'dev' environments.[/bold red]"
         )
         raise typer.Exit(code=1)
 
-    manager = PortForwardManager(env)
-    manager.start_forwarding(env=env, namespace=namespace)
+    if env == ENV.STAGING:
+        console.print(
+            "[bold yellow]ℹ️  Port forwarding is not needed for 'staging' environments.[/bold yellow]"
+        )
+        raise typer.Exit(code=0)
+
+    manager = PortForwardManager(env, namespace)
+    manager.start_forwarding()
 
     if keep_alive:
         console.print("\n[bold yellow]Press Ctrl+C to stop forwarding...[/bold yellow]")

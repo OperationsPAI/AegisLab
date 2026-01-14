@@ -17,7 +17,7 @@ cleanupJob:
   enabled: true
   # Image details for the kubectl
   image:
-    repository: rancher/kubectl
+    repository: pair-diag-cn-guangzhou.cr.volces.com/pair/kubectl
     tag: v1.34.1
     # When digest is set to a non-empty value, images will be pulled by digest (regardless of tag value).
     digest: ""
@@ -36,8 +36,12 @@ opentelemetry-operator:
   # Field indicating whether the operator is enabled or not
   enabled: true
   manager:
+    image: 
+      repository: pair-diag-cn-guangzhou.cr.volces.com/pair/opentelemetry-operator
+      tag: "0.138.0"
     collectorImage:
-      repository: otel/opentelemetry-collector-contrib
+      repository: pair-diag-cn-guangzhou.cr.volces.com/pair/opentelemetry-collector-contrib
+      tag: "0.142.0-amd64"
   # Sub-field for admission webhooks configuration
   admissionWebhooks:
     # Policy for handling failures
@@ -98,7 +102,7 @@ defaultCRConfig:
   # Image details for the collector
   image:
     # If you want to use the core image `otel/opentelemetry-collector`, you also need to change `command.name` value to `otelcol`.
-    repository: otel/opentelemetry-collector-contrib
+    repository: pair-diag-cn-guangzhou.cr.volces.com/pair/opentelemetry-collector-contrib
     pullPolicy: IfNotPresent
     # By default, the version set for the collector will match the version of the operator being run.
     tag: "0.142.0-amd64"
@@ -954,7 +958,7 @@ instrumentation:
 
   # Java agent configuration
   java: 
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.23.0
+    image: pair-diag-cn-guangzhou.cr.volces.com/pair/autoinstrumentation-java:2.23.0
   # volumeLimitSize: 200Mi
     env:
       - name: OTEL_EXPORTER_OTLP_ENDPOINT
@@ -1169,7 +1173,8 @@ opAMPBridge:
 
   # Image for OpAMP bridge
   image:
-    repository: ghcr.io/open-telemetry/opentelemetry-operator/operator-opamp-bridge
+    repository: pair-diag-cn-guangzhou.cr.volces.com/pair/operator-opamp-bridge
+    tag: "0.138.0"
     pullPolicy: IfNotPresent
     # By default, the version set for the bridge will match the version of the operator being run.
     tag: ""

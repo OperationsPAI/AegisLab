@@ -6,33 +6,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 AegisLab (RCABench) is a comprehensive Root Cause Analysis (RCA) benchmarking platform for microservices environments. It provides automated fault injection, algorithm execution, and evaluation capabilities for distributed systems research.
 
-## Quick Reference
-
-**Essential Commands for Getting Started:**
-
-```bash
-# 1. Start infrastructure (REQUIRED before any development)
-docker compose up redis mysql jaeger buildkitd -d
-
-# 2. Build the application
-cd src && go build -o /tmp/rcabench ./main.go
-
-# 3. Run locally (both producer + consumer mode)
-make local-debug
-
-# 4. Run tests (requires infrastructure running)
-cd src && go test ./utils/... -v
-
-# 5. Generate Swagger docs + Python SDK (after API changes)
-make swag-init && make generate-python-sdk
-```
-
-**Important Module Name:** When importing code, use `import "aegis/..."` (e.g., `import "aegis/handlers/v2"`)
-
-**Swagger UI:** Access API documentation at `http://localhost:8082/swagger/index.html` when running locally
-
-**Default Ports:** API (8082), MySQL (3306), Redis (6379), Jaeger (16686)
-
 ## Development Commands
 
 ### Environment Setup
@@ -50,7 +23,6 @@ make swag-init && make generate-python-sdk
 
 - `cd src && go test ./utils/... -v` - Run unit tests (requires infrastructure services)
 - `cd src && go test ./... -v` - Run all tests (some require K8s cluster access)
-- `cd src && go test -run TestFunctionName ./path/to/package -v` - Run a specific test
 - **NOTE**: Tests take 15-30 seconds. Set timeouts to 60+ seconds to avoid cancellation.
 
 ### Deployment
@@ -85,7 +57,7 @@ The Go application ([`src/main.go`](src/main.go)) runs in three modes:
 **Backend ([`src/`](src/))**
 
 - [`handlers/v2/`](src/handlers/v2/) - REST API endpoints organized by domain (auth, projects, datasets, injections, executions, etc.)
-- [`service/producer/`](src/service/producer/) - Business logic for API operations
+- [`service/prodcuer/`](src/service/prodcuer/) - Business logic for API operations
 - [`service/consumer/`](src/service/consumer/) - Asynchronous task processing
   - [`task.go`](src/service/consumer/task.go) - Task queue management with Redis
   - [`fault_injection.go`](src/service/consumer/fault_injection.go) - Chaos engineering execution
@@ -95,8 +67,6 @@ The Go application ([`src/main.go`](src/main.go)) runs in three modes:
 - [`client/k8s/`](src/client/k8s/) - Kubernetes client and controllers
 - [`dto/`](src/dto/) - Data transfer objects
 - [`middleware/`](src/middleware/) - HTTP middleware (auth, rate limiting, audit, CORS)
-  - Middleware execution order: GroupID() → SSEPath() → CORS → TracerMiddleware() → Route-specific (auth, permission, audit)
-  - SSE (Server-Sent Events) endpoints provide real-time task status updates
 
 **Python SDK ([`sdk/python/`](sdk/python/))**
 
@@ -138,15 +108,6 @@ See [`src/service/consumer/task.go`](src/service/consumer/task.go:36-43) for que
 
 ### Key Dependencies
 
-**IMPORTANT - Go Module Name:** The module name is `aegis`. All imports use this prefix:
-```go
-import "aegis/handlers/v2"
-import "aegis/service/producer"
-import "aegis/database"
-import "aegis/dto"
-```
-
-**External Dependencies:**
 - **Chaos Engineering**: `github.com/LGU-SE-Internal/chaos-experiment` for fault injection
 - **Kubernetes**: `controller-runtime` for K8s controllers
 - **Tracing**: OpenTelemetry for distributed tracing
@@ -210,9 +171,6 @@ See [`extractContext()`](src/service/consumer/task.go:275-306) in task.go.
 
 - GORM-based models in [`src/database/`](src/database/)
 - Use repository pattern in [`src/repository/`](src/repository/) for data access
-  - All repository functions accept `*gorm.DB` as first parameter to support transactions
-  - Example: `CreateProject(tx *gorm.DB, project *database.Project) error`
-  - Always use repositories instead of direct database calls for consistency
 - Soft deletes supported via `gorm.DeletedAt`
 
 ### API Versioning

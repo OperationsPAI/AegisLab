@@ -27,6 +27,17 @@ class PortPrefix(Enum):
     TEST = "2"
 
 
+class PortMeta(BaseModel):
+    """Port metadata for Kubernetes services
+
+    This class is used to store metadata about Kubernetes service ports,
+    including the remote port, and local port.
+    """
+
+    remote_port: int
+    local_port: int
+
+
 class PortMapping(BaseModel):
     """Port mapping information"""
 
@@ -53,18 +64,28 @@ class PortForwardManager:
         manager.stop_all_forwards()
     """
 
-    def __init__(self, env: ENV):
+    def __init__(self, env: ENV, namespace: str = "exp"):
         """Initialize port forward manager
 
         Args:
-            env: Environment type (TEST or PROD)
+            env: Environment type (TEST or PROD or STAGING)
+            namespace: Kubernetes namespace to forward (default: exp)
         """
         self.env = env
+        self.namespace = namespace
         self.prefix = (
             PortPrefix.TEST.value if env == ENV.TEST else PortPrefix.PROD.value
         )
-        self.port_mappings: list[PortMapping] = []
-        self.k8s_manager: KubernetesManager | None = None
+
+        results = self._calculate_port_mappings(env=env, namespace=namespace)
+        self.namespace_services: list[dict[str, Any]] = results[0]
+        self.namespace_mappings: list[PortMapping] = results[1]
+
+        results = self._calculate_port_mappings(
+            env=env, namespace="monitoring", service_names=["clickstack-clickhouse"]
+        )
+        self.monitoring_namespaces: list[dict[str, Any]] = results[0]
+        self.monitoring_mappings: list[PortMapping] = results[1]
 
         console.print(f"Environment: {env.value}")
         console.print(f"Port prefix: {self.prefix}xxxx\n")
@@ -88,15 +109,16 @@ class PortForwardManager:
         if killed_count > 0:
             console.print(f"   Killed {killed_count} kubectl port-forward process(es)")
 
-        # Kill processes on our port range
-        prefix_int = int(self.prefix)
+        mappings = self.namespace_mappings + self.monitoring_mappings
+        local_ports = set(mapping.local_port for mapping in mappings)
+
+        # Kill processes occupying the ports we need
         port_killed_count = 0
         for conn in psutil.net_connections(kind="inet"):
             try:
                 if conn.status == "LISTEN" and conn.laddr:
                     port = conn.laddr.port
-                    # Check if port is in our range (prefix0000 to prefix9999)
-                    if prefix_int * 10000 <= port < (prefix_int + 1) * 10000:
+                    if port in local_ports:
                         proc = psutil.Process(conn.pid)
                         proc.kill()
                         port_killed_count += 1
@@ -105,7 +127,7 @@ class PortForwardManager:
 
         if port_killed_count > 0:
             console.print(
-                f"   Killed {port_killed_count} process(es) on {self.prefix}xxxx ports"
+                f"   Killed {port_killed_count} process(es) on specific ports"
             )
 
         time.sleep(2)
@@ -130,166 +152,131 @@ class PortForwardManager:
         return local_port
 
     @with_k8s_manager()
-    def forward_namespace_services(
+    def _calculate_port_mappings(
         self,
         env: ENV,
-        namespace: str,
         k8s_manager: KubernetesManager,
-        label: str | None = None,
-    ) -> dict[str, list[PortMapping]]:
-        """Forward all services in a namespace
+        namespace: str,
+        service_names: list[str] = [],
+    ) -> tuple[list[dict[str, Any]], list[PortMapping]]:
+        """Calculate local ports for all services in the specific namespace
 
         Args:
-            namespace: Kubernetes namespace
             k8s_manager: Kubernetes manager instance (injected by decorator)
-            label: Display label (optional)
+            namespace: Kubernetes namespace
+            service_names: Optional list of service names to filter
 
         Returns:
-            Dictionary mapping service names to port mapping lists
+            Tuple of (services list, port mappings list)
         """
         assert k8s_manager is not None, "Kubernetes manager is required"
 
-        console.print(
-            f"[bold blue]🚀 Forwarding all services in {namespace}...[/bold blue]"
-        )
+        console.print("[bold blue]🔍 Calculating local ports...[/bold blue]")
 
-        # Use native Kubernetes API instead of kubectl
         services = k8s_manager.get_services_with_ports(namespace)
-        service_mappings: dict[str, list[PortMapping]] = {}
+        port_mappings: list[PortMapping] = []
 
         for svc in services:
-            svc_name = svc["name"]
-            service_mappings[svc_name] = []
+            if service_names and svc["name"] not in service_names:
+                continue
 
+            svc_name = svc["name"]
             for remote_port in svc["ports"]:
                 local_port = self._calculate_local_port(remote_port)
-
-                # Check if port was remapped due to overflow
-                expected_port = int(f"{self.prefix}{remote_port}")
-                overflow_note = ""
-                if local_port != expected_port and expected_port > 65535:
-                    overflow_note = " (remapped due to overflow)"
-
-                console.print(
-                    f"   {svc_name}:{remote_port} -> "
-                    f"localhost:{local_port}{overflow_note}"
-                )
-
-                # Start port forwarding
-                cmd = [
-                    "kubectl",
-                    "port-forward",
-                    f"svc/{svc_name}",
-                    "--address=0.0.0.0",
-                    f"{local_port}:{remote_port}",
-                    f"--namespace={namespace}",
-                ]
-
-                try:
-                    proc = subprocess.Popen(
-                        cmd,
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
-                        preexec_fn=lambda: signal.signal(signal.SIGINT, signal.SIG_IGN),
-                    )
-
-                    mapping = PortMapping(
+                port_mappings.append(
+                    PortMapping(
                         service=svc_name,
                         namespace=namespace,
                         remote_port=remote_port,
                         local_port=local_port,
-                        pid=proc.pid,
                     )
+                )
 
-                    self.port_mappings.append(mapping)
-                    service_mappings[svc_name].append(mapping)
+        return services, port_mappings
 
-                    time.sleep(0.1)  # Avoid starting too many processes at once
-
-                except Exception as e:
-                    console.print(
-                        f"[bold red]❌ Failed to forward {svc_name}:{remote_port}: {e}[/bold red]"
-                    )
-
-        return service_mappings
-
-    @with_k8s_manager()
-    def forward_clickhouse(
-        self, env: ENV, k8s_manager: KubernetesManager
-    ) -> list[PortMapping]:
-        """Forward ClickHouse service in monitoring namespace
+    def forward_services(
+        self,
+        namespace: str,
+        services: list[dict[str, Any]],
+        port_mappings: list[PortMapping],
+    ) -> dict[str, list[PortMapping]]:
+        """Forward all services
 
         Args:
-            k8s_manager: Kubernetes manager instance (injected by decorator)
+            namespace: Kubernetes namespace
+            services: List of services to forward
+            port_mappings: List of port mappings
 
         Returns:
-            List of ClickHouse port mappings
+            Dictionary mapping service names to port mapping lists
         """
-        assert k8s_manager is not None, "Kubernetes manager is required"
-
-        console.print("\n[bold blue]🚀 Forwarding ClickHouse...[/bold blue]")
+        console.print(
+            f"[bold blue]🚀 Forwarding all services in namespace {namespace}...[/bold blue]"
+        )
 
         # Use native Kubernetes API instead of kubectl
-        ports = k8s_manager.get_service_ports("clickstack-clickhouse", "monitoring")
-        if not ports:
-            console.print(
-                "[bold yellow]⚠️  ClickHouse service not found or has no ports[/bold yellow]"
-            )
-            return []
+        service_mappings: dict[str, list[PortMapping]] = {}
 
-        clickhouse_mappings = []
+        port_mapping_exists: set[str] = set(
+            mapping.service for mapping in port_mappings
+        )
+        port_mapping_dict: dict[int, PortMapping] = {
+            mapping.remote_port: mapping for mapping in port_mappings
+        }
 
-        for remote_port in ports:
-            local_port = self._calculate_local_port(remote_port)
+        for svc in services:
+            svc_name = svc["name"]
+            if svc_name not in port_mapping_exists:
+                continue
 
-            # Check for overflow
-            expected_port = int(f"{self.prefix}{remote_port}")
-            overflow_note = ""
-            if local_port != expected_port and expected_port > 65535:
-                overflow_note = " (remapped due to overflow)"
+            service_mappings[svc_name] = []
 
-            console.print(
-                f"   clickstack-clickhouse:{remote_port} -> "
-                f"localhost:{local_port}{overflow_note}"
-            )
+            for remote_port in svc["ports"]:
+                mapping = port_mapping_dict.get(remote_port)
+                if mapping:
+                    expected_port = int(f"{self.prefix}{remote_port}")
+                    overflow_note = ""
+                    if mapping.local_port != expected_port and expected_port > 65535:
+                        overflow_note = " (remapped due to overflow)"
 
-            # Start port forwarding
-            cmd = [
-                "kubectl",
-                "port-forward",
-                "svc/clickstack-clickhouse",
-                "--address=0.0.0.0",
-                f"{local_port}:{remote_port}",
-                "--namespace=monitoring",
-            ]
+                    console.print(
+                        f"   {mapping.service}:{remote_port} -> "
+                        f"localhost:{mapping.local_port}{overflow_note}"
+                    )
 
-            try:
-                proc = subprocess.Popen(
-                    cmd,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    preexec_fn=lambda: signal.signal(signal.SIGINT, signal.SIG_IGN),
-                )
+                    # Start port forwarding
+                    cmd = [
+                        "kubectl",
+                        "port-forward",
+                        f"svc/{svc_name}",
+                        "--address=0.0.0.0",
+                        f"{mapping.local_port}:{remote_port}",
+                        f"--namespace={mapping.namespace}",
+                    ]
 
-                mapping = PortMapping(
-                    service="clickstack-clickhouse",
-                    namespace="monitoring",
-                    remote_port=remote_port,
-                    local_port=local_port,
-                    pid=proc.pid,
-                )
+                    try:
+                        proc = subprocess.Popen(
+                            cmd,
+                            stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL,
+                            preexec_fn=lambda: signal.signal(
+                                signal.SIGINT, signal.SIG_IGN
+                            ),
+                        )
 
-                self.port_mappings.append(mapping)
-                clickhouse_mappings.append(mapping)
+                        mapping.namespace = self.namespace
+                        mapping.pid = proc.pid
 
-                time.sleep(0.1)
+                        service_mappings[svc_name].append(mapping)
 
-            except Exception as e:
-                console.print(
-                    f"[bold red]❌ Failed to forward clickhouse:{remote_port}: {e}[/bold red]"
-                )
+                        time.sleep(0.1)  # Avoid starting too many processes at once
 
-        return clickhouse_mappings
+                    except Exception as e:
+                        console.print(
+                            f"[bold red]❌ Failed to forward {svc_name}:{remote_port}: {e}[/bold red]"
+                        )
+
+        return service_mappings
 
     def get_service_url(
         self, service_name: str, namespace: str = "exp", protocol: str = "http"
@@ -304,7 +291,7 @@ class PortForwardManager:
         Returns:
             Local access URL, or None if not found
         """
-        for mapping in self.port_mappings:
+        for mapping in self.namespace_mappings:
             if mapping.service == service_name and mapping.namespace == namespace:
                 return mapping.get_url(protocol)
         return None
@@ -321,7 +308,7 @@ class PortForwardManager:
         Returns:
             Port mapping object, or None if not found
         """
-        for mapping in self.port_mappings:
+        for mapping in self.namespace_mappings:
             if mapping.service == service_name and mapping.namespace == namespace:
                 return mapping
         return None
@@ -331,7 +318,7 @@ class PortForwardManager:
         console.print("[bold blue]🛑 Stopping all port forwards...[/bold blue]")
 
         stopped_count = 0
-        for mapping in self.port_mappings:
+        for mapping in self.namespace_mappings:
             if mapping.pid:
                 try:
                     proc = psutil.Process(mapping.pid)
@@ -344,7 +331,7 @@ class PortForwardManager:
                 except (psutil.NoSuchProcess, psutil.AccessDenied):
                     pass
 
-        self.port_mappings.clear()
+        self.namespace_mappings.clear()
 
         if stopped_count > 0:
             console.print(
@@ -353,38 +340,38 @@ class PortForwardManager:
         else:
             console.print("[bold green]✅ No active forwards to stop[/bold green]")
 
-    @with_k8s_manager()
-    def start_forwarding(
-        self, env: ENV, namespace: str, k8s_manager: KubernetesManager
-    ) -> dict[str, Any]:
+    def start_forwarding(self) -> dict[str, Any]:
         """Start all port forwarding
-
-        Args:
-            k8s_manager: Kubernetes manager instance (injected by decorator)
 
         Returns:
             Dictionary containing forwarding information
         """
         self.cleanup_existing_forwards()
 
-        # Forward main namespace (pass env for decorator)
-        exp_mappings = self.forward_namespace_services(
-            env=self.env, namespace=namespace, k8s_manager=k8s_manager
+        # Forward main namespace
+        namespace_mappings = self.forward_services(
+            self.namespace,
+            services=self.namespace_services,
+            port_mappings=self.namespace_mappings,
         )
 
-        # Forward ClickHouse (pass env for decorator)
-        ch_mappings = self.forward_clickhouse(env=self.env, k8s_manager=k8s_manager)
+        # Forward ClickHouse
+        monitoring_mappings = self.forward_services(
+            "monitoring",
+            services=self.monitoring_namespaces,
+            port_mappings=self.monitoring_mappings,
+        )
 
         console.print(
             f"\n[green]✅ Done! Forwarded:[/green]\n"
-            f"   • {namespace} namespace: {len(exp_mappings)} service(s) ({self.prefix}xxxx ports)\n"
-            f"   • monitoring namespace: clickstack-clickhouse ({len(ch_mappings)} port(s))"
+            f"   • {self.namespace} namespace: {len(namespace_mappings)} service(s) ({self.prefix}xxxx ports)\n"
+            f"   • monitoring namespace: clickstack-clickhouse ({len(monitoring_mappings['clickstack-clickhouse'])} port(s))"
         )
 
         return {
-            "exp": exp_mappings,
-            "clickhouse": ch_mappings,
-            "total_mappings": len(self.port_mappings),
+            self.namespace: namespace_mappings,
+            "monitoring": monitoring_mappings,
+            "total_mappings": len(self.namespace_mappings),
         }
 
 

@@ -11,7 +11,8 @@
     "kubectx@latest",
     "git-cliff@latest",
     "lefthook@2.0.12",
-    "kind@0.31.0"
+    "kind@0.31.0",
+    "uv@latest"
   ],
   "shell": {
     "init_hook": [

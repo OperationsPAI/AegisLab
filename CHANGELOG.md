@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 ### Bug Fixes
 
 - Py dependency
+- Security issue
 
 ### Testing
 
