@@ -13,6 +13,7 @@ import {
   type ListDatasetVersionResp,
   type StatusType,
 } from '@rcabench/client';
+
 import { apiClient, createApiConfig } from './config';
 
 // Dataset type for API calls
@@ -105,6 +106,31 @@ export const datasetApi = {
       request,
     });
     return response.data.data;
+  },
+
+  /**
+   * 下载数据集版本 - 使用 SDK
+   */
+  downloadVersion: async (
+    datasetId: number,
+    versionId: number,
+    fileName?: string
+  ): Promise<void> => {
+    const api = new DatasetsApi(createApiConfig());
+    const response = await api.downloadDatasetVersion(
+      { datasetId, versionId },
+      { responseType: 'blob' }
+    );
+    // 创建下载链接
+    const blob = new Blob([response.data as unknown as BlobPart]);
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName || `dataset-${datasetId}-v${versionId}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
   },
 
   // ==================== 手工实现 (SDK 缺失) ====================

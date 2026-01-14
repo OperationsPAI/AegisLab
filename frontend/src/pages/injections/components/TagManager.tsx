@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState } from 'react';
 
 import {
   InfoCircleOutlined,
@@ -7,6 +6,7 @@ import {
 } from '@ant-design/icons';
 import { Button, Form, Input, message, Space, Tag, Tooltip } from 'antd';
 import type { InputRef } from 'antd/es/input';
+import { useEffect, useRef, useState } from 'react';
 
 import './TagManager.css';
 

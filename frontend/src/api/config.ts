@@ -6,17 +6,14 @@ import { Configuration } from '@rcabench/client';
 import { message } from 'antd';
 import axios, { type AxiosRequestConfig } from 'axios';
 
-/**
- * 创建 SDK Configuration 实例
- * 用于 @rcabench/client SDK 的 API 类
- */
+
 export const createApiConfig = (): Configuration => {
-  // 临时禁用 token 以便查看页面设计
-  // const token = localStorage.getItem('access_token');
+  const token = localStorage.getItem('access_token');
 
   return new Configuration({
-    basePath: '/api/v2',
-    accessToken: undefined, // 临时禁用
+    basePath: '',
+    // SDK 使用 apiKey 设置 Authorization header (需带 Bearer 前缀)
+    apiKey: token ? `Bearer ${token}` : undefined,
     baseOptions: {
       timeout: 30000,
       headers: {
@@ -38,14 +35,13 @@ export const apiClient = axios.create({
   },
 });
 
-// 请求拦截器：临时禁用 token
+// 请求拦截器：添加 Authorization header
 apiClient.interceptors.request.use(
   (config) => {
-    // 临时禁用 Authorization header 以便查看页面设计
-    // const token = localStorage.getItem('access_token');
-    // if (token && config.headers) {
-    //   config.headers.Authorization = `Bearer ${token}`;
-    // }
+    const token = localStorage.getItem('access_token');
+    if (token && config.headers) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
   },
   (error) => {

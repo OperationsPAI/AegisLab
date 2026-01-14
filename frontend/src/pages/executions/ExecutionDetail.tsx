@@ -1,5 +1,3 @@
-import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
 
 import {
   ArrowLeftOutlined,
@@ -25,6 +23,7 @@ import {
   Divider,
   Empty,
   message,
+  Modal,
   Progress,
   Row,
   Space,
@@ -35,6 +34,8 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
+import { useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import { executionApi } from '@/api/executions';
 import StatusBadge from '@/components/ui/StatusBadge';
@@ -49,6 +50,10 @@ const ExecutionDetail = () => {
   const { id } = useParams<{ id: string }>();
   const executionId = Number(id);
   const [activeTab, setActiveTab] = useState('overview');
+  const [granularityModalVisible, setGranularityModalVisible] = useState(false);
+  const [selectedGranularity, setSelectedGranularity] = useState<
+    GranularityResultItem[]
+  >([]);
 
   // Fetch execution details
   const { data: execution, isLoading } = useQuery({
@@ -58,16 +63,45 @@ const ExecutionDetail = () => {
   });
 
   const handleDownloadResults = () => {
-    // TODO: Implement download logic
-    message.info('Download functionality will be implemented soon');
+    if (!execution) {
+      message.error('No execution data available');
+      return;
+    }
+
+    const exportData = {
+      id: execution.id,
+      algorithm: execution.algorithm_name,
+      algorithm_version: execution.algorithm_version,
+      datapack_id: execution.datapack_id,
+      state: execution.state,
+      duration: execution.duration,
+      created_at: execution.created_at,
+      updated_at: execution.updated_at,
+      detector_results: execution.detector_results,
+      granularity_results: execution.granularity_results,
+      labels: execution.labels,
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `execution-${execution.id}-${dayjs().format('YYYY-MM-DD')}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    message.success('Results downloaded successfully');
   };
 
   const handleViewGranularity = (
-    type: string,
-    _results: GranularityResultItem[]
+    _type: string,
+    results: GranularityResultItem[]
   ) => {
-    // TODO: Implement detailed view
-    message.info(`View ${type} granularity results`);
+    setSelectedGranularity(results);
+    setGranularityModalVisible(true);
   };
 
   const formatDuration = (seconds?: number) => {
@@ -596,6 +630,73 @@ const ExecutionDetail = () => {
           },
         ]}
       />
+
+      {/* Granularity Details Modal */}
+      <Modal
+        title='Granularity Result Details'
+        open={granularityModalVisible}
+        onCancel={() => setGranularityModalVisible(false)}
+        footer={[
+          <Button key='close' onClick={() => setGranularityModalVisible(false)}>
+            Close
+          </Button>,
+        ]}
+        width={800}
+      >
+        {selectedGranularity.length > 0 ? (
+          <div>
+            {selectedGranularity.map((item, index) => (
+              <Card
+                key={index}
+                size='small'
+                style={{ marginBottom: 16 }}
+                title={
+                  <Space>
+                    <Badge
+                      count={item.rank}
+                      style={{
+                        backgroundColor:
+                          item.rank === 1
+                            ? '#10b981'
+                            : item.rank === 2
+                              ? '#f59e0b'
+                              : '#6b7280',
+                      }}
+                    />
+                    <Text strong>{item.result || `Result #${index + 1}`}</Text>
+                  </Space>
+                }
+              >
+                <Descriptions column={2} size='small'>
+                  <Descriptions.Item label='Rank'>{item.rank}</Descriptions.Item>
+                  <Descriptions.Item label='Level'>
+                    {item.level || '-'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label='Confidence' span={2}>
+                    <Progress
+                      percent={(item.confidence || 0) * 100}
+                      size='small'
+                      strokeColor={
+                        (item.confidence || 0) >= 0.8
+                          ? '#10b981'
+                          : (item.confidence || 0) >= 0.5
+                            ? '#f59e0b'
+                            : '#ef4444'
+                      }
+                      format={(percent) => `${(percent || 0).toFixed(1)}%`}
+                    />
+                  </Descriptions.Item>
+                  <Descriptions.Item label='Result' span={2}>
+                    <Text code>{item.result || '-'}</Text>
+                  </Descriptions.Item>
+                </Descriptions>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <Empty description='No granularity details available' />
+        )}
+      </Modal>
     </div>
   );
 };

@@ -235,3 +235,34 @@ See [`extractContext()`](src/service/consumer/task.go:275-306) in task.go.
 - **Kubernetes errors**: Expected in non-K8s environments; application requires K8s for full functionality
 - **BuildKit failures**: May occasionally fail to start; doesn't affect core development
 - **Import errors**: Run `go mod tidy` in `src/` directory
+
+## SDK Generation
+
+### Adding APIs to SDK
+
+The SDK generator only includes APIs that are explicitly marked for SDK inclusion. To add an API to the generated SDK:
+
+1. Add `@x-api-type {"sdk":"true"}` annotation to the handler function's Swagger comments:
+
+```go
+// @Router  /api/v2/your-endpoint [get]
+// @x-api-type {"sdk":"true"}
+func YourHandler(c *gin.Context) {
+```
+
+2. Regenerate the SDK:
+```bash
+make generate-typescript-sdk SDK_VERSION=0.0.0
+```
+
+3. Install the updated SDK in frontend:
+```bash
+cd frontend && npm install
+```
+
+### SDK Files Location
+- **TypeScript SDK**: `sdk/typescript/` - Used by frontend via `@rcabench/client`
+- **Python SDK**: `sdk/python/` - Used by CLI tools
+
+### API Filtering Logic
+The SDK generation script (`scripts/command/src/swagger.py`) filters APIs based on the `x-api-type.sdk` field. Only APIs with `{"sdk":"true"}` are included in the generated SDK.

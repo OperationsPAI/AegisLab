@@ -1,8 +1,8 @@
+import { LockOutlined, UserOutlined } from '@ant-design/icons';
+import { Button, Card, Form, Input, message, Typography } from 'antd';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { LockOutlined, UserOutlined } from '@ant-design/icons';
-import { Button, Card, Form, Input, message, Typography } from 'antd';
 
 import { useAuthStore } from '@/store/auth';
 

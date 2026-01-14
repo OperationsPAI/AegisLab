@@ -1,5 +1,3 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 import {
   CalendarOutlined,
@@ -14,7 +12,6 @@ import {
   TeamOutlined,
 } from '@ant-design/icons';
 import type { ProjectResp as Project } from '@rcabench/client';
-import { ProjectState } from '@/types/api';
 import { useQuery } from '@tanstack/react-query';
 import {
   Avatar,
@@ -29,12 +26,15 @@ import {
   Typography,
 } from 'antd';
 import dayjs from 'dayjs';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { projectApi } from '@/api/projects';
 import StatCard from '@/components/ui/StatCard';
 import StatusBadge, {
   type StatusBadgeProps,
 } from '@/components/ui/StatusBadge';
+import { ProjectState } from '@/types/api';
 
 import './ProjectList.css';
 
@@ -94,17 +94,16 @@ const ProjectList = () => {
     navigate('/projects/new');
   };
 
-  const handleEditProject = (_id: number | undefined) => {
-    // TODO: Navigate to edit page when implemented
-    if (_id) {
-      // console.log('Edit project:', _id)
+  const handleEditProject = (id: number | undefined) => {
+    if (id) {
+      navigate(`/projects/${id}/edit`);
     }
   };
 
-  const handleRunExperiment = (_project: Project) => {
-    // TODO: Navigate to create injection with project data when implemented
-    // console.log('Run experiment for project:', _project.id)
-    navigate('/injections/create');
+  const handleRunExperiment = (project: Project) => {
+    navigate('/injections/create', {
+      state: { projectId: project.id, projectName: project.name },
+    });
   };
 
   const columns = [

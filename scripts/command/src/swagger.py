@@ -859,9 +859,9 @@ def generate_typescript_sdk(version: str) -> None:
         package_data["types"] = "dist/index.d.ts"
         package_data["exports"] = {
             ".": {
+                "types": "./dist/index.d.ts",
                 "import": "./dist/esm/index.js",
-                "require": "./dist/index.js",
-                "types": "./dist/index.d.ts"
+                "require": "./dist/index.js"
             }
         }
         package_data["files"] = ["dist"]
@@ -918,3 +918,39 @@ def generate_typescript_sdk(version: str) -> None:
     # 4. Clean up temporary directory
     if TYPESCRIPT_SDK_GEN_DIR.exists():
         shutil.rmtree(TYPESCRIPT_SDK_GEN_DIR)
+
+    # 5. Build the SDK
+    console.print("[bold blue]Step 3: Building TypeScript SDK...[/bold blue]")
+
+    import subprocess
+
+    try:
+        # Install dependencies
+        subprocess.run(
+            ["npm", "install"],
+            cwd=TYPESCRIPT_SDK_DIR,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        console.print("[dim]✓ Dependencies installed[/dim]")
+
+        # Build the SDK
+        result = subprocess.run(
+            ["npm", "run", "build"],
+            cwd=TYPESCRIPT_SDK_DIR,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        console.print("[dim]✓ TypeScript compiled[/dim]")
+
+        console.print(
+            "[bold green]✅ TypeScript SDK built successfully![/bold green]"
+        )
+    except subprocess.CalledProcessError as e:
+        console.print(
+            f"[bold red]❌ Error building TypeScript SDK: {e.stderr}[/bold red]"
+        )
+        sys.exit(1)
+

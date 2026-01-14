@@ -1,6 +1,3 @@
-import { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-
 import {
   ApiOutlined,
   BarChartOutlined,
@@ -30,6 +27,9 @@ import {
   Space,
   Typography,
 } from 'antd';
+import { useEffect, useState } from 'react';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+
 
 import ThemeToggle from '@/components/ui/ThemeToggle';
 import { useAuthStore } from '@/store/auth';
@@ -40,11 +40,7 @@ import './MainLayout.css';
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
 
-interface MainLayoutProps {
-  children?: React.ReactNode;
-}
-
-const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
+const MainLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuthStore();
@@ -296,7 +292,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         {/* Main Content */}
         <Layout className='main-content-wrapper'>
           <Content className='main-content'>
-            <div className='content-inner'>{children}</div>
+            <div className='content-inner'>
+              <Outlet />
+            </div>
           </Content>
         </Layout>
       </Layout>

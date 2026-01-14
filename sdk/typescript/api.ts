@@ -268,6 +268,14 @@ export interface CreateProjectReq {
     'is_public'?: boolean;
     'name': string;
 }
+export interface CreateUserReq {
+    'avatar'?: string;
+    'email': string;
+    'full_name': string;
+    'password': string;
+    'phone'?: string;
+    'username': string;
+}
 export interface DatapackInfo {
     'datapack'?: InjectionItem;
     'job_name'?: string;
@@ -1052,6 +1060,24 @@ export interface GenericResponseListTaskResp {
      */
     'timestamp'?: number;
 }
+export interface GenericResponseListUserResp {
+    /**
+     * Status code
+     */
+    'code'?: number;
+    /**
+     * Generic type data
+     */
+    'data'?: ListUserResp;
+    /**
+     * Response message
+     */
+    'message'?: string;
+    /**
+     * Response generation time
+     */
+    'timestamp'?: number;
+}
 export interface GenericResponseLoginResp {
     /**
      * Status code
@@ -1232,6 +1258,24 @@ export interface GenericResponseUploadExecutionResultResp {
      */
     'timestamp'?: number;
 }
+export interface GenericResponseUserDetailResp {
+    /**
+     * Status code
+     */
+    'code'?: number;
+    /**
+     * Generic type data
+     */
+    'data'?: UserDetailResp;
+    /**
+     * Response message
+     */
+    'message'?: string;
+    /**
+     * Response generation time
+     */
+    'timestamp'?: number;
+}
 export interface GenericResponseUserInfo {
     /**
      * Status code
@@ -1241,6 +1285,24 @@ export interface GenericResponseUserInfo {
      * Generic type data
      */
     'data'?: UserInfo;
+    /**
+     * Response message
+     */
+    'message'?: string;
+    /**
+     * Response generation time
+     */
+    'timestamp'?: number;
+}
+export interface GenericResponseUserResp {
+    /**
+     * Status code
+     */
+    'code'?: number;
+    /**
+     * Generic type data
+     */
+    'data'?: UserResp;
     /**
      * Response message
      */
@@ -1425,6 +1487,10 @@ export interface ListTaskResp {
     'items'?: Array<TaskResp>;
     'pagination'?: PaginationInfo;
 }
+export interface ListUserResp {
+    'items'?: Array<UserResp>;
+    'pagination'?: PaginationInfo;
+}
 export interface LoginReq {
     'password': string;
     'username': string;
@@ -1485,6 +1551,18 @@ export enum ParameterType {
 }
 
 
+export interface PermissionResp {
+    'action'?: string;
+    'display_name'?: string;
+    'id'?: number;
+    'is_system'?: boolean;
+    'name'?: string;
+    'resource_name'?: ResourceName;
+    'status'?: string;
+    'updated_at'?: string;
+}
+
+
 export interface ProjectDetailResp {
     'containers'?: Array<ContainerResp>;
     'created_at'?: string;
@@ -1513,6 +1591,84 @@ export interface RegisterReq {
     'email': string;
     'password': string;
     'username': string;
+}
+
+export enum ResourceName {
+    /**
+    * system resource
+    */
+    System = 'system',
+    /**
+    * audit resource
+    */
+    Audit = 'audit',
+    /**
+    * configuration resource
+    */
+    Configruation = 'configuration',
+    /**
+    * container resource
+    */
+    Container = 'container',
+    /**
+    * container version resource
+    */
+    ContainerVersion = 'container_version',
+    /**
+    * dataset resource
+    */
+    Dataset = 'dataset',
+    /**
+    * dataset version resource
+    */
+    DatasetVersion = 'dataset_version',
+    /**
+    * project resource
+    */
+    Project = 'project',
+    /**
+    * label resource
+    */
+    Label = 'label',
+    /**
+    * user resource
+    */
+    User = 'user',
+    /**
+    * role resource
+    */
+    Role = 'role',
+    /**
+    * permission resource
+    */
+    Permission = 'permission',
+    /**
+    * task resource
+    */
+    Task = 'task',
+    /**
+    * trace resource
+    */
+    Trace = 'trace',
+    /**
+    * fault injection resource
+    */
+    Injection = 'injection',
+    /**
+    * execution resource
+    */
+    Execution = 'execution'
+}
+
+
+export interface RoleResp {
+    'display_name'?: string;
+    'id'?: number;
+    'is_system'?: boolean;
+    'name'?: string;
+    'status'?: string;
+    'type'?: string;
+    'updated_at'?: string;
 }
 
 export enum SSEEventName {
@@ -1772,6 +1928,16 @@ export interface TraceStatsItem {
     'trace_id'?: string;
     'type'?: string;
 }
+export interface UpdateUserReq {
+    'avatar'?: string;
+    'email'?: string;
+    'full_name'?: string;
+    'is_active'?: boolean;
+    'phone'?: string;
+    'status'?: StatusType;
+}
+
+
 export interface UploadDetectorResultReq {
     /**
      * Execution duration in seconds
@@ -1794,9 +1960,58 @@ export interface UploadGranularityResultReq {
     'duration': number;
     'results': Array<GranularityResultItem>;
 }
+export interface UserContainerInfo {
+    'container_id'?: number;
+    'container_name'?: string;
+    'joined_at'?: string;
+    'role_name'?: string;
+}
+export interface UserDatasetInfo {
+    'dataset_id'?: number;
+    'dataset_name'?: string;
+    'joined_at'?: string;
+    'role_name'?: string;
+}
+export interface UserDetailResp {
+    'avatar'?: string;
+    'container_roles'?: Array<UserContainerInfo>;
+    'created_at'?: string;
+    'dataset_roles'?: Array<UserDatasetInfo>;
+    'email'?: string;
+    'full_name'?: string;
+    'global_roles'?: Array<RoleResp>;
+    'id'?: number;
+    'is_active'?: boolean;
+    'last_login_at'?: string;
+    'permissions'?: Array<PermissionResp>;
+    'phone'?: string;
+    'project_roles'?: Array<UserProjectInfo>;
+    'status'?: string;
+    'updated_at'?: string;
+    'username'?: string;
+}
 export interface UserInfo {
     'avatar'?: string;
     'id'?: number;
+    'username'?: string;
+}
+export interface UserProjectInfo {
+    'joined_at'?: string;
+    'project_id'?: number;
+    'project_name'?: string;
+    'role_name'?: string;
+}
+export interface UserResp {
+    'avatar'?: string;
+    'created_at'?: string;
+    'email'?: string;
+    'full_name'?: string;
+    'id'?: number;
+    'is_active'?: boolean;
+    'last_login_at'?: string;
+    'phone'?: string;
+    'status'?: string;
+    'updated_at'?: string;
     'username'?: string;
 }
 
@@ -6887,6 +7102,565 @@ export class TracesApi extends BaseAPI implements TracesApiInterface {
      */
     public getTraceEvents(requestParameters: TracesApiGetTraceEventsRequest, options?: RawAxiosRequestConfig) {
         return TracesApiFp(this.configuration).getTraceEvents(requestParameters.traceId, requestParameters.lastId, options).then((request) => request(this.axios, this.basePath));
+    }
+}
+
+
+
+/**
+ * UsersApi - axios parameter creator
+ */
+export const UsersApiAxiosParamCreator = function (configuration?: Configuration) {
+    return {
+        /**
+         * Create a new user account with specified details
+         * @summary Create a new user
+         * @param {CreateUserReq} request User creation request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createUser: async (request: CreateUserReq, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'request' is not null or undefined
+            assertParamExists('createUser', 'request', request)
+            const localVarPath = `/api/v2/users`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication BearerAuth required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(request, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * Delete a user
+         * @summary Delete user
+         * @param {number} id User ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        deleteUser: async (id: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'id' is not null or undefined
+            assertParamExists('deleteUser', 'id', id)
+            const localVarPath = `/api/v2/users/{id}`
+                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'DELETE', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication BearerAuth required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * Get detailed information about a specific user
+         * @summary Get user by ID
+         * @param {number} id User ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getUserById: async (id: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'id' is not null or undefined
+            assertParamExists('getUserById', 'id', id)
+            const localVarPath = `/api/v2/users/{id}/detail`
+                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication BearerAuth required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * Get paginated list of users with filtering
+         * @summary List users
+         * @param {number} [page] Page number
+         * @param {number} [size] Page size
+         * @param {string} [username] Filter by username
+         * @param {string} [email] Filter by email
+         * @param {boolean} [isActive] Filter by active status
+         * @param {StatusType} [status] Filter by status
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listUsers: async (page?: number, size?: number, username?: string, email?: string, isActive?: boolean, status?: StatusType, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/api/v2/users`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication BearerAuth required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+            if (page !== undefined) {
+                localVarQueryParameter['page'] = page;
+            }
+
+            if (size !== undefined) {
+                localVarQueryParameter['size'] = size;
+            }
+
+            if (username !== undefined) {
+                localVarQueryParameter['username'] = username;
+            }
+
+            if (email !== undefined) {
+                localVarQueryParameter['email'] = email;
+            }
+
+            if (isActive !== undefined) {
+                localVarQueryParameter['is_active'] = isActive;
+            }
+
+            if (status !== undefined) {
+                localVarQueryParameter['status'] = status;
+            }
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * Update an existing user\'s information
+         * @summary Update user
+         * @param {number} id User ID
+         * @param {UpdateUserReq} request User update request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        updateUser: async (id: number, request: UpdateUserReq, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'id' is not null or undefined
+            assertParamExists('updateUser', 'id', id)
+            // verify required parameter 'request' is not null or undefined
+            assertParamExists('updateUser', 'request', request)
+            const localVarPath = `/api/v2/users/{id}`
+                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'PATCH', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication BearerAuth required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(request, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+    }
+};
+
+/**
+ * UsersApi - functional programming interface
+ */
+export const UsersApiFp = function(configuration?: Configuration) {
+    const localVarAxiosParamCreator = UsersApiAxiosParamCreator(configuration)
+    return {
+        /**
+         * Create a new user account with specified details
+         * @summary Create a new user
+         * @param {CreateUserReq} request User creation request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async createUser(request: CreateUserReq, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GenericResponseUserResp>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.createUser(request, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['UsersApi.createUser']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * Delete a user
+         * @summary Delete user
+         * @param {number} id User ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async deleteUser(id: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GenericResponseAny>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.deleteUser(id, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['UsersApi.deleteUser']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * Get detailed information about a specific user
+         * @summary Get user by ID
+         * @param {number} id User ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getUserById(id: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GenericResponseUserDetailResp>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getUserById(id, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['UsersApi.getUserById']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * Get paginated list of users with filtering
+         * @summary List users
+         * @param {number} [page] Page number
+         * @param {number} [size] Page size
+         * @param {string} [username] Filter by username
+         * @param {string} [email] Filter by email
+         * @param {boolean} [isActive] Filter by active status
+         * @param {StatusType} [status] Filter by status
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async listUsers(page?: number, size?: number, username?: string, email?: string, isActive?: boolean, status?: StatusType, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GenericResponseListUserResp>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.listUsers(page, size, username, email, isActive, status, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['UsersApi.listUsers']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * Update an existing user\'s information
+         * @summary Update user
+         * @param {number} id User ID
+         * @param {UpdateUserReq} request User update request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async updateUser(id: number, request: UpdateUserReq, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GenericResponseUserResp>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.updateUser(id, request, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['UsersApi.updateUser']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+    }
+};
+
+/**
+ * UsersApi - factory interface
+ */
+export const UsersApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
+    const localVarFp = UsersApiFp(configuration)
+    return {
+        /**
+         * Create a new user account with specified details
+         * @summary Create a new user
+         * @param {UsersApiCreateUserRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createUser(requestParameters: UsersApiCreateUserRequest, options?: RawAxiosRequestConfig): AxiosPromise<GenericResponseUserResp> {
+            return localVarFp.createUser(requestParameters.request, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * Delete a user
+         * @summary Delete user
+         * @param {UsersApiDeleteUserRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        deleteUser(requestParameters: UsersApiDeleteUserRequest, options?: RawAxiosRequestConfig): AxiosPromise<GenericResponseAny> {
+            return localVarFp.deleteUser(requestParameters.id, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * Get detailed information about a specific user
+         * @summary Get user by ID
+         * @param {UsersApiGetUserByIdRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getUserById(requestParameters: UsersApiGetUserByIdRequest, options?: RawAxiosRequestConfig): AxiosPromise<GenericResponseUserDetailResp> {
+            return localVarFp.getUserById(requestParameters.id, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * Get paginated list of users with filtering
+         * @summary List users
+         * @param {UsersApiListUsersRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listUsers(requestParameters: UsersApiListUsersRequest = {}, options?: RawAxiosRequestConfig): AxiosPromise<GenericResponseListUserResp> {
+            return localVarFp.listUsers(requestParameters.page, requestParameters.size, requestParameters.username, requestParameters.email, requestParameters.isActive, requestParameters.status, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * Update an existing user\'s information
+         * @summary Update user
+         * @param {UsersApiUpdateUserRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        updateUser(requestParameters: UsersApiUpdateUserRequest, options?: RawAxiosRequestConfig): AxiosPromise<GenericResponseUserResp> {
+            return localVarFp.updateUser(requestParameters.id, requestParameters.request, options).then((request) => request(axios, basePath));
+        },
+    };
+};
+
+/**
+ * UsersApi - interface
+ */
+export interface UsersApiInterface {
+    /**
+     * Create a new user account with specified details
+     * @summary Create a new user
+     * @param {UsersApiCreateUserRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    createUser(requestParameters: UsersApiCreateUserRequest, options?: RawAxiosRequestConfig): AxiosPromise<GenericResponseUserResp>;
+
+    /**
+     * Delete a user
+     * @summary Delete user
+     * @param {UsersApiDeleteUserRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    deleteUser(requestParameters: UsersApiDeleteUserRequest, options?: RawAxiosRequestConfig): AxiosPromise<GenericResponseAny>;
+
+    /**
+     * Get detailed information about a specific user
+     * @summary Get user by ID
+     * @param {UsersApiGetUserByIdRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    getUserById(requestParameters: UsersApiGetUserByIdRequest, options?: RawAxiosRequestConfig): AxiosPromise<GenericResponseUserDetailResp>;
+
+    /**
+     * Get paginated list of users with filtering
+     * @summary List users
+     * @param {UsersApiListUsersRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    listUsers(requestParameters?: UsersApiListUsersRequest, options?: RawAxiosRequestConfig): AxiosPromise<GenericResponseListUserResp>;
+
+    /**
+     * Update an existing user\'s information
+     * @summary Update user
+     * @param {UsersApiUpdateUserRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    updateUser(requestParameters: UsersApiUpdateUserRequest, options?: RawAxiosRequestConfig): AxiosPromise<GenericResponseUserResp>;
+
+}
+
+/**
+ * Request parameters for createUser operation in UsersApi.
+ */
+export interface UsersApiCreateUserRequest {
+    /**
+     * User creation request
+     */
+    readonly request: CreateUserReq
+}
+
+/**
+ * Request parameters for deleteUser operation in UsersApi.
+ */
+export interface UsersApiDeleteUserRequest {
+    /**
+     * User ID
+     */
+    readonly id: number
+}
+
+/**
+ * Request parameters for getUserById operation in UsersApi.
+ */
+export interface UsersApiGetUserByIdRequest {
+    /**
+     * User ID
+     */
+    readonly id: number
+}
+
+/**
+ * Request parameters for listUsers operation in UsersApi.
+ */
+export interface UsersApiListUsersRequest {
+    /**
+     * Page number
+     */
+    readonly page?: number
+
+    /**
+     * Page size
+     */
+    readonly size?: number
+
+    /**
+     * Filter by username
+     */
+    readonly username?: string
+
+    /**
+     * Filter by email
+     */
+    readonly email?: string
+
+    /**
+     * Filter by active status
+     */
+    readonly isActive?: boolean
+
+    /**
+     * Filter by status
+     */
+    readonly status?: StatusType
+}
+
+/**
+ * Request parameters for updateUser operation in UsersApi.
+ */
+export interface UsersApiUpdateUserRequest {
+    /**
+     * User ID
+     */
+    readonly id: number
+
+    /**
+     * User update request
+     */
+    readonly request: UpdateUserReq
+}
+
+/**
+ * UsersApi - object-oriented interface
+ */
+export class UsersApi extends BaseAPI implements UsersApiInterface {
+    /**
+     * Create a new user account with specified details
+     * @summary Create a new user
+     * @param {UsersApiCreateUserRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public createUser(requestParameters: UsersApiCreateUserRequest, options?: RawAxiosRequestConfig) {
+        return UsersApiFp(this.configuration).createUser(requestParameters.request, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Delete a user
+     * @summary Delete user
+     * @param {UsersApiDeleteUserRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public deleteUser(requestParameters: UsersApiDeleteUserRequest, options?: RawAxiosRequestConfig) {
+        return UsersApiFp(this.configuration).deleteUser(requestParameters.id, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Get detailed information about a specific user
+     * @summary Get user by ID
+     * @param {UsersApiGetUserByIdRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public getUserById(requestParameters: UsersApiGetUserByIdRequest, options?: RawAxiosRequestConfig) {
+        return UsersApiFp(this.configuration).getUserById(requestParameters.id, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Get paginated list of users with filtering
+     * @summary List users
+     * @param {UsersApiListUsersRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public listUsers(requestParameters: UsersApiListUsersRequest = {}, options?: RawAxiosRequestConfig) {
+        return UsersApiFp(this.configuration).listUsers(requestParameters.page, requestParameters.size, requestParameters.username, requestParameters.email, requestParameters.isActive, requestParameters.status, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Update an existing user\'s information
+     * @summary Update user
+     * @param {UsersApiUpdateUserRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public updateUser(requestParameters: UsersApiUpdateUserRequest, options?: RawAxiosRequestConfig) {
+        return UsersApiFp(this.configuration).updateUser(requestParameters.id, requestParameters.request, options).then((request) => request(this.axios, this.basePath));
     }
 }
 

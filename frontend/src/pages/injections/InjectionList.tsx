@@ -1,5 +1,3 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 import {
   CheckCircleOutlined,
@@ -7,14 +5,11 @@ import {
   DeleteOutlined,
   EditOutlined,
   ExperimentOutlined,
-  PauseCircleOutlined,
-  PlayCircleOutlined,
   PlusOutlined,
   SearchOutlined,
   SyncOutlined,
 } from '@ant-design/icons';
 import type { InjectionDetailResp as Injection } from '@rcabench/client';
-import { InjectionState, InjectionType } from '@/types/api';
 import { useQuery } from '@tanstack/react-query';
 import {
   Avatar,
@@ -34,6 +29,8 @@ import {
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import type { EChartsOption } from 'echarts';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { injectionApi } from '@/api/injections';
 import LabChart from '@/components/charts/LabChart';
@@ -41,6 +38,7 @@ import StatCard from '@/components/ui/StatCard';
 import StatusBadge, {
   type StatusBadgeProps,
 } from '@/components/ui/StatusBadge';
+import { InjectionState, InjectionType } from '@/types/api';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -72,12 +70,24 @@ const InjectionList = () => {
       }),
   });
 
-  // Fetch statistics - mock for now
+  // Calculate success rate from real data
+  const totalInjections = injectionsData?.items?.length || 0;
+  const successfulInjections =
+    injectionsData?.items?.filter(
+      (i) => i.state === 'build_success' || i.state === 'inject_success'
+    ).length || 0;
+  const calculatedSuccessRate =
+    totalInjections > 0
+      ? Math.round((successfulInjections / totalInjections) * 100)
+      : 0;
+
+  // Calculate statistics from real data
   const stats = {
     total: injectionsData?.pagination?.total || 0,
-    running: injectionsData?.items?.filter((i) => i.state === '1').length || 0,
-    successRate: 87,
-    avgDuration: 45,
+    running:
+      injectionsData?.items?.filter((i) => i.state === 'initial').length || 0,
+    successRate: calculatedSuccessRate,
+    avgDuration: 0, // No duration data available in API response
   };
 
   const handleTableChange = (newPagination: TablePaginationConfig) => {
@@ -97,21 +107,8 @@ const InjectionList = () => {
     navigate('/injections/create');
   };
 
-  const handleEditInjection = (_id: number) => {
-    // Navigate to edit page when implemented
-    // console.log('Edit injection:', id)
-  };
-
-  const handleControlInjection = async (
-    _injection: Injection,
-    _action: 'start' | 'stop'
-  ) => {
-    // TODO: Implement start/stop injection when API is ready
-    // console.log(`${_action} injection:`, _injection.id)
-    // Simulate API call
-    setTimeout(() => {
-      // refetch()
-    }, 1000);
+  const handleEditInjection = (id: number) => {
+    navigate(`/injections/${id}`);
   };
 
   const getInjectionTypeColor = (type: InjectionType) => {
@@ -138,10 +135,19 @@ const InjectionList = () => {
     return icons[type] || '🔧';
   };
 
-  // Injection timeline chart
+  // Injection timeline chart - based on real data grouped by fault type
+  const faultTypeCounts = injectionsData?.items?.reduce(
+    (acc, item) => {
+      const type = item.fault_type || 'Other';
+      acc[type] = (acc[type] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>
+  ) || {};
+
   const timelineData: EChartsOption = {
     title: {
-      text: 'Injection Timeline (24h)',
+      text: 'Injections by Fault Type',
       left: 'center',
       textStyle: {
         fontSize: 16,
@@ -149,60 +155,36 @@ const InjectionList = () => {
       },
     },
     tooltip: {
-      trigger: 'axis',
-      axisPointer: {
-        type: 'shadow',
-      },
-    },
-    xAxis: {
-      type: 'category',
-      data: Array.from({ length: 24 }, (_, i) => {
-        const hour = dayjs()
-          .subtract(23 - i, 'hour')
-          .hour();
-        return `${hour}:00`;
-      }),
-    },
-    yAxis: {
-      type: 'value',
-      name: 'Injections',
+      trigger: 'item',
+      formatter: '{b}: {c} ({d}%)',
     },
     series: [
       {
-        name: 'Network',
-        type: 'bar',
-        stack: 'total',
-        data: Array.from({ length: 24 }, () => Math.floor(Math.random() * 5)),
-        itemStyle: { color: '#3b82f6' },
-      },
-      {
-        name: 'CPU',
-        type: 'bar',
-        stack: 'total',
-        data: Array.from({ length: 24 }, () => Math.floor(Math.random() * 3)),
-        itemStyle: { color: '#f97316' },
-      },
-      {
-        name: 'Memory',
-        type: 'bar',
-        stack: 'total',
-        data: Array.from({ length: 24 }, () => Math.floor(Math.random() * 4)),
-        itemStyle: { color: '#8b5cf6' },
-      },
-      {
-        name: 'Disk',
-        type: 'bar',
-        stack: 'total',
-        data: Array.from({ length: 24 }, () => Math.floor(Math.random() * 2)),
-        itemStyle: { color: '#10b981' },
+        name: 'Fault Types',
+        type: 'pie',
+        radius: ['40%', '70%'],
+        avoidLabelOverlap: false,
+        itemStyle: {
+          borderRadius: 10,
+          borderColor: '#fff',
+          borderWidth: 2,
+        },
+        label: {
+          show: true,
+          formatter: '{b}: {c}',
+        },
+        data: Object.entries(faultTypeCounts).map(([name, value]) => ({
+          name,
+          value,
+        })),
       },
     ],
   };
 
-  // Success rate chart
+  // Success rate chart - based on real data
   const successRateData: EChartsOption = {
     title: {
-      text: 'Success Rate by Type',
+      text: 'Success Rate',
       left: 'center',
       textStyle: {
         fontSize: 16,
@@ -271,7 +253,7 @@ const InjectionList = () => {
         },
         data: [
           {
-            value: 87,
+            value: calculatedSuccessRate,
             name: 'Overall',
           },
         ],
@@ -395,28 +377,11 @@ const InjectionList = () => {
       width: '12%',
       render: (_: string, record: Injection) => (
         <Space>
-          {record.state === '0' && ( // PENDING
-            <Button
-              type='text'
-              icon={<PlayCircleOutlined />}
-              onClick={() => handleControlInjection(record, 'start')}
-              title='Start Injection'
-            />
-          )}
-          {record.state === '1' && ( // RUNNING
-            <Button
-              type='text'
-              danger
-              icon={<PauseCircleOutlined />}
-              onClick={() => handleControlInjection(record, 'stop')}
-              title='Stop Injection'
-            />
-          )}
           <Button
             type='text'
             icon={<EditOutlined />}
             onClick={() => handleEditInjection(record.id || 0)}
-            title='Edit Injection'
+            title='View Injection'
           />
           <Button
             type='text'

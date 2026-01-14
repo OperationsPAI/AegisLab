@@ -1,6 +1,3 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-
 import {
   BarChartOutlined,
   CheckCircleOutlined,
@@ -15,6 +12,10 @@ import {
   SearchOutlined,
   SyncOutlined,
 } from '@ant-design/icons';
+import {
+  type EvaluateDatapackItem,
+  type EvaluateDatapackSpec,
+} from '@rcabench/client';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   Avatar,
@@ -36,11 +37,10 @@ import {
   Typography,
 } from 'antd';
 import dayjs from 'dayjs';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-import {
-  type EvaluateDatapackItem,
-  type EvaluateDatapackSpec,
-} from '@rcabench/client';
+
 import { containerApi } from '@/api/containers';
 import { datasetApi } from '@/api/datasets';
 import { evaluationApi } from '@/api/evaluations';
@@ -50,39 +50,27 @@ const { Title, Text } = Typography;
 const { Search } = Input;
 const { Option } = Select;
 
-// Mock evaluation data for demonstration
-const mockEvaluations: EvaluateDatapackItem[] = [
-  {
-    algorithm: 'MicroRank',
-    algorithm_version: 'v1.0.0',
-    datapack: 'dp-12345678',
-    groundtruths: [],
-    execution_refs: [
-      {
-        execution_id: 42,
-        execution_duration: 120,
-        detector_results: [],
-        predictions: [],
-        executed_at: '2024-01-15T10:30:00Z',
-      },
-    ],
-  },
-  {
-    algorithm: 'TraceRCA',
-    algorithm_version: 'v2.1.0',
-    datapack: 'dp-87654321',
-    groundtruths: [],
-    execution_refs: [
-      {
-        execution_id: 43,
-        execution_duration: 95,
-        detector_results: [],
-        predictions: [],
-        executed_at: '2024-01-15T11:45:00Z',
-      },
-    ],
-  },
-];
+// localStorage key for persisting evaluations
+const EVALUATIONS_STORAGE_KEY = 'rcabench_evaluations';
+
+// Helper to load evaluations from localStorage
+const loadEvaluationsFromStorage = (): EvaluateDatapackItem[] => {
+  try {
+    const stored = localStorage.getItem(EVALUATIONS_STORAGE_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+};
+
+// Helper to save evaluations to localStorage
+const saveEvaluationsToStorage = (evaluations: EvaluateDatapackItem[]) => {
+  try {
+    localStorage.setItem(EVALUATIONS_STORAGE_KEY, JSON.stringify(evaluations));
+  } catch (error) {
+    console.error('Failed to save evaluations to localStorage:', error);
+  }
+};
 
 const EvaluationList = () => {
   const navigate = useNavigate();
@@ -97,9 +85,11 @@ const EvaluationList = () => {
     pageSize: 10,
     total: 0,
   });
-  const [evaluations, setEvaluations] =
-    useState<EvaluateDatapackItem[]>(mockEvaluations);
-  const [isLoading, _setIsLoading] = useState(false);
+  // Load evaluations from localStorage on initial render
+  const [evaluations, setEvaluations] = useState<EvaluateDatapackItem[]>(() =>
+    loadEvaluationsFromStorage()
+  );
+  const isLoading = false;
 
   // Fetch available algorithms and datasets for filters
   const { data: algorithmsData } = useQuery({
@@ -118,8 +108,13 @@ const EvaluationList = () => {
       evaluationApi.evaluateDatapacks(specs as any),
     onSuccess: (data: any) => {
       message.success('Evaluation completed successfully');
-      // Add new evaluations to the list
-      setEvaluations((prev) => [...prev, ...(data?.data?.items || [])]);
+      // Add new evaluations to the list and persist
+      const newItems = data?.data?.items || [];
+      setEvaluations((prev) => {
+        const updated = [...prev, ...newItems];
+        saveEvaluationsToStorage(updated);
+        return updated;
+      });
     },
     onError: (error) => {
       message.error('Failed to evaluate datapack');
@@ -133,8 +128,13 @@ const EvaluationList = () => {
       evaluationApi.evaluateDatasets(specs as any),
     onSuccess: (data: any) => {
       message.success('Evaluation completed successfully');
-      // Add new evaluations to the list
-      setEvaluations((prev) => [...prev, ...(data?.data?.items || [])]);
+      // Add new evaluations to the list and persist
+      const newItems = data?.data?.items || [];
+      setEvaluations((prev) => {
+        const updated = [...prev, ...newItems];
+        saveEvaluationsToStorage(updated);
+        return updated;
+      });
     },
     onError: (error) => {
       message.error('Failed to evaluate dataset');
@@ -178,7 +178,11 @@ const EvaluationList = () => {
       okButtonProps: { danger: true },
       cancelText: 'Cancel',
       onOk: () => {
-        setEvaluations((prev) => prev.filter((_, i) => i !== index));
+        setEvaluations((prev) => {
+          const updated = prev.filter((_, i) => i !== index);
+          saveEvaluationsToStorage(updated);
+          return updated;
+        });
         message.success('Evaluation deleted successfully');
       },
     });
@@ -197,9 +201,11 @@ const EvaluationList = () => {
       okButtonProps: { danger: true },
       cancelText: 'Cancel',
       onOk: () => {
-        setEvaluations((prev) =>
-          prev.filter((_, i) => !selectedRowKeys.includes(i))
-        );
+        setEvaluations((prev) => {
+          const updated = prev.filter((_, i) => !selectedRowKeys.includes(i));
+          saveEvaluationsToStorage(updated);
+          return updated;
+        });
         setSelectedRowKeys([]);
         message.success(
           `${selectedRowKeys.length} evaluations deleted successfully`

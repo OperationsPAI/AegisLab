@@ -1,6 +1,3 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-
 import {
   CloseOutlined,
   DatabaseOutlined,
@@ -16,7 +13,7 @@ import type {
   GenericResponseContainerDetailResp,
   LabelItem,
   ListContainerResp,
-} from '@rcabench/client';
+ InjectionResp, ListInjectionResp } from '@rcabench/client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
@@ -36,9 +33,12 @@ import {
   Tag,
   Typography,
 } from 'antd';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { containerApi } from '@/api/containers';
 import { executionApi } from '@/api/executions';
+import { injectionApi } from '@/api/injections';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -67,34 +67,17 @@ const ExecutionForm = () => {
     queryFn: () => containerApi.getContainers({ type: 2 }), // 2 corresponds to ContainerType.ALGORITHM
   });
 
-  // Fetch datapacks (simulated - in real app would fetch from datapack API)
-  const { data: datapacksData } = useQuery({
-    queryKey: ['datapacks'],
-    queryFn: async () => {
-      // Mock datapacks for now
-      return {
-        data: {
-          data: [
-            {
-              id: 'dp-12345678',
-              name: 'Test Datapack 1',
-              created_at: '2024-01-01',
-            },
-            {
-              id: 'dp-87654321',
-              name: 'Test Datapack 2',
-              created_at: '2024-01-02',
-            },
-            {
-              id: 'dp-11223344',
-              name: 'Production Datapack',
-              created_at: '2024-01-03',
-            },
-          ],
-        },
-      };
-    },
-  });
+  // Fetch datapacks (injections with build_success state = 4)
+  const { data: datapacksData, isLoading: datapacksLoading } =
+    useQuery<ListInjectionResp | undefined>({
+      queryKey: ['datapacks'],
+      queryFn: () =>
+        injectionApi.getInjections({
+          page: 1,
+          size: 50,
+          state: 4, // DatapackBuildSuccess
+        }),
+    });
 
   // Create execution mutation
   const createMutation = useMutation({
@@ -348,29 +331,38 @@ const ExecutionForm = () => {
                   { required: true, message: 'Please select a datapack' },
                 ]}
               >
-                <Select placeholder='Select datapack' size='large'>
-                  {datapacksData?.data?.data.map(
-                    (datapack: {
-                      id: string;
-                      name: string;
-                      created_at: string;
-                    }) => (
-                      <Option key={datapack.id} value={datapack.id}>
-                        <Space>
-                          <DatabaseOutlined style={{ color: '#3b82f6' }} />
-                          <div>
-                            <div>{datapack.name}</div>
-                            <Text
-                              type='secondary'
-                              style={{ fontSize: '0.75rem' }}
-                            >
-                              ID: {datapack.id}
-                            </Text>
-                          </div>
-                        </Space>
-                      </Option>
+                <Select
+                  placeholder='Select datapack'
+                  size='large'
+                  loading={datapacksLoading}
+                  notFoundContent={
+                    datapacksLoading ? (
+                      <Text type='secondary'>Loading...</Text>
+                    ) : (
+                      <Text type='secondary'>
+                        No datapacks available. Build datapacks from injections
+                        first.
+                      </Text>
                     )
-                  )}
+                  }
+                >
+                  {datapacksData?.items?.map((injection: InjectionResp) => (
+                    <Option key={injection.task_id} value={injection.task_id}>
+                      <Space>
+                        <DatabaseOutlined style={{ color: '#3b82f6' }} />
+                        <div>
+                          <div>{injection.name}</div>
+                          <Text
+                            type='secondary'
+                            style={{ fontSize: '0.75rem' }}
+                          >
+                            {injection.fault_type} | {injection.benchmark_name}{' '}
+                            | Task: {injection.task_id}
+                          </Text>
+                        </div>
+                      </Space>
+                    </Option>
+                  ))}
                 </Select>
               </Form.Item>
 

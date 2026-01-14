@@ -1,9 +1,17 @@
+import { Badge, Tag } from 'antd';
 import type { CSSProperties } from 'react';
 
-import { Badge, Tag } from 'antd';
 
 interface StatusBadgeProps {
-  status: 'pending' | 'running' | 'completed' | 'error' | 'warning' | 'info';
+  status:
+    | 'pending'
+    | 'running'
+    | 'completed'
+    | 'error'
+    | 'warning'
+    | 'info'
+    | 'success'
+    | 'default';
   text?: string;
   size?: 'small' | 'default';
   showDot?: boolean;
@@ -11,7 +19,10 @@ interface StatusBadgeProps {
   className?: string;
 }
 
-const statusConfig = {
+const statusConfig: Record<
+  StatusBadgeProps['status'],
+  { color: string; text: string; icon: string; pulse?: boolean }
+> = {
   pending: {
     color: '#f59e0b',
     text: 'Pending',
@@ -42,6 +53,16 @@ const statusConfig = {
     color: '#06b6d4',
     text: 'Info',
     icon: 'ℹ️',
+  },
+  success: {
+    color: '#10b981',
+    text: 'Success',
+    icon: '✓',
+  },
+  default: {
+    color: '#6b7280',
+    text: 'Default',
+    icon: '•',
   },
 };
 

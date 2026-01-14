@@ -38,6 +38,7 @@ docs/CreateDatasetVersionReq.md
 docs/CreateHelmConfigReq.md
 docs/CreateParameterConfigReq.md
 docs/CreateProjectReq.md
+docs/CreateUserReq.md
 docs/DatapackInfo.md
 docs/DatapackResult.md
 docs/DatapackState.md
@@ -95,6 +96,7 @@ docs/GenericResponseListExecutionResp.md
 docs/GenericResponseListInjectionResp.md
 docs/GenericResponseListProjectResp.md
 docs/GenericResponseListTaskResp.md
+docs/GenericResponseListUserResp.md
 docs/GenericResponseLoginResp.md
 docs/GenericResponseProjectDetailResp.md
 docs/GenericResponseProjectResp.md
@@ -105,7 +107,9 @@ docs/GenericResponseSubmitExecutionResp.md
 docs/GenericResponseSubmitInjectionResp.md
 docs/GenericResponseTaskDetailResp.md
 docs/GenericResponseUploadExecutionResultResp.md
+docs/GenericResponseUserDetailResp.md
 docs/GenericResponseUserInfo.md
+docs/GenericResponseUserResp.md
 docs/GranularityResultItem.md
 docs/GroupStats.md
 docs/HealthCheckResp.md
@@ -131,6 +135,7 @@ docs/ListExecutionResp.md
 docs/ListInjectionResp.md
 docs/ListProjectResp.md
 docs/ListTaskResp.md
+docs/ListUserResp.md
 docs/LoginReq.md
 docs/LoginResp.md
 docs/ManageDatasetVersionInjectionReq.md
@@ -141,10 +146,13 @@ docs/ParameterCategory.md
 docs/ParameterItem.md
 docs/ParameterSpec.md
 docs/ParameterType.md
+docs/PermissionResp.md
 docs/ProjectDetailResp.md
 docs/ProjectResp.md
 docs/ProjectsApi.md
 docs/RegisterReq.md
+docs/ResourceName.md
+docs/RoleResp.md
 docs/SSEEventName.md
 docs/SearchDatasetReq.md
 docs/SearchInjectionReq.md
@@ -172,10 +180,17 @@ docs/TaskType.md
 docs/TasksApi.md
 docs/TraceStatsItem.md
 docs/TracesApi.md
+docs/UpdateUserReq.md
 docs/UploadDetectorResultReq.md
 docs/UploadExecutionResultResp.md
 docs/UploadGranularityResultReq.md
+docs/UserContainerInfo.md
+docs/UserDatasetInfo.md
+docs/UserDetailResp.md
 docs/UserInfo.md
+docs/UserProjectInfo.md
+docs/UserResp.md
+docs/UsersApi.md
 docs/ValueDataType.md
 git_push.sh
 index.ts

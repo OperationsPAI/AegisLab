@@ -96,6 +96,11 @@ Class | Method | HTTP request | Description
 *TasksApi* | [**listTasks**](docs/TasksApi.md#listtasks) | **GET** /api/v2/tasks | List tasks
 *TracesApi* | [**getGroupStats**](docs/TracesApi.md#getgroupstats) | **GET** /api/v2/traces/group/stats | Get statistics for a group of traces
 *TracesApi* | [**getTraceEvents**](docs/TracesApi.md#gettraceevents) | **GET** /api/v2/traces/{trace_id}/stream | Stream trace events in real-time
+*UsersApi* | [**createUser**](docs/UsersApi.md#createuser) | **POST** /api/v2/users | Create a new user
+*UsersApi* | [**deleteUser**](docs/UsersApi.md#deleteuser) | **DELETE** /api/v2/users/{id} | Delete user
+*UsersApi* | [**getUserById**](docs/UsersApi.md#getuserbyid) | **GET** /api/v2/users/{id}/detail | Get user by ID
+*UsersApi* | [**listUsers**](docs/UsersApi.md#listusers) | **GET** /api/v2/users | List users
+*UsersApi* | [**updateUser**](docs/UsersApi.md#updateuser) | **PATCH** /api/v2/users/{id} | Update user
 
 
 ### Documentation For Models
@@ -130,6 +135,7 @@ Class | Method | HTTP request | Description
  - [CreateHelmConfigReq](docs/CreateHelmConfigReq.md)
  - [CreateParameterConfigReq](docs/CreateParameterConfigReq.md)
  - [CreateProjectReq](docs/CreateProjectReq.md)
+ - [CreateUserReq](docs/CreateUserReq.md)
  - [DatapackInfo](docs/DatapackInfo.md)
  - [DatapackResult](docs/DatapackResult.md)
  - [DatapackState](docs/DatapackState.md)
@@ -183,6 +189,7 @@ Class | Method | HTTP request | Description
  - [GenericResponseListInjectionResp](docs/GenericResponseListInjectionResp.md)
  - [GenericResponseListProjectResp](docs/GenericResponseListProjectResp.md)
  - [GenericResponseListTaskResp](docs/GenericResponseListTaskResp.md)
+ - [GenericResponseListUserResp](docs/GenericResponseListUserResp.md)
  - [GenericResponseLoginResp](docs/GenericResponseLoginResp.md)
  - [GenericResponseProjectDetailResp](docs/GenericResponseProjectDetailResp.md)
  - [GenericResponseProjectResp](docs/GenericResponseProjectResp.md)
@@ -193,7 +200,9 @@ Class | Method | HTTP request | Description
  - [GenericResponseSubmitInjectionResp](docs/GenericResponseSubmitInjectionResp.md)
  - [GenericResponseTaskDetailResp](docs/GenericResponseTaskDetailResp.md)
  - [GenericResponseUploadExecutionResultResp](docs/GenericResponseUploadExecutionResultResp.md)
+ - [GenericResponseUserDetailResp](docs/GenericResponseUserDetailResp.md)
  - [GenericResponseUserInfo](docs/GenericResponseUserInfo.md)
+ - [GenericResponseUserResp](docs/GenericResponseUserResp.md)
  - [GranularityResultItem](docs/GranularityResultItem.md)
  - [GroupStats](docs/GroupStats.md)
  - [HealthCheckResp](docs/HealthCheckResp.md)
@@ -218,6 +227,7 @@ Class | Method | HTTP request | Description
  - [ListInjectionResp](docs/ListInjectionResp.md)
  - [ListProjectResp](docs/ListProjectResp.md)
  - [ListTaskResp](docs/ListTaskResp.md)
+ - [ListUserResp](docs/ListUserResp.md)
  - [LoginReq](docs/LoginReq.md)
  - [LoginResp](docs/LoginResp.md)
  - [ManageDatasetVersionInjectionReq](docs/ManageDatasetVersionInjectionReq.md)
@@ -228,9 +238,12 @@ Class | Method | HTTP request | Description
  - [ParameterItem](docs/ParameterItem.md)
  - [ParameterSpec](docs/ParameterSpec.md)
  - [ParameterType](docs/ParameterType.md)
+ - [PermissionResp](docs/PermissionResp.md)
  - [ProjectDetailResp](docs/ProjectDetailResp.md)
  - [ProjectResp](docs/ProjectResp.md)
  - [RegisterReq](docs/RegisterReq.md)
+ - [ResourceName](docs/ResourceName.md)
+ - [RoleResp](docs/RoleResp.md)
  - [SSEEventName](docs/SSEEventName.md)
  - [SearchDatasetReq](docs/SearchDatasetReq.md)
  - [SearchInjectionReq](docs/SearchInjectionReq.md)
@@ -255,10 +268,16 @@ Class | Method | HTTP request | Description
  - [TaskState](docs/TaskState.md)
  - [TaskType](docs/TaskType.md)
  - [TraceStatsItem](docs/TraceStatsItem.md)
+ - [UpdateUserReq](docs/UpdateUserReq.md)
  - [UploadDetectorResultReq](docs/UploadDetectorResultReq.md)
  - [UploadExecutionResultResp](docs/UploadExecutionResultResp.md)
  - [UploadGranularityResultReq](docs/UploadGranularityResultReq.md)
+ - [UserContainerInfo](docs/UserContainerInfo.md)
+ - [UserDatasetInfo](docs/UserDatasetInfo.md)
+ - [UserDetailResp](docs/UserDetailResp.md)
  - [UserInfo](docs/UserInfo.md)
+ - [UserProjectInfo](docs/UserProjectInfo.md)
+ - [UserResp](docs/UserResp.md)
  - [ValueDataType](docs/ValueDataType.md)
 
 

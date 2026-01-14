@@ -1,4 +1,3 @@
-import { useState } from 'react';
 
 import {
   ClockCircleOutlined,
@@ -10,8 +9,10 @@ import {
   StopOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons';
+import { GetInjectionMetadataSystem } from '@rcabench/client';
 import { useQuery } from '@tanstack/react-query';
 import { Card, Empty, List, Spin, Tag, Tooltip } from 'antd';
+import { useState, useMemo } from 'react';
 
 import { injectionApi } from '../../../api/injections';
 import type { FaultType } from '../../../types/api';
@@ -49,15 +50,64 @@ export const FaultTypePanel: React.FC<FaultTypePanelProps> = ({
 }: FaultTypePanelProps) => {
   const [selectedFault, setSelectedFault] = useState<FaultType | null>(null);
 
-  // Fetch fault types
+  // Fetch fault metadata using the SDK
+  // Use 'ts' as default system - fault_type_map is global across systems
   const {
-    data: faultTypes = [],
+    data: metadata,
     isLoading,
     error,
   } = useQuery({
-    queryKey: ['faultTypes'],
-    queryFn: () => injectionApi.getFaultTypes(),
+    queryKey: ['faultMetadata'],
+    queryFn: () => injectionApi.getFaultMetadata(GetInjectionMetadataSystem.ts),
   });
+
+  // Convert fault_type_map to FaultType array
+  const faultTypes: FaultType[] = useMemo(() => {
+    if (!metadata?.fault_type_map) return [];
+
+    // Define category mappings based on fault type names
+    const categoryMap: Record<string, string> = {
+      PodKill: 'Kubernetes',
+      PodFailure: 'Kubernetes',
+      ContainerKill: 'Kubernetes',
+      MemoryStress: 'Memory',
+      CPUStress: 'CPU',
+      HTTPRequestAbort: 'Network',
+      HTTPResponseAbort: 'Network',
+      HTTPRequestDelay: 'Network',
+      HTTPResponseDelay: 'Network',
+      HTTPResponseReplaceBody: 'Network',
+      HTTPResponsePatchBody: 'Network',
+      HTTPRequestReplacePath: 'Network',
+      HTTPRequestReplaceMethod: 'Network',
+      HTTPResponseReplaceCode: 'Network',
+      DNSError: 'DNS',
+      DNSRandom: 'DNS',
+      TimeSkew: 'Time',
+      NetworkDelay: 'Network',
+      NetworkLoss: 'Network',
+      NetworkDuplicate: 'Network',
+      NetworkCorrupt: 'Network',
+      NetworkBandwidth: 'Network',
+      NetworkPartition: 'Network',
+      JVMLatency: 'JVM',
+      JVMReturn: 'JVM',
+      JVMException: 'JVM',
+      JVMGarbageCollector: 'JVM',
+      JVMCPUStress: 'JVM',
+      JVMMemoryStress: 'JVM',
+      JVMMySQLLatency: 'JVM',
+      JVMMySQLException: 'JVM',
+    };
+
+    return Object.entries(metadata.fault_type_map).map(([key, description], index) => ({
+      id: index,
+      name: key,
+      type: key,
+      category: categoryMap[key] || 'Other',
+      description: description || key,
+    }));
+  }, [metadata]);
 
   const handleFaultClick = (fault: FaultType) => {
     setSelectedFault(fault);

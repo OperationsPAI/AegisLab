@@ -1,6 +1,3 @@
-import { memo } from 'react';
-import { Handle, type NodeProps, Position } from 'reactflow';
-
 import {
   ClockCircleOutlined,
   CloudServerOutlined,
@@ -14,6 +11,9 @@ import {
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import { Button, Tag, Tooltip } from 'antd';
+import { memo } from 'react';
+import { Handle, type NodeProps, Position } from 'reactflow';
+
 
 import type { FaultType } from '../../../types/api';
 

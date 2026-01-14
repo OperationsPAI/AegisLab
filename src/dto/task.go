@@ -233,7 +233,8 @@ func (req *ListTaskReq) Validate() error {
 		return err
 	}
 
-	if req.ProjectID <= 0 {
+	// Only validate project ID if it's provided (> 0)
+	if req.ProjectID < 0 {
 		return fmt.Errorf("invalid project ID: %d", req.ProjectID)
 	}
 

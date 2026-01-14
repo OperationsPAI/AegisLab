@@ -1,6 +1,11 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-
+import type {
+  ChaosNode,
+  ContainerResp,
+  ContainerSpec,
+  LabelItem,
+  ProjectResp,
+  SubmitInjectionReq,
+} from '@rcabench/client';
 import { useQuery } from '@tanstack/react-query';
 import {
   Button,
@@ -14,6 +19,14 @@ import {
   Select,
   Space,
 } from 'antd';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+
+import { containerApi } from '../../api/containers';
+import { injectionApi } from '../../api/injections';
+import { projectApi } from '../../api/projects';
+import type { FaultType } from '../../types/api';
 
 import { AlgorithmSelector } from './components/AlgorithmSelector';
 import { FaultConfigPanel } from './components/FaultConfigPanel';
@@ -21,13 +34,6 @@ import { FaultTypePanel } from './components/FaultTypePanel';
 import { TagManager } from './components/TagManager';
 import { VisualCanvas } from './components/VisualCanvas';
 
-import { containerApi } from '../../api/containers';
-import { injectionApi } from '../../api/injections';
-import { projectApi } from '../../api/projects';
-import MainLayout from '../../components/layout/MainLayout';
-import type { ContainerResp, ProjectResp } from '@rcabench/client';
-
-import type { FaultType } from '../../types/api';
 
 import './InjectionCreate.css';
 
@@ -64,7 +70,7 @@ const InjectionCreate: React.FC = () => {
   // Fetch projects
   const { data: projects = [], isLoading: projectsLoading } = useQuery({
     queryKey: ['projects'],
-    queryFn: () => projectApi.getProjects({ page: 1, size: 100 }),
+    queryFn: () => projectApi.getProjects({ page: 1, size: 50 }),
     select: (data: any) => data.items || [],
   });
 
@@ -77,7 +83,7 @@ const InjectionCreate: React.FC = () => {
       }
       return containerApi.getContainers({
         page: 1,
-        size: 100,
+        size: 50,
       });
     },
     enabled: !!selectedProject,
@@ -136,38 +142,114 @@ const InjectionCreate: React.FC = () => {
     setTags(newTags);
   };
 
+  // Helper function to find container by ID
+  const findContainerById = (
+    containerId: number
+  ): ContainerResp | undefined => {
+    return containers.find((c: ContainerResp) => c.id === containerId);
+  };
+
+  // Helper function to convert container to ContainerSpec
+  // Note: ContainerResp doesn't include version, using 'latest' as default
+  const toContainerSpec = (container: ContainerResp): ContainerSpec => ({
+    name: container.name || '',
+    version: 'latest', // Default to 'latest' as version is not available in ContainerResp
+  });
+
+  // Helper function to convert FaultType[][] to ChaosNode[][]
+  const toSpecs = (matrix: FaultType[][]): ChaosNode[][] => {
+    return matrix.map((batch) =>
+      batch.map((fault) => ({
+        name: fault.name,
+        description: fault.type,
+        // Convert fault parameters to ChaosNode children if needed
+        children: fault.parameters?.reduce(
+          (acc, param) => {
+            if (param && typeof param === 'object' && 'name' in param) {
+              acc[(param as { name: string }).name] = {
+                name: (param as { name: string }).name,
+                value: (param as { value?: number }).value,
+              };
+            }
+            return acc;
+          },
+          {} as { [key: string]: ChaosNode }
+        ),
+      }))
+    );
+  };
+
   const handleSubmit = async (values: InjectionFormData) => {
     try {
-      const payload = {
-        ...values,
-        fault_matrix: faultMatrix,
-        tags,
+      // Find the selected project
+      const selectedProjectData = projects.find(
+        (p: ProjectResp) => p.id === values.project_id
+      );
+      if (!selectedProjectData) {
+        message.error('Please select a project');
+        return;
+      }
+
+      // Find the selected containers
+      const pedestalContainer = findContainerById(
+        values.container_config.pedestal_container_id
+      );
+      const benchmarkContainer = findContainerById(
+        values.container_config.benchmark_container_id
+      );
+
+      if (!pedestalContainer || !benchmarkContainer) {
+        message.error('Please select pedestal and benchmark containers');
+        return;
+      }
+
+      // Build algorithm specs
+      const algorithmSpecs: ContainerSpec[] = selectedAlgorithms
+        .map((id) => findContainerById(id))
+        .filter((c): c is ContainerResp => c !== undefined)
+        .map(toContainerSpec);
+
+      // Convert tags to LabelItem format
+      const labels: LabelItem[] = tags.map((tag) => ({
+        key: tag,
+        value: tag,
+      }));
+
+      // Build the SDK request
+      const payload: SubmitInjectionReq = {
+        project_name: selectedProjectData.name || '',
+        pedestal: toContainerSpec(pedestalContainer),
+        benchmark: toContainerSpec(benchmarkContainer),
+        algorithms: algorithmSpecs.length > 0 ? algorithmSpecs : undefined,
+        interval: Math.ceil(values.experiment_params.duration / 60), // Convert seconds to minutes
+        pre_duration: Math.ceil(values.experiment_params.interval / 60), // Pre-injection duration in minutes
+        labels: labels.length > 0 ? labels : undefined,
+        specs: toSpecs(faultMatrix),
       };
 
-      await injectionApi.createInjection(payload);
-      message.success('Fault injection created successfully');
+      await injectionApi.submitInjection(payload);
+      message.success('Fault injection submitted successfully');
       navigate('/injections');
     } catch (error) {
-      message.error('Failed to create fault injection');
-      console.error('Create injection error:', error);
+      message.error('Failed to submit fault injection');
+      console.error('Submit injection error:', error);
     }
   };
 
   return (
-    <MainLayout>
-      <div className='injection-create'>
-        <Form
-          form={form}
-          layout='vertical'
-          onFinish={handleSubmit}
-          initialValues={{
-            experiment_params: {
-              duration: 300,
-              interval: 60,
-              parallel: false,
-            },
-          }}
-        >
+    <div className='injection-create'>
+      <Form
+        form={form}
+        layout='vertical'
+        onFinish={handleSubmit}
+        initialValues={{
+          experiment_params: {
+            duration: 300,
+            interval: 60,
+            parallel: false,
+          },
+        }}
+      >
           <Row gutter={24}>
             {/* Left Panel - Basic Configuration */}
             <Col span={8}>
@@ -347,8 +429,7 @@ const InjectionCreate: React.FC = () => {
             </Col>
           </Row>
         </Form>
-      </div>
-    </MainLayout>
+    </div>
   );
 };
 

@@ -1,16 +1,13 @@
-import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-
 import {
   ArrowLeftOutlined,
   ClockCircleOutlined,
   DeleteOutlined,
   DownloadOutlined,
   EditOutlined,
-  EyeOutlined,
   PlusOutlined,
   TagsOutlined,
 } from '@ant-design/icons';
+import type { DatasetVersionResp } from '@rcabench/client';
 import { useQuery } from '@tanstack/react-query';
 import {
   Badge,
@@ -30,9 +27,12 @@ import {
   Typography,
 } from 'antd';
 import dayjs from 'dayjs';
+import { useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+
 
 import { datasetApi } from '@/api/datasets';
-import type { DatasetVersionResp } from '@rcabench/client';
+
 
 const { Title, Text } = Typography;
 // Removed deprecated TabPane destructuring - using items prop instead
@@ -81,14 +81,21 @@ const DatasetDetail = () => {
     });
   };
 
-  const handleDownloadVersion = (_version: DatasetVersionResp) => {
-    // TODO: Implement download logic
-    message.info('Download functionality will be implemented soon');
-  };
-
-  const handlePreviewVersion = (_version: DatasetVersionResp) => {
-    // TODO: Implement preview logic
-    message.info('Preview functionality will be implemented soon');
+  const handleDownloadVersion = async (version: DatasetVersionResp) => {
+    if (!version.id) {
+      message.error('Version ID is missing');
+      return;
+    }
+    try {
+      await datasetApi.downloadVersion(
+        datasetId,
+        version.id,
+        `${dataset?.name || 'dataset'}-${version.name}.zip`
+      );
+      message.success('Download started');
+    } catch (error) {
+      message.error('Failed to download version');
+    }
   };
 
   const getTypeColor = (type: string) => {
@@ -155,25 +162,16 @@ const DatasetDetail = () => {
     {
       title: 'Actions',
       key: 'actions',
-      width: 120,
+      width: 80,
       fixed: 'right' as const,
       render: (_: unknown, record: DatasetVersionResp) => (
-        <Space size='small'>
-          <Tooltip title='Preview'>
-            <Button
-              type='text'
-              icon={<EyeOutlined />}
-              onClick={() => handlePreviewVersion(record)}
-            />
-          </Tooltip>
-          <Tooltip title='Download'>
-            <Button
-              type='text'
-              icon={<DownloadOutlined />}
-              onClick={() => handleDownloadVersion(record)}
-            />
-          </Tooltip>
-        </Space>
+        <Tooltip title='Download'>
+          <Button
+            type='text'
+            icon={<DownloadOutlined />}
+            onClick={() => handleDownloadVersion(record)}
+          />
+        </Tooltip>
       ),
     },
   ];
@@ -387,20 +385,6 @@ const DatasetDetail = () => {
                       `${range[0]}-${range[1]} of ${total} versions`,
                   }}
                 />
-              </Card>
-            ),
-          },
-          {
-            key: 'preview',
-            label: 'Preview',
-            children: (
-              <Card title='Dataset Preview'>
-                <Text type='secondary'>
-                  Dataset preview functionality will be implemented soon.
-                </Text>
-                <div style={{ marginTop: 16 }}>
-                  <Text>Sample data preview will appear here...</Text>
-                </div>
               </Card>
             ),
           },

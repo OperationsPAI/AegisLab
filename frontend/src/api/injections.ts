@@ -17,6 +17,7 @@ import {
   type SubmitDatapackBuildingReq,
   type SubmitInjectionReq,
 } from '@rcabench/client';
+
 import { apiClient, createApiConfig } from './config';
 
 export const injectionApi = {
@@ -198,14 +199,6 @@ export const injectionApi = {
     tags?: string[];
   }) => {
     const response = await apiClient.post('/injections', data);
-    return response.data;
-  },
-
-  /**
-   * 获取故障类型 - 手工实现 (SDK 缺失)
-   */
-  getFaultTypes: async () => {
-    const response = await apiClient.get('/injections/fault-types');
     return response.data;
   },
 };

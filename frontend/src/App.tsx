@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 
 import MainLayout from '@/components/layout/MainLayout';
+import UtilityTest from '@/pages/UtilityTest';
 import Login from '@/pages/auth/Login';
 import ContainerDetail from '@/pages/containers/ContainerDetail';
 import ContainerForm from '@/pages/containers/ContainerForm';
@@ -11,6 +12,7 @@ import Dashboard from '@/pages/dashboard/Dashboard';
 import DatasetDetail from '@/pages/datasets/DatasetDetail';
 import DatasetForm from '@/pages/datasets/DatasetForm';
 import DatasetList from '@/pages/datasets/DatasetList';
+import EvaluationDetail from '@/pages/evaluations/EvaluationDetail';
 import EvaluationForm from '@/pages/evaluations/EvaluationForm';
 import EvaluationList from '@/pages/evaluations/EvaluationList';
 import ExecutionDetail from '@/pages/executions/ExecutionDetail';
@@ -18,13 +20,13 @@ import ExecutionForm from '@/pages/executions/ExecutionForm';
 import ExecutionList from '@/pages/executions/ExecutionList';
 import InjectionCreate from '@/pages/injections/InjectionCreate';
 import InjectionList from '@/pages/injections/InjectionList';
+import ProjectEdit from '@/pages/projects/ProjectEdit';
 import ProjectList from '@/pages/projects/ProjectList';
 import Settings from '@/pages/settings/Settings';
 import UserProfile from '@/pages/settings/UserProfile';
 import SystemSettings from '@/pages/system/SystemSettings';
 import TaskDetail from '@/pages/tasks/TaskDetail';
 import TaskList from '@/pages/tasks/TaskList';
-import UtilityTest from '@/pages/UtilityTest';
 import { useAuthStore } from '@/store/auth';
 
 function App() {
@@ -53,6 +55,7 @@ function App() {
 
         {/* Projects */}
         <Route path='projects' element={<ProjectList />} />
+        <Route path='projects/:id/edit' element={<ProjectEdit />} />
 
         {/* Containers */}
         <Route path='containers' element={<ContainerList />} />
@@ -79,6 +82,7 @@ function App() {
         {/* Evaluations */}
         <Route path='evaluations' element={<EvaluationList />} />
         <Route path='evaluations/new' element={<EvaluationForm />} />
+        <Route path='evaluations/:id' element={<EvaluationDetail />} />
 
         {/* Tasks */}
         <Route path='tasks' element={<TaskList />} />

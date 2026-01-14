@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 
 import {
   InfoCircleOutlined,
@@ -21,6 +20,7 @@ import {
   Tag,
   Tooltip,
 } from 'antd';
+import { useEffect, useState } from 'react';
 
 import type { FaultType } from '../../../types/api';
 

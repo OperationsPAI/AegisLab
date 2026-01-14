@@ -31,8 +31,8 @@ const { Title, Text } = Typography;
 const Dashboard = () => {
   // Fetch data
   const { data: projects } = useQuery({
-    queryKey: ['projects', { page: 1, size: 5 }],
-    queryFn: () => projectApi.getProjects({ page: 1, size: 5 }),
+    queryKey: ['projects', { page: 1, size: 10 }],
+    queryFn: () => projectApi.getProjects({ page: 1, size: 10 }),
   });
 
   const { data: injections } = useQuery({
@@ -46,8 +46,8 @@ const Dashboard = () => {
   });
 
   const { data: tasks } = useQuery({
-    queryKey: ['tasks', { page: 1, size: 100 }],
-    queryFn: () => taskApi.getTasks({ page: 1, size: 100 }),
+    queryKey: ['tasks', { page: 1, size: 50 }],
+    queryFn: () => taskApi.getTasks({ page: 1, size: 50 }),
   });
 
   // Calculate statistics

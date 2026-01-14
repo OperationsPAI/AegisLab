@@ -1,114 +1,60 @@
-import { useState } from 'react';
-
 import {
   CloseOutlined,
   EditOutlined,
   EyeInvisibleOutlined,
   EyeOutlined,
-  GlobalOutlined,
-  HistoryOutlined,
   KeyOutlined,
   MailOutlined,
   PhoneOutlined,
   SaveOutlined,
   UserOutlined,
 } from '@ant-design/icons';
+import { useQuery } from '@tanstack/react-query';
 import {
   Avatar,
   Button,
   Card,
   Col,
   Descriptions,
-  Divider,
   Form,
   Input,
   message,
   Modal,
-  Progress,
   Row,
+  Skeleton,
   Space,
-  Statistic,
-  Switch,
-  Tabs,
   Tag,
-  Timeline,
   Typography,
 } from 'antd';
 import dayjs from 'dayjs';
+import { useState } from 'react';
+
+import { authApi } from '../../api/auth';
 
 const { Title, Text } = Typography;
-// Removed deprecated TabPane destructuring - using items prop instead
 
 const UserProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [form] = Form.useForm();
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
   const [passwordForm] = Form.useForm();
+  const [changingPassword, setChangingPassword] = useState(false);
 
-  // Mock user data
-  const userData = {
-    id: 1,
-    username: 'john_doe',
-    email: 'john.doe@example.com',
-    fullName: 'John Doe',
-    phone: '+1 (555) 123-4567',
-    avatar: null,
-    role: 'Administrator',
-    department: 'Engineering',
-    createdAt: '2023-01-15T10:30:00Z',
-    lastLoginAt: '2024-01-15T09:30:00Z',
-    status: 'active',
-    twoFactorEnabled: true,
-    emailVerified: true,
-    phoneVerified: false,
-  };
-
-  // Mock activity data
-  const recentActivity = [
-    {
-      id: 1,
-      action: 'Created new project',
-      description: 'Project: Microservice RCA Analysis',
-      timestamp: '2024-01-15T14:30:00Z',
-      type: 'project',
-    },
-    {
-      id: 2,
-      action: 'Ran fault injection experiment',
-      description: 'Experiment #123 on service payment-service',
-      timestamp: '2024-01-15T13:15:00Z',
-      type: 'experiment',
-    },
-    {
-      id: 3,
-      action: 'Uploaded dataset',
-      description: 'Dataset: Production Traces Q4 2023',
-      timestamp: '2024-01-15T11:45:00Z',
-      type: 'dataset',
-    },
-    {
-      id: 4,
-      action: 'Algorithm execution completed',
-      description: 'MicroRank algorithm on datapack dp-789012',
-      timestamp: '2024-01-15T10:20:00Z',
-      type: 'execution',
-    },
-  ];
-
-  // Mock statistics
-  const userStats = {
-    totalProjects: 12,
-    totalExperiments: 45,
-    totalDatasets: 8,
-    successRate: 87,
-    avgExperimentDuration: '23m 45s',
-    last30DaysActivity: 28,
-  };
+  // 使用 TanStack Query 获取用户数据
+  const {
+    data: userData,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ['profile'],
+    queryFn: () => authApi.getProfile(),
+  });
 
   const handleEditProfile = () => {
+    if (!userData) return;
     setIsEditing(true);
     form.setFieldsValue({
-      fullName: userData.fullName,
+      full_name: userData.full_name,
       email: userData.email,
       phone: userData.phone,
     });
@@ -116,8 +62,8 @@ const UserProfile = () => {
 
   const handleSaveProfile = async (values: Record<string, unknown>) => {
     try {
-      // TODO: Implement API call to update profile
-      console.error('Updating profile:', values);
+      // TODO: 实现更新资料 API（后端需要添加）
+      console.log('Updating profile:', values);
       message.success('Profile updated successfully');
       setIsEditing(false);
     } catch (error) {
@@ -131,48 +77,43 @@ const UserProfile = () => {
     form.resetFields();
   };
 
-  const handleChangePassword = async (values: Record<string, unknown>) => {
+  const handleChangePassword = async (values: {
+    oldPassword: string;
+    newPassword: string;
+  }) => {
+    setChangingPassword(true);
     try {
-      // TODO: Implement API call to change password
-      console.error('Changing password:', values);
+      await authApi.changePassword({
+        old_password: values.oldPassword,
+        new_password: values.newPassword,
+      });
       message.success('Password changed successfully');
       setPasswordModalVisible(false);
       passwordForm.resetFields();
-    } catch (error) {
-      message.error('Failed to change password');
-      console.error('Change password error:', error);
+    } catch {
+      // 错误已在 apiClient 拦截器中处理
+    } finally {
+      setChangingPassword(false);
     }
   };
 
-  const getActivityColor = (type: string) => {
-    switch (type) {
-      case 'project':
-        return '#3b82f6';
-      case 'experiment':
-        return '#10b981';
-      case 'dataset':
-        return '#f59e0b';
-      case 'execution':
-        return '#8b5cf6';
-      default:
-        return '#6b7280';
-    }
-  };
+  if (isLoading) {
+    return (
+      <div style={{ padding: 24 }}>
+        <Skeleton active avatar paragraph={{ rows: 10 }} />
+      </div>
+    );
+  }
 
-  const getActivityIcon = (type: string) => {
-    switch (type) {
-      case 'project':
-        return '🔧';
-      case 'experiment':
-        return '🧪';
-      case 'dataset':
-        return '📊';
-      case 'execution':
-        return '⚡';
-      default:
-        return '📝';
-    }
-  };
+  if (error || !userData) {
+    return (
+      <div style={{ padding: 24 }}>
+        <Card>
+          <Text type='danger'>Failed to load user profile</Text>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: 24 }}>
@@ -200,7 +141,7 @@ const UserProfile = () => {
               />
               <div style={{ marginTop: 16 }}>
                 <Title level={4} style={{ margin: 0 }}>
-                  {userData.fullName}
+                  {userData.full_name || userData.username}
                 </Title>
                 <Text type='secondary'>@{userData.username}</Text>
               </div>
@@ -230,12 +171,12 @@ const UserProfile = () => {
                     layout='inline'
                     onFinish={handleSaveProfile}
                   >
-                    <Form.Item name='fullName' style={{ margin: 0 }}>
+                    <Form.Item name='full_name' style={{ margin: 0 }}>
                       <Input />
                     </Form.Item>
                   </Form>
                 ) : (
-                  userData.fullName
+                  userData.full_name || '-'
                 )}
               </Descriptions.Item>
               <Descriptions.Item label='Email'>
@@ -247,12 +188,8 @@ const UserProfile = () => {
                   </Form>
                 ) : (
                   <Space>
+                    <MailOutlined />
                     {userData.email}
-                    {userData.emailVerified && (
-                      <Tag color='green' icon={<GlobalOutlined />}>
-                        Verified
-                      </Tag>
-                    )}
                   </Space>
                 )}
               </Descriptions.Item>
@@ -265,44 +202,25 @@ const UserProfile = () => {
                   </Form>
                 ) : (
                   <Space>
-                    {userData.phone}
-                    {userData.phoneVerified ? (
-                      <Tag color='green' icon={<PhoneOutlined />}>
-                        Verified
-                      </Tag>
-                    ) : (
-                      <Tag color='orange'>Not Verified</Tag>
-                    )}
+                    <PhoneOutlined />
+                    {userData.phone || '-'}
                   </Space>
                 )}
               </Descriptions.Item>
-              <Descriptions.Item label='Role'>
-                <Tag color='blue'>{userData.role}</Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label='Department'>
-                {userData.department}
-              </Descriptions.Item>
               <Descriptions.Item label='Status'>
-                <Tag color={userData.status === 'active' ? 'green' : 'orange'}>
-                  {userData.status.toUpperCase()}
+                <Tag color={userData.is_active ? 'green' : 'orange'}>
+                  {userData.is_active ? 'Active' : 'Inactive'}
                 </Tag>
               </Descriptions.Item>
               <Descriptions.Item label='Member Since'>
-                {dayjs(userData.createdAt).format('MMMM D, YYYY')}
+                {userData.created_at
+                  ? dayjs(userData.created_at).format('MMMM D, YYYY')
+                  : '-'}
               </Descriptions.Item>
               <Descriptions.Item label='Last Login'>
-                {dayjs(userData.lastLoginAt).format('MMMM D, YYYY HH:mm')}
-              </Descriptions.Item>
-              <Descriptions.Item label='Two-Factor Auth'>
-                <Switch
-                  checked={userData.twoFactorEnabled}
-                  checkedChildren='Enabled'
-                  unCheckedChildren='Disabled'
-                  onChange={(checked) => {
-                    // TODO: Implement 2FA toggle
-                    message.info(`2FA ${checked ? 'enabled' : 'disabled'}`);
-                  }}
-                />
+                {userData.last_login_at
+                  ? dayjs(userData.last_login_at).format('MMMM D, YYYY HH:mm')
+                  : 'Never'}
               </Descriptions.Item>
             </Descriptions>
 
@@ -326,206 +244,40 @@ const UserProfile = () => {
         </Row>
       </Card>
 
-      {/* Statistics */}
-      <Card style={{ marginBottom: 24 }}>
-        <Title level={4} style={{ marginBottom: 16 }}>
-          Activity Statistics
-        </Title>
-        <Row gutter={[16, 16]}>
-          <Col xs={24} sm={12} md={6}>
-            <Card size='small'>
-              <Statistic
-                title='Total Projects'
-                value={userStats.totalProjects}
-                prefix={<span style={{ fontSize: 20 }}>📁</span>}
-                valueStyle={{ color: '#3b82f6' }}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card size='small'>
-              <Statistic
-                title='Total Experiments'
-                value={userStats.totalExperiments}
-                prefix={<span style={{ fontSize: 20 }}>🧪</span>}
-                valueStyle={{ color: '#10b981' }}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card size='small'>
-              <Statistic
-                title='Total Datasets'
-                value={userStats.totalDatasets}
-                prefix={<span style={{ fontSize: 20 }}>📊</span>}
-                valueStyle={{ color: '#f59e0b' }}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card size='small'>
-              <Statistic
-                title='Success Rate'
-                value={userStats.successRate}
-                suffix='%'
-                prefix={<span style={{ fontSize: 20 }}>✅</span>}
-                valueStyle={{ color: '#10b981' }}
-              />
-            </Card>
-          </Col>
-        </Row>
-
-        <Divider />
-
-        <Row gutter={[16, 16]}>
-          <Col xs={24} sm={12} md={12}>
-            <div style={{ marginBottom: 8 }}>
-              <Text>Experiment Success Rate</Text>
-            </div>
-            <Progress
-              percent={userStats.successRate}
-              status={userStats.successRate > 80 ? 'success' : 'active'}
-              format={(_percent) => `${_percent}%`}
-            />
-          </Col>
-          <Col xs={24} sm={12} md={12}>
-            <div style={{ marginBottom: 8 }}>
-              <Text>Activity in Last 30 Days</Text>
-            </div>
-            <Progress
-              percent={(userStats.last30DaysActivity / 30) * 100}
-              format={(_percent) => `${userStats.last30DaysActivity}/30 days`}
-            />
-          </Col>
-        </Row>
+      {/* Security Settings */}
+      <Card
+        title={
+          <Space>
+            <KeyOutlined />
+            Security Settings
+          </Space>
+        }
+        extra={
+          <Button
+            type='primary'
+            icon={<KeyOutlined />}
+            onClick={() => setPasswordModalVisible(true)}
+          >
+            Change Password
+          </Button>
+        }
+      >
+        <Descriptions bordered column={1}>
+          <Descriptions.Item label='Password'>
+            <Text type='secondary'>••••••••••••</Text>
+          </Descriptions.Item>
+          <Descriptions.Item label='Account Status'>
+            <Tag color={userData.is_active ? 'green' : 'red'}>
+              {userData.is_active ? 'Active' : 'Inactive'}
+            </Tag>
+          </Descriptions.Item>
+        </Descriptions>
       </Card>
-
-      {/* Tabs */}
-      <Tabs
-        activeKey='activity'
-        onChange={(_key) => {
-          // Tab change handler - activeKey state controls which tab is displayed
-          // Currently 'activity' and 'security' tabs are available
-        }}
-        items={[
-          {
-            key: 'activity',
-            label: (
-              <span>
-                <HistoryOutlined />
-                Recent Activity
-              </span>
-            ),
-            children: (
-              <Card title='Recent Activity'>
-                <Timeline>
-                  {recentActivity.map((activity) => (
-                    <Timeline.Item
-                      key={activity.id}
-                      color={getActivityColor(activity.type)}
-                      dot={
-                        <span style={{ fontSize: 20 }}>
-                          {getActivityIcon(activity.type)}
-                        </span>
-                      }
-                    >
-                      <div>
-                        <Text strong>{activity.action}</Text>
-                        <br />
-                        <Text type='secondary'>{activity.description}</Text>
-                        <br />
-                        <Text type='secondary' style={{ fontSize: '0.75rem' }}>
-                          {dayjs(activity.timestamp).format(
-                            'MMMM D, YYYY HH:mm'
-                          )}
-                        </Text>
-                      </div>
-                    </Timeline.Item>
-                  ))}
-                </Timeline>
-              </Card>
-            ),
-          },
-
-          {
-            key: 'security',
-            label: (
-              <span>
-                <KeyOutlined />
-                Security
-              </span>
-            ),
-            children: (
-              <Card
-                title='Security Settings'
-                extra={
-                  <Button
-                    type='primary'
-                    icon={<KeyOutlined />}
-                    onClick={() => setPasswordModalVisible(true)}
-                  >
-                    Change Password
-                  </Button>
-                }
-              >
-                <Descriptions bordered column={1}>
-                  <Descriptions.Item label='Two-Factor Authentication'>
-                    <Switch
-                      checked={userData.twoFactorEnabled}
-                      checkedChildren='Enabled'
-                      unCheckedChildren='Disabled'
-                      onChange={(checked) => {
-                        // TODO: Implement 2FA setup
-                        message.info(
-                          checked
-                            ? 'Two-factor authentication setup initiated'
-                            : 'Two-factor authentication disabled'
-                        );
-                      }}
-                    />
-                  </Descriptions.Item>
-                  <Descriptions.Item label='Email Verification'>
-                    {userData.emailVerified ? (
-                      <Tag color='green' icon={<MailOutlined />}>
-                        Verified
-                      </Tag>
-                    ) : (
-                      <Button type='link' size='small'>
-                        Verify Email
-                      </Button>
-                    )}
-                  </Descriptions.Item>
-                  <Descriptions.Item label='Phone Verification'>
-                    {userData.phoneVerified ? (
-                      <Tag color='green' icon={<PhoneOutlined />}>
-                        Verified
-                      </Tag>
-                    ) : (
-                      <Button type='link' size='small'>
-                        Verify Phone
-                      </Button>
-                    )}
-                  </Descriptions.Item>
-                  <Descriptions.Item label='Last Password Change'>
-                    {dayjs().subtract(30, 'days').format('MMMM D, YYYY')}
-                  </Descriptions.Item>
-                  <Descriptions.Item label='Active Sessions'>
-                    2 sessions active
-                    <Button type='link' size='small' style={{ marginLeft: 8 }}>
-                      View Sessions
-                    </Button>
-                  </Descriptions.Item>
-                </Descriptions>
-              </Card>
-            ),
-          },
-        ]}
-      />
 
       {/* Change Password Modal */}
       <Modal
         title='Change Password'
-        visible={passwordModalVisible}
+        open={passwordModalVisible}
         onCancel={() => {
           setPasswordModalVisible(false);
           passwordForm.resetFields();
@@ -544,6 +296,7 @@ const UserProfile = () => {
             key='submit'
             type='primary'
             icon={<SaveOutlined />}
+            loading={changingPassword}
             onClick={() => passwordForm.submit()}
           >
             Change Password

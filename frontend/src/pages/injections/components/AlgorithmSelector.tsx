@@ -1,6 +1,6 @@
-import { useState } from 'react';
 
 import { InfoCircleOutlined, SettingOutlined } from '@ant-design/icons';
+import type { ContainerResp } from '@rcabench/client';
 import {
   Button,
   Empty,
@@ -12,8 +12,7 @@ import {
   Tag,
   Tooltip,
 } from 'antd';
-
-import type { ContainerResp } from '@rcabench/client';
+import { useState } from 'react';
 
 import './AlgorithmSelector.css';
 

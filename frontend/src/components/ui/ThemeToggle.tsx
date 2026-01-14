@@ -1,7 +1,7 @@
-import { useEffect } from 'react';
 
 import { MoonOutlined, SunOutlined } from '@ant-design/icons';
 import { Button } from 'antd';
+import { useEffect } from 'react';
 
 import { useThemeStore } from '@/store/theme';
 
