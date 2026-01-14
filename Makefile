@@ -162,11 +162,11 @@ install-rcabench:  ## 🔧 Deploy RCABench application
 	@printf "$(BLUE)Deploying RCABench application...$(RESET)\n"
 	helm upgrade -i rcabench ./helm --namespace exp \
 		--create-namespace \
-		--values ./manifests/test/rcabench.yaml \
-		--wait --timeout 10m
+		--values ./manifests/$(ENV_MODE)/rcabench.yaml \
+		--atomic --timeout 10m
 	@printf "$(GREEN)✅ RCABench installed successfully$(RESET)\n\n"
 	@printf "$(BLUE)🔗 Starting automatic port forwarding...$(RESET)\n"
-	@$(MAKE) forward-ports
+	@$(MAKE) forward-ports ENV_MODE=$(ENV_MODE)
 
 local-deploy: ## 🛠️  Setup local development environment with basic services
 	@$(MAKE) run-command ARGS="rcabench local-deploy -e $(ENV_MODE) -s prod -f"

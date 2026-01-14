@@ -38,6 +38,9 @@ echo "============================================="
 echo ""
 
 echo "Creating Kind cluster..."
+HTTP_PROXY=http://crash:crash@172.18.0.1:7890 \
+HTTPS_PROXY=http://crash:crash@172.18.0.1:7890 \
+NO_PROXY=localhost,127.0.0.1,10.96.0.0/12,172.18.0.0/16,cluster.local,svc \
 kind create cluster --config=manifests/test/kind-config.yaml --name test
 kubectx kind-test
 echo "✅ Kind cluster created successfully"
@@ -129,4 +132,3 @@ echo ""
 echo "============================================="
 echo "✅ Test cluster setup completed successfully!"
 echo "============================================="
-c

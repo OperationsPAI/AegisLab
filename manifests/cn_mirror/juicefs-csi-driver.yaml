@@ -1,0 +1,34 @@
+image:
+  repository: pair-diag-cn-guangzhou.cr.volces.com/pair/juicefs-csi-driver
+  tag: "v0.31.0"
+  pullPolicy: "IfNotPresent"
+
+dashboardImage:
+  repository: pair-diag-cn-guangzhou.cr.volces.com/pair/csi-dashboard
+  tag: "v0.31.0"
+  pullPolicy: "IfNotPresent"
+
+sidecars:
+  livenessProbeImage:
+    repository: pair-diag-cn-guangzhou.cr.volces.com/pair/livenessprobe
+    tag: "v2.12.0"
+    pullPolicy: "IfNotPresent"
+  nodeDriverRegistrarImage:
+    repository: pair-diag-cn-guangzhou.cr.volces.com/pair/csi-node-driver-registrar
+    tag: "v2.9.0"
+    pullPolicy: "IfNotPresent"
+  csiProvisionerImage:
+    repository: pair-diag-cn-guangzhou.cr.volces.com/pair/csi-provisioner
+    tag: "v2.2.2"
+    pullPolicy: "IfNotPresent"
+  csiResizerImage:
+    repository: pair-diag-cn-guangzhou.cr.volces.com/pair/csi-resizer
+    tag: "v1.9.0"
+    pullPolicy: "IfNotPresent"
+  csiSnapshotterImage:
+    repository: pair-diag-cn-guangzhou.cr.volces.com/pair/csi-snapshotter
+    tag: "v8.4.0"
+    pullPolicy: "IfNotPresent"
+
+defaultMountImage:
+  ce: "pair-diag-cn-guangzhou.cr.volces.com/pair/mount:ce-v1.3.1"

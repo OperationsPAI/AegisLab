@@ -4,3 +4,9 @@ nodes:
   - role: control-plane
   - role: worker 
   - role: worker
+containerdConfigPatches:
+- |-
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."docker.io"]
+    endpoint = ["https://mirror.baidubce.com", "https://docker.m.daocloud.io"]
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."registry.k8s.io"]
+    endpoint = ["https://m.daocloud.io/registry.k8s.io"]
