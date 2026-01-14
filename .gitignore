@@ -174,7 +174,6 @@ __debug*
 temp
 ts
 logs/
-containers
 .codebuddy
 .github/instructions/tmp/
 .husky/
