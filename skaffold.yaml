@@ -2,21 +2,68 @@ apiVersion: skaffold/v4beta11
 kind: Config
 metadata:
   name: rcabench
-build:
-  artifacts:
-    - image: rcabench
-      context: .
-      docker:
-        dockerfile: src/Dockerfile
-  tagPolicy:
-    envTemplate:
-      template: latest
-deploy:
-  helm:
-    releases:
-      - name: rcabench
-        chartPath: helm
-        valuesFiles:
-          - helm/values.yaml
-        version: 0.1.0
-        namespace: exp
+profiles:
+  - name: staging
+    activation:
+      - env: ENV_MODE=staging
+    build:
+      artifacts:
+        - image: 10.10.10.240/library/rcabench
+          context: .
+          docker:
+            dockerfile: src/Dockerfile
+      tagPolicy:
+        gitCommit:
+          variant: AbbrevCommitSha
+    deploy:
+      helm:
+        flags:
+          install: ["--atomic", "--timeout=10m"]
+          upgrade: ["--atomic", "--timeout=10m"]
+        releases:
+          - name: rcabench
+            chartPath: helm
+            namespace: exp
+            createNamespace: true
+            valuesFiles:
+              - manifests/staging/rcabench.yaml
+            setValueTemplates:
+              images.rcabench.tag: "{{.IMAGE_TAG}}"
+
+  - name: test
+    activation:
+      - env: ENV_MODE=test
+    build:
+      artifacts:
+        - image: pair-diag-cn-guangzhou.cr.volces.com/pair/rcabench
+          context: .
+          docker:
+            dockerfile: src/Dockerfile
+      local:
+        push: false
+      tagPolicy:
+        envTemplate:
+          template: "{{.IMAGE_VERSION}}"
+      hooks:
+        after:
+          - command: ["sh", "-c", "kind load docker-image pair-diag-cn-guangzhou.cr.volces.com/pair/rcabench:{{.IMAGE_TAG}} --name test"]
+            os: [darwin, linux]
+    deploy:
+      helm:
+        flags:
+          install: ["--atomic", "--timeout=10m"]
+          upgrade: ["--atomic", "--timeout=10m"]
+        releases:
+          - name: rcabench
+            chartPath: helm
+            namespace: exp
+            createNamespace: true
+            valuesFiles:
+              - manifests/test/rcabench.yaml
+            setValueTemplates:
+              images.rcabench.tag: "{{.IMAGE_TAG}}"
+        hooks:
+          after:
+            - host:
+                command: ["sh", "-c", "scripts/test-push.sh"]
+                os: [darwin, linux]

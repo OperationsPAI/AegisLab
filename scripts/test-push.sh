@@ -19,10 +19,6 @@ cd "$PROJECT_ROOT"
 make generate-python-sdk SDK_VERSION=0.0.0
 echo "✅ Generated Python SDK..."
 
-echo -e "\nBuilding Server..."
-docker build -t pair-diag-cn-guangzhou.cr.volces.com/pair/rcabench:latest -f "$PROJECT_ROOT"/src/Dockerfile .
-kind load --name test docker-image pair-diag-cn-guangzhou.cr.volces.com/pair/rcabench:latest
-
 echo -e "\nRunning regression tests..."
 cd "$PROJECT_ROOT/scripts/command"
 uv sync --no-group dev --group test

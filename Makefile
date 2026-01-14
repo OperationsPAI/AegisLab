@@ -169,10 +169,10 @@ install-rcabench:  ## 🔧 Deploy RCABench application
 	@$(MAKE) forward-ports ENV_MODE=$(ENV_MODE)
 
 local-deploy: ## 🛠️  Setup local development environment with basic services
-	@$(MAKE) run-command ARGS="rcabench local-deploy -e $(ENV_MODE) -s prod -f"
+	@$(MAKE) run-command ARGS="rcabench local-deploy -f"
 
 run: check-prerequisites ## 🚀 Build and deploy application (using skaffold)
-	$(MAKE) run-command ARGS="rcabench run -e $(ENV_MODE)"
+	ENV_MODE=staging devbox run skaffold run
 
 # =============================================================================
 # Test
