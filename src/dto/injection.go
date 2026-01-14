@@ -179,7 +179,7 @@ func (req *ListInjectionReq) Validate() error {
 	if err := validateChaosType(req.Type); err != nil {
 		return err
 	}
-	if !req.Category.IsValid() {
+	if req.Category != nil && !req.Category.IsValid() {
 		return fmt.Errorf("invalid category: %s", req.Category)
 	}
 	if err := validateDatapackState(req.State); err != nil {

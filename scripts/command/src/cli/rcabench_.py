@@ -5,7 +5,6 @@ from src.common.common import ENV, PROJECT_ROOT, console, settings
 from src.rcabench_ import (
     check_db,
     check_redis,
-    execute_release_workflow,
     local_deploy,
 )
 
@@ -14,12 +13,6 @@ app = typer.Typer()
 
 @app.command(name="local-deploy")
 def rcabench_local_deploy(
-    env: ENV = typer.Option(
-        ENV.DEV,
-        "--env",
-        "-e",
-        help="Target environment (e.g., dev, test).",
-    ),
     src: ENV | None = typer.Option(
         None,
         "--src",
@@ -37,36 +30,25 @@ def rcabench_local_deploy(
 
     settings.reload()
 
-    local_deploy(env)
+    local_deploy(env=ENV.DEV)
 
     if src is not None:
+        if src == ENV.DEV:
+            console.print(
+                "[red]Source and destination environments cannot be the same.[/red]"
+            )
+            raise typer.Exit(code=1)
+
         console.print()
         check_db(src)
         check_redis(src)
 
-        mysql_migrate(src=src, dst=env, force=force)
-        redis_migrate(src=src, dst=env, force=force, dry_run=False)
+        mysql_migrate(src, dst=ENV.DEV, force=force)
+        redis_migrate(src, dst=ENV.DEV, force=force, dry_run=False)
 
-    console.print()
     console.print(
-        "[bold yellow]You can start the application manually later: [/bold yellow]"
+        "\n[bold yellow]You can start the application manually later: [/bold yellow]"
     )
     console.print(
         f"[gray]cd {PROJECT_ROOT / 'src'} && go run main.go both --port 8082 [/gray]"
     )
-
-
-@app.command(name="run")
-def rcabench_run(
-    env: ENV = typer.Option(
-        ENV.DEV,
-        "--env",
-        "-e",
-        help="Target environment (e.g., dev, test).",
-    ),
-):
-    """Executes the RCABench release workflow."""
-
-    settings.reload()
-
-    execute_release_workflow(env)

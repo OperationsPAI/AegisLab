@@ -1,27 +1,16 @@
 global:
-  imageRegistry: pair-diag-cn-guangzhou.cr.volces.com
+  imageRegistry: 10.10.10.240/library
 
 images:
   rcabench:
-    name: pair/rcabench
-  redis:
-    name: pair/redis
-  mysql:
-    name: pair/mysql
+    name: rcabench
   jaeger:
-    name: pair/jaeger
-  busybox:
-    name: pair/busybox
+    name: jaeger
   buildkit:
-    name: pair/buildkit
-  init_data:
-    name: pair/init-data
+    name: buildkit
 
 harbor:
   enabled: true
-
-initialization:
-  enabled: false
 
 configmap:
   k8s:

@@ -19,12 +19,8 @@ db = "rcabench"
 host = "localhost"
 port = "6379"
 
-
 [staging]
-default_repo = "10.10.10.240/library/rcabench"
-
-[prod]
-default_repo = "pair-diag-cn-guangzhou.cr.volces.com/pair"
+default_repo = "10.10.10.240/library"
 
 [prod.database.mysql]
 host = "localhost"
