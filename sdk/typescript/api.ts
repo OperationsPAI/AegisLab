@@ -5103,6 +5103,9 @@ export const InjectionsApiAxiosParamCreator = function (configuration?: Configur
             const localVarHeaderParameter = {} as any;
             const localVarQueryParameter = {} as any;
 
+            // authentication BearerAuth required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
             if (system !== undefined) {
                 localVarQueryParameter['system'] = system;
             }

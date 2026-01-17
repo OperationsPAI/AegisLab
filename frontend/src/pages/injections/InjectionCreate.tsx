@@ -90,7 +90,7 @@ const InjectionCreate: React.FC = () => {
     select: (data: any) => data.items || [],
   });
 
-  // Group containers by type
+  // Group containers by type (API returns type as string: "algorithm", "benchmark", "pedestal")
   const groupedContainers = containers.reduce(
     (
       acc: {
@@ -100,14 +100,11 @@ const InjectionCreate: React.FC = () => {
       },
       container: any
     ) => {
-      if (container.type === 2) {
-        // Pedestal
+      if (container.type === 'pedestal') {
         acc.pedestals.push(container);
-      } else if (container.type === 1) {
-        // Benchmark
+      } else if (container.type === 'benchmark') {
         acc.benchmarks.push(container);
-      } else if (container.type === 0) {
-        // Algorithm
+      } else if (container.type === 'algorithm') {
         acc.algorithms.push(container);
       }
       return acc;

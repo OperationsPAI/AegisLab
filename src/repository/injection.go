@@ -158,7 +158,7 @@ func ListInjections(db *gorm.DB, limit, offset int, filterOptions *dto.ListInjec
 		query = query.Where("benchmark = ?", filterOptions.Benchmark)
 	}
 	if filterOptions.State != nil {
-		query = query.Where("event = ?", *filterOptions.State)
+		query = query.Where("state = ?", *filterOptions.State)
 	}
 	if filterOptions.Status != nil {
 		query = query.Where("status = ?", *filterOptions.Status)

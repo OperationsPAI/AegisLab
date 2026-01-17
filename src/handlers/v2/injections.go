@@ -115,6 +115,7 @@ func GetInjection(c *gin.Context) {
 //	@Tags			Injections
 //	@ID				get_injection_metadata
 //	@Produce		json
+//	@Security		BearerAuth
 //	@Param			system	query		chaos.SystemType								true	"System for config and resources metadata"
 //	@Success		200		{object}	dto.GenericResponse[dto.InjectionMetadataResp]	"Successfully returned metadata"
 //	@Failure		400		{object}	dto.GenericResponse[any]						"Invalid system"
@@ -142,15 +143,9 @@ func GetInjectionMetadata(c *gin.Context) {
 		return
 	}
 
-	resourceMap, err := chaos.GetSystemResourceMap(ctx)
+	resource, err := chaos.GetSystemResource(ctx, system)
 	if err != nil {
 		handlers.HandleServiceError(c, err)
-		return
-	}
-
-	resource, exists := resourceMap[system]
-	if !exists {
-		dto.ErrorResponse(c, http.StatusNotFound, "Namespace resources not found")
 		return
 	}
 

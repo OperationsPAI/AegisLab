@@ -219,7 +219,7 @@ const { status, data } = await apiInstance.getInjectionMetadata(
 
 ### Authorization
 
-No authorization required
+[BearerAuth](../README.md#BearerAuth)
 
 ### HTTP request headers
 

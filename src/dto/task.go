@@ -342,6 +342,9 @@ func validateTaskType(taskType *consts.TaskType) error {
 }
 
 func validateUUID(id string) error {
+	if id == "" {
+		return nil // Empty is valid for optional fields
+	}
 	if !utils.IsValidUUID(id) {
 		return fmt.Errorf("invalid UUID format: %s", id)
 	}
