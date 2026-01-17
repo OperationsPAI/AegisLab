@@ -9,6 +9,10 @@ All notable changes to this project will be documented in this file.
 - Py dependency
 - Security issue
 
+### Features
+
+- Add design skill
+
 ### Testing
 
 - Migrate from Docker Compose to Kubernetes-based testing
