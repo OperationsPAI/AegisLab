@@ -29,7 +29,11 @@ profiles:
               - manifests/staging/rcabench.yaml
             setValueTemplates:
               images.rcabench.tag: "{{.IMAGE_TAG}}"
-
+            setFiles:
+              initialDataFiles.data_json: data/initial_data/staging/data.json
+              initialDataFiles.otel_demo_yaml: data/initial_data/staging/otel-demo.yaml
+              initialDataFiles.ts_yaml: data/initial_data/staging/ts.yaml
+              
   - name: test
     activation:
       - env: ENV_MODE=test
@@ -42,12 +46,8 @@ profiles:
       local:
         push: false
       tagPolicy:
-        envTemplate:
-          template: "{{.IMAGE_VERSION}}"
-      hooks:
-        after:
-          - command: ["sh", "-c", "kind load docker-image pair-diag-cn-guangzhou.cr.volces.com/pair/rcabench:{{.IMAGE_TAG}} --name test"]
-            os: [darwin, linux]
+        gitCommit:
+          variant: AbbrevCommitSha
     deploy:
       helm:
         flags:
@@ -61,9 +61,16 @@ profiles:
             valuesFiles:
               - manifests/test/rcabench.yaml
             setValueTemplates:
-              images.rcabench.tag: "{{.IMAGE_TAG}}"
+              images.rcabench.tag: "{{.IMAGE_DIGEST}}"
+            setFiles:
+              initialDataFiles.data_json: data/initial_data/prod/data.json
+              initialDataFiles.otel_demo_yaml: data/initial_data/prod/otel-demo.yaml
+              initialDataFiles.ts_yaml: data/initial_data/prod/ts.yaml
         hooks:
           after:
             - host:
-                command: ["sh", "-c", "scripts/test-push.sh"]
+                command: ["make", "forward-ports", "ENV_MODE=test"]
+                os: [darwin, linux]
+            - host:
+                command: ["make", "regression-test"]
                 os: [darwin, linux]

@@ -25,6 +25,12 @@ const (
 	NamespaceKeyPattern = "monitor:ns:%s"
 )
 
+// configuration update notification constants
+const (
+	ConfigEtcdPrefix            = "/rcabench/config/consumer/"
+	ConfigUpdateResponseChannel = "config:updates:response"
+)
+
 // ResourceName is the type for resource names, used for permission checks
 type ResourceName string
 
@@ -149,6 +155,13 @@ const (
 	ContainerTypeAlgorithm ContainerType = iota
 	ContainerTypeBenchmark
 	ContainerTypePedestal
+)
+
+type ConfigScope int
+
+const (
+	ConfigScopeProducer ConfigScope = iota
+	ConfigScopeConsumer
 )
 
 type ConfigValueType int

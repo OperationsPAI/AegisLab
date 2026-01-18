@@ -24,6 +24,11 @@ var ValidConfigHistoryChanteTypes = map[ConfigHistoryChangeType]struct{}{
 	ChangeTypeRollback: {},
 }
 
+var ValidConfigScopes = map[ConfigScope]struct{}{
+	ConfigScopeProducer: {},
+	ConfigScopeConsumer: {},
+}
+
 var ValidDatapackStates = map[DatapackState]struct{}{
 	DatapackInitial:       {},
 	DatapackInjectFailed:  {},

@@ -67,11 +67,61 @@ Usage: {{ include "helm.image" (dict "imageConfig" .Values.images.redis "global"
 */}}
 {{- define "helm.image" -}}
 {{- $registry := .global.imageRegistry -}}
-{{- $name := .imageConfig.name -}}
-{{- $tag := .imageConfig.tag -}}
+{{- $name := .imageConfig.repository | default .imageConfig.name -}}
+{{- $tag := .imageConfig.tag | default "latest" | toString -}}
+{{- $imageName := "" -}}
 {{- if $registry -}}
-{{- printf "%s/%s:%s" $registry $name $tag -}}
+  {{- $imageName = printf "%s/%s" $registry $name -}}
 {{- else -}}
-{{- printf "%s:%s" $name $tag -}}
+  {{- $imageName = $name -}}
 {{- end -}}
+{{- if contains "@" $tag -}}
+  {{- printf "%s%s" $imageName $tag -}}
+{{- else -}}
+  {{- printf "%s:%s" $imageName $tag -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Get etcd config with user overrides
+Usage: {{ include "helm.etcd.mergedConfig" (dict "root" . "configType" "producer") }}
+Parameters:
+  - root: root context (.)
+  - configType: "producer" or "consumer"
+Returns: merged JSON configuration
+*/}}
+{{- define "helm.etcd.mergedConfig" -}}
+{{- $dataJsonContent := "" -}}
+{{- if .root.Values.initialDataFiles.data_json -}}
+  {{- $dataJsonContent = .root.Values.initialDataFiles.data_json -}}
+{{- else -}}
+  {{- $dataJsonContent = .root.Files.Get "files/initial_data/data.json" -}}
+{{- end -}}
+{{- $dataJson := $dataJsonContent | fromJson -}}
+{{- $dynamicConfigs := $dataJson.dynamic_configs | default list -}}
+
+{{/* Build default config from dynamic_configs based on scope */}}
+{{- $defaultConfig := dict -}}
+{{- $targetScope := 1 -}}
+{{- if eq .configType "producer" -}}
+  {{- $targetScope = 0 -}}
+{{- end -}}
+
+{{- range $dynamicConfigs -}}
+  {{- if eq (int .scope) $targetScope -}}
+    {{- $_ := set $defaultConfig .key .default_value -}}
+  {{- end -}}
+{{- end -}}
+
+{{/* User overrides from values.yaml */}}
+{{- $userConfig := dict -}}
+{{- if eq .configType "producer" -}}
+  {{- $userConfig = .root.Values.initialConfig.producer.settings | default dict -}}
+{{- else if eq .configType "consumer" -}}
+  {{- $userConfig = .root.Values.initialConfig.consumer.settings | default dict -}}
+{{- end -}}
+
+{{/* Merge: default -> userConfig */}}
+{{- $merged := mergeOverwrite (dict) $defaultConfig $userConfig -}}
+{{- $merged | toJson -}}
 {{- end -}}

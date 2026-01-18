@@ -1,3 +1,5 @@
+import time
+
 from python_on_whales import DockerClient
 
 from src.common.common import ENV, PROJECT_ROOT, console, settings
@@ -44,24 +46,67 @@ def _check_pod_health(
     raise SystemExit(1)
 
 
+def _wait_for_healthy(docker, timeout=120):
+    """
+    Waits for all Docker Compose services to become healthy.
+    """
+    console.print("[bold blue]⏳ Waiting for services to be healthy...[/bold blue]")
+    start_time = time.time()
+
+    while True:
+        containers = docker.compose.ps()
+        all_healthy = True
+        states = []
+
+        for container in containers:
+            health_status = (
+                container.state.health.status
+                if container.state.health
+                else "no healthcheck"
+            )
+            is_running = container.state.running
+
+            states.append(f"{container.name}: [bold]{health_status}[/bold]")
+
+            if not is_running or (
+                container.state.health and health_status != "healthy"
+            ):
+                all_healthy = False
+
+        if all_healthy:
+            console.print("[bold green]✅ All services are healthy![/bold green]")
+            return True
+
+        if time.time() - start_time > timeout:
+            console.print(
+                "[bold red]❌ Timeout: Services failed to become healthy.[/bold red]"
+            )
+            for s in states:
+                console.print(f"  - {s}")
+            raise SystemExit(1)
+
+        time.sleep(2)
+
+
 @with_k8s_manager()
 def local_deploy(env: ENV, k8s_manager: KubernetesManager):
-    services = ["redis", "mysql", "jaeger", "buildkitd"]
-
     console.print("[bold blue]🚀 Starting local RCAbench deployment...[/bold blue]")
 
     docker = DockerClient(compose_files=[DOCKER_COMPOSE_FILE])
     try:
         docker.compose.down(remove_orphans=True)
-        console.print("[bold green]✅ Cleaned up existing containers.[/bold green]")
+        console.print("[bold green]✅ Cleaned up existing containers[/bold green]")
     except Exception:
         console.print(
             "[bold yellow]⚠️ No existing containers to clean up.[/bold yellow]"
         )
 
+    console.print()
+
     try:
-        docker.compose.up(services=services, detach=True)
-        console.print("[bold green]✅ Started required services.[/bold green]")
+        docker.compose.up(detach=True)
+        console.print("[bold green]✅ Started required services[/bold green]\n")
+        _wait_for_healthy(docker)
     except Exception as e:
         console.print(
             f"[bold red]⚠️ Some services may have failed to start: {e}[/bold red]"

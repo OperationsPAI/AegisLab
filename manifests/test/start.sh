@@ -111,7 +111,7 @@ helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm
 retry_helm_install 3 helm install opentelemetry-kube-stack open-telemetry/opentelemetry-kube-stack \
     --namespace monitoring \
     --create-namespace \
-    -f manifests/test/otel-kube-stack.yaml \
+    -f manifests/cn_mirror/otel-kube-stack.yaml \
     --atomic \
     --timeout 5m
 echo "✅ OpenTelemetry Kube Stack installed"

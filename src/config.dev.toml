@@ -8,7 +8,7 @@ workspace = "/home/nn/workspace/AegisLab"
 timezone = "Asia/Shanghai"
 
 [initialization]
-data_path = "/home/nn/workspace/AegisLab/data/initial_data"
+data_path = "/home/nn/workspace/AegisLab/data/initial_data/staging"
 
 [database.mysql]
 host = "localhost"
@@ -22,6 +22,11 @@ endpoint = "localhost:4318"
 
 [redis]
 host = "localhost:6379"
+
+[etcd]
+endpoints = ["localhost:2379"]
+username = ""
+password = ""
 
 [k8s]
 namespace = "exp"

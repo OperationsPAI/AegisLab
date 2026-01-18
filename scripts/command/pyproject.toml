@@ -10,6 +10,7 @@ dependencies = [
     "psutil>=7.2.1",
     "pydantic>=2.12.4",
     "pyyaml>=6.0.3",
+    "requests>=2.31.0",
     "rich>=14.2.0",
     "ruamel-yaml>=0.19.1",
     "toml>=0.10.2",

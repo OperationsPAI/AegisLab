@@ -447,7 +447,7 @@ func UploadHelmValueFile(fileHeader *multipart.FileHeader, containerID, versionI
 		return nil, fmt.Errorf("container version %d does not have an associated Helm configuration", versionID)
 	}
 
-	if err := UploadHemlValueFileCore(database.DB, containerVersion.HelmConfig, fileHeader, ""); err != nil {
+	if err := UploadHemlValueFileCore(database.DB, containerVersion.Container.Name, containerVersion.HelmConfig, fileHeader, ""); err != nil {
 		return nil, fmt.Errorf("failed to upload helm value file: %w", err)
 	}
 
@@ -458,7 +458,7 @@ func UploadHelmValueFile(fileHeader *multipart.FileHeader, containerID, versionI
 }
 
 // UploadHemlValueFileCore handles the core logic of uploading a Helm values file to JuiceFS storage
-func UploadHemlValueFileCore(db *gorm.DB, helmConfig *database.HelmConfig, srcFileHeader *multipart.FileHeader, srcFilePath string) error {
+func UploadHemlValueFileCore(db *gorm.DB, containerName string, helmConfig *database.HelmConfig, srcFileHeader *multipart.FileHeader, srcFilePath string) error {
 	jfsBasePath := config.GetString("jfs.dataset_path")
 	if jfsBasePath == "" {
 		return fmt.Errorf("jfs.dataset_path is not configured")
@@ -475,7 +475,7 @@ func UploadHemlValueFileCore(db *gorm.DB, helmConfig *database.HelmConfig, srcFi
 	var ext, targetFilename, targetPath string
 	if srcFileHeader != nil {
 		ext = filepath.Ext(srcFileHeader.Filename)
-		targetFilename = fmt.Sprintf("values_%d%s", timestamp, ext)
+		targetFilename = fmt.Sprintf("%s_values_%d%s", containerName, timestamp, ext)
 		targetPath = filepath.Join(targetDir, targetFilename)
 
 		if err := utils.CopyFileFromFileHeader(srcFileHeader, targetPath); err != nil {
@@ -485,7 +485,7 @@ func UploadHemlValueFileCore(db *gorm.DB, helmConfig *database.HelmConfig, srcFi
 
 	if srcFilePath != "" {
 		ext = filepath.Ext(srcFilePath)
-		targetFilename = fmt.Sprintf("values_%d%s", timestamp, ext)
+		targetFilename = fmt.Sprintf("%s_values_%d%s", containerName, timestamp, ext)
 		targetPath = filepath.Join(targetDir, targetFilename)
 
 		if err := utils.CopyFile(srcFilePath, targetPath); err != nil {

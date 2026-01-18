@@ -26,24 +26,79 @@ spec:
               TIMEOUT=120
               START=$(date +%s)
               
+              check_jaeger() { while ! nc -z {{ .Release.Name }}-jaeger 4318; do sleep 1; done; }
               check_redis() { while ! nc -z {{ .Release.Name }}-redis 6379; do sleep 1; done; }
               check_mysql() { while ! nc -z {{ .Release.Name }}-mysql 3306; do sleep 1; done; }
-              check_jaeger() { while ! nc -z {{ .Release.Name }}-jaeger 4318; do sleep 1; done; }
+              check_etcd() { while ! nc -z {{ .Release.Name }}-etcd-headless 2379; do sleep 1; done; }
               
               # Start background checks
-              check_redis & PID1=$!
-              check_mysql & PID2=$!
-              check_jaeger & PID3=$!
+              check_jaeger & PID1=$!
+              check_redis & PID2=$!
+              check_mysql & PID3=$!
+              check_etcd & PID4=$!
               
               # Wait with timeout
-              while kill -0 $PID1 2>/dev/null || kill -0 $PID2 2>/dev/null || kill -0 $PID3 2>/dev/null; do
+              while kill -0 $PID1 2>/dev/null || kill -0 $PID2 2>/dev/null || kill -0 $PID3 2>/dev/null || kill -0 $PID4 2>/dev/null; do
                 [ $(($(date +%s) - START)) -ge $TIMEOUT ] && echo "Timeout waiting for dependencies" && exit 1
                 sleep 5
               done
               
               # Verify all succeeded
-              wait $PID1 && wait $PID2 && wait $PID3 || exit 1
+              wait $PID1 && wait $PID2 && wait $PID3 && wait $PID4 || exit 1
               echo "Dependencies ready in $(($(date +%s) - START))s"
+        - name: init-etcd-data
+          image: pair-diag-cn-guangzhou.cr.volces.com/pair/etcdctl:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              INIT_KEY="/initialized_producer"
+              CONFIG_PREFIX="/rcabench/config/producer"
+              CONFIG_JSON_PATH="/initial-config/etcd.json"
+              FORCE_INIT="{{ .Values.initialConfig.force }}"
+              
+              echo "=== Etcd Initialization Started: $(date) ==="
+              
+              # Check if already initialized
+              INIT_VALUE=$(etcdctl --endpoints=http://{{ .Release.Name }}-etcd-headless:2379 get "$INIT_KEY" --print-value-only 2>/dev/null || echo "")
+              if [ "$INIT_VALUE" = "true" ] && [ "$FORCE_INIT" != "true" ]; then
+                echo "Already initialized (found $INIT_KEY=true). Set initialConfig.force=true to reinitialize."
+                exit 0
+              fi
+              
+              if [ "$FORCE_INIT" = "true" ]; then
+                echo "Force initialization enabled, proceeding..."
+              else
+                echo "No initialization marker found, proceeding with initialization..."
+              fi
+              
+              # Load initial config
+              echo "Loading config from $CONFIG_JSON_PATH..."
+              if [ -f "$CONFIG_JSON_PATH" ]; then
+                cat "$CONFIG_JSON_PATH" | sed 's/[{}]//g' | tr ',' '\n' | while IFS= read -r line; do
+                  key_name=$(echo "$line" | cut -d':' -f1 | tr -d '" ' )
+                  val_content=$(echo "$line" | cut -d':' -f2- | sed 's/^[[:space:]]*//; s/,[[:space:]]*$//; s/^"//; s/"$//')
+
+                  key="$CONFIG_PREFIX/$key_name"
+                  value="$val_content"
+                  
+                  if [ -n "$key" ]; then
+                    echo "Setting: $key"
+                    etcdctl --endpoints=http://{{ .Release.Name }}-etcd-headless:2379 put "$key" "$value" || true
+                  fi
+                done
+                etcdctl --endpoints=http://{{ .Release.Name }}-etcd-headless:2379 put "$INIT_KEY" "true" || true
+                echo "Config loaded successfully"
+              else
+                echo "Warning: $CONFIG_JSON_PATH not found"
+              fi
+              
+              echo "=== Etcd Initialization Done: $(date) ==="
+          volumeMounts:
+            - name: etcd-initial-config
+              mountPath: /initial-config
+              readOnly: true
       containers:
         - name: exp
           image: {{ include "helm.image" (dict "imageConfig" .Values.images.rcabench "global" .Values.global) }}
@@ -76,6 +131,9 @@ spec:
         - name: initial-data
           configMap:
             name: {{ .Release.Name }}-initial-data
+        - name: etcd-initial-config
+          configMap:
+            name: {{ .Release.Name }}-etcd-producer-config
         - name: containers-data
           persistentVolumeClaim:
             claimName: {{ .Release.Name }}-containers-data
@@ -111,24 +169,79 @@ spec:
               TIMEOUT=120
               START=$(date +%s)
               
+              check_jaeger() { while ! nc -z {{ .Release.Name }}-jaeger 4318; do sleep 1; done; }
               check_redis() { while ! nc -z {{ .Release.Name }}-redis 6379; do sleep 1; done; }
               check_mysql() { while ! nc -z {{ .Release.Name }}-mysql 3306; do sleep 1; done; }
-              check_jaeger() { while ! nc -z {{ .Release.Name }}-jaeger 4318; do sleep 1; done; }
+              check_etcd() { while ! nc -z {{ .Release.Name }}-etcd-headless 2379; do sleep 1; done; }
               
               # Start background checks
-              check_redis & PID1=$!
-              check_mysql & PID2=$!
-              check_jaeger & PID3=$!
+              check_jaeger & PID1=$!
+              check_redis & PID2=$!
+              check_mysql & PID3=$!
+              check_etcd & PID4=$!
               
               # Wait with timeout
-              while kill -0 $PID1 2>/dev/null || kill -0 $PID2 2>/dev/null || kill -0 $PID3 2>/dev/null; do
+              while kill -0 $PID1 2>/dev/null || kill -0 $PID2 2>/dev/null || kill -0 $PID3 2>/dev/null || kill -0 $PID4 2>/dev/null; do
                 [ $(($(date +%s) - START)) -ge $TIMEOUT ] && echo "Timeout waiting for dependencies" && exit 1
                 sleep 5
               done
               
               # Verify all succeeded
-              wait $PID1 && wait $PID2 && wait $PID3 || exit 1
+              wait $PID1 && wait $PID2 && wait $PID3 && wait $PID4 || exit 1
               echo "Dependencies ready in $(($(date +%s) - START))s"
+        - name: init-etcd-data
+          image: pair-diag-cn-guangzhou.cr.volces.com/pair/etcdctl:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              INIT_KEY="/initialized_consumer"
+              CONFIG_PREFIX="/rcabench/config/consumer"
+              CONFIG_JSON_PATH="/initial-config/etcd.json"
+              FORCE_INIT="{{ .Values.initialConfig.force }}"
+              
+              echo "=== Etcd Initialization Started: $(date) ==="
+              
+              # Check if already initialized
+              INIT_VALUE=$(etcdctl --endpoints=http://{{ .Release.Name }}-etcd-headless:2379 get "$INIT_KEY" --print-value-only 2>/dev/null || echo "")
+              if [ "$INIT_VALUE" = "true" ] && [ "$FORCE_INIT" != "true" ]; then
+                echo "Already initialized (found $INIT_KEY=true). Set initialConfig.force=true to reinitialize."
+                exit 0
+              fi
+              
+              if [ "$FORCE_INIT" = "true" ]; then
+                echo "Force initialization enabled, proceeding..."
+              else
+                echo "No initialization marker found, proceeding with initialization..."
+              fi
+              
+              # Load initial config
+              echo "Loading config from $CONFIG_JSON_PATH..."
+              if [ -f "$CONFIG_JSON_PATH" ]; then
+                cat "$CONFIG_JSON_PATH" | sed 's/[{}]//g' | tr ',' '\n' | while IFS= read -r line; do
+                  key_name=$(echo "$line" | cut -d':' -f1 | tr -d '" ' )
+                  val_content=$(echo "$line" | cut -d':' -f2- | sed 's/^[[:space:]]*//; s/,[[:space:]]*$//; s/^"//; s/"$//')
+
+                  key="$CONFIG_PREFIX/$key_name"
+                  value="$val_content"
+                  
+                  if [ -n "$key" ]; then
+                    echo "Setting: $key"
+                    etcdctl --endpoints=http://{{ .Release.Name }}-etcd-headless:2379 put "$key" "$value" || true
+                  fi
+                done
+                etcdctl --endpoints=http://{{ .Release.Name }}-etcd-headless:2379 put "$INIT_KEY" "true" || true
+                echo "Config loaded successfully"
+              else
+                echo "Warning: $CONFIG_JSON_PATH not found"
+              fi
+              
+              echo "=== Etcd Initialization Done: $(date) ==="
+          volumeMounts:
+            - name: etcd-initial-config
+              mountPath: /initial-config
+              readOnly: true
       containers:
         - name: exp
           image: {{ include "helm.image" (dict "imageConfig" .Values.images.rcabench "global" .Values.global) }}
@@ -168,6 +281,9 @@ spec:
         - name: initial-data
           configMap:
             name: {{ .Release.Name }}-initial-data
+        - name: etcd-initial-config
+          configMap:
+            name: {{ .Release.Name }}-etcd-consumer-config
         {{- if .Values.harbor.enabled }}
         - name: docker-config-volume
           secret:

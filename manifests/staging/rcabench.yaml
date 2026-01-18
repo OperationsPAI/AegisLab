@@ -1,19 +1,28 @@
 global:
-  imageRegistry: 10.10.10.240/library
+  imageRegistry: 10.10.10.240
 
 images:
   rcabench:
-    name: rcabench
+    name: library/rcabench
   jaeger:
-    name: jaeger
+    name: library/jaeger
+  redis:
+    name: library/redis
+  mysql:
+    name: library/mysql
+  etcd:
+    name: library/etcd
+  busybox:
+    name: library/busybox
   buildkit:
-    name: buildkit
+    name: library/buildkit
 
 harbor:
   enabled: true
 
 configmap:
+  system:
+    env_mode: "staging"
   k8s:
     init_container:
-      busybox_image: pair-diag-cn-guangzhou.cr.volces.com/pair/busybox:1.35
-
+      busybox_image: 10.10.10.240/library/busybox:1.35

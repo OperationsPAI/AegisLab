@@ -1,9 +1,13 @@
 package producer
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
+	"aegis/client"
 	"aegis/config"
 	"aegis/consts"
 	"aegis/database"
@@ -16,18 +20,28 @@ import (
 	"gorm.io/gorm"
 )
 
+// =====================================================================
+// Private Types (migrated from common for producer-only usage)
+// =====================================================================
+
+// configUpdateContext holds context information for a configuration update
+type configUpdateContext struct {
+	ChangeField consts.ConfigHistoryChangeField
+	OldValue    string
+	NewValue    string
+	Reason      string
+	OperatorID  int
+	IpAddress   string
+	UserAgent   string
+}
+
 // configHistoryParams encapsulates parameters for creating config history entries
 type configHistoryParams struct {
-	changeType     consts.ConfigHistoryChangeType
-	changeField    consts.ConfigHistoryChangeField
-	oldValue       string
-	newValue       string
-	reason         string
-	configID       int
-	operatorID     *int
-	ipAddress      string
-	userAgent      string
-	rollbackFromID *int
+	ConfigID       int
+	ChangeType     consts.ConfigHistoryChangeType
+	RollbackFromID *int
+
+	ConfigUpdateContext configUpdateContext
 }
 
 // =====================================================================
@@ -75,26 +89,264 @@ func ListConfigs(req *dto.ListConfigReq) (*dto.ListResp[dto.ConfigResp], error) 
 	return &resp, nil
 }
 
-// UpdateConfig updates an existing configuration with validation and history tracking
-func UpdateConfig(req *dto.UpdateConfigReq, configID, operatorID int, ipAddress, userAgent string) (*dto.ConfigResp, error) {
-	var updatedConfig *database.DynamicConfig
+// RollbackConfigValue rolls back a configuration value from history
+func RollbackConfigValue(ctx context.Context, req *dto.RollbackConfigReq, configID, operatorID int, ipAddress, userAgent string) error {
+	// Get the history entry to rollback to
+	history, err := repository.GetConfigHistory(database.DB, req.HistoryID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("%w: history entry with id %d not found", consts.ErrNotFound, req.HistoryID)
+		}
+		return fmt.Errorf("failed to get config history: %w", err)
+	}
 
-	err := database.DB.Transaction(func(tx *gorm.DB) error {
-		existingConfig, err := repository.GetConfigByID(tx, configID, false)
+	// Validate this is a value change history
+	if history.ChangeField != consts.ChangeFieldValue {
+		return fmt.Errorf("history entry %d is not a value change (field: %v)", req.HistoryID, history.ChangeField)
+	}
+
+	// Get existing config
+	existingConfig, err := repository.GetConfigByID(database.DB, configID, false)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("%w: configuration with id %d not found", consts.ErrNotFound, configID)
+		}
+		return fmt.Errorf("failed to get config: %w", err)
+	}
+
+	oldValue, err := client.EtcdGet(ctx, fmt.Sprintf("%s%s", consts.ConfigEtcdPrefix, existingConfig.Key))
+	if err != nil {
+		return fmt.Errorf("failed to get current config value from etcd: %w", err)
+	}
+
+	newValue := history.OldValue
+
+	// Validate the rolled back config
+	if err := common.ValidateConfig(existingConfig, newValue); err != nil {
+		return fmt.Errorf("invalid config after rollback: %w", err)
+	}
+
+	// Handle based on scope (same logic as UpdateConfigValue)
+	if existingConfig.Scope == consts.ConfigScopeProducer {
+		// Producer scope: update Viper first
+		if err := config.SetViperValue(existingConfig.Key, newValue, existingConfig.ValueType); err != nil {
+			return fmt.Errorf("failed to set config value in viper: %w", err)
+		}
+
+		_, err = createConfigRollback(existingConfig, utils.IntPtr(history.ID), configUpdateContext{
+			ChangeField: consts.ChangeFieldValue,
+			OldValue:    oldValue,
+			NewValue:    newValue,
+			Reason:      req.Reason,
+			OperatorID:  operatorID,
+			IpAddress:   ipAddress,
+			UserAgent:   userAgent,
+		})
 		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return fmt.Errorf("%w: configuration with id %d not found", consts.ErrNotFound, configID)
-			}
+			return err
 		}
 
-		oldValue := existingConfig.Value
+		return nil
+	}
 
-		req.PatchConfigModel(existingConfig)
+	if existingConfig.Scope == consts.ConfigScopeConsumer {
+		// Consumer scope: save to DB first, then notify consumer
+		_, err = createConfigRollback(existingConfig, utils.IntPtr(history.ID), configUpdateContext{
+			ChangeField: consts.ChangeFieldValue,
+			OldValue:    oldValue,
+			NewValue:    newValue,
+			Reason:      req.Reason,
+			OperatorID:  operatorID,
+			IpAddress:   ipAddress,
+			UserAgent:   userAgent,
+		})
+		if err != nil {
+			return err
+		}
+
+		// Publish config to etcd with retry mechanism
+		etcdKey := fmt.Sprintf("%s%s", consts.ConfigEtcdPrefix, existingConfig.Key)
+		if err := publishConfigToEtcdWithRetry(etcdKey, newValue, 3); err != nil {
+			logrus.Errorf("Failed to publish config to etcd after retries: %v", err)
+			return fmt.Errorf("config saved to database but failed to notify consumer via etcd: %w", err)
+		}
+
+		// Wait for consumer to acknowledge the rollback
+		logrus.Info("Waiting for consumer config rollback response...")
+		updateResp, err := waitForConfigUpdateResponse(10 * time.Second)
+		if err != nil {
+			logrus.Errorf("Failed to get config rollback response: %v", err)
+			return fmt.Errorf("config rolled back but consumer did not respond: %w", err)
+		}
+
+		if !updateResp.Success {
+			logrus.Errorf("Consumer failed to process config rollback: %s", updateResp.Error)
+			return fmt.Errorf("consumer failed to process config rollback: %s", updateResp.Error)
+		}
+
+		logrus.Infof("Config rollback successfully processed by consumer")
+	}
+
+	return nil
+}
+
+// RollbackConfigMetadata rolls back a configuration metadata field from history
+func RollbackConfigMetadata(req *dto.RollbackConfigReq, configID, operatorID int, ipAddress, userAgent string) (*dto.ConfigResp, error) {
+	// Get the history entry to rollback to
+	history, err := repository.GetConfigHistory(database.DB, req.HistoryID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("%w: history entry with id %d not found", consts.ErrNotFound, req.HistoryID)
+		}
+		return nil, fmt.Errorf("failed to get config history: %w", err)
+	}
+
+	// Validate this is a metadata change history
+	if history.ChangeField == consts.ChangeFieldValue {
+		return nil, fmt.Errorf("history entry %d is a value change, use RollbackConfigValue instead", req.HistoryID)
+	}
+
+	// Get existing config
+	existingConfig, err := repository.GetConfigByID(database.DB, configID, false)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("%w: configuration with id %d not found", consts.ErrNotFound, configID)
+		}
+		return nil, fmt.Errorf("failed to get config: %w", err)
+	}
+
+	// Rollback the metadata field
+	oldValue, newValue, err := rollbackMetaFieldValue(existingConfig, history.ChangeField, history.OldValue)
+	if err != nil {
+		return nil, fmt.Errorf("failed to rollback metadata field: %w", err)
+	}
+
+	// Validate the configuration after metadata rollback
+	if err := common.ValidateConfigMetadataConstraints(existingConfig); err != nil {
+		return nil, fmt.Errorf("invalid config after metadata rollback: %w", err)
+	}
+
+	// Save to database with rollback history
+	updatedConfig, err := createConfigRollback(existingConfig, utils.IntPtr(history.ID), configUpdateContext{
+		ChangeField: history.ChangeField,
+		OldValue:    oldValue,
+		NewValue:    newValue,
+		Reason:      req.Reason,
+		OperatorID:  operatorID,
+		IpAddress:   ipAddress,
+		UserAgent:   userAgent,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return dto.NewConfigResp(updatedConfig), nil
+}
+
+// UpdateConfigValue updates the value of a configuration and handles propagation based on its scope
+func UpdateConfigValue(ctx context.Context, req *dto.UpdateConfigValueReq, configID, operatorID int, ipAddress, userAgent string) error {
+	existingConfig, err := repository.GetConfigByID(database.DB, configID, false)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("%w: configuration with id %d not found", consts.ErrNotFound, configID)
+		}
+	}
+
+	oldValue, err := client.EtcdGet(ctx, fmt.Sprintf("%s%s", consts.ConfigEtcdPrefix, existingConfig.Key))
+	if err != nil {
+		return fmt.Errorf("failed to get current config value from etcd: %w", err)
+	}
+
+	newValue := req.Value
+
+	if err := common.ValidateConfig(existingConfig, newValue); err != nil {
+		return fmt.Errorf("invalid config value: %w", err)
+	}
+
+	if existingConfig.Scope == consts.ConfigScopeProducer {
+		if err := config.SetViperValue(existingConfig.Key, newValue, existingConfig.ValueType); err != nil {
+			return fmt.Errorf("failed to set config value in viper: %w", err)
+		}
+
+		if err := createConfigHistory(database.DB, configHistoryParams{
+			ConfigID:   existingConfig.ID,
+			ChangeType: consts.ChangeTypeUpdate,
+			ConfigUpdateContext: configUpdateContext{
+				ChangeField: consts.ChangeFieldValue,
+				OldValue:    oldValue,
+				NewValue:    newValue,
+				Reason:      req.Reason,
+				OperatorID:  operatorID,
+				IpAddress:   ipAddress,
+				UserAgent:   userAgent,
+			},
+		}); err != nil {
+			return fmt.Errorf("failed to create config history: %w", err)
+		}
+	}
+
+	if existingConfig.Scope == consts.ConfigScopeConsumer {
+		if err := createConfigHistory(database.DB, configHistoryParams{
+			ConfigID:   existingConfig.ID,
+			ChangeType: consts.ChangeTypeUpdate,
+			ConfigUpdateContext: configUpdateContext{
+				ChangeField: consts.ChangeFieldValue,
+				OldValue:    oldValue,
+				NewValue:    newValue,
+				Reason:      req.Reason,
+				OperatorID:  operatorID,
+				IpAddress:   ipAddress,
+				UserAgent:   userAgent,
+			},
+		}); err != nil {
+			return fmt.Errorf("failed to create config history: %w", err)
+		}
+
+		// Publish config to etcd with retry mechanism
+		etcdKey := fmt.Sprintf("%s%s", consts.ConfigEtcdPrefix, existingConfig.Key)
+		if err := publishConfigToEtcdWithRetry(etcdKey, newValue, 3); err != nil {
+			logrus.Errorf("Failed to publish config to etcd after retries: %v", err)
+			return fmt.Errorf("config saved to database but failed to notify consumer via etcd: %w", err)
+		}
+
+		// Wait for consumer to acknowledge the update
+		logrus.Info("Waiting for consumer config update response...")
+		updateResp, err := waitForConfigUpdateResponse(10 * time.Second)
+		if err != nil {
+			logrus.Errorf("Failed to get config update response: %v", err)
+			return fmt.Errorf("config updated but consumer did not respond: %w", err)
+		}
+
+		if !updateResp.Success {
+			logrus.Errorf("Consumer failed to process config update: %s", updateResp.Error)
+			return fmt.Errorf("consumer failed to process config update: %s", updateResp.Error)
+		}
+
+		logrus.Infof("Config update successfully processed by consumer")
+	}
+
+	return nil
+}
+
+// UpdateConfigMetadata updates the metadata of a configuration
+func UpdateConfigMetadata(req *dto.UpdateConfigMetadataReq, configID, operatorID int, ipAddress, userAgent string) (*dto.ConfigResp, error) {
+	existingConfig, err := repository.GetConfigByID(database.DB, configID, false)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("%w: configuration with id %d not found", consts.ErrNotFound, configID)
+		}
+	}
+
+	oldValue, newValue := req.PatchConfigModel(existingConfig)
+
+	// Validate the configuration after metadata update
+	if err := common.ValidateConfigMetadataConstraints(existingConfig); err != nil {
+		return nil, fmt.Errorf("invalid config after metadata update: %w", err)
+	}
+
+	var updatedConfig *database.DynamicConfig
+	err = database.DB.Transaction(func(tx *gorm.DB) error {
 		existingConfig.UpdatedBy = utils.IntPtr(operatorID)
-
-		if err := common.ValidateConfig(existingConfig); err != nil {
-			return fmt.Errorf("invalid config value: %w", err)
-		}
 
 		if err := repository.UpdateConfig(tx, existingConfig); err != nil {
 			return fmt.Errorf("failed to update config: %w", err)
@@ -103,15 +355,17 @@ func UpdateConfig(req *dto.UpdateConfigReq, configID, operatorID int, ipAddress,
 		updatedConfig = existingConfig
 
 		if err := createConfigHistory(tx, configHistoryParams{
-			changeType:  consts.ChangeTypeUpdate,
-			changeField: req.GetChangeField(),
-			oldValue:    oldValue,
-			newValue:    updatedConfig.Value,
-			reason:      req.Reason,
-			configID:    updatedConfig.ID,
-			operatorID:  updatedConfig.UpdatedBy,
-			ipAddress:   ipAddress,
-			userAgent:   userAgent,
+			ConfigID:   updatedConfig.ID,
+			ChangeType: consts.ChangeTypeUpdate,
+			ConfigUpdateContext: configUpdateContext{
+				ChangeField: req.GetChangeField(),
+				OldValue:    oldValue,
+				NewValue:    newValue,
+				Reason:      req.Reason,
+				OperatorID:  operatorID,
+				IpAddress:   ipAddress,
+				UserAgent:   userAgent,
+			},
 		}); err != nil {
 			return fmt.Errorf("failed to create config history: %w", err)
 		}
@@ -120,92 +374,9 @@ func UpdateConfig(req *dto.UpdateConfigReq, configID, operatorID int, ipAddress,
 	})
 	if err != nil {
 		return nil, err
-	}
-
-	if err := config.SetViperValue(updatedConfig.Key, updatedConfig.Value, updatedConfig.ValueType); err != nil {
-		logrus.Fatalf("Failed to load dynamic config %s into viper: %v", updatedConfig.Key, err)
-	}
-
-	// Trigger config reload and callbacks for injection category changes
-	if updatedConfig.Category == "injection" {
-		if err := config.GetChaosSystemConfigManager().Reload(); err != nil {
-			return nil, fmt.Errorf("failed to reload system config after updating injection config: %w", err)
-		}
 	}
 
 	return dto.NewConfigResp(updatedConfig), nil
-}
-
-// RollbackConfig rolls back a configuration to a previous value from history
-func RollbackConfig(req *dto.RollbackConfigReq, configID, operatorID int, ipAddress, userAgent string) (*dto.ConfigResp, error) {
-	var rollbackedConfig *database.DynamicConfig
-
-	err := database.DB.Transaction(func(tx *gorm.DB) error {
-		existingConfig, err := repository.GetConfigByID(tx, configID, false)
-		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return fmt.Errorf("%w: configuration with id %d not found", consts.ErrNotFound, configID)
-			}
-		}
-
-		existingConfig.UpdatedBy = utils.IntPtr(operatorID)
-
-		history, err := repository.GetConfigHistory(tx, req.HistoryID)
-		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return fmt.Errorf("%w: history entry with id %d not found", consts.ErrNotFound, req.HistoryID)
-			}
-		}
-
-		// Rollback the specific field to its old value
-		oldValue, newValue, err := rollbackFieldValue(existingConfig, history.ChangeField, history.OldValue)
-		if err != nil {
-			return fmt.Errorf("failed to rollback field: %w", err)
-		}
-
-		if err := common.ValidateConfig(existingConfig); err != nil {
-			return fmt.Errorf("invalid config value: %w", err)
-		}
-
-		if err := repository.UpdateConfig(tx, existingConfig); err != nil {
-			return fmt.Errorf("failed to rollback config: %w", err)
-		}
-
-		rollbackedConfig = existingConfig
-
-		if err := createConfigHistory(tx, configHistoryParams{
-			changeType:     consts.ChangeTypeRollback,
-			changeField:    history.ChangeField,
-			oldValue:       oldValue,
-			newValue:       newValue,
-			reason:         req.Reason,
-			configID:       configID,
-			operatorID:     utils.IntPtr(operatorID),
-			ipAddress:      ipAddress,
-			userAgent:      userAgent,
-			rollbackFromID: utils.IntPtr(req.HistoryID),
-		}); err != nil {
-			return fmt.Errorf("failed to create config history: %w", err)
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	if err := config.SetViperValue(rollbackedConfig.Key, rollbackedConfig.Value, rollbackedConfig.ValueType); err != nil {
-		logrus.Fatalf("Failed to load dynamic config %s into viper: %v", rollbackedConfig.Key, err)
-	}
-
-	// Trigger config reload and callbacks for injection category changes
-	if rollbackedConfig.Category == "injection" {
-		if err := config.GetChaosSystemConfigManager().Reload(); err != nil {
-			return nil, fmt.Errorf("failed to reload system config after updating injection config: %w", err)
-		}
-	}
-
-	return dto.NewConfigResp(rollbackedConfig), nil
 }
 
 // ===================== ConfigHistory =====================
@@ -230,18 +401,21 @@ func ListConfigHistories(req *dto.ListConfigHistoryReq, configID int) (*dto.List
 	return &resp, nil
 }
 
-// createConfigHistory creates a ConfigHistory entry from a config update
+// ===================== Helper Functions =====================
+
+// createConfigHistory creates a ConfigHistory entry from a config update (private version)
 func createConfigHistory(db *gorm.DB, params configHistoryParams) error {
 	entry := &database.ConfigHistory{
-		ChangeType:       params.changeType,
-		OldValue:         params.oldValue,
-		NewValue:         params.newValue,
-		Reason:           params.reason,
-		ConfigID:         params.configID,
-		OperatorID:       params.operatorID,
-		IPAddress:        params.ipAddress,
-		UserAgent:        params.userAgent,
-		RolledBackFromID: params.rollbackFromID,
+		ChangeType:       params.ChangeType,
+		OldValue:         params.ConfigUpdateContext.OldValue,
+		NewValue:         params.ConfigUpdateContext.NewValue,
+		Reason:           params.ConfigUpdateContext.Reason,
+		ConfigID:         params.ConfigID,
+		OperatorID:       utils.IntPtr(params.ConfigUpdateContext.OperatorID),
+		IPAddress:        params.ConfigUpdateContext.IpAddress,
+		UserAgent:        params.ConfigUpdateContext.UserAgent,
+		RolledBackFromID: params.RollbackFromID,
+		ChangeField:      params.ConfigUpdateContext.ChangeField,
 	}
 	if err := repository.CreateConfigHistory(db, entry); err != nil {
 		return fmt.Errorf("failed to create config history: %w", err)
@@ -249,16 +423,44 @@ func createConfigHistory(db *gorm.DB, params configHistoryParams) error {
 	return nil
 }
 
-// rollbackFieldValue rolls back a specific field in the config based on the change field type
+// createConfigRollback updates config and creates a rollback history entry
+// This wraps the common history creation logic but with rollback-specific parameters
+func createConfigRollback(config *database.DynamicConfig, historyID *int, updateContext configUpdateContext) (*database.DynamicConfig, error) {
+	var updatedConfig *database.DynamicConfig
+
+	err := database.DB.Transaction(func(tx *gorm.DB) error {
+		// Update the config in database
+		if err := repository.UpdateConfig(tx, config); err != nil {
+			return fmt.Errorf("failed to update config: %w", err)
+		}
+
+		updatedConfig = config
+
+		// Create rollback history entry using common function
+		if err := createConfigHistory(tx, configHistoryParams{
+			ConfigID:            config.ID,
+			ChangeType:          consts.ChangeTypeRollback,
+			ConfigUpdateContext: updateContext,
+			RollbackFromID:      historyID,
+		}); err != nil {
+			return fmt.Errorf("failed to create rollback history: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return updatedConfig, nil
+}
+
+// rollbackMetaFieldValue rolls back a specific field in the config based on the change field type
 // Returns the old value (before rollback) and new value (after rollback)
-func rollbackFieldValue(config *database.DynamicConfig, changeField consts.ConfigHistoryChangeField, targetValue string) (oldValue string, newValue string, err error) {
+func rollbackMetaFieldValue(config *database.DynamicConfig, changeField consts.ConfigHistoryChangeField, targetValue string) (oldValue string, newValue string, err error) {
 	newValue = targetValue
 
 	switch changeField {
-	case consts.ChangeFieldValue:
-		oldValue = config.Value
-		config.Value = newValue
-
 	case consts.ChangeFieldDefaultValue:
 		oldValue = config.DefaultValue
 		config.DefaultValue = newValue
@@ -308,4 +510,74 @@ func rollbackFieldValue(config *database.DynamicConfig, changeField consts.Confi
 	}
 
 	return oldValue, newValue, nil
+}
+
+// publishConfigToEtcdWithRetry publishes configuration to etcd with exponential backoff retry
+func publishConfigToEtcdWithRetry(key, value string, maxRetries int) error {
+	var lastErr error
+	baseDelay := 500 * time.Millisecond
+
+	for attempt := range maxRetries {
+		if attempt > 0 {
+			delay := baseDelay * time.Duration(1<<uint(attempt-1))
+			logrus.Warnf("Retrying etcd publish after %v (attempt %d/%d)", delay, attempt+1, maxRetries)
+			time.Sleep(delay)
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		err := client.EtcdPut(ctx, key, value, 0)
+		cancel()
+
+		if err == nil {
+			if attempt > 0 {
+				logrus.Infof("Successfully published config to etcd after %d retries", attempt)
+			}
+			return nil
+		}
+
+		lastErr = err
+		logrus.Warnf("Failed to publish config to etcd (attempt %d/%d): %v", attempt+1, maxRetries, err)
+	}
+
+	return fmt.Errorf("failed to publish config to etcd after %d attempts: %w", maxRetries, lastErr)
+}
+
+// waitForConfigUpdateResponse uses Redis Pub/Sub to synchronously wait for a response to a configuration update with timeout
+func waitForConfigUpdateResponse(timeout time.Duration) (*dto.ConfigUpdateResponse, error) {
+	redisClient := client.GetRedisClient()
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	pubsub := redisClient.Subscribe(ctx, consts.ConfigUpdateResponseChannel)
+	defer pubsub.Close()
+
+	if _, err := pubsub.Receive(ctx); err != nil {
+		return nil, fmt.Errorf("failed to confirm subscription: %w", err)
+	}
+
+	msgChan := pubsub.Channel()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("timeout waiting for config update response after %v", timeout)
+
+		case msg, ok := <-msgChan:
+			if !ok {
+				return nil, fmt.Errorf("subscription channel closed unexpectedly")
+			}
+
+			var response dto.ConfigUpdateResponse
+			if err := json.Unmarshal([]byte(msg.Payload), &response); err != nil {
+				logrus.Warnf("failed to parse response message: %v", err)
+				continue
+			}
+
+			logrus.WithFields(logrus.Fields{
+				"response_id": response.ID,
+				"success":     response.Success,
+			}).Info("Received matching config update response")
+			return &response, nil
+		}
+	}
 }

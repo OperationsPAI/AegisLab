@@ -22,13 +22,18 @@ func SetupSystemRoutes(router *gin.Engine) {
 		{
 			configsRead.GET("", system.ListConfigs)                              // Search configurations with filters
 			configsRead.GET("/:config_id", system.GetConfig)                     // Get configuration by ID
-			configsRead.GET("/:config_id/histories", system.ListConfigHistories) // Get configuration change history                // Get configuration statistics
+			configsRead.GET("/:config_id/histories", system.ListConfigHistories) // Get configuration change history
 		}
 
 		configsWrite := configs.Group("", middleware.RequireConfigurationWrite)
 		{
-			configsWrite.PATCH("/:config_id", system.UpdateConfig)           // Update configuration
-			configsWrite.POST("/:config_id/rollback", system.RollbackConfig) // Rollback configuration
+			// Frequent operation: Update configuration value (for ops team)
+			configsWrite.PATCH("/:config_id", system.UpdateConfigValue)                 // Update configuration value
+			configsWrite.POST("/:config_id/value/rollback", system.RollbackConfigValue) // Rollback configuration value
+
+			// Rare operation: Update configuration metadata (admin only)
+			configsWrite.PUT("/:config_id/metadata", system.UpdateConfigMetadata)             // Update configuration metadata (schema)
+			configsWrite.POST("/:config_id/metadata/rollback", system.RollbackConfigMetadata) // Rollback configuration metadata
 		}
 	}
 

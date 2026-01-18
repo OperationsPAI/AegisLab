@@ -22,11 +22,7 @@ RELEASE_NAME    := rcabench
 
 # COMMAND Tool Configuration
 COMMAND_DIR := scripts/command
-COMMAND_BIN := $(COMMAND_DIR)/command.bin
-
-BUILD_COMMAND_SCRIPT := ./scripts/build-command.sh
-
-COMMAND := . $(COMMAND_DIR)/.venv/bin/activate && uv run python $(COMMAND_DIR)/main.py
+COMMAND := UV_WITH_GROUPS=dev uv run --project $(COMMAND_DIR) python $(COMMAND_DIR)/main.py
 
 # Directory Configuration
 LEFTHOOK_CONFIG := lefthook.yml
@@ -46,7 +42,7 @@ RESET   := \033[0m
 # Dependency Repositories
 CHAOS_EXPERIMENT_REPO := github.com/LGU-SE-Internal/chaos-experiment@injectionv2
 
-# =============================================================================
+# ===================================================·==========================
 # Declare all non-file targets
 # =============================================================================
 .PHONY: help build run debug swagger import clean-finalizers delete-all-chaos k8s-resources ports \
@@ -87,11 +83,7 @@ help:  ## 📖 Display all available commands
 # Command Tool Management
 # =============================================================================
 
-build-make-command: ## 🔨 Build command tool
-	@chmod +x $(BUILD_COMMAND_SCRIPT)
-	@ENV_MODE=$(ENV_MODE) $(BUILD_COMMAND_SCRIPT)
-
-run-command: build-make-command ## 🔧 Run command tool (usage: make run-command ARGS="your args")
+run-command: ## 🔧 Run command tool (usage: make run-command ARGS="your args")
 	@$(COMMAND) $(ARGS)
 
 # =============================================================================
@@ -109,7 +101,7 @@ check-prerequisites: ## 🔍 Check development environment dependencies
 	@command -v docker >/dev/null 2>&1 || { printf "$(RED)❌ docker not installed$(RESET)\n"; exit 1; }
 	@printf "$(GREEN)✅ docker installed$(RESET)\n"
 	@printf "$(GRAY)Checking helm...$(RESET)\n"
-	@command -v helm >/dev/null 2>&1 || { printf "$(RED)❌ helm not installed$(RESET)\n"; exit 1; }
+	@command -v helm >/dev/null 2>&1 || { printf "$(RED)❌ helm not insalled$(RESET)\n"; exit 1; }
 	@printf "$(GREEN)✅ helm installed$(RESET)\n"
 	@printf "$(GRAY)Checking kubectx...$(RESET)\n"
 	@command -v kubectx >/dev/null 2>&1 || { printf "$(RED)❌ kubectx not installed$(RESET)\n"; exit 1; }
@@ -158,48 +150,46 @@ install-pedestals: ## 🔍 Install pedestals in namespaces (usage: make install-
 # Build and Deployment
 # =============================================================================
 
-install-rcabench:  ## 🔧 Deploy RCABench application
+install-openebs:
+	@printf "$(BLUE)Deploying OpenEBS...$(RESET)\n"
+	helm upgrade -i openebs openebs/openebs --namespace openebs \
+  		--create-namespace \
+		--values ./manifests/staging/openebs.yaml \
+		--atomic --timeout 10m
+	@printf "$(GREEN)✅ OpenEBS installed successfully$(RESET)\n\n"
+
+install-rcabench:  ## 🔧 Deploy RCABench application in prod environment
 	@printf "$(BLUE)Deploying RCABench application...$(RESET)\n"
 	helm upgrade -i rcabench ./helm --namespace exp \
 		--create-namespace \
-		--values ./manifests/$(ENV_MODE)/rcabench.yaml \
+		--values ./manifests/prod/rcabench.yaml \
+		--set-file initialDataFiles.data_json=data/initial_data/prod/data.json \
+		--set-file initialDataFiles.otel_demo_yaml=data/initial_data/prod/otel-demo.yaml \
+		--set-file initialDataFiles.ts_yaml=data/initial_data/prod/ts.yaml \
 		--atomic --timeout 10m
 	@printf "$(GREEN)✅ RCABench installed successfully$(RESET)\n\n"
 	@printf "$(BLUE)🔗 Starting automatic port forwarding...$(RESET)\n"
-	@$(MAKE) forward-ports ENV_MODE=$(ENV_MODE)
+	@$(MAKE) forward-ports ENV_MODE=prod
 
 local-deploy: ## 🛠️  Setup local development environment with basic services
-	@$(MAKE) run-command ARGS="rcabench local-deploy -f"
+	$(MAKE) run-command ARGS="rcabench local-deploy -f"
+	$(MAKE) init-etcd ENV_MODE=dev
 
 run: check-prerequisites ## 🚀 Build and deploy application (using skaffold)
 	ENV_MODE=staging devbox run skaffold run
+
+init-etcd:
+	$(MAKE) run-command ARGS="etcd init -e $(ENV_MODE) -f"
 
 # =============================================================================
 # Test
 # =============================================================================
 
+test-push:
+	SDK_VERSION=1.1.55 ENV_MODE=test devbox run skaffold run
+
 regression-test:
-	@echo "\nCreating Command Environment"
-	cd scripts/command && \
-	uv venv && \
-	. .venv/bin/activate && \
-	uv sync --no-group test --group dev
-	@echo "✅ Generated Command Environment"
-	@echo "\nGenerating Python SDK..."
-	go install github.com/swaggo/swag/cmd/swag@latest && \
-	export PATH=$PATH:$(go env GOPATH)/bin && \
-	$(MAKE) generate-python-sdk SDK_VERSION=0.0.0
-	@echo "✅ Generated Python SDK..."
-	@echo "\nRunning regression tests..."
-	cd scripts/command && \
-	uv sync --no-group dev --group test && \
-	uv run pytest test/test_workflow.py -v -s --tb=short --color=yes --capture=no
-	@echo "✅ Tests completed"
-	@kubectl delete jobs -n exp --all
-	@echo "\nCleaning up..."
-	cd scripts/command && rm -rf .venv
-	rm -rf sdk/python
-	@echo "✅ Cleaned up test server environment"
+	chmod +x ./scripts/regression-test.sh && ./scripts/regression-test.sh
 
 # =============================================================================
 # Development Tools

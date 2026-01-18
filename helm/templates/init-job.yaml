@@ -1,10 +1,12 @@
 {{- if .Values.initialization.enabled }}
+{{- if .Values.initialization.initData.enabled }}
+# Init data job
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ .Release.Name }}-init-data
   annotations:
-    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook": post-install
     "helm.sh/hook-weight": "-5"
     "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
 spec:
@@ -28,12 +30,13 @@ spec:
               echo "PVCs are ready"
       containers:
         - name: init-data
-          image: {{ include "helm.image" (dict "imageConfig" .Values.images.init_data "global" .Values.global) }}
-          imagePullPolicy: "{{ .Values.images.init_data.pullPolicy }}"
+          image: {{ include "helm.image" (dict "imageConfig" .Values.initialization.initData.image "global" .Values.global) }}
+          imagePullPolicy: "{{ .Values.initialization.initData.image.pullPolicy }}"
           command:
             - sh
             - -c
             - |
+              set -e
               echo "Initializing data..."
 
               if [ -d /data ]; then
@@ -57,4 +60,5 @@ spec:
         - name: dataset
           persistentVolumeClaim:
             claimName: {{ .Release.Name }}-juicefs-dataset
+{{- end }}
 {{- end }}

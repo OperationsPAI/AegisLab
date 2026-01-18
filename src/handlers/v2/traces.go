@@ -149,12 +149,12 @@ func GetTraceStream(c *gin.Context) {
 //	@ID				get_group_stats
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			group_id	query		string						true	"Group ID to query"
+//	@Param			group_id	query		string								true	"Group ID to query"
 //	@Success		200			{object}	dto.GenericResponse[dto.GroupStats]	"Group trace statistics"
-//	@Failure		400			{object}	dto.GenericResponse[any]				"Invalid request format/parameters"
-//	@Failure		401			{object}	dto.GenericResponse[any]				"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]				"Permission denied"
-//	@Failure		500			{object}	dto.GenericResponse[any]				"Internal server error"
+//	@Failure		400			{object}	dto.GenericResponse[any]			"Invalid request format/parameters"
+//	@Failure		401			{object}	dto.GenericResponse[any]			"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]			"Permission denied"
+//	@Failure		500			{object}	dto.GenericResponse[any]			"Internal server error"
 //	@Router			/api/v2/traces/group/stats [get]
 //	@x-api-type		{"sdk":"true"}
 func GetGroupStats(c *gin.Context) {

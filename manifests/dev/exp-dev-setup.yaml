@@ -128,7 +128,7 @@ metadata:
     environment: development
     pvc-type: dataset
   annotations:
-    description: "JuiceFS PVC for dataset storage in exp-dev environment"
+    description: "JuiceFS PVC for dataset storage in environment"
 spec:
   accessModes:
     - ReadWriteMany
@@ -180,7 +180,7 @@ metadata:
     environment: development
     pvc-type: experiment-storage
   annotations:
-    description: "JuiceFS PVC for experiment storage in exp-dev environment"
+    description: "JuiceFS PVC for experiment storage in environment"
 spec:
   accessModes:
     - ReadWriteMany

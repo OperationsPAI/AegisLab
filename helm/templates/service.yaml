@@ -1,59 +1,3 @@
-# Redis Service
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ .Release.Name }}-redis
-spec:
-  type: NodePort
-  selector:
-    app: {{ .Release.Name }}-redis
-  ports:
-  - port: 6379
-    nodePort: 32279
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ .Release.Name }}-mysql
-spec:
-  type: NodePort
-  selector:
-    app: {{ .Release.Name }}-mysql
-  ports:
-  - port: 3306
-    targetPort: 3306
-    nodePort: 32206
-
----
-# exp Service
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ .Release.Name }}-exp
-spec:
-  type: NodePort
-  selector:
-    app: {{ .Release.Name }}-producer
-  ports:
-  - port: 8080
-    targetPort: 8080
-    nodePort: 32080
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ .Release.Name }}-buildkit
-spec:
-  selector:
-    app: {{ .Release.Name }}-buildkit
-  ports:
-    - port: 1234
-      targetPort: 1234
-  type: ClusterIP
-
----
 # Jaeger Service
 apiVersion: v1
 kind: Service
@@ -84,3 +28,93 @@ spec:
       port: 16686  
       targetPort: 16686
       nodePort: 31686
+
+---
+# Redis Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-redis
+spec:
+  type: NodePort
+  selector:
+    app: {{ .Release.Name }}-redis
+  ports:
+  - port: 6379
+    nodePort: 32279
+
+---
+# MySQL Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-mysql
+spec:
+  type: NodePort
+  selector:
+    app: {{ .Release.Name }}-mysql
+  ports:
+  - port: 3306
+    targetPort: 3306
+    nodePort: 32206
+
+---
+# etcd Headless Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-etcd-headless
+spec:
+  clusterIP: None
+  selector:
+    app: {{ .Release.Name }}-etcd
+  ports:
+  - name: client
+    port: 2379
+    targetPort: 2379
+  - name: peer
+    port: 2380
+    targetPort: 2380
+
+---
+# etcd External Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-etcd-external
+spec:
+  type: NodePort
+  selector:
+    app: {{ .Release.Name }}-etcd
+  ports:
+  - port: 2379
+    targetPort: 2379
+    nodePort: 31379
+
+---
+# exp Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-exp
+spec:
+  type: NodePort
+  selector:
+    app: {{ .Release.Name }}-producer
+  ports:
+  - port: 8080
+    targetPort: 8080
+    nodePort: 32080
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-buildkit
+spec:
+  selector:
+    app: {{ .Release.Name }}-buildkit
+  ports:
+    - port: 1234
+      targetPort: 1234
+  type: ClusterIP

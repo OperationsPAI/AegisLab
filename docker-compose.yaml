@@ -1,10 +1,22 @@
 name: aegislab-dev
 services:
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: jaeger
+    network_mode: host
+    restart: always
+
   redis:
     image: redis:8.0-M02-alpine3.20
     container_name: redis
     network_mode: host
     restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
 
   mysql:
     image: mysql:8.0.43
@@ -12,20 +24,38 @@ services:
     environment:
       MYSQL_DATABASE: rcabench
       MYSQL_ROOT_PASSWORD: yourpassword
-    volumes:
-      - mysql_data:/var/lib/mysql
     command: >
-      --default-authentication-plugin=mysql_native_password
+      --default-authentication-plugin=caching_sha2_password
       --character-set-server=utf8mb4
       --collation-server=utf8mb4_unicode_ci
     network_mode: host
     restart: always
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pyourpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
-  jaeger:
-    image: jaegertracing/all-in-one:latest
-    container_name: jaeger
-    network_mode: host
+  etcd:
+    image: quay.io/coreos/etcd:v3.6.7
+    container_name: etcd
     restart: always
+    environment:
+      - ETCD_NAME=etcd0
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+      - ETCD_ADVERTISE_CLIENT_URLS=http://127.0.0.1:2379
+      - ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380
+      - ETCD_INITIAL_ADVERTISE_PEER_URLS=http://127.0.0.1:2380
+      - ETCD_INITIAL_CLUSTER=etcd0=http://127.0.0.1:2380
+      - ETCD_INITIAL_CLUSTER_STATE=new
+    network_mode: host
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   buildkitd:
     image: moby/buildkit:buildx-stable-1
@@ -37,12 +67,11 @@ services:
       --allow-insecure-entitlement network.host
     volumes:
       - buildkit_cache:/var/lib/buildkit
-      - /etc/ssl/certs:/etc/ssl/certs:ro # 添加 SSL 证书
+      - /etc/ssl/certs:/etc/ssl/certs:ro
     restart: always
     network_mode: host
     environment:
       - BUILDKIT_DEBUG=1
 
 volumes:
-  mysql_data:
   buildkit_cache:

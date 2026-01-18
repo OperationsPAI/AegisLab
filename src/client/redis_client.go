@@ -137,3 +137,23 @@ func RedisXRead(ctx context.Context, streams []string, count int64, block time.D
 
 	return result, nil
 }
+
+// RedisPublish publishes a message to a Redis channel
+func RedisPublish(ctx context.Context, channel string, message any) error {
+	var payload string
+	switch v := message.(type) {
+	case string:
+		payload = v
+	default:
+		data, err := json.Marshal(message)
+		if err != nil {
+			return fmt.Errorf("failed to marshal message: %w", err)
+		}
+		payload = string(data)
+	}
+
+	if err := GetRedisClient().Publish(ctx, channel, payload).Err(); err != nil {
+		return fmt.Errorf("redis PUBLISH failed for channel '%s': %w", channel, err)
+	}
+	return nil
+}

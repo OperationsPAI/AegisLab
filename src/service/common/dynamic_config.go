@@ -62,23 +62,23 @@ func CreateConfig(db *gorm.DB, config *database.DynamicConfig) error {
 }
 
 // ValidateConfig validates a configuration against its type and constraints
-func ValidateConfig(cfg *database.DynamicConfig) error {
+func ValidateConfig(cfg *database.DynamicConfig, value string) error {
 	// Validate metadata constraints
-	if err := validateConfigMetadataConstraints(cfg); err != nil {
+	if err := ValidateConfigMetadataConstraints(cfg); err != nil {
 		return err
 	}
 
 	// Validate the value itself
 	switch cfg.ValueType {
 	case consts.ConfigValueTypeBool:
-		if _, err := strconv.ParseBool(cfg.Value); err != nil {
-			return fmt.Errorf("invalid boolean value: %s", cfg.Value)
+		if _, err := strconv.ParseBool(value); err != nil {
+			return fmt.Errorf("invalid boolean value: %s", value)
 		}
 
 	case consts.ConfigValueTypeInt:
-		intVal, err := strconv.ParseInt(cfg.Value, 10, 64)
+		intVal, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
-			return fmt.Errorf("invalid integer value: %s", cfg.Value)
+			return fmt.Errorf("invalid integer value: %s", value)
 		}
 		if cfg.MinValue != nil && float64(intVal) < *cfg.MinValue {
 			return fmt.Errorf("value %d is below minimum %v", intVal, *cfg.MinValue)
@@ -88,9 +88,9 @@ func ValidateConfig(cfg *database.DynamicConfig) error {
 		}
 
 	case consts.ConfigValueTypeFloat:
-		floatVal, err := strconv.ParseFloat(cfg.Value, 64)
+		floatVal, err := strconv.ParseFloat(value, 64)
 		if err != nil {
-			return fmt.Errorf("invalid float value: %s", cfg.Value)
+			return fmt.Errorf("invalid float value: %s", value)
 		}
 		if cfg.MinValue != nil && floatVal < *cfg.MinValue {
 			return fmt.Errorf("value %f is below minimum %v", floatVal, *cfg.MinValue)
@@ -101,7 +101,7 @@ func ValidateConfig(cfg *database.DynamicConfig) error {
 
 	case consts.ConfigValueTypeString:
 		if cfg.Pattern != "" {
-			matched, err := regexp.MatchString(cfg.Pattern, cfg.Value)
+			matched, err := regexp.MatchString(cfg.Pattern, value)
 			if err != nil {
 				return fmt.Errorf("invalid regex pattern: %w", err)
 			}
@@ -112,14 +112,14 @@ func ValidateConfig(cfg *database.DynamicConfig) error {
 
 	case consts.ConfigValueTypeStringArray:
 		var strArray []string
-		if err := json.Unmarshal([]byte(cfg.Value), &strArray); err != nil {
+		if err := json.Unmarshal([]byte(value), &strArray); err != nil {
 			return fmt.Errorf("invalid string array format: %w", err)
 		}
 	}
 
 	// Validate against allowed options if defined
 	if cfg.Options != "" {
-		if err := validateConfigOptions(cfg); err != nil {
+		if err := validateConfigOptions(cfg, value); err != nil {
 			return err
 		}
 	}
@@ -127,8 +127,8 @@ func ValidateConfig(cfg *database.DynamicConfig) error {
 	return nil
 }
 
-// validateConfigMetadataConstraints validates that metadata fields are appropriate for the value type
-func validateConfigMetadataConstraints(cfg *database.DynamicConfig) error {
+// ValidateConfigMetadataConstraints validates that metadata fields are appropriate for the value type
+func ValidateConfigMetadataConstraints(cfg *database.DynamicConfig) error {
 	rules, exists := configTypeRules[cfg.ValueType]
 	if !exists {
 		return fmt.Errorf("unknown value type: %d", cfg.ValueType)
@@ -158,15 +158,15 @@ func validateConfigMetadataConstraints(cfg *database.DynamicConfig) error {
 }
 
 // validateConfigOptions validates the config value against allowed options based on value type
-func validateConfigOptions(cfg *database.DynamicConfig) error {
+func validateConfigOptions(cfg *database.DynamicConfig, value string) error {
 	switch cfg.ValueType {
 	case consts.ConfigValueTypeString:
 		var allowedOptions []string
 		if err := json.Unmarshal([]byte(cfg.Options), &allowedOptions); err != nil {
 			return fmt.Errorf("invalid options format (expected []string): %w", err)
 		}
-		if !slices.Contains(allowedOptions, cfg.Value) {
-			return fmt.Errorf("value '%s' is not in allowed options: %v", cfg.Value, allowedOptions)
+		if !slices.Contains(allowedOptions, value) {
+			return fmt.Errorf("value '%s' is not in allowed options: %v", value, allowedOptions)
 		}
 
 	case consts.ConfigValueTypeInt:
@@ -174,7 +174,7 @@ func validateConfigOptions(cfg *database.DynamicConfig) error {
 		if err := json.Unmarshal([]byte(cfg.Options), &allowedOptions); err != nil {
 			return fmt.Errorf("invalid options format (expected []int): %w", err)
 		}
-		intVal, _ := strconv.ParseInt(cfg.Value, 10, 64)
+		intVal, _ := strconv.ParseInt(value, 10, 64)
 		if !slices.Contains(allowedOptions, intVal) {
 			return fmt.Errorf("value '%d' is not in allowed options: %v", intVal, allowedOptions)
 		}
@@ -184,7 +184,7 @@ func validateConfigOptions(cfg *database.DynamicConfig) error {
 		if err := json.Unmarshal([]byte(cfg.Options), &allowedOptions); err != nil {
 			return fmt.Errorf("invalid options format (expected []float64): %w", err)
 		}
-		floatVal, _ := strconv.ParseFloat(cfg.Value, 64)
+		floatVal, _ := strconv.ParseFloat(value, 64)
 		if !slices.Contains(allowedOptions, floatVal) {
 			return fmt.Errorf("value '%f' is not in allowed options: %v", floatVal, allowedOptions)
 		}
@@ -194,7 +194,7 @@ func validateConfigOptions(cfg *database.DynamicConfig) error {
 		if err := json.Unmarshal([]byte(cfg.Options), &allowedOptions); err != nil {
 			return fmt.Errorf("invalid options format (expected []bool): %w", err)
 		}
-		boolVal, _ := strconv.ParseBool(cfg.Value)
+		boolVal, _ := strconv.ParseBool(value)
 		if !slices.Contains(allowedOptions, boolVal) {
 			return fmt.Errorf("value '%v' is not in allowed options: %v", boolVal, allowedOptions)
 		}

@@ -1,12 +1,13 @@
 package dto
 
 import (
+	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"aegis/consts"
 	"aegis/database"
+	"aegis/utils"
 )
 
 // =====================================================================
@@ -38,15 +39,17 @@ type RollbackConfigReq struct {
 	Reason    string `json:"reason" binding:"required"`
 }
 
-// UpdateConfigReq represents a request to update a configuration item
-// Supports partial updates - only provided fields will be updated
-type UpdateConfigReq struct {
-	// Runtime value
-	Value *string `json:"value" binding:"omitempty"`
+// UpdateConfigValueReq represents a request to update a configuration value (runtime config)
+type UpdateConfigValueReq struct {
+	Value  string `json:"value" binding:"required"`
+	Reason string `json:"reason" binding:"required"`
+}
 
-	// Metadata fields
+// UpdateConfigMetadataReq represents a request to update configuration metadata
+type UpdateConfigMetadataReq struct {
+	// Metadata fields - only ONE field should be provided per request
 	DefaultValue *string  `json:"default_value" binding:"omitempty"`
-	Description  string   `json:"description" binding:"omitempty"`
+	Description  *string  `json:"description" binding:"omitempty"`
 	MinValue     *float64 `json:"min_value" binding:"omitempty"`
 	MaxValue     *float64 `json:"max_value" binding:"omitempty"`
 	Pattern      *string  `json:"pattern" binding:"omitempty"`
@@ -56,81 +59,82 @@ type UpdateConfigReq struct {
 	Reason string `json:"reason" binding:"required"`
 }
 
-func (req *UpdateConfigReq) Validate() error {
-	// Check if at least one field is being updated
-	hasValueUpdate := req.Value != nil
-	if !hasValueUpdate && !req.HasMetadataUpdate() {
-		return fmt.Errorf("at least one field must be provided for update")
+func (req *UpdateConfigMetadataReq) Validate() error {
+	// Count how many fields are being updated
+	fieldCount := 0
+	if req.DefaultValue != nil {
+		fieldCount++
 	}
-	if hasValueUpdate && req.HasMetadataUpdate() {
-		return fmt.Errorf("cannot update value and metadata fields in the same request")
+	if req.Description != nil {
+		fieldCount++
+	}
+	if req.MinValue != nil {
+		fieldCount++
+	}
+	if req.MaxValue != nil {
+		fieldCount++
+	}
+	if req.Pattern != nil {
+		fieldCount++
+	}
+	if req.Options != nil {
+		fieldCount++
 	}
 
-	// If updating metadata, only allow ONE metadata field at a time
-	if req.HasMetadataUpdate() {
-		metadataFieldCount := 0
-		if req.DefaultValue != nil {
-			metadataFieldCount++
-		}
-		if req.Description != "" {
-			metadataFieldCount++
-		}
-		if req.MinValue != nil {
-			metadataFieldCount++
-		}
-		if req.MaxValue != nil {
-			metadataFieldCount++
-		}
-		if req.Pattern != nil {
-			metadataFieldCount++
-		}
-		if req.Options != nil {
-			metadataFieldCount++
-		}
-		if metadataFieldCount > 1 {
-			return fmt.Errorf("can only update one metadata field at a time")
-		}
+	if fieldCount == 0 {
+		return fmt.Errorf("at least one metadata field must be provided for update")
+	}
+	if fieldCount > 1 {
+		return fmt.Errorf("can only update one metadata field at a time")
 	}
 
 	return nil
 }
 
-func (req *UpdateConfigReq) PatchConfigModel(target *database.DynamicConfig) {
-	if req.Value != nil {
-		target.Value = *req.Value
-	}
+func (req *UpdateConfigMetadataReq) PatchConfigModel(target *database.DynamicConfig) (string, string) {
+	var oldValue string
+	var newValue string
+
 	if req.DefaultValue != nil {
+		oldValue = target.DefaultValue
+		newValue = *req.DefaultValue
 		target.DefaultValue = *req.DefaultValue
 	}
-	if req.Description != "" {
-		target.Description = req.Description
+	if req.Description != nil {
+		oldValue = target.Description
+		newValue = *req.Description
+		target.Description = *req.Description
 	}
 	if req.MinValue != nil {
+		oldValue = fmt.Sprintf("%v", target.MinValue)
+		newValue = fmt.Sprintf("%v", req.MinValue)
 		target.MinValue = req.MinValue
 	}
 	if req.MaxValue != nil {
+		oldValue = fmt.Sprintf("%v", target.MaxValue)
+		newValue = fmt.Sprintf("%v", req.MaxValue)
 		target.MaxValue = req.MaxValue
 	}
 	if req.Pattern != nil {
+		oldValue = target.Pattern
+		newValue = *req.Pattern
 		target.Pattern = *req.Pattern
 	}
 	if req.Options != nil {
+		oldValue = target.Options
+		newValue = *req.Options
 		target.Options = *req.Options
 	}
-}
 
-// HasMetadataUpdate returns true if the request updates any metadata fields
-func (req *UpdateConfigReq) HasMetadataUpdate() bool {
-	return req.DefaultValue != nil || req.Description != "" || req.MinValue != nil || req.MaxValue != nil ||
-		req.Pattern != nil || req.Options != nil
+	return oldValue, newValue
 }
 
 // GetChangeField returns the specific metadata field being changed
-func (req *UpdateConfigReq) GetChangeField() consts.ConfigHistoryChangeField {
+func (req *UpdateConfigMetadataReq) GetChangeField() consts.ConfigHistoryChangeField {
 	if req.DefaultValue != nil {
 		return consts.ChangeFieldDefaultValue
 	}
-	if req.Description != "" {
+	if req.Description != nil {
 		return consts.ChangeFieldDescription
 	}
 	if req.MinValue != nil {
@@ -170,7 +174,6 @@ func (req *ListConfigHistoryReq) Validate() error {
 type ConfigResp struct {
 	ID            int       `json:"id"`
 	Key           string    `json:"key"`
-	Value         string    `json:"value"`
 	ValueType     string    `json:"value_type"`
 	Category      string    `json:"category"`
 	UpdatedAt     time.Time `json:"updated_at"`
@@ -183,7 +186,6 @@ func NewConfigResp(config *database.DynamicConfig) *ConfigResp {
 	resp := &ConfigResp{
 		ID:        config.ID,
 		Key:       config.Key,
-		Value:     config.Value,
 		ValueType: consts.GetDynamicConfigTypeName(config.ValueType),
 		Category:  config.Category,
 		UpdatedAt: config.UpdatedAt,
@@ -191,11 +193,6 @@ func NewConfigResp(config *database.DynamicConfig) *ConfigResp {
 
 	if config.UpdatedByUser != nil {
 		resp.UpdatedByName = config.UpdatedByUser.Username
-	}
-
-	// Mask secret values
-	if config.IsSecret {
-		resp.Value = maskSecretValue(config.Value)
 	}
 
 	return resp
@@ -270,16 +267,45 @@ type ConfigStatsResp struct {
 	TotalChanges   int       `json:"total_changes"`
 	ChangesLast24h int       `json:"changes_last_24h"`
 	Categories     []string  `json:"categories"`
-	LastUpdate     time.Time `json:"last_update,omitempty"`
+	LastUpdate     time.Time `json:"last_update"`
 }
 
-// maskSecretValue masks sensitive configuration values
-func maskSecretValue(value string) string {
-	maskLen := min(len(value), 8)
-	if maskLen == 0 {
-		return ""
+// ConfigUpdateResponse represents the response to a configuration update event
+type ConfigUpdateResponse struct {
+	ID          string    `json:"id"`
+	Success     bool      `json:"success"`
+	Error       string    `json:"error,omitempty"`
+	ProcessedAt time.Time `json:"processed_at"`
+	Payload     any       `json:"payload,omitempty"`
+}
+
+func NewConfigUpdateResponse() *ConfigUpdateResponse {
+	return &ConfigUpdateResponse{
+		ID:          utils.GenerateULID(nil),
+		Success:     false,
+		ProcessedAt: time.Now(),
 	}
-	return strings.Repeat("*", maskLen)
+}
+
+func (r *ConfigUpdateResponse) ToMap() (map[string]any, error) {
+	m := map[string]any{
+		"id":           r.ID,
+		"success":      r.Success,
+		"processed_at": r.ProcessedAt.Format(time.RFC3339),
+	}
+
+	if r.Error != "" {
+		m["error"] = r.Error
+	}
+	if r.Payload != nil {
+		payloadStr, err := json.Marshal(r.Payload)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal payload to JSON: %w", err)
+		}
+		m["payload"] = string(payloadStr)
+	}
+
+	return m, nil
 }
 
 // validateValuteType checks if the provided config value type is valid
