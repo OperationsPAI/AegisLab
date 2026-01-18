@@ -245,8 +245,8 @@ const ProjectList = () => {
       </div>
 
       {/* Statistics Cards */}
-      <Row gutter={[24, 24]} className='stats-row'>
-        <Col xs={24} sm={12} lg={6}>
+      <Row gutter={[{ xs: 8, sm: 16, lg: 24 }, { xs: 8, sm: 16, lg: 24 }]} className='stats-row'>
+        <Col xs={12} sm={12} lg={6}>
           <StatCard
             title='Total Projects'
             value={stats?.total || 0}
@@ -254,7 +254,7 @@ const ProjectList = () => {
             color='primary'
           />
         </Col>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={12} sm={12} lg={6}>
           <StatCard
             title='Active Projects'
             value={stats?.active || 0}
@@ -262,7 +262,7 @@ const ProjectList = () => {
             color='success'
           />
         </Col>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={12} sm={12} lg={6}>
           <StatCard
             title='Completed This Month'
             value={stats?.completedThisMonth || 0}
@@ -270,7 +270,7 @@ const ProjectList = () => {
             color='info'
           />
         </Col>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={12} sm={12} lg={6}>
           <StatCard
             title='Total Experiments'
             value={stats?.totalExperiments || 0}

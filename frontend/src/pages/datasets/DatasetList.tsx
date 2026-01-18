@@ -422,8 +422,8 @@ const DatasetList = () => {
       </div>
 
       {/* Statistics Cards */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={12} md={6}>
+      <Row gutter={[{ xs: 8, sm: 16, lg: 24 }, { xs: 8, sm: 16, lg: 24 }]} className='stats-row'>
+        <Col xs={12} sm={12} lg={6}>
           <StatCard
             title='Total Datasets'
             value={stats.total}
@@ -431,7 +431,7 @@ const DatasetList = () => {
             color='primary'
           />
         </Col>
-        <Col xs={24} sm={12} md={6}>
+        <Col xs={12} sm={12} lg={6}>
           <StatCard
             title='Trace Datasets'
             value={stats.trace}
@@ -439,7 +439,7 @@ const DatasetList = () => {
             color='primary'
           />
         </Col>
-        <Col xs={24} sm={12} md={6}>
+        <Col xs={12} sm={12} lg={6}>
           <StatCard
             title='Log Datasets'
             value={stats.log}
@@ -447,7 +447,7 @@ const DatasetList = () => {
             color='success'
           />
         </Col>
-        <Col xs={24} sm={12} md={6}>
+        <Col xs={12} sm={12} lg={6}>
           <StatCard
             title='Metric Datasets'
             value={stats.metric}
@@ -500,13 +500,14 @@ const DatasetList = () => {
       </Card>
 
       {/* Dataset Table */}
-      <Card>
+      <Card className='table-card'>
         <Table
           rowKey='id'
           rowSelection={rowSelection}
           columns={columns}
           dataSource={datasetsData?.items || []}
           loading={isLoading}
+          className='datasets-table'
           pagination={{
             ...pagination,
             total: datasetsData?.pagination?.total || 0,

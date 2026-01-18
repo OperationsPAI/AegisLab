@@ -46,6 +46,7 @@ import { useNavigate } from 'react-router-dom';
 import { containerApi } from '@/api/containers';
 import { executionApi } from '@/api/executions';
 import StatCard from '@/components/ui/StatCard';
+import { useSSE } from '@/hooks/useSSE';
 
 
 dayjs.extend(duration);
@@ -86,6 +87,18 @@ const ExecutionList = () => {
         size: pagination.pageSize,
         state: stateFilter !== undefined ? Number(stateFilter) as ExecutionState : undefined,
       }),
+  });
+
+  // Real-time updates via SSE
+  useSSE({
+    url: '/api/v2/notifications/stream',
+    enabled: true,
+    onMessage: (data) => {
+      // Refetch executions when relevant events are received
+      if (data.type === 'execution_completed' || data.type === 'execution_failed') {
+        refetch();
+      }
+    },
   });
 
   // Fetch algorithms for filter
@@ -466,8 +479,8 @@ const ExecutionList = () => {
       </div>
 
       {/* Statistics Cards */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={12} md={6}>
+      <Row gutter={[{ xs: 8, sm: 16, lg: 24 }, { xs: 8, sm: 16, lg: 24 }]} className='stats-row'>
+        <Col xs={12} sm={12} lg={6}>
           <StatCard
             title='Total Executions'
             value={stats.total}
@@ -475,7 +488,7 @@ const ExecutionList = () => {
             color='primary'
           />
         </Col>
-        <Col xs={24} sm={12} md={6}>
+        <Col xs={12} sm={12} lg={6}>
           <StatCard
             title='Running'
             value={stats.running}
@@ -483,7 +496,7 @@ const ExecutionList = () => {
             color='warning'
           />
         </Col>
-        <Col xs={24} sm={12} md={6}>
+        <Col xs={12} sm={12} lg={6}>
           <StatCard
             title='Completed'
             value={stats.completed}
@@ -491,7 +504,7 @@ const ExecutionList = () => {
             color='success'
           />
         </Col>
-        <Col xs={24} sm={12} md={6}>
+        <Col xs={12} sm={12} lg={6}>
           <StatCard
             title='Failed'
             value={stats.failed}
@@ -560,13 +573,14 @@ const ExecutionList = () => {
       </Card>
 
       {/* Executions Table */}
-      <Card>
+      <Card className='table-card'>
         <Table
           rowKey='id'
           rowSelection={rowSelection}
           columns={columns}
           dataSource={(executionsData?.items as any[]) || []}
           loading={isLoading}
+          className='executions-table'
           pagination={{
             ...pagination,
             total: executionsData?.pagination?.total || 0,

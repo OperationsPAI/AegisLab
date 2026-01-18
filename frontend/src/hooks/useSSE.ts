@@ -1,73 +1,58 @@
 import { useEffect, useRef, useState } from 'react';
 
 interface SSEOptions {
-  onOpen?: () => void;
-  onMessage?: (event: MessageEvent) => void;
+  url: string;
+  enabled?: boolean;
+  onMessage?: (data: any) => void;
   onError?: (error: Event) => void;
-  onClose?: () => void;
 }
 
-interface UseSSEReturn {
-  lastMessage: MessageEvent | null;
-  readyState: number;
-  error: Event | null;
-}
-
-export const useSSE = (url: string, options: SSEOptions = {}): UseSSEReturn => {
-  const [lastMessage, setLastMessage] = useState<MessageEvent | null>(null);
-  const [readyState, setReadyState] = useState<number>(EventSource.CONNECTING);
-  const [error, setError] = useState<Event | null>(null);
+/**
+ * Custom hook for Server-Sent Events (SSE) real-time updates
+ */
+export const useSSE = ({ url, enabled = true, onMessage, onError }: SSEOptions) => {
+  const [isConnected, setIsConnected] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
-    // Skip if no token available
-    const token = localStorage.getItem('token');
-    if (!token) return;
-
-    // Close existing connection
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
+    if (!enabled) {
+      return;
     }
 
-    // Create new EventSource connection
-    const baseUrl = 'http://localhost:8082';
-    const fullUrl = `${baseUrl}${url}`;
-    const eventSource = new EventSource(fullUrl, {
-      withCredentials: true,
-    });
+    const token = localStorage.getItem('token');
+    if (!token) {
+      return;
+    }
 
+    // EventSource doesn't support custom headers, so pass token as query param
+    const urlWithToken = `${url}${url.includes('?') ? '&' : '?'}token=${token}`;
+    const eventSource = new EventSource(urlWithToken);
     eventSourceRef.current = eventSource;
 
     eventSource.onopen = () => {
-      setReadyState(EventSource.OPEN);
-      setError(null);
-      options.onOpen?.();
+      setIsConnected(true);
     };
 
     eventSource.onmessage = (event) => {
-      setLastMessage(event);
-      options.onMessage?.(event);
+      try {
+        const data = JSON.parse(event.data);
+        onMessage?.(data);
+      } catch (error) {
+        console.error('Failed to parse SSE message:', error);
+      }
     };
 
-    eventSource.onerror = (event) => {
-      setReadyState(EventSource.CLOSED);
-      setError(event);
-      options.onError?.(event);
-
-      // Auto-reconnect after 5 seconds
-      setTimeout(() => {
-        if (eventSource.readyState === EventSource.CLOSED) {
-          // Reconnection will be handled by the useEffect
-        }
-      }, 5000);
+    eventSource.onerror = (error) => {
+      setIsConnected(false);
+      onError?.(error);
+      eventSource.close();
     };
 
     return () => {
       eventSource.close();
-      eventSourceRef.current = null;
-      options.onClose?.();
+      setIsConnected(false);
     };
-  }, [url, options]);
+  }, [url, enabled, onMessage, onError]);
 
-  return { lastMessage, readyState, error };
+  return { isConnected };
 };

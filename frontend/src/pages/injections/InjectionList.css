@@ -1,15 +1,9 @@
-/* Injection List Styles */
-.injection-list {
-  padding: 2rem;
-  max-width: 1400px;
-  margin: 0 auto;
-}
+/* Injection List Specific Styles */
 
 /* Create Button */
 .injection-list .create-button {
   background: linear-gradient(135deg, var(--color-warning), var(--color-warning-dark));
 }
-
 
 /* Progress Bar */
 .injections-table .ant-progress-line {
@@ -26,17 +20,19 @@
   margin-right: 0.5rem;
 }
 
-/* Responsive Design */
+/* Mobile Card Layout */
+.injection-card-mobile {
+  display: none;
+}
+
+/* Mobile specific overrides */
 @media (max-width: 768px) {
-  .injection-list {
-    padding: 1rem;
+  /* Hide table on mobile, show cards */
+  .table-card .ant-table-wrapper {
+    display: none;
   }
 
-  .search-card .ant-row {
-    flex-direction: column;
-  }
-
-  .search-card .ant-col {
-    width: 100%;
+  .injection-card-mobile {
+    display: block;
   }
 }

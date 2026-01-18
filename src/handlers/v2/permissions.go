@@ -29,6 +29,7 @@ import (
 //	@Failure		409		{object}	dto.GenericResponse[any]				"Permission already exists"
 //	@Failure		500		{object}	dto.GenericResponse[any]				"Internal server error"
 //	@Router			/api/v2/permissions [post]
+//	@x-api-type {"sdk":"true"}
 func CreatePermission(c *gin.Context) {
 	var req dto.CreatePermissionReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -66,6 +67,7 @@ func CreatePermission(c *gin.Context) {
 //	@Failure		403	{object}	dto.GenericResponse[any]	"Cannot delete system permission"
 //	@Failure		500	{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v2/permissions/{id} [delete]
+//	@x-api-type {"sdk":"true"}
 func DeletePermission(c *gin.Context) {
 	idStr := c.Param(consts.URLPathID)
 	id, err := strconv.Atoi(idStr)
@@ -98,6 +100,7 @@ func DeletePermission(c *gin.Context) {
 //	@Failure		404	{object}	dto.GenericResponse[any]						"Permission not found"
 //	@Failure		500	{object}	dto.GenericResponse[any]						"Internal server error"
 //	@Router			/api/v2/permissions/{id} [get]
+//	@x-api-type {"sdk":"true"}
 func GetPermission(c *gin.Context) {
 	idStr := c.Param(consts.URLPathID)
 	id, err := strconv.Atoi(idStr)
@@ -133,6 +136,7 @@ func GetPermission(c *gin.Context) {
 //	@Failure		403			{object}	dto.GenericResponse[any]				"Permission denied"
 //	@Failure		500			{object}	dto.GenericResponse[any]				"Internal server error"
 //	@Router			/api/v2/permissions [get]
+//	@x-api-type {"sdk":"true"}
 func ListPermissions(c *gin.Context) {
 	var req dto.ListPermissionReq
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -171,6 +175,7 @@ func ListPermissions(c *gin.Context) {
 //	@Failure		404		{object}	dto.GenericResponse[any]				"Permission not found"
 //	@Failure		500		{object}	dto.GenericResponse[any]				"Internal server error"
 //	@Router			/api/v2/permissions/{id} [put]
+//	@x-api-type {"sdk":"true"}
 func UpdatePermission(c *gin.Context) {
 	idStr := c.Param(consts.URLPathID)
 	id, err := strconv.Atoi(idStr)
@@ -216,6 +221,7 @@ func UpdatePermission(c *gin.Context) {
 //	@Failure		404				{object}	dto.GenericResponse[any]			"Permission not found"
 //	@Failure		500				{object}	dto.GenericResponse[any]			"Internal server error"
 //	@Router			/api/v2/permissions/{permission_id}/roles [get]
+//	@x-api-type {"sdk":"true"}
 func ListRolesFromPermission(c *gin.Context) {
 	permissionIDStr := c.Param(consts.URLPathPermissionID)
 	permissionID, err := strconv.Atoi(permissionIDStr)

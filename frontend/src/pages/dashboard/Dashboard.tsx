@@ -18,10 +18,12 @@ import type { EChartsOption } from 'echarts';
 import { executionApi } from '@/api/executions';
 import { injectionApi } from '@/api/injections';
 import { projectApi } from '@/api/projects';
+import systemApi from '@/api/system';
 import { taskApi } from '@/api/tasks';
 import LabChart from '@/components/charts/LabChart';
 import StatCard from '@/components/ui/StatCard';
 
+import '@/styles/responsive.css'
 import './Dashboard.css';
 
 dayjs.extend(relativeTime);
@@ -50,6 +52,12 @@ const Dashboard = () => {
     queryFn: () => taskApi.getTasks({ page: 1, size: 50 }),
   });
 
+  const { data: systemMetricsHistory } = useQuery({
+    queryKey: ['systemMetricsHistory'],
+    queryFn: () => systemApi.getSystemMetricsHistory(),
+    refetchInterval: 30000, // Refetch every 30 seconds
+  });
+
   // Calculate statistics
   const stats = {
     totalProjects: projects?.pagination?.total || 0,
@@ -73,6 +81,7 @@ const Dashboard = () => {
     title: {
       text: 'Task Distribution',
       left: 'center',
+      top: 0,
       textStyle: {
         fontSize: 16,
         fontWeight: 600,
@@ -83,7 +92,7 @@ const Dashboard = () => {
       formatter: '{b}: {c} ({d}%)',
     },
     legend: {
-      bottom: '5%',
+      bottom: 10,
       left: 'center',
     },
     series: [
@@ -91,7 +100,8 @@ const Dashboard = () => {
         name: 'Tasks',
         type: 'pie',
         radius: ['40%', '70%'],
-        avoidLabelOverlap: false,
+        center: ['50%', '45%'],
+        avoidLabelOverlap: true,
         itemStyle: {
           borderRadius: 10,
           borderColor: '#fff',
@@ -147,6 +157,7 @@ const Dashboard = () => {
     title: {
       text: 'System Health (24h)',
       left: 'center',
+      top: 0,
       textStyle: {
         fontSize: 16,
         fontWeight: 600,
@@ -158,19 +169,26 @@ const Dashboard = () => {
         type: 'cross',
       },
     },
+    legend: {
+      top: 30,
+      left: 'center',
+    },
+    grid: {
+      top: 60,
+      left: 60,
+      right: 20,
+      bottom: 30,
+    },
     xAxis: {
       type: 'category',
       boundaryGap: false,
-      data: Array.from({ length: 24 }, (_, i) => {
-        const hour = dayjs()
-          .subtract(23 - i, 'hour')
-          .hour();
-        return `${hour}:00`;
-      }),
+      data: systemMetricsHistory?.data?.cpu?.map((metric) =>
+        dayjs(metric.timestamp).format('HH:mm')
+      ) || [],
     },
     yAxis: {
       type: 'value',
-      name: 'CPU %',
+      name: 'Usage %',
       min: 0,
       max: 100,
     },
@@ -186,10 +204,7 @@ const Dashboard = () => {
         lineStyle: {
           width: 3,
         },
-        data: Array.from(
-          { length: 24 },
-          () => Math.floor(Math.random() * 40) + 30
-        ),
+        data: systemMetricsHistory?.data?.cpu?.map((metric) => metric.value) || [],
       },
       {
         name: 'Memory Usage',
@@ -202,10 +217,7 @@ const Dashboard = () => {
         lineStyle: {
           width: 3,
         },
-        data: Array.from(
-          { length: 24 },
-          () => Math.floor(Math.random() * 30) + 50
-        ),
+        data: systemMetricsHistory?.data?.memory?.map((metric) => metric.value) || [],
       },
     ],
   };
@@ -223,8 +235,8 @@ const Dashboard = () => {
       </div>
 
       {/* Key Metrics */}
-      <Row gutter={[24, 24]} className='metrics-row'>
-        <Col xs={24} sm={12} lg={6}>
+      <Row gutter={[{ xs: 8, sm: 16, lg: 24 }, { xs: 8, sm: 16, lg: 24 }]} className='metrics-row'>
+        <Col xs={12} sm={12} lg={6}>
           <StatCard
             title='Total Projects'
             value={stats.totalProjects}
@@ -234,7 +246,7 @@ const Dashboard = () => {
             trendValue='+12%'
           />
         </Col>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={12} sm={12} lg={6}>
           <StatCard
             title='Active Injections'
             value={stats.activeInjections}
@@ -244,7 +256,7 @@ const Dashboard = () => {
             trendValue='Running'
           />
         </Col>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={12} sm={12} lg={6}>
           <StatCard
             title='Running Tasks'
             value={stats.runningTasks}
@@ -254,7 +266,7 @@ const Dashboard = () => {
             trendValue='Active'
           />
         </Col>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={12} sm={12} lg={6}>
           <StatCard
             title="Today's Executions"
             value={stats.todayExecutions}
@@ -267,7 +279,7 @@ const Dashboard = () => {
       </Row>
 
       {/* Charts and Visualizations */}
-      <Row gutter={[24, 24]} className='charts-row'>
+      <Row gutter={[{ xs: 8, sm: 16, lg: 24 }, { xs: 8, sm: 16, lg: 24 }]} className='charts-row'>
         <Col xs={24} lg={12}>
           <div className='chart-container'>
             <LabChart

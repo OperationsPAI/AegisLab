@@ -2,15 +2,21 @@ package producer
 
 import (
 	"aegis/client"
+	"aegis/config"
 	"aegis/consts"
 	"aegis/database"
 	"aegis/dto"
 	"aegis/repository"
 	"aegis/service/common"
+	"aegis/utils"
+	"archive/zip"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -129,6 +135,150 @@ func GetInjectionDetail(injectionID int) (*dto.InjectionDetailResp, error) {
 
 	logrus.WithField("injectionID", injectionID).Info("GetInjectionDetail: completed successfully")
 	return resp, err
+}
+
+// DownloadDatapack downloads a datapack as a zip archive
+func DownloadDatapack(datapackID int) ([]byte, string, error) {
+	logrus.WithField("datapackID", datapackID).Info("DownloadDatapack: starting")
+
+	injection, err := repository.GetInjectionByID(database.DB, datapackID)
+	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"datapackID": datapackID,
+		}).Error("failed to get datapack from repository: %w", err)
+
+		if errors.Is(err, consts.ErrNotFound) {
+			return nil, "", fmt.Errorf("%w: datapack id: %d", consts.ErrNotFound, datapackID)
+		}
+		return nil, "", fmt.Errorf("failed to get datapack: %w", err)
+	}
+
+	logrus.WithFields(logrus.Fields{
+		"datapackID":   datapackID,
+		"datapackName": injection.Name,
+	}).Info("DownloadDatapack: fetched datapack from repository")
+
+	// Generate zip file
+	zipData, err := packageDatapackToZip(injection.Name)
+	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"datapackID":   datapackID,
+			"datapackName": injection.Name,
+		}).Error("DownloadDatapack: failed to package datapack: %w", err)
+		return nil, "", fmt.Errorf("failed to package datapack: %w", err)
+	}
+
+	filename := fmt.Sprintf("%s.zip", injection.Name)
+	logrus.WithFields(logrus.Fields{
+		"datapackID":   datapackID,
+		"datapackName": injection.Name,
+		"filename":     filename,
+		"size":         len(zipData),
+	}).Info("DownloadDatapack: completed successfully")
+
+	return zipData, filename, nil
+}
+
+// packageDatapackToZip packages a single datapack into a zip archive
+func packageDatapackToZip(datapackName string) ([]byte, error) {
+	workDir := filepath.Join(config.GetString("jfs.dataset_path"), datapackName)
+	if !utils.IsAllowedPath(workDir) {
+		return nil, fmt.Errorf("invalid path access to %s", workDir)
+	}
+
+	var buf bytes.Buffer
+	zipWriter := zip.NewWriter(&buf)
+	defer zipWriter.Close()
+
+	err := filepath.WalkDir(workDir, func(path string, dir fs.DirEntry, err error) error {
+		if err != nil || dir.IsDir() {
+			return err
+		}
+
+		relPath, _ := filepath.Rel(workDir, path)
+		zipPath := filepath.ToSlash(filepath.Join(datapackName, relPath))
+
+		fileInfo, err := dir.Info()
+		if err != nil {
+			return err
+		}
+
+		return utils.AddToZip(zipWriter, fileInfo, path, zipPath)
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to package datapack: %w", err)
+	}
+
+	if err := zipWriter.Close(); err != nil {
+		return nil, fmt.Errorf("failed to close zip writer: %w", err)
+	}
+
+	return buf.Bytes(), nil
+}
+
+// CloneInjection clones an existing injection with a new name
+func CloneInjection(injectionID int, req *dto.CloneInjectionReq) (*dto.InjectionDetailResp, error) {
+	original, err := repository.GetInjectionByID(database.DB, injectionID)
+	if err != nil {
+		if errors.Is(err, consts.ErrNotFound) {
+			return nil, fmt.Errorf("%w: injection id: %d", consts.ErrNotFound, injectionID)
+		}
+		return nil, fmt.Errorf("failed to get injection: %w", err)
+	}
+
+	cloned := &database.FaultInjection{
+		Name:          req.Name,
+		FaultType:     original.FaultType,
+		Category:      original.Category,
+		Description:   original.Description,
+		DisplayConfig: original.DisplayConfig,
+		EngineConfig:  original.EngineConfig,
+		Groundtruths:  original.Groundtruths,
+		PreDuration:   original.PreDuration,
+		StartTime:     original.StartTime,
+		EndTime:       original.EndTime,
+		BenchmarkID:   original.BenchmarkID,
+		PedestalID:    original.PedestalID,
+		State:         consts.DatapackInitial,
+		Status:        consts.CommonEnabled,
+	}
+
+	if err := CreateInjection(cloned, req.Labels); err != nil {
+		return nil, err
+	}
+
+	labels, err := repository.ListLabelsByInjectionID(database.DB, cloned.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get cloned injection labels: %w", err)
+	}
+
+	cloned.Labels = labels
+	return dto.NewInjectionDetailResp(cloned), nil
+}
+
+// GetInjectionLogs retrieves execution logs for an injection
+func GetInjectionLogs(injectionID int) (*dto.InjectionLogsResp, error) {
+	injection, err := repository.GetInjectionByID(database.DB, injectionID)
+	if err != nil {
+		if errors.Is(err, consts.ErrNotFound) {
+			return nil, fmt.Errorf("%w: injection id: %d", consts.ErrNotFound, injectionID)
+		}
+		return nil, fmt.Errorf("failed to get injection: %w", err)
+	}
+
+	resp := &dto.InjectionLogsResp{
+		InjectionID: injectionID,
+		Logs:        []string{},
+	}
+
+	if injection.TaskID != nil {
+		resp.TaskID = *injection.TaskID
+		// TODO: Implement actual log retrieval from task execution
+		// For now, return empty logs as placeholder
+	}
+
+	return resp, nil
 }
 
 // ListInjections lists fault injections based on the provided filters

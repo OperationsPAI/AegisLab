@@ -96,6 +96,11 @@ const MainLayout: React.FC = () => {
           icon: <DatabaseOutlined />,
           label: 'Datasets',
         },
+        {
+          key: '/datapacks',
+          icon: <DatabaseOutlined />,
+          label: 'Datapacks',
+        },
       ],
     },
     {
@@ -207,11 +212,13 @@ const MainLayout: React.FC = () => {
               sidebarCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />
             }
             onClick={toggleSidebar}
+            aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             className='sidebar-toggle'
           />
-          <div className='logo-section' onClick={() => navigate('/dashboard')}>
+          <div className='logo-section' onClick={() => navigate('/dashboard')} style={{ cursor: 'pointer' }}>
             <div className='logo-icon'>
-              <svg width='32' height='32' viewBox='0 0 32 32' fill='none'>
+              <svg width='32' height='32' viewBox='0 0 32 32' fill='none' role='img' aria-label='AegisLab logo'>
+                <title>AegisLab</title>
                 <path
                   d='M16 2L30 8.5V23.5L16 30L2 23.5V8.5L16 2Z'
                   stroke='currentColor'
@@ -245,7 +252,7 @@ const MainLayout: React.FC = () => {
             arrow
             overlayClassName='user-dropdown'
           >
-            <Space className='user-section'>
+            <Space className='user-section' role='button' aria-label='User menu' tabIndex={0}>
               <Avatar
                 size='small'
                 icon={<UserOutlined />}

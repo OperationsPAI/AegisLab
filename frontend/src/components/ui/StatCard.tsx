@@ -1,5 +1,6 @@
+import { ArrowDownOutlined, ArrowRightOutlined, ArrowUpOutlined } from '@ant-design/icons';
 import { Card } from 'antd';
-import type { CSSProperties, ReactNode } from 'react';
+import { memo, type CSSProperties, type ReactNode } from 'react';
 
 
 import './StatCard.css';
@@ -75,7 +76,7 @@ const StatCard = ({
         {trend && trendValue && (
           <div className={`stat-card-trend trend-${trend}`}>
             <span className='trend-icon'>
-              {trend === 'up' ? '↑' : trend === 'down' ? '↓' : '→'}
+              {trend === 'up' ? <ArrowUpOutlined /> : trend === 'down' ? <ArrowDownOutlined /> : <ArrowRightOutlined />}
             </span>
             <span className='trend-value'>{trendValue}</span>
           </div>
@@ -88,4 +89,4 @@ const StatCard = ({
   );
 };
 
-export default StatCard;
+export default memo(StatCard);

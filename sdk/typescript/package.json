@@ -1,6 +1,6 @@
 {
   "name": "@rcabench/client",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "TypeScript client SDK for RCABench API",
   "author": "OpenAPI-Generator Contributors",
   "repository": {

@@ -1,0 +1,313 @@
+/**
+ * Unified Responsive Design System
+ * Based on UI/UX Pro Max guidelines
+ *
+ * Breakpoints:
+ * - Mobile: ≤768px
+ * - Tablet: 769px - 1024px
+ * - Desktop: ≥1025px
+ *
+ * Touch Targets: Minimum 44x44px
+ * Touch Spacing: Minimum 8px gap
+ */
+
+/* ============================================
+   GLOBAL RESPONSIVE UTILITIES
+   ============================================ */
+
+/* Page Container - Consistent across all pages */
+.page-container {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* ============================================
+   MOBILE RESPONSIVE (≤768px)
+   ============================================ */
+@media (max-width: 768px) {
+  /* Page Layout */
+  .page-container {
+    padding: 0.75rem;
+  }
+
+  /* Page Header - Consistent pattern */
+  .page-header {
+    flex-direction: column !important;
+    gap: 0.75rem;
+    align-items: stretch !important;
+    margin-bottom: 1rem !important;
+  }
+
+  /* Typography */
+  .page-title,
+  .page-title.ant-typography,
+  h1.ant-typography,
+  h2.ant-typography,
+  h3.ant-typography {
+    font-size: 1.25rem !important;
+    margin-bottom: 0.25rem !important;
+  }
+
+  .page-subtitle {
+    font-size: 0.875rem !important;
+  }
+
+  /* Buttons - Touch-friendly */
+  .ant-btn {
+    min-height: 44px;
+    min-width: 44px;
+    font-size: 0.875rem;
+  }
+
+  /* Primary action buttons - Full width on mobile */
+  .create-button,
+  .primary-action {
+    width: 100% !important;
+  }
+
+  /* Button groups - Proper spacing */
+  .ant-space {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 8px !important;
+  }
+
+  .ant-space-item {
+    margin-right: 0 !important;
+  }
+
+  /* Form Controls - Touch-friendly */
+  .ant-input,
+  .ant-select-selector,
+  .ant-input-number,
+  .ant-picker {
+    min-height: 44px !important;
+    font-size: 1rem !important;
+  }
+
+  .ant-select,
+  .ant-input-search {
+    width: 100% !important;
+  }
+
+  /* Cards - Compact spacing */
+  .ant-card {
+    margin-bottom: 0.75rem;
+  }
+
+  .ant-card-body {
+    padding: 0.75rem !important;
+  }
+
+  .ant-card-head {
+    padding: 0.75rem !important;
+    min-height: auto !important;
+  }
+
+  /* Tables - Compact and scrollable */
+  .ant-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .ant-table {
+    font-size: 0.75rem;
+    min-width: 600px; /* Prevent table from being too narrow */
+  }
+
+  .ant-table-thead > tr > th {
+    padding: 0.5rem !important;
+    font-size: 0.75rem;
+    white-space: nowrap;
+  }
+
+  .ant-table-tbody > tr > td {
+    padding: 0.5rem !important;
+    font-size: 0.75rem;
+  }
+
+  /* Table action buttons - Smaller but still tappable */
+  .ant-table .ant-btn-link,
+  .ant-table .ant-btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    min-height: 32px;
+    min-width: 32px;
+  }
+
+  /* Tags - Compact */
+  .ant-tag {
+    font-size: 0.625rem;
+    padding: 0 0.375rem;
+    margin: 0 0.25rem 0.25rem 0;
+  }
+
+  /* Avatars - Smaller */
+  .ant-avatar {
+    width: 32px !important;
+    height: 32px !important;
+    font-size: 1rem !important;
+  }
+
+  /* Pagination - Compact */
+  .ant-pagination {
+    font-size: 0.75rem;
+  }
+
+  .ant-pagination-item,
+  .ant-pagination-prev,
+  .ant-pagination-next {
+    min-width: 32px;
+    height: 32px;
+    line-height: 32px;
+  }
+
+  /* Search and Filter Controls */
+  .search-card .ant-row,
+  .filter-row {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .search-card .ant-col,
+  .filter-col {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Charts - Hide on mobile to save space */
+  .chart-container,
+  .charts-row {
+    display: none;
+  }
+
+  /* Chart container padding on mobile */
+  .chart-container {
+    padding: 0.5rem;
+  }
+
+  /* Stat Cards Grid - 2 columns on mobile */
+  .stats-row .ant-col,
+  .metrics-row .ant-col {
+    flex: 0 0 50% !important;
+    max-width: 50% !important;
+  }
+
+  /* Modals - Full screen on mobile */
+  .ant-modal {
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .ant-modal-content {
+    border-radius: 0 !important;
+  }
+
+  /* Drawers - Full width on mobile */
+  .ant-drawer-content-wrapper {
+    width: 100% !important;
+  }
+
+  /* Form Items - Stack vertically */
+  .ant-form-item {
+    margin-bottom: 1rem;
+  }
+
+  .ant-form-item-label {
+    padding-bottom: 0.25rem;
+  }
+
+  /* Tabs - Scrollable on mobile */
+  .ant-tabs-nav {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .ant-tabs-tab {
+    min-width: 80px;
+    padding: 0.5rem 1rem;
+  }
+}
+
+/* ============================================
+   TABLET RESPONSIVE (769px - 1024px)
+   ============================================ */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .page-container {
+    padding: 1.5rem;
+  }
+
+  /* Show fewer charts on tablet */
+  .charts-row .ant-col:nth-child(n+3) {
+    display: none;
+  }
+
+  /* Stat Cards - 3 columns on tablet */
+  .stats-row .ant-col,
+  .metrics-row .ant-col {
+    flex: 0 0 33.333% !important;
+    max-width: 33.333% !important;
+  }
+
+  /* Tables - Slightly more compact */
+  .ant-table {
+    font-size: 0.875rem;
+  }
+
+  .ant-table-thead > tr > th,
+  .ant-table-tbody > tr > td {
+    padding: 0.75rem;
+  }
+}
+
+/* ============================================
+   DESKTOP RESPONSIVE (≥1025px)
+   ============================================ */
+@media (min-width: 1025px) {
+  /* Stat Cards - 4 columns on desktop */
+  .stats-row .ant-col,
+  .metrics-row .ant-col {
+    flex: 0 0 25% !important;
+    max-width: 25% !important;
+  }
+
+  /* Hover effects - Only on desktop */
+  .ant-table-tbody > tr:hover > td {
+    background: var(--color-secondary-50) !important;
+  }
+
+  [data-theme='dark'] .ant-table-tbody > tr:hover > td {
+    background: var(--color-surface-elevated) !important;
+  }
+}
+
+/* ============================================
+   ACCESSIBILITY
+   ============================================ */
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Focus visible for keyboard navigation */
+*:focus-visible {
+  outline: 2px solid var(--color-primary-500);
+  outline-offset: 2px;
+}
+
+/* Touch action optimization */
+.ant-btn,
+.ant-table-row,
+a,
+button {
+  touch-action: manipulation;
+}

@@ -2348,6 +2348,38 @@ definitions:
         description: Response generation time
         type: integer
     type: object
+  dto.GenericResponse-dto_SystemMetricsHistoryResp:
+    properties:
+      code:
+        description: Status code
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.SystemMetricsHistoryResp'
+        description: Generic type data
+      message:
+        description: Response message
+        type: string
+      timestamp:
+        description: Response generation time
+        type: integer
+    type: object
+  dto.GenericResponse-dto_SystemMetricsResp:
+    properties:
+      code:
+        description: Status code
+        type: integer
+      data:
+        allOf:
+        - $ref: '#/definitions/dto.SystemMetricsResp'
+        description: Generic type data
+      message:
+        description: Response message
+        type: string
+      timestamp:
+        description: Response generation time
+        type: integer
+    type: object
   dto.GenericResponse-dto_TaskDetailResp:
     properties:
       code:
@@ -3628,6 +3660,26 @@ definitions:
         type: string
       memory_usage:
         type: number
+    type: object
+  dto.SystemMetricsHistoryResp:
+    properties:
+      cpu:
+        items:
+          $ref: '#/definitions/dto.MetricValue'
+        type: array
+      memory:
+        items:
+          $ref: '#/definitions/dto.MetricValue'
+        type: array
+    type: object
+  dto.SystemMetricsResp:
+    properties:
+      cpu:
+        $ref: '#/definitions/dto.MetricValue'
+      disk:
+        $ref: '#/definitions/dto.MetricValue'
+      memory:
+        $ref: '#/definitions/dto.MetricValue'
     type: object
   dto.TaskDetailResp:
     properties:
@@ -6903,6 +6955,8 @@ paths:
       summary: List labels
       tags:
       - Labels
+      x-api-type:
+        sdk: "true"
     post:
       consumes:
       - application/json
@@ -6948,6 +7002,8 @@ paths:
       summary: Create label
       tags:
       - Labels
+      x-api-type:
+        sdk: "true"
   /api/v2/labels/{label_id}:
     delete:
       description: Delete a label and remove all its associations
@@ -6990,6 +7046,8 @@ paths:
       summary: Delete label
       tags:
       - Labels
+      x-api-type:
+        sdk: "true"
     get:
       description: Get detailed information about a specific label
       operationId: get_label_by_id
@@ -7031,6 +7089,8 @@ paths:
       summary: Get label by ID
       tags:
       - Labels
+      x-api-type:
+        sdk: "true"
     patch:
       consumes:
       - application/json
@@ -7080,6 +7140,8 @@ paths:
       summary: Update label
       tags:
       - Labels
+      x-api-type:
+        sdk: "true"
   /api/v2/labels/batch-delete:
     post:
       consumes:
@@ -7121,6 +7183,8 @@ paths:
       summary: Batch delete labels
       tags:
       - Labels
+      x-api-type:
+        sdk: "true"
   /api/v2/permissions:
     get:
       description: Get paginated list of permissions with optional filtering
@@ -7180,6 +7244,8 @@ paths:
       summary: List permissions
       tags:
       - Permissions
+      x-api-type:
+        sdk: "true"
     post:
       consumes:
       - application/json
@@ -7224,6 +7290,8 @@ paths:
       summary: Create a new permission
       tags:
       - Permissions
+      x-api-type:
+        sdk: "true"
   /api/v2/permissions/{id}:
     delete:
       description: Delete a permission (soft delete by setting status to -1)
@@ -7266,6 +7334,8 @@ paths:
       summary: Delete permission
       tags:
       - Permissions
+      x-api-type:
+        sdk: "true"
     get:
       description: Get detailed information about a specific permission
       operationId: get_permission_by_id
@@ -7307,6 +7377,8 @@ paths:
       summary: Get permission by ID
       tags:
       - Permissions
+      x-api-type:
+        sdk: "true"
     put:
       consumes:
       - application/json
@@ -7356,6 +7428,8 @@ paths:
       summary: Update permission
       tags:
       - Permissions
+      x-api-type:
+        sdk: "true"
   /api/v2/permissions/{permission_id}/roles:
     get:
       description: Get list of roles assigned to a specific permission
@@ -7398,6 +7472,8 @@ paths:
       summary: List roles from permission
       tags:
       - Permissions
+      x-api-type:
+        sdk: "true"
   /api/v2/projects:
     get:
       description: Get paginated list of projects with filtering
@@ -7742,6 +7818,8 @@ paths:
       summary: List resources
       tags:
       - Resources
+      x-api-type:
+        sdk: "true"
   /api/v2/resources/{id}:
     get:
       description: Get detailed information about a specific resource
@@ -7784,6 +7862,8 @@ paths:
       summary: Get resource by ID
       tags:
       - Resources
+      x-api-type:
+        sdk: "true"
   /api/v2/resources/{id}/permissions:
     get:
       description: Get list of permissions assigned to a specific resource
@@ -7826,6 +7906,8 @@ paths:
       summary: List permissions from resource
       tags:
       - Resources
+      x-api-type:
+        sdk: "true"
   /api/v2/roles:
     get:
       description: Get paginated list of roles with optional filtering
@@ -7881,6 +7963,8 @@ paths:
       summary: List roles
       tags:
       - Roles
+      x-api-type:
+        sdk: "true"
     post:
       consumes:
       - application/json
@@ -7925,6 +8009,8 @@ paths:
       summary: Create a new role
       tags:
       - Roles
+      x-api-type:
+        sdk: "true"
   /api/v2/roles/{id}:
     delete:
       description: Delete a role (soft delete by setting status to -1)
@@ -7967,6 +8053,8 @@ paths:
       summary: Delete role
       tags:
       - Roles
+      x-api-type:
+        sdk: "true"
     get:
       description: Get detailed information about a specific role
       operationId: get_role_by_id
@@ -8008,6 +8096,8 @@ paths:
       summary: Get role by ID
       tags:
       - Roles
+      x-api-type:
+        sdk: "true"
     patch:
       consumes:
       - application/json
@@ -8057,6 +8147,8 @@ paths:
       summary: Update role
       tags:
       - Roles
+      x-api-type:
+        sdk: "true"
   /api/v2/roles/{role_id}/permissions/assign:
     post:
       consumes:
@@ -8107,6 +8199,8 @@ paths:
       summary: Assign permissions to role
       tags:
       - Roles
+      x-api-type:
+        sdk: "true"
   /api/v2/roles/{role_id}/permissions/remove:
     post:
       consumes:
@@ -8157,6 +8251,8 @@ paths:
       summary: Remove permissions from role
       tags:
       - Roles
+      x-api-type:
+        sdk: "true"
   /api/v2/roles/{role_id}/users:
     get:
       description: Get list of users assigned to a specific role
@@ -8199,6 +8295,58 @@ paths:
       summary: List users from role
       tags:
       - Roles
+  /api/v2/system/metrics:
+    get:
+      description: Get current CPU, memory, and disk usage metrics
+      operationId: get_system_metrics
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: System metrics retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_SystemMetricsResp'
+        "401":
+          description: Authentication required
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Get current system metrics
+      tags:
+      - System
+      x-api-type:
+        sdk: "true"
+  /api/v2/system/metrics/history:
+    get:
+      description: Get 24-hour historical CPU and memory usage metrics
+      operationId: get_system_metrics_history
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: System metrics history retrieved successfully
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-dto_SystemMetricsHistoryResp'
+        "401":
+          description: Authentication required
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GenericResponse-any'
+      security:
+      - BearerAuth: []
+      summary: Get historical system metrics
+      tags:
+      - System
+      x-api-type:
+        sdk: "true"
   /api/v2/tasks:
     get:
       description: Get a simple list of tasks with basic filtering via query parameters

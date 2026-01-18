@@ -34,7 +34,7 @@
 .chart-container {
   background: var(--color-secondary-0);
   border-radius: var(--radius-xl);
-  padding: var(--space-6);
+  padding: var(--space-4);
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--color-secondary-200);
   transition: all var(--transition-base);

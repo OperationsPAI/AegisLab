@@ -27,6 +27,7 @@ import (
 //	@Failure		404	{object}	dto.GenericResponse[any]				"Resource not found"
 //	@Failure		500	{object}	dto.GenericResponse[any]				"Internal server error"
 //	@Router			/api/v2/resources/{id} [get]
+//	@x-api-type {"sdk":"true"}
 func GetResourceDetail(c *gin.Context) {
 	resourceIDStr := c.Param(consts.URLPathID)
 	resourceID, err := strconv.Atoi(resourceIDStr)
@@ -61,6 +62,7 @@ func GetResourceDetail(c *gin.Context) {
 //	@Failure		403			{object}	dto.GenericResponse[any]							"Permission denied"
 //	@Failure		500			{object}	dto.GenericResponse[any]							"Internal server error"
 //	@Router			/api/v2/resources [get]
+//	@x-api-type {"sdk":"true"}
 func ListResources(c *gin.Context) {
 	var req dto.ListResourceReq
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -97,6 +99,7 @@ func ListResources(c *gin.Context) {
 //	@Failure		404	{object}	dto.GenericResponse[any]					"Resource not found"
 //	@Failure		500	{object}	dto.GenericResponse[any]					"Internal server error"
 //	@Router			/api/v2/resources/{id}/permissions [get]
+//	@x-api-type {"sdk":"true"}
 func ListResourcePermissions(c *gin.Context) {
 	resourceIDStr := c.Param(consts.URLPathID)
 	resourceID, err := strconv.Atoi(resourceIDStr)

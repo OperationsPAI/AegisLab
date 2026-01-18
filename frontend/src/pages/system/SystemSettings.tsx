@@ -217,8 +217,8 @@ const SystemSettings = () => {
         <Title level={4} style={{ marginBottom: 16 }}>
           System Overview
         </Title>
-        <Row gutter={[16, 16]}>
-          <Col xs={24} sm={12} md={8}>
+        <Row gutter={[{ xs: 8, sm: 16, lg: 24 }, { xs: 8, sm: 16, lg: 24 }]} className='stats-row'>
+          <Col xs={12} sm={12} lg={8}>
             <Card size='small'>
               <Statistic
                 title='Total Users'
@@ -228,7 +228,7 @@ const SystemSettings = () => {
               />
             </Card>
           </Col>
-          <Col xs={24} sm={12} md={8}>
+          <Col xs={12} sm={12} lg={8}>
             <Card size='small'>
               <Statistic
                 title='Active Users'
@@ -238,7 +238,7 @@ const SystemSettings = () => {
               />
             </Card>
           </Col>
-          <Col xs={24} sm={12} md={8}>
+          <Col xs={12} sm={12} lg={8}>
             <Card size='small'>
               <Statistic
                 title='Inactive Users'

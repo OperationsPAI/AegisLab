@@ -1,10 +1,4 @@
-/* Dashboard Styles */
-
-.dashboard {
-  padding: 2rem;
-  max-width: 1400px;
-  margin: 0 auto;
-}
+/* Dashboard Specific Styles */
 
 .dashboard-header {
   display: flex;
@@ -14,7 +8,6 @@
   animation: fadeIn 0.6s ease-out;
 }
 
-/* Using higher specificity to avoid !important where possible */
 .dashboard .dashboard-title,
 .dashboard .dashboard-title.ant-typography {
   margin-bottom: 0.5rem;
@@ -34,33 +27,25 @@
   color: var(--color-secondary-500);
 }
 
-/* Bottom Row */
 .bottom-row {
   animation: fadeIn 1s ease-out;
   animation-fill-mode: both;
   animation-delay: 0.7s;
 }
 
-/* Responsive Design - Using utility classes where possible */
+/* Mobile specific overrides */
 @media (max-width: 768px) {
-  .dashboard {
-    padding: 1rem;
-  }
-
-  .dashboard-header {
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .dashboard .dashboard-title,
-  .dashboard .dashboard-title.ant-typography {
-    font-size: 1.5rem;
-  }
-
   .dashboard-subtitle {
-    font-size: var(--font-size-base);
+    font-size: 0.875rem;
   }
 
+  .chart-container {
+    padding: 0.5rem;
+  }
+}
+
+/* Tablet specific overrides */
+@media (min-width: 769px) and (max-width: 1024px) {
   .chart-container {
     padding: 1rem;
   }

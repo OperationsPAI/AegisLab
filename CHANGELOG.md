@@ -12,6 +12,8 @@ All notable changes to this project will be documented in this file.
 ### Features
 
 - Add design skill
+- Add design skill
+- Update fe
 
 ### Testing
 

@@ -126,3 +126,49 @@
   );
   animation: shimmer 1.5s infinite;
 }
+
+/* Mobile Compact Design */
+@media (max-width: 768px) {
+  .stat-card {
+    border-radius: var(--radius-base);
+  }
+
+  .stat-card:hover {
+    transform: none;
+  }
+
+  .stat-card-header {
+    margin-bottom: 0.25rem;
+  }
+
+  .stat-card-title {
+    font-size: 0.625rem;
+    letter-spacing: 0.02em;
+  }
+
+  .stat-card-prefix {
+    font-size: 0.875rem;
+  }
+
+  .stat-card-body {
+    margin-bottom: 0;
+    gap: 0.25rem;
+  }
+
+  .stat-card-value {
+    font-size: 1.5rem;
+  }
+
+  .stat-card-suffix {
+    font-size: 0.75rem;
+  }
+
+  .stat-card-trend {
+    display: none;
+  }
+
+  .stat-card-bg-effect {
+    display: none;
+  }
+}
+

@@ -18,6 +18,7 @@ const ThemeToggle = () => {
       type='text'
       icon={theme === 'light' ? <MoonOutlined /> : <SunOutlined />}
       onClick={toggleTheme}
+      aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
       style={{
         width: 40,
         height: 40,

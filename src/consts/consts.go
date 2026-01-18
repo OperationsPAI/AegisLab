@@ -338,7 +338,8 @@ const (
 
 // Redis stream channels and fields
 const (
-	StreamLogKey = "trace:%s:log"
+	StreamLogKey           = "trace:%s:log"
+	NotificationStreamKey  = "notifications:global"
 
 	RdbEventTaskID   = "task_id"
 	RdbEventTaskType = "task_type"

@@ -439,8 +439,8 @@ const EvaluationList = () => {
       </div>
 
       {/* Statistics Cards */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={12} md={6}>
+      <Row gutter={[{ xs: 8, sm: 16, lg: 24 }, { xs: 8, sm: 16, lg: 24 }]} className='stats-row'>
+        <Col xs={12} sm={12} lg={6}>
           <StatCard
             title='Total Evaluations'
             value={evaluations.length}
@@ -448,7 +448,7 @@ const EvaluationList = () => {
             color='primary'
           />
         </Col>
-        <Col xs={24} sm={12} md={6}>
+        <Col xs={12} sm={12} lg={6}>
           <StatCard
             title='Algorithms Evaluated'
             value={new Set(evaluations.map((e) => e.algorithm)).size}
@@ -456,7 +456,7 @@ const EvaluationList = () => {
             color='success'
           />
         </Col>
-        <Col xs={24} sm={12} md={6}>
+        <Col xs={12} sm={12} lg={6}>
           <StatCard
             title='Avg F1-Score'
             value={
@@ -468,7 +468,7 @@ const EvaluationList = () => {
             color='warning'
           />
         </Col>
-        <Col xs={24} sm={12} md={6}>
+        <Col xs={12} sm={12} lg={6}>
           <StatCard
             title='Best Accuracy'
             value={evaluations.length > 0 ? `${(95).toFixed(1)}%` : '0%'}
@@ -535,7 +535,7 @@ const EvaluationList = () => {
       </Card>
 
       {/* Evaluation Table */}
-      <Card>
+      <Card className='table-card'>
         <Table
           rowKey={(record, index) =>
             `${record.algorithm}-${record.datapack}-${index}`
@@ -548,6 +548,7 @@ const EvaluationList = () => {
             evaluateDatapackMutation.isPending ||
             evaluateDatasetMutation.isPending
           }
+          className='evaluations-table'
           pagination={{
             ...pagination,
             total: evaluations.length,

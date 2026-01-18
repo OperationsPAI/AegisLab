@@ -573,7 +573,7 @@ const TaskList = () => {
   ];
 
   return (
-    <div className='task-list'>
+    <div className='task-list page-container'>
       {/* Page Header */}
       <div className='page-header'>
         <div className='page-header-left'>
@@ -601,8 +601,8 @@ const TaskList = () => {
       </div>
 
       {/* Statistics Cards */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={12} md={4}>
+      <Row gutter={[{ xs: 8, sm: 16, lg: 24 }, { xs: 8, sm: 16, lg: 24 }]} className='stats-row'>
+        <Col xs={12} sm={12} lg={4}>
           <Card>
             <Statistic
               title='Total Tasks'
@@ -612,7 +612,7 @@ const TaskList = () => {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} md={4}>
+        <Col xs={12} sm={12} lg={4}>
           <Card>
             <Statistic
               title='Pending'
@@ -622,7 +622,7 @@ const TaskList = () => {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} md={4}>
+        <Col xs={12} sm={12} lg={4}>
           <Card>
             <Statistic
               title='Running'
@@ -632,7 +632,7 @@ const TaskList = () => {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} md={4}>
+        <Col xs={12} sm={12} lg={4}>
           <Card>
             <Statistic
               title='Completed'
@@ -642,7 +642,7 @@ const TaskList = () => {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} md={4}>
+        <Col xs={12} sm={12} lg={4}>
           <Card>
             <Statistic
               title='Error'
@@ -652,7 +652,7 @@ const TaskList = () => {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} md={4}>
+        <Col xs={12} sm={12} lg={4}>
           <Card>
             <Statistic
               title='Cancelled'
@@ -728,13 +728,14 @@ const TaskList = () => {
       </Card>
 
       {/* Task Table */}
-      <Card>
+      <Card className='table-card'>
         <Table
           rowKey='id'
           rowSelection={rowSelection}
           columns={columns}
           dataSource={(tasksData?.items as TaskResp[] | undefined) || []}
           loading={isLoading}
+          className='tasks-table'
           pagination={{
             ...pagination,
             total: tasksData?.pagination?.total || 0,

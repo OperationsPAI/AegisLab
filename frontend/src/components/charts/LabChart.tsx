@@ -1,7 +1,7 @@
 
 import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
-import type { CSSProperties } from 'react';
+import { memo, type CSSProperties } from 'react';
 
 interface LabChartProps {
   option: EChartsOption;
@@ -56,9 +56,10 @@ const LabChart = ({
       },
     },
     grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '3%',
+      left: 60,
+      right: 20,
+      bottom: 30,
+      top: 60,
       containLabel: true,
     },
     xAxis: {
@@ -194,4 +195,4 @@ const LabChart = ({
   );
 };
 
-export default LabChart;
+export default memo(LabChart);

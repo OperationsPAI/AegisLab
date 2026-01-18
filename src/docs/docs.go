@@ -4092,6 +4092,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             },
             "post": {
@@ -4160,6 +4163,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -4224,6 +4230,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -4289,6 +4298,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             },
             "delete": {
@@ -4352,6 +4364,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             },
             "patch": {
@@ -4427,6 +4442,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -4516,6 +4534,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             },
             "post": {
@@ -4584,6 +4605,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -4649,6 +4673,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             },
             "put": {
@@ -4724,6 +4751,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             },
             "delete": {
@@ -4787,6 +4817,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -4852,6 +4885,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -5378,6 +5414,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -5443,6 +5482,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -5508,6 +5550,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -5591,6 +5636,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             },
             "post": {
@@ -5659,6 +5707,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -5724,6 +5775,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             },
             "delete": {
@@ -5787,6 +5841,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             },
             "patch": {
@@ -5862,6 +5919,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -5939,6 +5999,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -6016,6 +6079,9 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -6081,6 +6147,88 @@ const docTemplate = `{
                             "$ref": "#/definitions/dto.GenericResponse-any"
                         }
                     }
+                }
+            }
+        },
+        "/api/v2/system/metrics": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get current CPU, memory, and disk usage metrics",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "Get current system metrics",
+                "operationId": "get_system_metrics",
+                "responses": {
+                    "200": {
+                        "description": "System metrics retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_SystemMetricsResp"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                },
+                "x-api-type": {
+                    "sdk": "true"
+                }
+            }
+        },
+        "/api/v2/system/metrics/history": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get 24-hour historical CPU and memory usage metrics",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "Get historical system metrics",
+                "operationId": "get_system_metrics_history",
+                "responses": {
+                    "200": {
+                        "description": "System metrics history retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-dto_SystemMetricsHistoryResp"
+                        }
+                    },
+                    "401": {
+                        "description": "Authentication required",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GenericResponse-any"
+                        }
+                    }
+                },
+                "x-api-type": {
+                    "sdk": "true"
                 }
             }
         },
@@ -11805,6 +11953,56 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.GenericResponse-dto_SystemMetricsHistoryResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Status code",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "Generic type data",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.SystemMetricsHistoryResp"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "Response message",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "Response generation time",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.GenericResponse-dto_SystemMetricsResp": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "description": "Status code",
+                    "type": "integer"
+                },
+                "data": {
+                    "description": "Generic type data",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/dto.SystemMetricsResp"
+                        }
+                    ]
+                },
+                "message": {
+                    "description": "Response message",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "Response generation time",
+                    "type": "integer"
+                }
+            }
+        },
         "dto.GenericResponse-dto_TaskDetailResp": {
             "type": "object",
             "properties": {
@@ -13746,6 +13944,37 @@ const docTemplate = `{
                 },
                 "memory_usage": {
                     "type": "number"
+                }
+            }
+        },
+        "dto.SystemMetricsHistoryResp": {
+            "type": "object",
+            "properties": {
+                "cpu": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.MetricValue"
+                    }
+                },
+                "memory": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.MetricValue"
+                    }
+                }
+            }
+        },
+        "dto.SystemMetricsResp": {
+            "type": "object",
+            "properties": {
+                "cpu": {
+                    "$ref": "#/definitions/dto.MetricValue"
+                },
+                "disk": {
+                    "$ref": "#/definitions/dto.MetricValue"
+                },
+                "memory": {
+                    "$ref": "#/definitions/dto.MetricValue"
                 }
             }
         },

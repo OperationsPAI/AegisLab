@@ -61,3 +61,16 @@ type MonitoringMetricsResp struct {
 	Metrics   map[string]MetricValue `json:"metrics"`
 	Labels    map[string]string      `json:"labels,omitempty"`
 }
+
+// SystemMetricsResp represents current system metrics
+type SystemMetricsResp struct {
+	CPU    MetricValue `json:"cpu"`
+	Memory MetricValue `json:"memory"`
+	Disk   MetricValue `json:"disk"`
+}
+
+// SystemMetricsHistoryResp represents historical system metrics
+type SystemMetricsHistoryResp struct {
+	CPU    []MetricValue `json:"cpu"`
+	Memory []MetricValue `json:"memory"`
+}

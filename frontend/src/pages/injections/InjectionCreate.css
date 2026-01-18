@@ -305,17 +305,59 @@
 }
 
 @media (max-width: 768px) {
+  .injection-create {
+    padding: var(--space-3);
+  }
+
   .visual-canvas {
     height: 400px;
+  }
+
+  /* Ensure all buttons meet touch target size */
+  .injection-create .ant-btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Stack form items vertically */
+  .injection-create .ant-form-item {
+    margin-bottom: var(--space-3);
+  }
+
+  /* Increase input sizes for better touch */
+  .injection-create .ant-input,
+  .injection-create .ant-select-selector,
+  .injection-create .ant-input-number {
+    min-height: 44px;
+  }
+
+  /* Add spacing between touch targets */
+  .batch-actions .ant-btn {
+    margin-left: 8px;
+  }
+
+  .batch-actions .ant-btn:first-child {
+    margin-left: 0;
   }
 }
 
 @media (max-width: 480px) {
+  .injection-create {
+    padding: var(--space-2);
+  }
+
   .visual-canvas {
     height: 300px;
   }
 
-  .injection-create {
-    padding: var(--space-3);
+  /* Full width buttons on small screens */
+  .submit-section .ant-btn {
+    width: 100%;
+    margin-bottom: var(--space-2);
+  }
+
+  .submit-section .ant-space {
+    width: 100%;
+    flex-direction: column;
   }
 }

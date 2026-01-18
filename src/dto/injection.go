@@ -97,6 +97,19 @@ func (req *BatchDeleteInjectionReq) Validate() error {
 	return nil
 }
 
+// CloneInjectionReq represents the request to clone an injection
+type CloneInjectionReq struct {
+	Name   string      `json:"name" binding:"required"`    // New name for cloned injection
+	Labels []LabelItem `json:"labels" binding:"omitempty"` // Optional labels for cloned injection
+}
+
+// InjectionLogsResp represents the response for injection logs
+type InjectionLogsResp struct {
+	InjectionID int      `json:"injection_id"`
+	TaskID      string   `json:"task_id,omitempty"`
+	Logs        []string `json:"logs"`
+}
+
 // TriggerDatasetBuildItemResponse represents the response for a single injection in batch trigger
 type TriggerDatasetBuildItemResponse struct {
 	TaskID        string `json:"task_id"`

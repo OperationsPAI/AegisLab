@@ -61,7 +61,7 @@ export const FaultTypePanel: React.FC<FaultTypePanelProps> = ({
     queryFn: () => injectionApi.getFaultMetadata(GetInjectionMetadataSystem.ts),
   });
 
-  // Convert fault_type_map to FaultType array
+  // Convert fault_type_map to FaultType array with parameters from config
   const faultTypes: FaultType[] = useMemo(() => {
     if (!metadata?.fault_type_map) return [];
 
@@ -100,13 +100,60 @@ export const FaultTypePanel: React.FC<FaultTypePanelProps> = ({
       JVMMySQLException: 'JVM',
     };
 
-    return Object.entries(metadata.fault_type_map).map(([key, description], index) => ({
-      id: index,
-      name: key,
-      type: key,
-      category: categoryMap[key] || 'Other',
-      description: description || key,
-    }));
+    // Extract parameters from config tree
+    const configChildren = metadata.config?.children || {};
+
+    // Helper to determine parameter type from ChaosNode
+    const getParameterType = (node: any): 'string' | 'number' | 'boolean' | 'select' | 'range' => {
+      if (node.range && Array.isArray(node.range) && node.range.length === 2) {
+        return 'range';
+      }
+      if (typeof node.value === 'number') {
+        return 'number';
+      }
+      if (typeof node.value === 'boolean') {
+        return 'boolean';
+      }
+      if (node.children && typeof node.children === 'object') {
+        // If it has children, it might be a select with options
+        const childKeys = Object.keys(node.children);
+        if (childKeys.length > 0) {
+          return 'select';
+        }
+      }
+      return 'string';
+    };
+
+    return Object.entries(metadata.fault_type_map).map(([key, description], index) => {
+      const faultConfig = configChildren[key];
+      const parameters = faultConfig?.children
+        ? Object.entries(faultConfig.children).map(([paramName, paramNode]) => {
+            const paramType = getParameterType(paramNode);
+            return {
+              name: paramName,
+              type: paramType,
+              label: paramNode.description || paramName,
+              description: paramNode.description,
+              required: false,
+              default: paramNode.value,
+              min: paramNode.range?.[0],
+              max: paramNode.range?.[1],
+              options: paramType === 'select' && paramNode.children
+                ? Object.keys(paramNode.children)
+                : undefined,
+            };
+          })
+        : [];
+
+      return {
+        id: index,
+        name: key,
+        type: key,
+        category: categoryMap[key] || 'Other',
+        description: description || key,
+        parameters,
+      };
+    });
   }, [metadata]);
 
   const handleFaultClick = (fault: FaultType) => {

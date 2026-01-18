@@ -11,6 +11,7 @@ import {
   Select,
   Popconfirm,
   message,
+  Card,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
@@ -146,8 +147,8 @@ const ContainerList = () => {
   ]
 
   return (
-    <div>
-      <div
+    <div className="container-list page-container">
+      <div className="page-header"
         style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -155,7 +156,7 @@ const ContainerList = () => {
           marginBottom: '24px',
         }}
       >
-        <Title level={3} style={{ margin: 0 }}>
+        <Title level={3} className="page-title" style={{ margin: 0 }}>
           容器管理
         </Title>
         <Space>
@@ -185,23 +186,27 @@ const ContainerList = () => {
         </Space>
       </div>
 
-      <Table
-        columns={columns}
-        dataSource={data?.items || []}
-        rowKey="id"
-        loading={isLoading}
-        pagination={{
-          current: page,
-          pageSize: size,
-          total: data?.pagination?.total || 0,
-          showSizeChanger: true,
-          showTotal: (total) => `共 ${total} 个容器`,
-          onChange: (newPage, newSize) => {
-            setPage(newPage)
-            setSize(newSize)
-          },
-        }}
-      />
+      <Card className='table-card'>
+        <Table
+          columns={columns}
+          dataSource={data?.items || []}
+          rowKey="id"
+          loading={isLoading}
+          className='containers-table'
+          pagination={{
+            current: page,
+            pageSize: size,
+            total: data?.pagination?.total || 0,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total) => `共 ${total} 个容器`,
+            onChange: (newPage, newSize) => {
+              setPage(newPage)
+              setSize(newSize)
+            },
+          }}
+        />
+      </Card>
     </div>
   )
 }

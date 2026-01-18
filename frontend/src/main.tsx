@@ -14,6 +14,7 @@ import { initializeTheme } from './store/theme';
 
 import './index.css';
 import './styles/theme.css';
+import './styles/responsive.css';
 
 dayjs.locale('zh-cn');
 

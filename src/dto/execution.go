@@ -93,9 +93,10 @@ func (req *BatchDeleteExecutionReq) Validate() error {
 
 type ListExecutionReq struct {
 	PaginationReq
-	State  *consts.ExecutionState `form:"state" binding:"omitempty"`
-	Status *consts.StatusType     `form:"status" binding:"omitempty"`
-	Labels []string               `form:"labels" binding:"omitempty"`
+	State      *consts.ExecutionState `form:"state" binding:"omitempty"`
+	Status     *consts.StatusType     `form:"status" binding:"omitempty"`
+	Labels     []string               `form:"labels" binding:"omitempty"`
+	DatapackID *int                   `form:"datapack_id" binding:"omitempty"` // Filter by datapack ID
 }
 
 func (req *ListExecutionReq) Validate() error {

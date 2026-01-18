@@ -143,9 +143,15 @@ func GetInjectionMetadata(c *gin.Context) {
 		return
 	}
 
-	resource, err := chaos.GetSystemResource(ctx, system)
+	resourceMap, err := chaos.GetSystemResourceMap(ctx)
 	if err != nil {
 		handlers.HandleServiceError(c, err)
+		return
+	}
+
+	resource, ok := resourceMap[system]
+	if !ok {
+		dto.ErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("System %s not found", systemStr))
 		return
 	}
 
@@ -513,4 +519,121 @@ func SubmitDatapackBuilding(c *gin.Context) {
 
 	span.SetStatus(codes.Ok, fmt.Sprintf("Successfully submitted %d datapack buildings with groupID: %s", len(resp.Items), groupID))
 	dto.SuccessResponse(c, resp)
+}
+
+// GetInjectionExecutions handles getting executions related to an injection
+//
+//	@Summary		Get injection executions
+//	@Description	Get all algorithm executions related to a specific injection/datapack
+//	@Tags			Injections
+//	@ID				get_injection_executions
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		int											true	"Injection ID"
+//	@Param			page	query		int											false	"Page number"	default(1)
+//	@Param			size	query		int											false	"Page size"		default(20)
+//	@Success		200		{object}	dto.GenericResponse[dto.ListResp[dto.ExecutionResp]]	"Executions retrieved successfully"
+//	@Failure		400		{object}	dto.GenericResponse[any]					"Invalid injection ID"
+//	@Failure		401		{object}	dto.GenericResponse[any]					"Authentication required"
+//	@Failure		404		{object}	dto.GenericResponse[any]					"Injection not found"
+//	@Failure		500		{object}	dto.GenericResponse[any]					"Internal server error"
+//	@Router			/api/v2/injections/{id}/executions [get]
+//	@x-api-type		{"sdk":"true"}
+func GetInjectionExecutions(c *gin.Context) {
+	idStr := c.Param(consts.URLPathID)
+	id, ok := handlers.ParsePositiveID(c, idStr, "injection ID")
+	if !ok {
+		return
+	}
+
+	var req dto.ListExecutionReq
+	if err := c.ShouldBindQuery(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
+		return
+	}
+
+	if req.Page == 0 {
+		req.Page = 1
+	}
+	if req.Size == 0 {
+		req.Size = 20
+	}
+
+	req.DatapackID = &id
+	resp, err := producer.ListExecutions(&req)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	dto.JSONResponse(c, http.StatusOK, "Executions retrieved successfully", resp)
+}
+
+// CloneInjection handles cloning an injection configuration
+//
+//	@Summary		Clone injection
+//	@Description	Clone an existing injection configuration for reuse
+//	@Tags			Injections
+//	@ID				clone_injection
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		int											true	"Injection ID"
+//	@Param			body	body		dto.CloneInjectionReq						true	"Clone request"
+//	@Success		201		{object}	dto.GenericResponse[dto.InjectionDetailResp]	"Injection cloned successfully"
+//	@Failure		400		{object}	dto.GenericResponse[any]					"Invalid request"
+//	@Failure		401		{object}	dto.GenericResponse[any]					"Authentication required"
+//	@Failure		404		{object}	dto.GenericResponse[any]					"Injection not found"
+//	@Failure		500		{object}	dto.GenericResponse[any]					"Internal server error"
+//	@Router			/api/v2/injections/{id}/clone [post]
+//	@x-api-type		{"sdk":"true"}
+func CloneInjection(c *gin.Context) {
+	idStr := c.Param(consts.URLPathID)
+	id, ok := handlers.ParsePositiveID(c, idStr, "injection ID")
+	if !ok {
+		return
+	}
+
+	var req dto.CloneInjectionReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
+		return
+	}
+
+	resp, err := producer.CloneInjection(id, &req)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	dto.JSONResponse(c, http.StatusCreated, "Injection cloned successfully", resp)
+}
+
+// GetInjectionLogs handles getting injection execution logs
+//
+//	@Summary		Get injection logs
+//	@Description	Get execution logs for a specific injection
+//	@Tags			Injections
+//	@ID				get_injection_logs
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		int											true	"Injection ID"
+//	@Success		200		{object}	dto.GenericResponse[dto.InjectionLogsResp]	"Logs retrieved successfully"
+//	@Failure		400		{object}	dto.GenericResponse[any]					"Invalid injection ID"
+//	@Failure		401		{object}	dto.GenericResponse[any]					"Authentication required"
+//	@Failure		404		{object}	dto.GenericResponse[any]					"Injection not found"
+//	@Failure		500		{object}	dto.GenericResponse[any]					"Internal server error"
+//	@Router			/api/v2/injections/{id}/logs [get]
+//	@x-api-type		{"sdk":"true"}
+func GetInjectionLogs(c *gin.Context) {
+	idStr := c.Param(consts.URLPathID)
+	id, ok := handlers.ParsePositiveID(c, idStr, "injection ID")
+	if !ok {
+		return
+	}
+
+	resp, err := producer.GetInjectionLogs(id)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	dto.JSONResponse(c, http.StatusOK, "Logs retrieved successfully", resp)
 }

@@ -1,9 +1,4 @@
-/* Project List Styles */
-.project-list {
-  padding: 2rem;
-  max-width: 1400px;
-  margin: 0 auto;
-}
+/* Project List Specific Styles */
 
 /* Create Button */
 .project-list .create-button {
@@ -14,18 +9,3 @@
   );
 }
 
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  .project-list {
-    padding: 1rem;
-  }
-
-  .search-card .ant-row {
-    flex-direction: column;
-  }
-
-  .search-card .ant-col {
-    width: 100%;
-  }
-}

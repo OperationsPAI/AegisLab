@@ -431,10 +431,12 @@ func SetupV2Routes(router *gin.Engine) {
 		// Injection Read operations
 		injectionRead := injections.Group("", middleware.RequireInjectionRead)
 		{
-			injectionRead.GET("", v2handlers.ListInjections)                // List injections
-			injectionRead.GET("/:id", v2handlers.GetInjection)              // Get injection by ID
-			injectionRead.GET("/metadata", v2handlers.GetInjectionMetadata) // Get injection metadata
-			injectionRead.POST("/search", v2handlers.SearchInjections)      // Advanced search
+			injectionRead.GET("", v2handlers.ListInjections)                      // List injections
+			injectionRead.GET("/:id", v2handlers.GetInjection)                    // Get injection by ID
+			injectionRead.GET("/:id/executions", v2handlers.GetInjectionExecutions) // Get injection executions
+			injectionRead.GET("/:id/logs", v2handlers.GetInjectionLogs)           // Get injection logs
+			injectionRead.GET("/metadata", v2handlers.GetInjectionMetadata)       // Get injection metadata
+			injectionRead.POST("/search", v2handlers.SearchInjections)            // Advanced search
 		}
 
 		// Injection Write operations
@@ -442,6 +444,7 @@ func SetupV2Routes(router *gin.Engine) {
 		{
 			injectionWrite.POST("/inject", v2handlers.SubmitFaultInjection)              // Submit new injection
 			injectionWrite.POST("/build", v2handlers.SubmitDatapackBuilding)             // Submit new datapack building
+			injectionWrite.POST("/:id/clone", v2handlers.CloneInjection)                 // Clone injection
 			injectionWrite.PATCH("/:id/labels", v2handlers.ManageInjectionCustomLabels)  // Manage injection custom labels
 			injectionWrite.PATCH("/labels/batch", v2handlers.BatchManageInjectionLabels) // Batch manage injection labels
 		}
@@ -476,12 +479,39 @@ func SetupV2Routes(router *gin.Engine) {
 	}
 
 	// =====================================================================
+	// Notification API Group
+	// =====================================================================
+
+	// Notification Management - Global workflow notifications
+	notifications := v2.Group("/notifications", middleware.JWTAuth())
+	{
+		notifications.GET("/stream", v2handlers.GetNotificationStream) // Stream global notifications (SSE)
+	}
+
+	// =====================================================================
 	// Analyzer Service API Group
 	// =====================================================================
 
 	// Analyzer related routes (placeholder for future expansion)
 	analyzer := v2.Group("/analyzer", middleware.JWTAuth())
 	_ = analyzer // Temporarily unused to avoid compilation errors
+
+	// =====================================================================
+	// Datapack API Group
+	// =====================================================================
+
+	// Datapack Management - Datapack Entity (FaultInjection with datapack focus)
+	datapacks := v2.Group("/datapacks", middleware.JWTAuth())
+	{
+		// Datapack Read operations
+		datapackRead := datapacks.Group("", middleware.RequireInjectionRead)
+		{
+			datapackRead.GET("", v2handlers.ListDatapacks)                    // List datapacks
+			datapackRead.GET("/:id", v2handlers.GetDatapack)                  // Get datapack by ID
+			datapackRead.GET("/:id/metadata", v2handlers.GetDatapackMetadata) // Get datapack metadata
+			datapackRead.GET("/:id/download", v2handlers.DownloadDatapack)    // Download datapack as zip
+		}
+	}
 
 	// =====================================================================
 	// Evaluation API Group
@@ -495,5 +525,28 @@ func SetupV2Routes(router *gin.Engine) {
 
 		// POST /api/v2/evaluations/datapacks - Get algorithm evaluations on multiple datapacks (requires dataset read permission)
 		evaluations.POST("/datapacks", middleware.RequireDatasetRead, v2handlers.ListDatapackEvaluationResults)
+	}
+
+	// =====================================================================
+	// Metrics API Group
+	// =====================================================================
+
+	// Metrics routes
+	metrics := v2.Group("/metrics", middleware.JWTAuth())
+	{
+		metrics.GET("/injections", v2handlers.GetInjectionMetrics)   // Get injection metrics
+		metrics.GET("/executions", v2handlers.GetExecutionMetrics)   // Get execution metrics
+		metrics.GET("/algorithms", v2handlers.GetAlgorithmMetrics)   // Get algorithm comparison metrics
+	}
+
+	// =====================================================================
+	// System Metrics API Group
+	// =====================================================================
+
+	// System metrics routes
+	system := v2.Group("/system", middleware.JWTAuth())
+	{
+		system.GET("/metrics", v2handlers.GetSystemMetrics)               // Get current system metrics
+		system.GET("/metrics/history", v2handlers.GetSystemMetricsHistory) // Get historical system metrics
 	}
 }

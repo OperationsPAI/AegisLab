@@ -38,7 +38,10 @@ import StatCard from '@/components/ui/StatCard';
 import StatusBadge, {
   type StatusBadgeProps,
 } from '@/components/ui/StatusBadge';
+import { useSSE } from '@/hooks/useSSE';
 import { InjectionState, InjectionType } from '@/types/api';
+
+import './InjectionList.css';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -56,7 +59,7 @@ const InjectionList = () => {
   });
 
   // Fetch injections
-  const { data: injectionsData, isLoading } = useQuery({
+  const { data: injectionsData, isLoading, refetch } = useQuery({
     queryKey: [
       'injections',
       pagination.current,
@@ -68,6 +71,18 @@ const InjectionList = () => {
         page: pagination.current,
         size: pagination.pageSize,
       }),
+  });
+
+  // Real-time updates via SSE
+  useSSE({
+    url: '/api/v2/notifications/stream',
+    enabled: true,
+    onMessage: (data) => {
+      // Refetch injections when relevant events are received
+      if (data.type === 'injection_completed' || data.type === 'datapack_ready') {
+        refetch();
+      }
+    },
   });
 
   // Calculate success rate from real data
@@ -149,6 +164,7 @@ const InjectionList = () => {
     title: {
       text: 'Injections by Fault Type',
       left: 'center',
+      top: 0,
       textStyle: {
         fontSize: 16,
         fontWeight: 600,
@@ -158,20 +174,33 @@ const InjectionList = () => {
       trigger: 'item',
       formatter: '{b}: {c} ({d}%)',
     },
+    legend: {
+      orient: 'vertical',
+      right: 10,
+      top: 'center',
+      type: 'scroll',
+    },
     series: [
       {
         name: 'Fault Types',
         type: 'pie',
         radius: ['40%', '70%'],
-        avoidLabelOverlap: false,
+        center: ['40%', '55%'],
+        avoidLabelOverlap: true,
         itemStyle: {
           borderRadius: 10,
           borderColor: '#fff',
           borderWidth: 2,
         },
         label: {
-          show: true,
-          formatter: '{b}: {c}',
+          show: false,
+        },
+        emphasis: {
+          label: {
+            show: true,
+            fontSize: 14,
+            fontWeight: 'bold',
+          },
         },
         data: Object.entries(faultTypeCounts).map(([name, value]) => ({
           name,
@@ -425,8 +454,8 @@ const InjectionList = () => {
       </div>
 
       {/* Statistics Cards */}
-      <Row gutter={[24, 24]} className='stats-row'>
-        <Col xs={24} sm={12} lg={6}>
+      <Row gutter={[{ xs: 8, sm: 16, lg: 24 }, { xs: 8, sm: 16, lg: 24 }]} className='stats-row'>
+        <Col xs={12} sm={12} lg={6}>
           <StatCard
             title='Total Injections'
             value={stats?.total || 0}
@@ -434,7 +463,7 @@ const InjectionList = () => {
             color='primary'
           />
         </Col>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={12} sm={12} lg={6}>
           <StatCard
             title='Running Now'
             value={stats?.running || 0}
@@ -442,7 +471,7 @@ const InjectionList = () => {
             color='info'
           />
         </Col>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={12} sm={12} lg={6}>
           <StatCard
             title='Success Rate'
             value={`${stats?.successRate || 0}%`}
@@ -450,7 +479,7 @@ const InjectionList = () => {
             color='success'
           />
         </Col>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={12} sm={12} lg={6}>
           <StatCard
             title='Avg Duration'
             value={`${stats?.avgDuration || 0}s`}
@@ -461,7 +490,7 @@ const InjectionList = () => {
       </Row>
 
       {/* Charts */}
-      <Row gutter={[24, 24]} className='charts-row'>
+      <Row gutter={[{ xs: 8, sm: 16, lg: 24 }, { xs: 8, sm: 16, lg: 24 }]} className='charts-row'>
         <Col xs={24} lg={16}>
           <Card className='chart-card'>
             <LabChart option={timelineData} style={{ height: '300px' }} />
@@ -520,6 +549,54 @@ const InjectionList = () => {
           className='injections-table'
           rowClassName='injection-row'
         />
+
+        {/* Mobile Card Layout */}
+        <div className='injection-card-mobile'>
+          <Space direction='vertical' style={{ width: '100%' }} size='middle'>
+            {injectionsData?.items?.map((injection: Injection) => (
+              <Card
+                key={injection.id}
+                size='small'
+                style={{ cursor: 'pointer' }}
+                onClick={() => handleEditInjection(injection.id || 0)}
+              >
+                <Space direction='vertical' style={{ width: '100%' }} size='small'>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text strong style={{ fontSize: '1rem' }}>{injection.name}</Text>
+                    <Tag color={getInjectionTypeColor(InjectionType.NETWORK)}>
+                      {injection.fault_type || 'Unknown'}
+                    </Tag>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <StatusBadge
+                      status={
+                        injection.state === InjectionState.COMPLETED ? 'success' :
+                        injection.state === InjectionState.RUNNING ? 'info' :
+                        injection.state === InjectionState.ERROR ? 'error' : 'warning'
+                      }
+                      text={
+                        injection.state === InjectionState.COMPLETED ? 'Completed' :
+                        injection.state === InjectionState.RUNNING ? 'Running' :
+                        injection.state === InjectionState.ERROR ? 'Error' : 'Pending'
+                      }
+                    />
+                    <Text type='secondary' style={{ fontSize: '0.875rem' }}>
+                      {dayjs(injection.created_at).fromNow()}
+                    </Text>
+                  </div>
+
+                  <Progress
+                    percent={injection.progress || 0}
+                    size='small'
+                    status={injection.state === InjectionState.ERROR ? 'exception' : 'active'}
+                    strokeColor={injection.state === InjectionState.COMPLETED ? '#10b981' : undefined}
+                  />
+                </Space>
+              </Card>
+            ))}
+          </Space>
+        </div>
       </Card>
     </div>
   );
