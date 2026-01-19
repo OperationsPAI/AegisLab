@@ -74,6 +74,7 @@
                     "github_link": "LGU-SE-Internal/train-ticket",
                     "status": 1,
                     "helm_config": {
+                        "version": "0.1.0",
                         "chart_name": "trainticket",
                         "repo_name": "train-ticket",
                         "repo_url": "https://lgu-se-internal.github.io/train-ticket",
@@ -103,6 +104,7 @@
                     "github_link": "LGU-SE-Internal/opentelemetry-demo",
                     "status": 1,
                     "helm_config": {
+                        "version": "0.38.1",
                         "chart_name": "opentelemetry-demo",
                         "repo_name": "open-telemetry",
                         "repo_url": "https://lgu-se-internal.github.io/opentelemetry-demo",

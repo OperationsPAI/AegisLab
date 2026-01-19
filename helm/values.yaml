@@ -44,14 +44,26 @@ harbor:
 
 # Initialization settings for PVC setup during install/upgrade
 initialization:
-  enabled: false
-  
-  initData:
-    enabled: false
+  enabled: true
+
+  initDrainTemplate:
+    enabled: true
     image:
-      name: opspai/init-data
+      name: opspai/init-drain-template
       tag: latest
       pullPolicy: IfNotPresent
+    env:
+      TARGET_PATH: /var/lib/rcabench/dataset/drain_template
+
+  initHelmCharts:
+    enabled: true
+    image:
+      name: opspai/init-helm-charts
+      tag: latest
+      pullPolicy: IfNotPresent
+    env:
+      HELM_CHARTS_CONFIG: /app/config.json
+      HELM_CHARTS_TARGET_PATH: /var/lib/rcabench/dataset/helm-charts
 
 configmap:
   name: "rcabench"

@@ -75,6 +75,7 @@ func (cv *InitialContainerVersion) ConvertToDBContainerVersion() *database.Conta
 }
 
 type InitialHelmConfig struct {
+	Version   string                   `json:"version"`
 	ChartName string                   `json:"chart_name"`
 	RepoName  string                   `json:"repo_name"`
 	RepoURL   string                   `json:"repo_url"`
@@ -83,6 +84,7 @@ type InitialHelmConfig struct {
 
 func (hc *InitialHelmConfig) ConvertToDBHelmConfig() *database.HelmConfig {
 	return &database.HelmConfig{
+		Version:   hc.Version,
 		ChartName: hc.ChartName,
 		RepoName:  hc.RepoName,
 		RepoURL:   hc.RepoURL,

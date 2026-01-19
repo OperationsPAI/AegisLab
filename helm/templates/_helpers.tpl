@@ -125,3 +125,39 @@ Returns: merged JSON configuration
 {{- $merged := mergeOverwrite (dict) $defaultConfig $userConfig -}}
 {{- $merged | toJson -}}
 {{- end -}}
+
+{{/*
+Generate system helm config list from data.json containers (type=2 only)
+Usage: {{ include "helm.systemHelmConfigs" . }}
+Returns: JSON array of system helm configurations
+*/}}
+{{- define "helm.systemHelmConfigs" -}}
+{{- $dataJsonContent := "" -}}
+{{- if .Values.initialDataFiles.data_json -}}
+  {{- $dataJsonContent = .Values.initialDataFiles.data_json -}}
+{{- else -}}
+  {{- $dataJsonContent = .Files.Get "files/initial_data/data.json" -}}
+{{- end -}}
+{{- $dataJson := $dataJsonContent | fromJson -}}
+{{- $containers := $dataJson.containers | default list -}}
+
+{{- $systemConfigs := list -}}
+{{- range $index, $container := $containers -}}
+  {{- if eq (int $container.type) 2 -}}
+    {{- $containerVersionId := add $index 1 -}}
+    {{- $system := $container.name -}}
+    {{- range $container.versions -}}
+      {{- if .helm_config -}}
+        {{- $config := dict 
+          "chart_name" .helm_config.chart_name
+          "container_version_id" $containerVersionId
+          "system" $system
+          "version" .helm_config.version
+        -}}
+        {{- $systemConfigs = append $systemConfigs $config -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+{{- $systemConfigs | toJson -}}
+{{- end -}}

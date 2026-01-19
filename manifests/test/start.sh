@@ -123,7 +123,7 @@ helm repo add opentelemetry-demo https://lgu-se-internal.github.io/opentelemetry
 retry_helm_install 3 helm install otel-demo0 opentelemetry-demo/opentelemetry-demo \
     --namespace otel-demo0 \
     --create-namespace \
-    -f helm/files/initial_data/otel-demo.yaml \
+    -f data/initial_data/prod/otel-demo.yaml \
     --atomic \
     --timeout 10m
 echo "✅ OpenTelemetry Demo installed"

@@ -20,6 +20,15 @@ images:
 harbor:
   enabled: true
 
+initialization:
+  initDrainTemplate:
+    enabled: false
+
+  initHelmCharts:
+    enabled: true
+    image:
+      name: library/init-helm-charts
+
 configmap:
   system:
     env_mode: "staging"

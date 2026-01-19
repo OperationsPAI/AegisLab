@@ -525,6 +525,68 @@ func SubmitContainerBuilding(c *gin.Context) {
 	dto.JSONResponse(c, http.StatusOK, "Container building task submitted successfully", resp)
 }
 
+// UploadHelmChart handles uploading Helm chart package
+//
+//	@Summary		Upload Helm chart package
+//	@Description	Upload a Helm chart package (.tgz) and save it to local storage as fallback
+//	@Tags			Containers
+//	@ID				upload_helm_chart
+//	@Accept			multipart/form-data
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			container_id	path		int													true	"Container ID"
+//	@Param			version_id		path		int													true	"Container Version ID"
+//	@Param			file			formData	file												true	"Helm chart package (.tgz)"
+//	@Success		200				{object}	dto.GenericResponse[dto.UploadHelmChartResp]		"Chart uploaded successfully"
+//	@Failure		400				{object}	dto.GenericResponse[any]							"Invalid request or file"
+//	@Failure		401				{object}	dto.GenericResponse[any]							"Authentication required"
+//	@Failure		403				{object}	dto.GenericResponse[any]							"Permission denied"
+//	@Failure		404				{object}	dto.GenericResponse[any]							"Container or version not found"
+//	@Failure		500				{object}	dto.GenericResponse[any]							"Internal server error"
+//	@Router			/api/v2/containers/{container_id}/versions/{version_id}/helm-chart [post]
+func UploadHelmChart(c *gin.Context) {
+	userID, exists := middleware.GetCurrentUserID(c)
+	if !exists || userID <= 0 {
+		dto.ErrorResponse(c, http.StatusUnauthorized, "Authentication required")
+		return
+	}
+
+	containerIDStr := c.Param(consts.URLPathContainerID)
+	containerID, err := strconv.Atoi(containerIDStr)
+	if err != nil || containerID <= 0 {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid container ID")
+		return
+	}
+
+	versionIDStr := c.Param(consts.URLPathVersionID)
+	versionID, err := strconv.Atoi(versionIDStr)
+	if err != nil || versionID <= 0 {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid container version ID")
+		return
+	}
+
+	file, err := c.FormFile("file")
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "No file uploaded or invalid file: "+err.Error())
+		return
+	}
+
+	filename := file.Filename
+	ext := filepath.Ext(filename)
+	if ext != ".tgz" && ext != ".tar.gz" {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid file type: only .tgz or .tar.gz files are allowed")
+		return
+	}
+
+	// Call service layer to handle chart upload
+	resp, err := producer.UploadHelmChart(file, containerID, versionID, userID)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	dto.SuccessResponse(c, resp)
+}
+
 // UploadHelmValueFile handles uploading Helm values file
 //
 //	@Summary		Upload Helm values file

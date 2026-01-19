@@ -258,7 +258,7 @@ func (c *HelmClient) isChartCachedLocally(chartName string) (string, bool) {
 	return "", false
 }
 
-func (c *HelmClient) InstallRelease(ctx context.Context, releaseName, chartName string, vals map[string]any, timeout time.Duration) error {
+func (c *HelmClient) InstallRelease(ctx context.Context, releaseName, chartName, version string, vals map[string]any, timeout time.Duration) error {
 	return tracing.WithSpan(ctx, func(ctx context.Context) error {
 		now := time.Now()
 
@@ -272,6 +272,7 @@ func (c *HelmClient) InstallRelease(ctx context.Context, releaseName, chartName 
 		client.Wait = true
 		client.Timeout = timeout
 		client.CreateNamespace = true
+		client.Version = version
 
 		var cp string
 		var err error
@@ -302,7 +303,7 @@ func (c *HelmClient) InstallRelease(ctx context.Context, releaseName, chartName 
 	})
 }
 
-func (c *HelmClient) Install(ctx context.Context, releaseName, chartName string, values map[string]any, installTimeout, unInstallTimeout time.Duration) error {
+func (c *HelmClient) Install(ctx context.Context, releaseName, chartName, version string, values map[string]any, installTimeout, unInstallTimeout time.Duration) error {
 	installed, err := c.IsReleaseInstalled(releaseName)
 	if err != nil {
 		return err
@@ -318,5 +319,5 @@ func (c *HelmClient) Install(ctx context.Context, releaseName, chartName string,
 		logrus.Infof("No existing %s release found", releaseName)
 	}
 
-	return c.InstallRelease(ctx, releaseName, chartName, values, installTimeout)
+	return c.InstallRelease(ctx, releaseName, chartName, version, values, installTimeout)
 }

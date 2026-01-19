@@ -21,6 +21,14 @@ images:
 harbor:
   enabled: false
 
+initialization:
+  initDrainTemplate:
+    enabled: false
+
+  initHelmCharts:
+    image:
+      name: pair/init-helm-charts
+
 configmap:
   system:
     env_mode: "test"

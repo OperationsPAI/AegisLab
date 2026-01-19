@@ -23,7 +23,13 @@ harbor:
   enabled: false
 
 initialization:
-  enabled: true
+  initDrainTemplate:
+    image:
+      name: pair/init-drain-template
+
+  initHelmCharts:
+    image:
+      name: pair/init-helm-charts
 
 configmap:
   system:

@@ -151,6 +151,7 @@ func SetupV2Routes(router *gin.Engine) {
 			versionWrite := versions.Group("", middleware.RequireContainerVersionWrite)
 			{
 				versionWrite.POST("", v2handlers.CreateContainerVersion)                      // Create container version
+				versionWrite.POST("/:version_id/helm-chart", v2handlers.UploadHelmChart)      // Upload Helm chart tgz file
 				versionWrite.POST("/:version_id/helm-values", v2handlers.UploadHelmValueFile) // Upload Helm values file
 				versionWrite.PATCH("/:version_id", v2handlers.UpdateContainerVersion)         // Update container version
 			}

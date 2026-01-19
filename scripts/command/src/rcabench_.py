@@ -90,6 +90,8 @@ def _wait_for_healthy(docker, timeout=120):
 
 @with_k8s_manager()
 def local_deploy(env: ENV, k8s_manager: KubernetesManager):
+    assert env == ENV.DEV, "Local deploy is only supported for DEV environment."
+
     console.print("[bold blue]🚀 Starting local RCAbench deployment...[/bold blue]")
 
     docker = DockerClient(compose_files=[DOCKER_COMPOSE_FILE])

@@ -45,28 +45,23 @@ commit-msg:
           exit 1
         }
 
-# Pre-push hook: Auto-generate changelog before push
-pre-push:
+# Post-commit hook: Auto-generate changelog after each commit
+post-commit:
   commands:
     auto-changelog:
       run: |
         echo "📝 Generating CHANGELOG.md..."
-        
-        # Generate changelog
         make changelog
         
-        # Check if CHANGELOG.md has changes (both staged and unstaged)
-        if git diff --quiet CHANGELOG.md && git diff --cached --quiet CHANGELOG.md; then
-          echo "⚠️ No CHANGELOG.md changes detected"
-        else
+        # Check if CHANGELOG.md has changes
+        if ! git diff --quiet CHANGELOG.md; then
           echo "✅ CHANGELOG.md has been updated"
           
-          # Add CHANGELOG.md to staging
+          # Auto-add and amend to the last commit
           git add CHANGELOG.md
-          
-          # Amend to the current commit without editing message
           git commit --amend --no-edit --no-verify
           
-          echo "✅ CHANGELOG.md successfully added to commit"
+          echo "✅ CHANGELOG.md automatically added to the last commit"
+        else
+          echo "⚠️ No CHANGELOG.md changes detected"
         fi
-
