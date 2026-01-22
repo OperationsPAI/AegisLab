@@ -45,7 +45,7 @@ func executeRestartPedestal(ctx context.Context, task *dto.UnifiedTask) error {
 
 		if !acquired {
 			span.AddEvent("no token available, waiting")
-			logEntry.Info("No restart pedestal token available, waiting...")
+			logEntry.Warn("No restart pedestal token available, waiting...")
 
 			acquired, err = rateLimiter.WaitForToken(childCtx, task.TaskID, task.TraceID)
 			if err != nil {
@@ -260,6 +260,7 @@ func parseRestartPayload(payload map[string]any) (*restartPayload, error) {
 }
 
 // installPedestal installs or upgrades the pedestal using Helm
+// Priority: Remote (if configured) -> Local fallback (if remote fails and LocalPath is set)
 func installPedestal(ctx context.Context, releaseName string, namespaceIdx int, item *dto.HelmConfigItem) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		span := trace.SpanFromContext(childCtx)
@@ -277,15 +278,6 @@ func installPedestal(ctx context.Context, releaseName string, namespaceIdx int, 
 			return handleExecutionError(span, logEntry, "failed to create Helm client", err)
 		}
 
-		if err := helmClient.AddRepo(item.RepoName, item.RepoURL); err != nil {
-			return fmt.Errorf("failed to add repository: %w", err)
-		}
-
-		// Update repositories
-		if err := helmClient.UpdateRepo(item.RepoName); err != nil {
-			return fmt.Errorf("failed to update repositories: %w", err)
-		}
-
 		paramItems := item.DynamicValues
 		for i := range paramItems {
 			if paramItems[i].TemplateString != "" {
@@ -295,24 +287,82 @@ func installPedestal(ctx context.Context, releaseName string, namespaceIdx int, 
 
 		helmValues := item.GetValuesMap()
 
-		// Log Helm install parameters for debugging
-		logrus.WithFields(logrus.Fields{
-			"release_name": releaseName,
-			"chart":        item.FullChart,
-			"namespace":    releaseName,
-		}).Infof("Installing Helm chart with parameters: %+v", helmValues)
+		// Determine chart source and installation strategy
+		hasRemote := item.RepoURL != "" && item.RepoName != ""
+		hasLocal := item.LocalPath != ""
 
-		if err := helmClient.Install(ctx,
-			releaseName,
-			item.FullChart,
-			helmValues,
-			600*time.Second,
-			360*time.Second,
-		); err != nil {
-			return fmt.Errorf("failed to install Helm chart: %w", err)
+		var installErr error
+
+		if hasRemote {
+			logEntry.Infof("Attempting to install chart from remote repository: %s/%s", item.RepoName, item.ChartName)
+
+			if err := helmClient.AddRepo(item.RepoName, item.RepoURL); err != nil {
+				logEntry.Warnf("Failed to add repository: %v", err)
+				installErr = err
+			} else if err := helmClient.UpdateRepo(item.RepoName); err != nil {
+				logEntry.Warnf("Failed to update repository: %v", err)
+				installErr = err
+			} else {
+				fullChart := fmt.Sprintf("%s/%s", item.RepoName, item.ChartName)
+
+				logrus.WithFields(logrus.Fields{
+					"release_name": releaseName,
+					"chart":        fullChart,
+					"version":      item.Version,
+					"namespace":    releaseName,
+				}).Infof("Installing Helm chart from remote with parameters: %+v", helmValues)
+
+				if err := helmClient.Install(ctx,
+					releaseName,
+					fullChart,
+					item.Version,
+					helmValues,
+					600*time.Second,
+					300*time.Second,
+				); err != nil {
+					logEntry.Warnf("Failed to install chart from remote: %v", err)
+					installErr = err
+				} else {
+					logEntry.Info("Helm chart installed successfully from remote repository")
+					return nil
+				}
+			}
 		}
 
-		logEntry.Info("Helm chart installed successfully")
-		return nil
+		// Fallback to local chart if remote failed or not configured
+		if hasLocal {
+			if installErr != nil {
+				logEntry.Infof("Remote installation failed, falling back to local chart: %s", item.LocalPath)
+			} else {
+				logEntry.Infof("Installing chart from local path: %s", item.LocalPath)
+			}
+
+			logrus.WithFields(logrus.Fields{
+				"release_name": releaseName,
+				"chart":        item.LocalPath,
+				"namespace":    releaseName,
+			}).Infof("Installing Helm chart from local path with parameters: %+v", helmValues)
+
+			if err := helmClient.Install(ctx,
+				releaseName,
+				item.LocalPath,
+				item.Version,
+				helmValues,
+				600*time.Second,
+				360*time.Second,
+			); err != nil {
+				return fmt.Errorf("failed to install chart from local path %s: %w", item.LocalPath, err)
+			}
+
+			logEntry.Info("Helm chart installed successfully from local path")
+			return nil
+		}
+
+		// No valid source available
+		if installErr != nil {
+			return fmt.Errorf("failed to install chart: remote installation failed and no local fallback available: %w", installErr)
+		}
+
+		return fmt.Errorf("no chart source configured (neither remote nor local)")
 	})
 }

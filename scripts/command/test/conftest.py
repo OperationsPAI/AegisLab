@@ -6,19 +6,25 @@ import pytest
 from rcabench.client import RCABenchClient
 from rcabench.openapi.api_client import ApiClient
 
-from src.common.common import settings
+from src.common.common import ENV, settings
+from src.port_manager import PortForwardManager
 
 
 @pytest.fixture(scope="session", autouse=True)
 def setup_environment() -> Generator[ApiClient, None, None]:
     settings.reload()
 
+    manager = PortForwardManager(env=ENV.TEST)
+    manager.start_forwarding()
+
     with RCABenchClient(
-        base_url="http://localhost:28080",
+        base_url=manager.get_service_url("rcabench-exp"),
         username="admin",
         password="admin123",
     ).get_client() as client:
         yield client
+
+    manager.stop_all_forwards()
 
 
 def pytest_generate_tests(metafunc):

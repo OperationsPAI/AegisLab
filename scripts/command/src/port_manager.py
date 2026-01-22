@@ -317,8 +317,10 @@ class PortForwardManager:
         """Stop all port forwarding"""
         console.print("[bold blue]🛑 Stopping all port forwards...[/bold blue]")
 
+        mappings = self.namespace_mappings + self.monitoring_mappings
+
         stopped_count = 0
-        for mapping in self.namespace_mappings:
+        for mapping in mappings:
             if mapping.pid:
                 try:
                     proc = psutil.Process(mapping.pid)
@@ -332,6 +334,7 @@ class PortForwardManager:
                     pass
 
         self.namespace_mappings.clear()
+        self.monitoring_mappings.clear()
 
         if stopped_count > 0:
             console.print(

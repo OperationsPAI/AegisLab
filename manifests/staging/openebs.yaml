@@ -1,0 +1,32 @@
+localpv-provisioner:
+  global:
+    imageRegistry: 10.10.10.240
+  
+  localpv:
+    image:
+      repository: library/provisioner-localpv
+      tag: 4.4.0
+
+  helperPod:
+    image:
+      repository: library/linux-utils
+      tag: 4.1.0
+
+engines:
+  local:
+    lvm:
+      enabled: false
+    zfs:
+      enabled: false
+    rawfile:
+      enabled: false
+
+  replicated:
+    mayastor:
+      enabled: false
+
+loki:
+  enabled: false
+
+alloy:
+  enabled: false

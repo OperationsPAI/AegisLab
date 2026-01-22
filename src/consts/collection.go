@@ -16,6 +16,11 @@ var configHistoryChangeTypeMap = map[ConfigHistoryChangeType]string{
 	ChangeTypeRollback: "rollback",
 }
 
+var ConfigScopeMap = map[ConfigScope]string{
+	ConfigScopeProducer: "producer",
+	ConfigScopeConsumer: "consumer",
+}
+
 var dynamicConfigTypeMap = map[ConfigValueType]string{
 	ConfigValueTypeBool:        "bool",
 	ConfigValueTypeInt:         "int",
@@ -219,6 +224,13 @@ func GetContainerTypeName(containerType ContainerType) string {
 
 func GetConfigHistoryChangeTypeName(changeType ConfigHistoryChangeType) string {
 	if name, exists := configHistoryChangeTypeMap[changeType]; exists {
+		return name
+	}
+	return "unknown"
+}
+
+func GetConfigScopeName(scope ConfigScope) string {
+	if name, exists := ConfigScopeMap[scope]; exists {
 		return name
 	}
 	return "unknown"

@@ -1,18 +1,17 @@
 {
   "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.13.7/.schema/devbox.schema.json",
   "packages": [
-    "go@1.23.3",
+    "go@1.24.1",
     "skaffold@2.13.2",
-    "ruff@0.9.3",
-    "golangci-lint@latest",
+    "ruff@0.14.11",
+    "golangci-lint@2.8.0",
     "kubectl@1.34.1",
-    "minikube@latest",
-    "kubernetes-helm@latest",
-    "kubectx@latest",
-    "git-cliff@latest",
+    "kubernetes-helm@3.19.1",
+    "kubectx@0.9.5",
+    "git-cliff@2.11.0",
     "lefthook@2.0.12",
     "kind@0.31.0",
-    "uv@latest"
+    "uv@0.9.24"
   ],
   "shell": {
     "init_hook": [

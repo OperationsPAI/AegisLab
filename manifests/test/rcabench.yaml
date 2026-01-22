@@ -4,36 +4,47 @@ global:
 images:
   rcabench:
     name: pair/rcabench
+    pullPolicy: IfNotPresent
+  jaeger:
+    name: pair/jaeger
   redis:
     name: pair/redis
   mysql:
     name: pair/mysql
-  jaeger:
-    name: pair/jaeger
+  etcd:
+    name: pair/etcd
   busybox:
     name: pair/busybox
   buildkit:
     name: pair/buildkit
-  init_data:
-    name: pair/init-data
 
 harbor:
   enabled: false
 
 initialization:
-  enabled: false
+  initDrainTemplate:
+    enabled: false
+
+  initHelmCharts:
+    image:
+      name: pair/init-helm-charts
 
 configmap:
+  system:
+    env_mode: "test"
   k8s:
     init_container:
       busybox_image: pair-diag-cn-guangzhou.cr.volces.com/pair/busybox:1.35
 
 persistence:
+  jaeger:
+    enabled: false
+
   redis:
     enabled: false
 
   mysql:
     enabled: false
 
-  jaeger:
+  etcd:
     enabled: false

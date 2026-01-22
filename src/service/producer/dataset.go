@@ -416,8 +416,8 @@ func UpdateDatasetVersion(req *dto.UpdateDatasetVersionReq, datasetID, versionID
 	return dto.NewDatasetVersionResp(updatedVersion), nil
 }
 
-// GetFilename generates a filename for the dataset version download
-func GetFilename(datasetID, versionID int) (string, error) {
+// GetDatasetVersionFilename generates a filename for the dataset version download
+func GetDatasetVersionFilename(datasetID, versionID int) (string, error) {
 	dataset, err := repository.GetDatasetByID(database.DB, datasetID)
 	if err != nil {
 		if errors.Is(err, consts.ErrNotFound) {
@@ -448,12 +448,7 @@ func DownloadDatasetVersion(zipWriter *zip.Writer, excludeRules []utils.ExculdeR
 		return fmt.Errorf("failed to list datapacks for dataset version: %w", err)
 	}
 
-	datapackNames := make([]string, 0, len(datapacks))
-	for _, dp := range datapacks {
-		datapackNames = append(datapackNames, dp.Name)
-	}
-
-	if err := packageDatasetToZip(zipWriter, datapackNames, excludeRules); err != nil {
+	if err := packageDatasetVersionToZip(zipWriter, datapacks, excludeRules); err != nil {
 		return fmt.Errorf("failed to package dataset to zip: %w", err)
 	}
 
@@ -586,43 +581,55 @@ func linkDatapacksToDatasetVersion(db *gorm.DB, versionID int, datapacks []strin
 	return nil
 }
 
-// packageDatasetToZip packages the specified datapacks into a zip archive, applying exclusion rules
-func packageDatasetToZip(zipWriter *zip.Writer, datapackNames []string, excludeRules []utils.ExculdeRule) error {
-	for _, name := range datapackNames {
-		workDir := filepath.Join(config.GetString("jfs.dataset_path"), name)
-		if !utils.IsAllowedPath(workDir) {
-			return fmt.Errorf("Invalid path access to %s", workDir)
+// packageDatasetVersionToZip packages the specified datapacks into a zip archive, applying exclusion rules
+func packageDatasetVersionToZip(zipWriter *zip.Writer, datapacks []database.FaultInjection, excludeRules []utils.ExculdeRule) error {
+	for _, datapack := range datapacks {
+		if err := packageDatapackToZip(zipWriter, &datapack, excludeRules); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// packageDatapackToZip packages a single datapack into a zip archive, applying exclusion rules
+func packageDatapackToZip(zipWriter *zip.Writer, datapack *database.FaultInjection, excludeRules []utils.ExculdeRule) error {
+	if datapack.State < consts.DatapackBuildSuccess {
+		return fmt.Errorf("datapack %s is not in a downloadable state", datapack.Name)
+	}
+
+	workDir := filepath.Join(config.GetString("jfs.dataset_path"), datapack.Name)
+	if !utils.IsAllowedPath(workDir) {
+		return fmt.Errorf("Invalid path access to %s", workDir)
+	}
+
+	err := filepath.WalkDir(workDir, func(path string, dir fs.DirEntry, err error) error {
+		if err != nil || dir.IsDir() {
+			return err
 		}
 
-		err := filepath.WalkDir(workDir, func(path string, dir fs.DirEntry, err error) error {
-			if err != nil || dir.IsDir() {
-				return err
+		relPath, _ := filepath.Rel(workDir, path)
+		fullRelPath := filepath.Join(consts.DownloadFilename, filepath.Base(workDir), relPath)
+		fileName := filepath.Base(path)
+
+		// Apply exclusion rules
+		for _, rule := range excludeRules {
+			if utils.MatchFile(fileName, rule) {
+				return nil
 			}
+		}
 
-			relPath, _ := filepath.Rel(workDir, path)
-			fullRelPath := filepath.Join(consts.DownloadFilename, filepath.Base(workDir), relPath)
-			fileName := filepath.Base(path)
-
-			// Apply exclusion rules
-			for _, rule := range excludeRules {
-				if utils.MatchFile(fileName, rule) {
-					return nil
-				}
-			}
-
-			// Get file info to read modification time
-			fileInfo, err := dir.Info()
-			if err != nil {
-				return err
-			}
-
-			// Convert path separators to "/"
-			zipPath := filepath.ToSlash(fullRelPath)
-			return utils.AddToZip(zipWriter, fileInfo, path, zipPath)
-		})
+		// Get file info to read modification time
+		fileInfo, err := dir.Info()
 		if err != nil {
-			return fmt.Errorf("failed to package: %w", err)
+			return err
 		}
+
+		// Convert path separators to "/"
+		zipPath := filepath.ToSlash(fullRelPath)
+		return utils.AddToZip(zipWriter, fileInfo, path, zipPath)
+	})
+	if err != nil {
+		return fmt.Errorf("failed to package datapack %s: %w", datapack.Name, err)
 	}
 
 	return nil

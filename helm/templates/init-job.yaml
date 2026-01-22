@@ -1,17 +1,19 @@
 {{- if .Values.initialization.enabled }}
+{{- if .Values.initialization.initDrainTemplate.enabled }}
+# Init drain_template job
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ .Release.Name }}-init-data
+  name: {{ .Release.Name }}-init-drain-template
   annotations:
-    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook": post-install
     "helm.sh/hook-weight": "-5"
     "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
 spec:
   ttlSecondsAfterFinished: 100
   template:
     metadata:
-      name: {{ .Release.Name }}-init-data
+      name: {{ .Release.Name }}-init-drain-template
     spec:
       restartPolicy: Never
       initContainers:
@@ -28,28 +30,13 @@ spec:
               echo "PVCs are ready"
       containers:
         - name: init-data
-          image: {{ include "helm.image" (dict "imageConfig" .Values.images.init_data "global" .Values.global) }}
-          imagePullPolicy: "{{ .Values.images.init_data.pullPolicy }}"
-          command:
-            - sh
-            - -c
-            - |
-              echo "Initializing data..."
-
-              if [ -d /data ]; then
-                if [ -d /data/drain_template ]; then
-                  echo "Found drain_template directory, preparing to copy..."
-                  TARGET_DIR="{{ .Values.configmap.jfs.dataset_path }}/drain_template"
-                  mkdir -p "$TARGET_DIR"
-                  echo "Created directory: $TARGET_DIR"
-                  cp -r /data/drain_template/* "$TARGET_DIR/"
-                  echo "Successfully copied drain_template data"
-                else
-                  echo "No drain_template directory found in /data"
-                fi
-              else
-                echo "No initial data found to copy"
-              fi
+          image: {{ include "helm.image" (dict "imageConfig" .Values.initialization.initDrainTemplate.image "global" .Values.global) }}
+          imagePullPolicy: "{{ .Values.initialization.initDrainTemplate.image.pullPolicy }}"
+          env:
+            {{- range $key, $value := .Values.initialization.initDrainTemplate.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
           volumeMounts:
             - name: dataset
               mountPath: {{ .Values.configmap.jfs.dataset_path }}
@@ -57,4 +44,68 @@ spec:
         - name: dataset
           persistentVolumeClaim:
             claimName: {{ .Release.Name }}-juicefs-dataset
+{{- end }}
+---
+{{- if .Values.initialization.initHelmCharts.enabled }}
+# Init helm_charts job
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-init-helm-charts
+  annotations:
+    "helm.sh/hook": post-install
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  ttlSecondsAfterFinished: 100
+  template:
+    metadata:
+      name: {{ .Release.Name }}-init-helm-charts
+    spec:
+      restartPolicy: Never
+      initContainers:
+        # Wait for PVCs to be bound
+        - name: wait-for-pvc
+          image: {{ include "helm.image" (dict "imageConfig" .Values.images.busybox "global" .Values.global) }}
+          imagePullPolicy: "{{ .Values.images.busybox.pullPolicy }}"
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for PVCs to be ready..."
+              sleep 5
+              echo "PVCs are ready"
+      containers:
+        - name: init-data
+          image: {{ include "helm.image" (dict "imageConfig" .Values.initialization.initHelmCharts.image "global" .Values.global) }}
+          imagePullPolicy: "{{ .Values.initialization.initHelmCharts.image.pullPolicy }}"
+          env:
+            {{- range $key, $value := .Values.initialization.initHelmCharts.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            - name: MYSQL_HOST
+              value: "{{ .Release.Name }}-mysql"
+            - name: MYSQL_PORT
+              value: {{ .Values.configmap.database.mysql.port | quote }}
+            - name: MYSQL_USER
+              value: {{ .Values.configmap.database.mysql.user | quote }}
+            - name: MYSQL_PASSWORD
+              value: {{ .Values.configmap.database.mysql.password | quote }}
+            - name: MYSQL_DATABASE
+              value: {{ .Values.configmap.database.mysql.db | quote }}
+          volumeMounts:
+            - name: dataset
+              mountPath: {{ .Values.configmap.jfs.dataset_path }}
+            - name: system-helm-configs
+              mountPath: {{ .Values.initialization.initHelmCharts.env.HELM_CHARTS_CONFIG}}
+              subPath: system_helm_configs.json
+      volumes:
+        - name: dataset
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-juicefs-dataset
+        - name: system-helm-configs
+          configMap:
+            name: {{ .Release.Name }}-system-helm-configs
+{{- end }}
 {{- end }}

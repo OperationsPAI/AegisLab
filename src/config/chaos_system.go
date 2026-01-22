@@ -23,9 +23,8 @@ type ChaosSystemConfig struct {
 }
 
 type chaosSystemConfigManager struct {
-	configs   map[chaos.SystemType]ChaosSystemConfig
-	mu        sync.RWMutex
-	callbacks []func() error
+	configs map[chaos.SystemType]ChaosSystemConfig
+	mu      sync.RWMutex
 }
 
 var (
@@ -67,30 +66,14 @@ func (m *chaosSystemConfigManager) GetAll() map[chaos.SystemType]ChaosSystemConf
 }
 
 // Reload reloads system configurations from config
-func (m *chaosSystemConfigManager) Reload() error {
+func (m *chaosSystemConfigManager) Reload(callback func() error) error {
 	if err := m.load(); err != nil {
 		return err
 	}
-
-	// Execute all registered callbacks
-	m.mu.RLock()
-	callbacks := m.callbacks
-	m.mu.RUnlock()
-
-	for _, callback := range callbacks {
-		if err := callback(); err != nil {
-			return fmt.Errorf("callback execution failed: %w", err)
-		}
+	if err := callback(); err != nil {
+		return fmt.Errorf("callback execution failed: %w", err)
 	}
-
 	return nil
-}
-
-// RegisterCallback registers a callback function to be invoked when config is reloaded
-func (m *chaosSystemConfigManager) RegisterCallback(callback func() error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.callbacks = append(m.callbacks, callback)
 }
 
 func (m *chaosSystemConfigManager) load() error {

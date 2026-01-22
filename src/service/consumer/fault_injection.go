@@ -12,12 +12,14 @@ import (
 	"aegis/database"
 	"aegis/dto"
 	"aegis/repository"
+	"aegis/service/common"
 	"aegis/tracing"
 	"aegis/utils"
 
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/trace"
+	"gorm.io/gorm"
 )
 
 // injectionPayload contains all necessary data for executing a fault injection batch
@@ -29,6 +31,7 @@ type injectionPayload struct {
 	pedestal    chaos.SystemType
 	pedestalID  int
 	labels      []dto.LabelItem
+	system      chaos.SystemType
 }
 
 type batchManager struct {
@@ -191,7 +194,7 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 		)
 
 		// Batch create all fault injections in parallel
-		names, err := chaos.BatchCreate(childCtx, injectionConfs, chaos.SystemTrainTicket, payload.namespace, annotations, crdLabels)
+		names, err := chaos.BatchCreate(childCtx, injectionConfs, payload.system, payload.namespace, annotations, crdLabels)
 		if err != nil {
 			toReleased = true
 			return handleExecutionError(span, logEntry, "failed to inject faults", err)
@@ -208,27 +211,43 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 			faultType = chaos.ChaosType(payload.nodes[0].Value)
 		}
 
-		injection := &database.FaultInjection{
-			Name:          name,
-			FaultType:     faultType,
-			Category:      payload.pedestal,
-			Description:   fmt.Sprintf("Fault batch for task %s (%d faults)", task.TaskID, len(payload.nodes)),
-			DisplayConfig: utils.StringPtr(string(displayData)),
-			EngineConfig:  string(engineData),
-			Groundtruths:  groundtruths,
-			PreDuration:   payload.preDuration,
-			State:         consts.DatapackInitial,
-			Status:        consts.CommonEnabled,
-			TaskID:        &task.TaskID,
-			BenchmarkID:   payload.benchmark.ID,
-			PedestalID:    payload.pedestalID,
-		}
+		return database.DB.Transaction(func(tx *gorm.DB) error {
+			injection := &database.FaultInjection{
+				Name:          name,
+				FaultType:     faultType,
+				Category:      payload.pedestal,
+				Description:   fmt.Sprintf("Fault batch for task %s (%d faults)", task.TaskID, len(payload.nodes)),
+				DisplayConfig: utils.StringPtr(string(displayData)),
+				EngineConfig:  string(engineData),
+				Groundtruths:  groundtruths,
+				PreDuration:   payload.preDuration,
+				State:         consts.DatapackInitial,
+				Status:        consts.CommonEnabled,
+				TaskID:        &task.TaskID,
+				BenchmarkID:   payload.benchmark.ID,
+				PedestalID:    payload.pedestalID,
+			}
 
-		if err = repository.CreateInjection(database.DB, injection); err != nil {
-			return handleExecutionError(span, logEntry, "failed to write fault injection schedule to database", err)
-		}
+			if err = repository.CreateInjection(database.DB, injection); err != nil {
+				return handleExecutionError(span, logEntry, "failed to write fault injection schedule to database", err)
+			}
 
-		return nil
+			labels, err := common.CreateOrUpdateLabelsFromItems(tx, payload.labels, consts.InjectionCategory)
+			if err != nil {
+				return handleExecutionError(span, logEntry, "failed to create or update labels", err)
+			}
+
+			labelIDs := make([]int, 0, len(labels))
+			for _, label := range labels {
+				labelIDs = append(labelIDs, label.ID)
+			}
+
+			if err := repository.AddInjectionLabels(tx, injection.ID, labelIDs); err != nil {
+				return handleExecutionError(span, logEntry, "failed to associate labels with injection", err)
+			}
+
+			return nil
+		})
 	})
 }
 
@@ -289,6 +308,11 @@ func parseInjectionPayload(payload map[string]any) (*injectionPayload, error) {
 		return nil, fmt.Errorf(message, consts.InjectLabels)
 	}
 
+	system, err := utils.ConvertToType[chaos.SystemType](payload[consts.InjectSystem])
+	if err != nil {
+		return nil, fmt.Errorf(message, consts.InjectSystem)
+	}
+
 	return &injectionPayload{
 		benchmark:   benchmark,
 		preDuration: preDuration,
@@ -297,5 +321,6 @@ func parseInjectionPayload(payload map[string]any) (*injectionPayload, error) {
 		pedestal:    pedestal,
 		pedestalID:  pedestalID,
 		labels:      labels,
+		system:      system,
 	}, nil
 }

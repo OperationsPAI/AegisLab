@@ -11,6 +11,7 @@ def main():
         backup,
         chaos,
         datapack,
+        etcd,
         formatter,
         git,
         pedestal,
@@ -23,6 +24,7 @@ def main():
     app.add_typer(backup.app, name="backup", help="Backup and migration utilities.")
     app.add_typer(chaos.app, name="chaos", help="Chaos engineering.")
     app.add_typer(datapack.app, name="datapack", help="Datapack management utilities.")
+    app.add_typer(etcd.app, name="etcd", help="etcd configuration utilities.")
     app.add_typer(formatter.app, name="format", help="Code formatting utilities.")
     app.add_typer(git.app, name="git", help="Git hooks and utilities.")
     app.add_typer(pedestal.app, name="pedestal", help="Pedestal utilities.")

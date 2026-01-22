@@ -21,6 +21,22 @@ func CreateConfig(db *gorm.DB, config *database.DynamicConfig) error {
 	return nil
 }
 
+// GetConfigByKey retrieves a configuration by its key
+func GetConfigByKey(db *gorm.DB, configKey string, includeUser bool) (*database.DynamicConfig, error) {
+	query := db
+	if includeUser {
+		query = query.Preload("UpdatedByUser")
+	}
+
+	var config database.DynamicConfig
+	if err := query.
+		Where("config_key = ?", configKey).
+		First(&config).Error; err != nil {
+		return nil, fmt.Errorf("failed to find config with key %s: %w", configKey, err)
+	}
+	return &config, nil
+}
+
 // GetConfigByID retrieves a configuration by its ID
 func GetConfigByID(db *gorm.DB, configID int, includeUser bool) (*database.DynamicConfig, error) {
 	query := db
@@ -76,6 +92,18 @@ func ListConfigs(db *gorm.DB, limit, offset int, valueType *consts.ConfigValueTy
 	}
 
 	return configs, total, nil
+}
+
+// ListConfigByScope lists configs filtered by scope
+func ListConfigByScope(db *gorm.DB, scope consts.ConfigScope) ([]database.DynamicConfig, error) {
+	var configs []database.DynamicConfig
+	if err := db.
+		Where("scope = ?", scope).
+		Order("config_key ASC").
+		Find(&configs).Error; err != nil {
+		return nil, fmt.Errorf("failed to list configs by scope %s: %w", consts.GetConfigScopeName(scope), err)
+	}
+	return configs, nil
 }
 
 // UpdateConfig updates a configuration item

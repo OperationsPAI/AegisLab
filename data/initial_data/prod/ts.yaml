@@ -17,5 +17,6 @@ rabbitmq:
 loadgenerator:
   image:
     repository: pair-diag-cn-guangzhou.cr.volces.com/pair/loadgenerator
+    tag: "023"
   initContainer:
     image: pair-diag-cn-guangzhou.cr.volces.com/pair/netshoot:v0.14

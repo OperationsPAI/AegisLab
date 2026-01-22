@@ -423,31 +423,74 @@ func UpdateContainerVersion(req *dto.UpdateContainerVersionReq, containerID, ver
 	return dto.NewContainerVersionResp(updatedVersion), nil
 }
 
+// UploadHelmChart handles uploading a Helm chart package to local storage
+func UploadHelmChart(fileHeader *multipart.FileHeader, containerID, versionID, userID int) (*dto.UploadHelmChartResp, error) {
+	filename := fileHeader.Filename
+
+	containerVersion, err := validateHelmConfigVersion(containerID, versionID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get JuiceFS base path
+	jfsBasePath := config.GetString("jfs.dataset_path")
+	if jfsBasePath == "" {
+		return nil, fmt.Errorf("jfs.dataset_path is not configured")
+	}
+
+	// Create directory: {jfs.dataset_path}/helm-charts
+	targetDir := filepath.Join(jfsBasePath, "helm-charts")
+	if err := os.MkdirAll(targetDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create directory: %w", err)
+	}
+
+	// Generate target filename with timestamp
+	timestamp := time.Now().Unix()
+	ext := filepath.Ext(filename)
+	targetFilename := fmt.Sprintf("%s_chart_%d%s", containerVersion.Container.Name, timestamp, ext)
+	targetPath := filepath.Join(targetDir, targetFilename)
+
+	// Save the uploaded file
+	if err := utils.CopyFileFromFileHeader(fileHeader, targetPath); err != nil {
+		return nil, fmt.Errorf("failed to save chart file: %w", err)
+	}
+
+	// Calculate SHA256 checksum
+	checksum, err := utils.CalculateFileSHA256(targetPath)
+	if err != nil {
+		logrus.WithField("file_path", targetPath).Warnf("failed to calculate checksum: %v", err)
+		checksum = ""
+	}
+
+	logrus.WithFields(logrus.Fields{
+		"file_path": targetPath,
+		"checksum":  checksum,
+	}).Info("Helm chart package uploaded successfully")
+
+	// Update HelmConfig with local path and checksum
+	containerVersion.HelmConfig.LocalPath = targetPath
+	containerVersion.HelmConfig.Checksum = checksum
+	if err := repository.UpdateHelmConfig(database.DB, containerVersion.HelmConfig); err != nil {
+		return nil, fmt.Errorf("failed to update helm config: %w", err)
+	}
+
+	return &dto.UploadHelmChartResp{
+		FilePath: targetPath,
+		FileName: filename,
+		Checksum: checksum,
+	}, nil
+}
+
 // UploadHelmValueFile handles uploading a Helm values file to JuiceFS storage
 func UploadHelmValueFile(fileHeader *multipart.FileHeader, containerID, versionID, userID int) (*dto.UploadHelmValueFileResp, error) {
 	filename := fileHeader.Filename
 
-	containerVersion, err := repository.GetContainerVersionByID(database.DB, versionID)
+	containerVersion, err := validateHelmConfigVersion(containerID, versionID)
 	if err != nil {
-		if errors.Is(err, consts.ErrNotFound) {
-			return nil, fmt.Errorf("%w: container version %d not found", consts.ErrNotFound, versionID)
-		}
-		return nil, fmt.Errorf("failed to get container version: %w", err)
+		return nil, err
 	}
 
-	if containerVersion.ContainerID != containerID {
-		return nil, fmt.Errorf("version %d does not belong to container %d", versionID, containerID)
-	}
-
-	if containerVersion.Container != nil || containerVersion.Container.Type != consts.ContainerTypePedestal {
-		return nil, fmt.Errorf("only pedestal container versions support uploading Helm value files")
-	}
-
-	if containerVersion.HelmConfig == nil {
-		return nil, fmt.Errorf("container version %d does not have an associated Helm configuration", versionID)
-	}
-
-	if err := UploadHemlValueFileCore(database.DB, containerVersion.HelmConfig, fileHeader, ""); err != nil {
+	if err := UploadHemlValueFileCore(database.DB, containerVersion.Container.Name, containerVersion.HelmConfig, fileHeader, ""); err != nil {
 		return nil, fmt.Errorf("failed to upload helm value file: %w", err)
 	}
 
@@ -458,7 +501,7 @@ func UploadHelmValueFile(fileHeader *multipart.FileHeader, containerID, versionI
 }
 
 // UploadHemlValueFileCore handles the core logic of uploading a Helm values file to JuiceFS storage
-func UploadHemlValueFileCore(db *gorm.DB, helmConfig *database.HelmConfig, srcFileHeader *multipart.FileHeader, srcFilePath string) error {
+func UploadHemlValueFileCore(db *gorm.DB, containerName string, helmConfig *database.HelmConfig, srcFileHeader *multipart.FileHeader, srcFilePath string) error {
 	jfsBasePath := config.GetString("jfs.dataset_path")
 	if jfsBasePath == "" {
 		return fmt.Errorf("jfs.dataset_path is not configured")
@@ -475,7 +518,7 @@ func UploadHemlValueFileCore(db *gorm.DB, helmConfig *database.HelmConfig, srcFi
 	var ext, targetFilename, targetPath string
 	if srcFileHeader != nil {
 		ext = filepath.Ext(srcFileHeader.Filename)
-		targetFilename = fmt.Sprintf("values_%d%s", timestamp, ext)
+		targetFilename = fmt.Sprintf("%s_values_%d%s", containerName, timestamp, ext)
 		targetPath = filepath.Join(targetDir, targetFilename)
 
 		if err := utils.CopyFileFromFileHeader(srcFileHeader, targetPath); err != nil {
@@ -485,7 +528,7 @@ func UploadHemlValueFileCore(db *gorm.DB, helmConfig *database.HelmConfig, srcFi
 
 	if srcFilePath != "" {
 		ext = filepath.Ext(srcFilePath)
-		targetFilename = fmt.Sprintf("values_%d%s", timestamp, ext)
+		targetFilename = fmt.Sprintf("%s_values_%d%s", containerName, timestamp, ext)
 		targetPath = filepath.Join(targetDir, targetFilename)
 
 		if err := utils.CopyFile(srcFilePath, targetPath); err != nil {
@@ -789,4 +832,30 @@ func processGitHubSource(req *dto.SubmitBuildContainerReq) (string, error) {
 	}
 
 	return targetDir, nil
+}
+
+// validateHelmConfigVersion validates that a container version exists, belongs to the specified container,
+// is a pedestal type, and has an associated Helm configuration
+func validateHelmConfigVersion(containerID, versionID int) (*database.ContainerVersion, error) {
+	containerVersion, err := repository.GetContainerVersionByID(database.DB, versionID)
+	if err != nil {
+		if errors.Is(err, consts.ErrNotFound) {
+			return nil, fmt.Errorf("%w: container version %d not found", consts.ErrNotFound, versionID)
+		}
+		return nil, fmt.Errorf("failed to get container version: %w", err)
+	}
+
+	if containerVersion.ContainerID != containerID {
+		return nil, fmt.Errorf("version %d does not belong to container %d", versionID, containerID)
+	}
+
+	if containerVersion.Container == nil || containerVersion.Container.Type != consts.ContainerTypePedestal {
+		return nil, fmt.Errorf("only pedestal container versions support Helm configurations")
+	}
+
+	if containerVersion.HelmConfig == nil {
+		return nil, fmt.Errorf("container version %d does not have an associated Helm configuration", versionID)
+	}
+
+	return containerVersion, nil
 }

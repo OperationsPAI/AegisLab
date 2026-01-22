@@ -19,7 +19,7 @@ COMMAND_ROOT_PATH = Path(__file__).parent.parent.parent
 
 DOTENV_PATH = PROJECT_ROOT / ".env"
 HELM_CHART_PATH = PROJECT_ROOT / "helm"
-INITIAL_DATA_PATH = PROJECT_ROOT / "helm" / "files" / "initial_data" / "data.json"
+INITIAL_DATA_PATH = PROJECT_ROOT / "data" / "initial_data" / "staging" / "data.json"
 
 DATAPACK_ROOT_PATH = Path("/mnt/jfs/rcabench_dataset")
 

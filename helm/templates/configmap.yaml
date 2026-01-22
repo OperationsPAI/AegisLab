@@ -28,6 +28,11 @@ data:
     [redis]
     host = "{{ .Release.Name }}-redis:6379"
 
+    [etcd]
+    endpoints = ["http://{{ .Release.Name }}-etcd-headless:2379"]
+    username = "{{ .Values.configmap.etcd.username }}"
+    password = "{{ .Values.configmap.etcd.password }}"
+
     [k8s]
     namespace = "{{ .Values.configmap.k8s.namespace }}"
     [k8s.service]
@@ -105,8 +110,47 @@ metadata:
   name: {{ .Release.Name }}-initial-data
 data:
   data.json: |
+{{- if .Values.initialDataFiles.data_json }}
+{{ .Values.initialDataFiles.data_json | indent 4 }}
+{{- else }}
 {{ .Files.Get "files/initial_data/data.json" | indent 4 }}
+{{- end }}
   otel-demo.yaml: |
+{{- if .Values.initialDataFiles.otel_demo_yaml }}
+{{ .Values.initialDataFiles.otel_demo_yaml | indent 4 }}
+{{- else }}
 {{ .Files.Get "files/initial_data/otel-demo.yaml" | indent 4 }}
+{{- end }}
   ts.yaml: |
+{{- if .Values.initialDataFiles.ts_yaml }}
+{{ .Values.initialDataFiles.ts_yaml | indent 4 }}
+{{- else }}
 {{ .Files.Get "files/initial_data/ts.yaml" | indent 4 }}
+{{- end }}
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-etcd-producer-config
+data:
+  etcd.json: |
+{{ include "helm.etcd.mergedConfig" (dict "root" . "configType" "producer") | indent 4 }}
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-etcd-consumer-config
+data:
+  etcd.json: |
+{{ include "helm.etcd.mergedConfig" (dict "root" . "configType" "consumer") | indent 4 }}
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-system-helm-configs
+data:
+  system_helm_configs.json: |
+{{ include "helm.systemHelmConfigs" . | indent 4 }}

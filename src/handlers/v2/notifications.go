@@ -30,7 +30,6 @@ import (
 //	@Failure		401		{object}	dto.GenericResponse[any]	"Authentication required"
 //	@Failure		500		{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v2/notifications/stream [get]
-//	@x-api-type		{"sdk":"true"}
 //	@x-request-type	{"stream":"true"}
 func GetNotificationStream(c *gin.Context) {
 	var req dto.GetNotificationStreamReq

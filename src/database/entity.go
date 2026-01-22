@@ -17,21 +17,21 @@ import (
 
 // DynamicConfig stores configuration items that can be dynamically modified at runtime
 type DynamicConfig struct {
-	ID          int                    `gorm:"primaryKey;autoIncrement"`                                          // Unique identifier
-	Key         string                 `gorm:"column:config_key;not null;index:idx_config_key_category;size:255"` // Configuration key (e.g., "debugging.enabled", "rate_limiting.max_concurrent_builds")
-	Value       string                 `gorm:"column:config_value;not null;type:text"`                            // Current configuration value (stored as string, type conversion happens in application layer)
-	ValueType   consts.ConfigValueType `gorm:"not null;default:0"`                                                // Value type: string, bool, int, float64, []string
-	Category    string                 `gorm:"not null;size:64;index:idx_config_key_category;default:'app'"`      // Configuration category: app, system, monitor, rate_limiting, database, k8s, etc.
-	Description string                 `gorm:"type:text"`                                                         // Human-readable description of what this configuration does
-	IsSecret    bool                   `gorm:"not null;default:false"`                                            // Whether this is sensitive data (passwords, tokens, etc.)
-	UpdatedBy   *int                   // User ID who last updated this config
+	ID       int                `gorm:"primaryKey;autoIncrement"`                                          // Unique identifier
+	Key      string             `gorm:"column:config_key;not null;index:idx_config_key_category;size:255"` // Configuration key (e.g., "debugging.enabled", "rate_limiting.max_concurrent_builds")
+	Scope    consts.ConfigScope `gorm:"not null;default:0"`                                                // Configuration scope: producer, consumer
+	Category string             `gorm:"not null;size:64;index:idx_config_key_category;default:'app'"`      // Configuration category: app, system, monitor, rate_limiting, database, k8s, etc.
 
-	DefaultValue string   `gorm:"not null;type:text"` // Default value for this configuration
-	MinValue     *float64 `gorm:"type:decimal(20,4)"` // Minimum value (for numeric types)
-	MaxValue     *float64 `gorm:"type:decimal(20,4)"` // Maximum value (for numeric types)
-	Pattern      string   `gorm:"size:512"`           // Regex pattern for string validation
-	Options      string   `gorm:"type:text"`          // JSON array of allowed values (for enum-like configs)
+	ValueType    consts.ConfigValueType `gorm:"not null;default:0"`     // Value type: string, bool, int, float64, []string
+	Description  string                 `gorm:"type:text"`              // Human-readable description of what this configuration does
+	IsSecret     bool                   `gorm:"not null;default:false"` // Whether this is sensitive data (passwords, tokens, etc.)
+	DefaultValue string                 `gorm:"not null;type:text"`     // Default value for this configuration
+	MinValue     *float64               `gorm:"type:decimal(20,4)"`     // Minimum value (for numeric types)
+	MaxValue     *float64               `gorm:"type:decimal(20,4)"`     // Maximum value (for numeric types)
+	Pattern      string                 `gorm:"size:512"`               // Regex pattern for string validation
+	Options      string                 `gorm:"type:text"`              // JSON array of allowed values (for enum-like configs)
 
+	UpdatedBy *int      // User ID who last updated this config
 	CreatedAt time.Time `gorm:"autoCreateTime"` // Creation time
 	UpdatedAt time.Time `gorm:"autoUpdateTime"` // Last update time
 
@@ -174,13 +174,20 @@ func (c *ContainerVersion) AfterFind(tx *gorm.DB) error {
 
 type HelmConfig struct {
 	ID                 int    `gorm:"primaryKey;autoIncrement"` // Unique identifier
-	RepoURL            string `gorm:"not null;size:512"`        // Repository URL
-	RepoName           string `gorm:"size:128"`                 // Repository name
 	ChartName          string `gorm:"not null;size:128"`        // Helm chart name
+	Version            string `gorm:"not null;size:32"`         // Helm chart version (semantic version)
 	ContainerVersionID int    `gorm:"not null;uniqueIndex"`     // Associated ContainerVersion ID (one-to-one relationship)
-	ValueFile          string // Values file path
 
-	FullChart string `gorm:"-"` // Full chart reference (not stored in DB, used for display)
+	// Remote source fields (required)
+	RepoURL  string `gorm:"not null;size:512"` // Repository URL (required)
+	RepoName string `gorm:"not null;size:128"` // Repository name (required)
+
+	// Local source fields (optional fallback when remote fails)
+	LocalPath string `gorm:"size:512"` // Local chart path (e.g., PVC path or object storage URL), optional fallback
+	Checksum  string `gorm:"size:64"`  // Chart package SHA256 checksum (optional, for integrity verification)
+
+	// Other fields
+	ValueFile string `gorm:"size:512"` // Values file path
 
 	// Foreign key association
 	ContainerVersion *ContainerVersion `gorm:"foreignKey:ContainerVersionID;constraint:OnDelete:CASCADE"`
@@ -189,8 +196,16 @@ type HelmConfig struct {
 	DynamicValues []ParameterConfig `gorm:"many2many:helm_config_values"`
 }
 
-func (h *HelmConfig) AfterFind(tx *gorm.DB) error {
-	h.FullChart = fmt.Sprintf("%s/%s", h.RepoName, h.ChartName)
+func (h *HelmConfig) BeforeCreate(tx *gorm.DB) error {
+	if h.Version == "" {
+		return fmt.Errorf("chart version is required")
+	}
+	if h.RepoURL == "" {
+		return fmt.Errorf("RepoURL is required")
+	}
+	if h.RepoName == "" {
+		return fmt.Errorf("RepoName is required")
+	}
 	return nil
 }
 

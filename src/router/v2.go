@@ -151,6 +151,7 @@ func SetupV2Routes(router *gin.Engine) {
 			versionWrite := versions.Group("", middleware.RequireContainerVersionWrite)
 			{
 				versionWrite.POST("", v2handlers.CreateContainerVersion)                      // Create container version
+				versionWrite.POST("/:version_id/helm-chart", v2handlers.UploadHelmChart)      // Upload Helm chart tgz file
 				versionWrite.POST("/:version_id/helm-values", v2handlers.UploadHelmValueFile) // Upload Helm values file
 				versionWrite.PATCH("/:version_id", v2handlers.UpdateContainerVersion)         // Update container version
 			}
@@ -187,8 +188,9 @@ func SetupV2Routes(router *gin.Engine) {
 		{
 			versionRead := versions.Group("", middleware.RequireDatasetVersionRead)
 			{
-				versionRead.GET("/:version_id", v2handlers.GetDatasetVersion) // Get dataset version by ID
-				versionRead.GET("", v2handlers.ListDatasetVersions)           // List dataset versions
+				versionRead.GET("", v2handlers.ListDatasetVersions)                         // List dataset versions
+				versionRead.GET("/:version_id", v2handlers.GetDatasetVersion)               // Get dataset version by ID
+				versionRead.GET("/:version_id/download", v2handlers.DownloadDatasetVersion) // Download dataset version
 			}
 
 			versionWrite := versions.Group("", middleware.RequireDatasetVersionWrite)
@@ -204,9 +206,8 @@ func SetupV2Routes(router *gin.Engine) {
 		// Dataset Read operations
 		datasetRead := datasets.Group("", middleware.RequireDatasetRead)
 		{
-			datasetRead.GET("/:dataset_id", v2handlers.GetDataset)                      // Get dataset by ID
-			datasetRead.GET("", v2handlers.ListDatasets)                                // List datasets
-			datasetRead.GET("/:dataset_id/download", v2handlers.DownloadDatasetVersion) // Download dataset version
+			datasetRead.GET("/:dataset_id", v2handlers.GetDataset) // Get dataset by ID
+			datasetRead.GET("", v2handlers.ListDatasets)           // List datasets
 		}
 
 		// Dataset Write operations
@@ -431,12 +432,11 @@ func SetupV2Routes(router *gin.Engine) {
 		// Injection Read operations
 		injectionRead := injections.Group("", middleware.RequireInjectionRead)
 		{
-			injectionRead.GET("", v2handlers.ListInjections)                      // List injections
-			injectionRead.GET("/:id", v2handlers.GetInjection)                    // Get injection by ID
-			injectionRead.GET("/:id/executions", v2handlers.GetInjectionExecutions) // Get injection executions
-			injectionRead.GET("/:id/logs", v2handlers.GetInjectionLogs)           // Get injection logs
-			injectionRead.GET("/metadata", v2handlers.GetInjectionMetadata)       // Get injection metadata
-			injectionRead.POST("/search", v2handlers.SearchInjections)            // Advanced search
+			injectionRead.GET("", v2handlers.ListInjections)                // List injections
+			injectionRead.GET("/:id", v2handlers.GetInjection)              // Get injection by ID
+			injectionRead.GET("/:id/download", v2handlers.DownloadDatapack) // Download injection datapack
+			injectionRead.GET("/metadata", v2handlers.GetInjectionMetadata) // Get injection metadata
+			injectionRead.POST("/search", v2handlers.SearchInjections)      // Advanced search
 		}
 
 		// Injection Write operations
@@ -497,23 +497,6 @@ func SetupV2Routes(router *gin.Engine) {
 	_ = analyzer // Temporarily unused to avoid compilation errors
 
 	// =====================================================================
-	// Datapack API Group
-	// =====================================================================
-
-	// Datapack Management - Datapack Entity (FaultInjection with datapack focus)
-	datapacks := v2.Group("/datapacks", middleware.JWTAuth())
-	{
-		// Datapack Read operations
-		datapackRead := datapacks.Group("", middleware.RequireInjectionRead)
-		{
-			datapackRead.GET("", v2handlers.ListDatapacks)                    // List datapacks
-			datapackRead.GET("/:id", v2handlers.GetDatapack)                  // Get datapack by ID
-			datapackRead.GET("/:id/metadata", v2handlers.GetDatapackMetadata) // Get datapack metadata
-			datapackRead.GET("/:id/download", v2handlers.DownloadDatapack)    // Download datapack as zip
-		}
-	}
-
-	// =====================================================================
 	// Evaluation API Group
 	// =====================================================================
 
@@ -534,9 +517,9 @@ func SetupV2Routes(router *gin.Engine) {
 	// Metrics routes
 	metrics := v2.Group("/metrics", middleware.JWTAuth())
 	{
-		metrics.GET("/injections", v2handlers.GetInjectionMetrics)   // Get injection metrics
-		metrics.GET("/executions", v2handlers.GetExecutionMetrics)   // Get execution metrics
-		metrics.GET("/algorithms", v2handlers.GetAlgorithmMetrics)   // Get algorithm comparison metrics
+		metrics.GET("/injections", v2handlers.GetInjectionMetrics) // Get injection metrics
+		metrics.GET("/executions", v2handlers.GetExecutionMetrics) // Get execution metrics
+		metrics.GET("/algorithms", v2handlers.GetAlgorithmMetrics) // Get algorithm comparison metrics
 	}
 
 	// =====================================================================
@@ -546,7 +529,7 @@ func SetupV2Routes(router *gin.Engine) {
 	// System metrics routes
 	system := v2.Group("/system", middleware.JWTAuth())
 	{
-		system.GET("/metrics", v2handlers.GetSystemMetrics)               // Get current system metrics
+		system.GET("/metrics", v2handlers.GetSystemMetrics)                // Get current system metrics
 		system.GET("/metrics/history", v2handlers.GetSystemMetricsHistory) // Get historical system metrics
 	}
 }

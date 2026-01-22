@@ -265,7 +265,7 @@ func (h *k8sHandler) HandleCRDSucceeded(namespace, pod, name string, startTime, 
 	errCtx := NewErrorContext(taskCtx, taskSpan, &parsedLabels.taskIdentifiers)
 
 	postProcess := func(injectionName string) {
-		if err := updateInjectionState(injectionName, consts.DatapackInjectFailed); err != nil {
+		if err := updateInjectionState(injectionName, consts.DatapackInjectSuccess); err != nil {
 			errCtx.Warn(nil, "update injection state failed", err)
 		}
 

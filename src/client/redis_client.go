@@ -50,8 +50,13 @@ func CheckCachedField(ctx context.Context, key, field string) bool {
 // GetHashField retrieves a field from Redis hash and unmarshals it into the target
 func GetHashField[T any](ctx context.Context, key, field string, target *T) error {
 	itemJSON, err := GetRedisClient().HGet(ctx, key, field).Result()
-	if err != nil {
+	if err != nil && err != redis.Nil {
 		return fmt.Errorf("failed to get hash field %s from key %s: %w", field, key, err)
+	}
+
+	if itemJSON == "" {
+		logrus.Warnf("field %s not found in cache key %s", field, key)
+		return nil
 	}
 
 	if err := json.Unmarshal([]byte(itemJSON), target); err != nil {
@@ -136,4 +141,24 @@ func RedisXRead(ctx context.Context, streams []string, count int64, block time.D
 	}
 
 	return result, nil
+}
+
+// RedisPublish publishes a message to a Redis channel
+func RedisPublish(ctx context.Context, channel string, message any) error {
+	var payload string
+	switch v := message.(type) {
+	case string:
+		payload = v
+	default:
+		data, err := json.Marshal(message)
+		if err != nil {
+			return fmt.Errorf("failed to marshal message: %w", err)
+		}
+		payload = string(data)
+	}
+
+	if err := GetRedisClient().Publish(ctx, channel, payload).Err(); err != nil {
+		return fmt.Errorf("redis PUBLISH failed for channel '%s': %w", channel, err)
+	}
+	return nil
 }

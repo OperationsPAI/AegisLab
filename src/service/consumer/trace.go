@@ -5,7 +5,6 @@ import (
 	"aegis/database"
 	"aegis/dto"
 	"aegis/repository"
-	"aegis/service/common"
 	"context"
 	"fmt"
 	"time"
@@ -27,6 +26,52 @@ var traceTypeHeightMap = map[consts.TraceType]int{
 	consts.TraceTypeFaultInjection: 5,
 	consts.TraceTypeDatapackBuild:  3,
 	consts.TraceTypeAlgorithmRun:   2,
+}
+
+var traceTaskEventMap = map[consts.TaskType]map[consts.TaskState]consts.EventType{
+	consts.TaskTypeRestartPedestal: {
+		consts.TaskRunning:     consts.EventRestartPedestalStarted,
+		consts.TaskCompleted:   consts.EventRestartPedestalCompleted,
+		consts.TaskError:       consts.EventRestartPedestalFailed,
+		consts.TaskRescheduled: consts.EventNoNamespaceAvailable,
+	},
+	consts.TaskTypeFaultInjection: {
+		consts.TaskRunning:   consts.EventFaultInjectionStarted,
+		consts.TaskCompleted: consts.EventFaultInjectionCompleted,
+		consts.TaskError:     consts.EventFaultInjectionFailed,
+	},
+	consts.TaskTypeBuildDatapack: {
+		consts.TaskRunning:   consts.EventDatapackBuildStarted,
+		consts.TaskCompleted: consts.EventDatapackBuildSucceed,
+		consts.TaskError:     consts.EventDatapackBuildFailed,
+	},
+	consts.TaskTypeRunAlgorithm: {
+		consts.TaskRunning:     consts.EventAlgoRunStarted,
+		consts.TaskCompleted:   consts.EventAlgoRunSucceed,
+		consts.TaskError:       consts.EventAlgoRunFailed,
+		consts.TaskRescheduled: consts.EventNoTokenAvailable,
+	},
+}
+
+// getEventTypeByTask maps a task type and state to the corresponding event type
+func getEventTypeByTask(taskType consts.TaskType, taskState consts.TaskState) consts.EventType {
+	if taskType == consts.TaskTypeCollectResult {
+		return "unknown"
+	}
+
+	stateMap, exists := traceTaskEventMap[taskType]
+	if !exists {
+		logrus.Warnf("no event type mapping for task type: %s", consts.GetTaskTypeName(taskType))
+		return "unknown"
+	}
+
+	eventType, exists := stateMap[taskState]
+	if !exists {
+		logrus.Warnf("no event type mapping for task state: %s", consts.GetTaskStateName(taskState))
+		return "unknown"
+	}
+
+	return eventType
 }
 
 // -----------------------------------------------------------------------------
@@ -311,7 +356,7 @@ func selectBestLastEvent(tasks []database.Task, leafLevel int, streamEvent *dto.
 		}
 
 		// Get event type from task type and state mapping
-		eventType := common.GetEventTypeByTask(task.Type, task.State)
+		eventType := getEventTypeByTask(task.Type, task.State)
 		priority, exists := eventPriority[eventType]
 
 		if !exists {
@@ -365,7 +410,7 @@ func inferTraceState(trace *database.Trace, tasks []database.Task, streamEvent *
 				// Find any failed task at this level to get its event
 				for _, task := range tasks {
 					if task.Level == level && task.State == consts.TaskError {
-						lastEvent = common.GetEventTypeByTask(task.Type, task.State)
+						lastEvent = getEventTypeByTask(task.Type, task.State)
 						break
 					}
 				}
@@ -404,7 +449,7 @@ func inferTraceState(trace *database.Trace, tasks []database.Task, streamEvent *
 			var lastEvent consts.EventType
 			for _, task := range tasks {
 				if task.State == consts.TaskRunning {
-					lastEvent = common.GetEventTypeByTask(task.Type, task.State)
+					lastEvent = getEventTypeByTask(task.Type, task.State)
 					if lastEvent != "" && lastEvent != "unknown" {
 						break
 					}
@@ -427,7 +472,7 @@ func inferTraceState(trace *database.Trace, tasks []database.Task, streamEvent *
 			var latestTime time.Time
 			for _, task := range tasks {
 				if task.State == consts.TaskCompleted && task.UpdatedAt.After(latestTime) {
-					lastEvent = common.GetEventTypeByTask(task.Type, task.State)
+					lastEvent = getEventTypeByTask(task.Type, task.State)
 					latestTime = task.UpdatedAt
 				}
 			}

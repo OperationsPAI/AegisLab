@@ -28,14 +28,52 @@ type RateLimiterConfig struct {
 type TokenBucketRateLimiter struct {
 	redisClient *redis.Client
 	bucketKey   string
+	mu          sync.RWMutex
 	maxTokens   int
 	waitTimeout time.Duration
 	serviceName string
 }
 
+// GetConfig returns the current configuration
+func (r *TokenBucketRateLimiter) GetConfig() (maxTokens int, waitTimeout time.Duration) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.maxTokens, r.waitTimeout
+}
+
+// UpdateConfig dynamically updates the rate limiter configuration
+func (r *TokenBucketRateLimiter) UpdateConfig(maxTokens int, waitTimeout time.Duration) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	logFields := logrus.Fields{
+		"service": r.serviceName,
+	}
+
+	oldMaxTokens := r.maxTokens
+	oldWaitTimeout := r.waitTimeout
+
+	if maxTokens > 0 {
+		r.maxTokens = maxTokens
+		logFields["old_max_tokens"] = oldMaxTokens
+		logFields["new_max_tokens"] = r.maxTokens
+	}
+	if waitTimeout > 0 {
+		r.waitTimeout = waitTimeout
+		logFields["old_wait_timeout"] = oldWaitTimeout
+		logFields["new_wait_timeout"] = r.waitTimeout
+	}
+
+	logrus.WithFields(logFields).Info("Rate limiter configuration updated")
+}
+
 // AcquireToken acquires a token
 func (r *TokenBucketRateLimiter) AcquireToken(ctx context.Context, taskID, traceID string) (bool, error) {
 	span := trace.SpanFromContext(ctx)
+
+	r.mu.RLock()
+	maxTokens := r.maxTokens
+	r.mu.RUnlock()
 
 	script := redis.NewScript(`
 		local bucket_key = KEYS[1]
@@ -58,7 +96,7 @@ func (r *TokenBucketRateLimiter) AcquireToken(ctx context.Context, taskID, trace
 	expireTime := 10 * 60
 
 	result, err := script.Run(ctx, r.redisClient, []string{r.bucketKey},
-		r.maxTokens, taskID, traceID, expireTime).Result()
+		maxTokens, taskID, traceID, expireTime).Result()
 	if err != nil {
 		span.RecordError(err)
 		return false, fmt.Errorf("failed to acquire token: %v", err)
@@ -106,7 +144,11 @@ func (r *TokenBucketRateLimiter) WaitForToken(ctx context.Context, taskID, trace
 	span := trace.SpanFromContext(ctx)
 	span.AddEvent("waiting for token")
 
-	timeoutCtx, cancel := context.WithTimeout(ctx, r.waitTimeout)
+	r.mu.RLock()
+	waitTimeout := r.waitTimeout
+	r.mu.RUnlock()
+
+	timeoutCtx, cancel := context.WithTimeout(ctx, waitTimeout)
 	defer cancel()
 
 	ticker := time.NewTicker(1 * time.Second)
@@ -119,7 +161,7 @@ func (r *TokenBucketRateLimiter) WaitForToken(ctx context.Context, taskID, trace
 			logrus.WithFields(logrus.Fields{
 				"task_id":    taskID,
 				"trace_id":   traceID,
-				"timeout":    r.waitTimeout,
+				"timeout":    waitTimeout,
 				"service":    r.serviceName,
 				"bucket_key": r.bucketKey,
 			}).Warn("Token wait timeout")

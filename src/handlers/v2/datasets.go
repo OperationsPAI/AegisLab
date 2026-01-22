@@ -546,7 +546,7 @@ func DownloadDatasetVersion(c *gin.Context) {
 		return
 	}
 
-	filename, err := producer.GetFilename(datasetID, versionID)
+	filename, err := producer.GetDatasetVersionFilename(datasetID, versionID)
 	if handlers.HandleServiceError(c, err) {
 		return
 	}

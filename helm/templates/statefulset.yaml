@@ -184,3 +184,84 @@ spec:
           requests:
             storage: {{ .Values.persistence.mysql.size }}
   {{- end }}
+
+---
+# etcd
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Release.Name }}-etcd
+spec:
+  serviceName: {{ .Release.Name }}-etcd-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-etcd
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-etcd
+    spec:
+      containers:
+        - name: etcd
+          image: {{ include "helm.image" (dict "imageConfig" .Values.images.etcd "global" .Values.global) }}
+          imagePullPolicy: "{{ .Values.images.etcd.pullPolicy }}"
+          env:
+            - name: ETCD_NAME
+              value: "{{ .Values.configmap.etcd.cluster.name }}"
+            - name: ETCD_DATA_DIR
+              value: "/etcd-data"
+            - name: ETCD_LISTEN_CLIENT_URLS
+              value: "http://0.0.0.0:2379"
+            - name: ETCD_ADVERTISE_CLIENT_URLS
+              value: "http://{{ .Release.Name }}-etcd-external:2379"
+            - name: ETCD_LISTEN_PEER_URLS
+              value: "http://0.0.0.0:2380"
+            - name: ETCD_INITIAL_ADVERTISE_PEER_URLS
+              value: "http://{{ .Release.Name }}-etcd-0.{{ .Release.Name }}-etcd-headless:2380"
+            - name: ETCD_INITIAL_CLUSTER
+              value: "{{ .Values.configmap.etcd.cluster.name }}=http://{{ .Release.Name }}-etcd-0.{{ .Release.Name }}-etcd-headless:2380"
+            - name: ETCD_INITIAL_CLUSTER_STATE
+              value: "new"
+            - name: ETCD_INITIAL_CLUSTER_TOKEN
+              value: "{{ .Values.configmap.etcd.cluster.token }}"
+          ports:
+            - name: client
+              containerPort: 2379
+              protocol: TCP
+            - name: peer
+              containerPort: 2380
+              protocol: TCP
+          {{- if not .Values.persistence.etcd.enabled }}
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          {{- end }}
+          volumeMounts:
+            - name: etcd-data
+              mountPath: /etcd-data
+      {{- if not .Values.persistence.etcd.enabled }}
+      volumes:
+        - name: etcd-data
+          emptyDir:
+            medium: "Memory"
+            sizeLimit: "512Mi"
+      {{- end }}
+  {{- if .Values.persistence.etcd.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: etcd-data
+      spec:
+        accessModes:
+          - {{ .Values.persistence.etcd.accessMode }}
+        {{- if .Values.persistence.etcd.storageClass }}
+        storageClassName: {{ .Values.persistence.etcd.storageClass | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.etcd.size }}
+  {{- end }}

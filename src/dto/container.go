@@ -28,20 +28,22 @@ type ParameterItem struct {
 // =====================================================================
 
 type HelmConfigItem struct {
+	Version       string          `json:"version"`
 	RepoURL       string          `json:"repo_url"`
 	RepoName      string          `json:"repo_name"`
 	ChartName     string          `json:"chart_name"`
-	FullChart     string          `json:"full_chart"`
+	LocalPath     string          `json:"local_path,omitempty"`
 	ValueFile     string          `json:"value_file,omitempty"`
 	DynamicValues []ParameterItem `json:"values,omitempty"`
 }
 
 func NewHelmConfigItem(cfg *database.HelmConfig) *HelmConfigItem {
 	return &HelmConfigItem{
+		Version:   cfg.Version,
 		RepoURL:   cfg.RepoURL,
 		RepoName:  cfg.RepoName,
 		ChartName: cfg.ChartName,
-		FullChart: cfg.FullChart,
+		LocalPath: cfg.LocalPath,
 		ValueFile: cfg.ValueFile,
 	}
 }
@@ -337,6 +339,7 @@ func (req *CreateContainerVersionReq) ConvertToContainerVersion() *database.Cont
 }
 
 type CreateHelmConfigReq struct {
+	Version       string                     `json:"version" binding:"required"`
 	ChartName     string                     `json:"chart_name" binding:"required"`
 	RepoName      string                     `json:"repo_name" binding:"required"`
 	RepoURL       string                     `json:"repo_url" binding:"required"`
@@ -344,10 +347,16 @@ type CreateHelmConfigReq struct {
 }
 
 func (req *CreateHelmConfigReq) Validate() error {
+	req.Version = strings.TrimSpace(req.Version)
 	req.ChartName = strings.TrimSpace(req.ChartName)
 	req.RepoName = strings.TrimSpace(req.RepoName)
 	req.RepoURL = strings.TrimSpace(req.RepoURL)
 
+	if req.Version == "" {
+		if _, _, _, err := utils.ParseSemanticVersion(req.Version); err != nil {
+			return fmt.Errorf("invalid semantic version: %s, %v", req.Version, err)
+		}
+	}
 	if req.ChartName == "" {
 		return fmt.Errorf("chart name cannot be empty")
 	}
@@ -373,6 +382,7 @@ func (req *CreateHelmConfigReq) Validate() error {
 
 func (req *CreateHelmConfigReq) ConvertToHelmConfig() *database.HelmConfig {
 	cfg := &database.HelmConfig{
+		Version:   req.Version,
 		ChartName: req.ChartName,
 		RepoName:  req.RepoName,
 		RepoURL:   req.RepoURL,
@@ -853,18 +863,25 @@ type ListContainerVersionResp struct {
 }
 
 type HelmConfigDetailResp struct {
-	ID           int            `json:"id"`
-	RepoURL      string         `json:"repo_url"`
-	FullChart    string         `json:"full_chart"`
-	PortTemplate string         `json:"port_template"`
-	Values       map[string]any `json:"values"`
+	ID        int            `json:"id"`
+	Version   string         `json:"version"`
+	ChartName string         `json:"chart_name"`
+	RepoName  string         `json:"repo_name"`
+	RepoURL   string         `json:"repo_url"`
+	LocalPath string         `json:"local_path,omitempty"`
+	ValueFile string         `json:"value_file,omitempty"`
+	Values    map[string]any `json:"values"`
 }
 
 func NewHelmConfigDetailResp(cfg *database.HelmConfig) (*HelmConfigDetailResp, error) {
 	resp := &HelmConfigDetailResp{
 		ID:        cfg.ID,
+		Version:   cfg.Version,
+		ChartName: cfg.ChartName,
+		RepoName:  cfg.RepoName,
 		RepoURL:   cfg.RepoURL,
-		FullChart: cfg.FullChart,
+		LocalPath: cfg.LocalPath,
+		ValueFile: cfg.ValueFile,
 	}
 
 	return resp, nil
@@ -874,6 +891,12 @@ func NewHelmConfigDetailResp(cfg *database.HelmConfig) (*HelmConfigDetailResp, e
 type UploadHelmValueFileResp struct {
 	FilePath string `json:"file_path"` // Saved file path
 	FileName string `json:"file_name"` // Original file name
+}
+
+type UploadHelmChartResp struct {
+	FilePath string `json:"file_path"` // Saved chart path
+	FileName string `json:"file_name"` // Original chart file name
+	Checksum string `json:"checksum"`  // SHA256 checksum of the chart
 }
 
 type SubmitContainerBuildResp struct {

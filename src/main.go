@@ -32,8 +32,8 @@ import (
 	"aegis/consts"
 	"aegis/database"
 	"aegis/router"
-	"aegis/service"
 	"aegis/service/consumer"
+	"aegis/service/initialization"
 	"aegis/utils"
 
 	chaosCli "github.com/LGU-SE-Internal/chaos-experiment/client"
@@ -100,7 +100,7 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			logrus.Println("Running as producer")
 			database.InitDB()
-			service.InitializeProducer()
+			initialization.InitializeProducer()
 
 			utils.InitValidator()
 			client.InitTraceProvider()
@@ -128,8 +128,8 @@ func main() {
 			go k8s.GetK8sController().Initialize(ctx, cancel, consumer.NewHandler())
 
 			database.InitDB()
-			service.InitializeConsumer()
-			service.InitConcurrencyLock(ctx)
+			initialization.InitializeConsumer(ctx)
+			initialization.InitConcurrencyLock(ctx)
 
 			client.InitTraceProvider()
 
@@ -152,9 +152,9 @@ func main() {
 			go k8s.GetK8sController().Initialize(ctx, cancel, consumer.NewHandler())
 
 			database.InitDB()
-			service.InitializeProducer()
-			service.InitializeConsumer()
-			service.InitConcurrencyLock(ctx)
+			initialization.InitializeProducer()
+			initialization.InitializeConsumer(ctx)
+			initialization.InitConcurrencyLock(ctx)
 
 			utils.InitValidator()
 			client.InitTraceProvider()
