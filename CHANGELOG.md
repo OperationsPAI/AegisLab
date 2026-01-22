@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
 
 - *(config)* Introduce etcd for dynamic configuration management
 - *(helm)* Add chart version and local path fallback for pedestal deployment
+- *(deployment)* Add staging context and refine service/config management
 
 ### Testing
 

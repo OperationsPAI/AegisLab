@@ -19,5 +19,8 @@ clickhouse:
   service:
     type: NodePort
 
+mongodb:
+  enabled: false
+
 otel:
   enabled: false

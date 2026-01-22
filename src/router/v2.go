@@ -188,8 +188,9 @@ func SetupV2Routes(router *gin.Engine) {
 		{
 			versionRead := versions.Group("", middleware.RequireDatasetVersionRead)
 			{
-				versionRead.GET("/:version_id", v2handlers.GetDatasetVersion) // Get dataset version by ID
-				versionRead.GET("", v2handlers.ListDatasetVersions)           // List dataset versions
+				versionRead.GET("", v2handlers.ListDatasetVersions)                         // List dataset versions
+				versionRead.GET("/:version_id", v2handlers.GetDatasetVersion)               // Get dataset version by ID
+				versionRead.GET("/:version_id/download", v2handlers.DownloadDatasetVersion) // Download dataset version
 			}
 
 			versionWrite := versions.Group("", middleware.RequireDatasetVersionWrite)
@@ -205,9 +206,8 @@ func SetupV2Routes(router *gin.Engine) {
 		// Dataset Read operations
 		datasetRead := datasets.Group("", middleware.RequireDatasetRead)
 		{
-			datasetRead.GET("/:dataset_id", v2handlers.GetDataset)                      // Get dataset by ID
-			datasetRead.GET("", v2handlers.ListDatasets)                                // List datasets
-			datasetRead.GET("/:dataset_id/download", v2handlers.DownloadDatasetVersion) // Download dataset version
+			datasetRead.GET("/:dataset_id", v2handlers.GetDataset) // Get dataset by ID
+			datasetRead.GET("", v2handlers.ListDatasets)           // List datasets
 		}
 
 		// Dataset Write operations
@@ -434,6 +434,7 @@ func SetupV2Routes(router *gin.Engine) {
 		{
 			injectionRead.GET("", v2handlers.ListInjections)                // List injections
 			injectionRead.GET("/:id", v2handlers.GetInjection)              // Get injection by ID
+			injectionRead.GET("/:id/download", v2handlers.DownloadDatapack) // Download injection datapack
 			injectionRead.GET("/metadata", v2handlers.GetInjectionMetadata) // Get injection metadata
 			injectionRead.POST("/search", v2handlers.SearchInjections)      // Advanced search
 		}

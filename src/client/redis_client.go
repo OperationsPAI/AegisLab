@@ -50,8 +50,13 @@ func CheckCachedField(ctx context.Context, key, field string) bool {
 // GetHashField retrieves a field from Redis hash and unmarshals it into the target
 func GetHashField[T any](ctx context.Context, key, field string, target *T) error {
 	itemJSON, err := GetRedisClient().HGet(ctx, key, field).Result()
-	if err != nil {
+	if err != nil && err != redis.Nil {
 		return fmt.Errorf("failed to get hash field %s from key %s: %w", field, key, err)
+	}
+
+	if itemJSON == "" {
+		logrus.Warnf("field %s not found in cache key %s", field, key)
+		return nil
 	}
 
 	if err := json.Unmarshal([]byte(itemJSON), target); err != nil {

@@ -45,7 +45,7 @@ func executeRestartPedestal(ctx context.Context, task *dto.UnifiedTask) error {
 
 		if !acquired {
 			span.AddEvent("no token available, waiting")
-			logEntry.Info("No restart pedestal token available, waiting...")
+			logEntry.Warn("No restart pedestal token available, waiting...")
 
 			acquired, err = rateLimiter.WaitForToken(childCtx, task.TaskID, task.TraceID)
 			if err != nil {

@@ -7,6 +7,8 @@ import (
 	"aegis/dto"
 	"aegis/repository"
 	"aegis/service/common"
+	"aegis/utils"
+	"archive/zip"
 	"context"
 	"encoding/json"
 	"errors"
@@ -220,6 +222,44 @@ func SearchInjections(req *dto.SearchInjectionReq) (*dto.SearchResp[dto.Injectio
 	}
 
 	return resp, nil
+}
+
+// GetDatapackFilename returns the filename for downloading a datapack
+func GetDatapackFilename(injectionID int) (string, error) {
+	injection, err := repository.GetInjectionByID(database.DB, injectionID)
+	if err != nil {
+		if errors.Is(err, consts.ErrNotFound) {
+			return "", fmt.Errorf("%w: injection id: %d", consts.ErrNotFound, injectionID)
+		}
+		return "", fmt.Errorf("failed to get injection: %w", err)
+	}
+
+	if injection.State < consts.DatapackBuildSuccess {
+		return "", fmt.Errorf("datapack for injection id %d is not ready for download", injectionID)
+	}
+
+	return injection.Name, nil
+}
+
+// DownloadDatapack handles the downloading of a specific datapack
+func DownloadDatapack(zipWriter *zip.Writer, excludeRules []utils.ExculdeRule, injectionID int) error {
+	if zipWriter == nil {
+		return fmt.Errorf("zip writer cannot be nil")
+	}
+
+	injection, err := repository.GetInjectionByID(database.DB, injectionID)
+	if err != nil {
+		if errors.Is(err, consts.ErrNotFound) {
+			return fmt.Errorf("%w: injection id: %d", consts.ErrNotFound, injectionID)
+		}
+		return fmt.Errorf("failed to get injection: %w", err)
+	}
+
+	if err := packageDatapackToZip(zipWriter, injection, excludeRules); err != nil {
+		return fmt.Errorf("failed to package injection to zip: %w", err)
+	}
+
+	return nil
 }
 
 // ListInjectionsNoissues handles the request to list fault injections without issues
@@ -626,7 +666,7 @@ func ProduceRestartPedestalTasks(ctx context.Context, req *dto.SubmitInjectionRe
 	// Parse each batch and collect items
 	processedItems := make([]injectionProcessItem, 0, len(req.Specs))
 	for i := range req.Specs {
-		item, err := parseBatchInjectionSpecs(ctx, i, req.Specs[i])
+		item, err := parseBatchInjectionSpecs(ctx, pedestalItem.ContainerName, i, req.Specs[i])
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse injection spec batch %d: %w", i, err)
 		}
@@ -687,6 +727,7 @@ func ProduceRestartPedestalTasks(ctx context.Context, req *dto.SubmitInjectionRe
 				consts.InjectPreDuration: req.PreDuration,
 				consts.InjectNodes:       item.nodes,
 				consts.InjectLabels:      req.Labels,
+				consts.InjectSystem:      chaos.SystemType(pedestalItem.ContainerName),
 			},
 		}
 
@@ -839,7 +880,7 @@ func batchDeleteInjectionsCore(db *gorm.DB, injectionIDs []int) error {
 }
 
 // parseBatchInjectionSpecs parses a single batch of fault injection specifications for parallel execution
-func parseBatchInjectionSpecs(ctx context.Context, batchIndex int, specs []chaos.Node) (*injectionProcessItem, error) {
+func parseBatchInjectionSpecs(ctx context.Context, pedestal string, batchIndex int, specs []chaos.Node) (*injectionProcessItem, error) {
 	if len(specs) == 0 {
 		return nil, fmt.Errorf("empty fault injection batch at index %d", batchIndex)
 	}
@@ -851,16 +892,22 @@ func parseBatchInjectionSpecs(ctx context.Context, batchIndex int, specs []chaos
 	for idx, spec := range specs {
 		childNode, exists := spec.Children[strconv.Itoa(spec.Value)]
 		if !exists {
-			return nil, fmt.Errorf("failed to find key %d in the children at batch %d at index %d", spec.Value, batchIndex, idx)
+			return nil, fmt.Errorf("failed to find key %d in the children at index %d", spec.Value, idx)
 		}
 
 		if len(childNode.Children) < 3 {
-			return nil, fmt.Errorf("no child nodes found for fault spec at batch %d at index %d", batchIndex, idx)
+			return nil, fmt.Errorf("no child nodes found for fault spec at index %d", idx)
 		}
 
 		faultDuration := childNode.Children[consts.DurationNodeKey].Value
 		if faultDuration > maxDuration {
 			maxDuration = faultDuration
+		}
+
+		systemIdx := childNode.Children[consts.SystemNodeKey].Value
+		system := chaos.GetAllSystemTypes()[systemIdx]
+		if pedestal != system.String() {
+			return nil, fmt.Errorf("mismatched system type %s for pedestal %s at index %d", system.String(), pedestal, idx)
 		}
 
 		nodes = append(nodes, spec)
@@ -870,18 +917,18 @@ func parseBatchInjectionSpecs(ctx context.Context, batchIndex int, specs []chaos
 	for idx, node := range nodes {
 		conf, err := chaos.NodeToStruct[chaos.InjectionConf](ctx, &node)
 		if err != nil {
-			return nil, fmt.Errorf("failed to convert node to InjectionConf at batch %d at index %d: %w", batchIndex, idx, err)
+			return nil, fmt.Errorf("failed to convert node to InjectionConf at index %d: %w", idx, err)
 		}
 
 		groundtruth, err := conf.GetGroundtruth(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get groundtruth from InjectionConf at batch %d at index %d: %w", batchIndex, idx, err)
+			return nil, fmt.Errorf("failed to get groundtruth from InjectionConf at index %d: %w", idx, err)
 		}
 
 		for _, service := range groundtruth.Service {
 			if service != "" {
 				if oldIdx, exists := uniqueServices[service]; exists {
-					return nil, fmt.Errorf("duplicated service %s found in batch %d at indexes %d and %d", service, batchIndex, oldIdx, idx)
+					return nil, fmt.Errorf("duplicated groundtruth service %s found at indexes %d and %d", service, oldIdx, idx)
 				}
 				uniqueServices[service] = idx
 			}

@@ -1,4 +1,5 @@
 # Jaeger Service
+{{- if eq .Values.configmap.system.env_mode "staging" }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -28,9 +29,36 @@ spec:
       port: 16686  
       targetPort: 16686
       nodePort: 31686
+{{- else }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-jaeger
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Release.Name }}-jaeger
+  ports:
+    - name: grpc
+      port: 4317
+      targetPort: 4317
+    - name: http
+      port: 4318
+      targetPort: 4318
+    - name: thrift-compact
+      port: 6831
+      targetPort: 6831
+    - name: collector-http
+      port: 14268
+      targetPort: 14268
+    - name: query
+      port: 16686  
+      targetPort: 16686
+{{- end }}
 
 ---
 # Redis Service
+{{- if eq .Values.configmap.system.env_mode "staging" }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -42,9 +70,22 @@ spec:
   ports:
   - port: 6379
     nodePort: 32279
+{{- else }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-redis
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Release.Name }}-redis
+  ports:
+  - port: 6379
+{{- end }}
 
 ---
 # MySQL Service
+{{- if eq .Values.configmap.system.env_mode "staging" }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -57,6 +98,19 @@ spec:
   - port: 3306
     targetPort: 3306
     nodePort: 32206
+{{- else }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-mysql
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Release.Name }}-mysql
+  ports:
+  - port: 3306
+    targetPort: 3306
+{{- end }}
 
 ---
 # etcd Headless Service
@@ -78,6 +132,7 @@ spec:
 
 ---
 # etcd External Service
+{{- if eq .Values.configmap.system.env_mode "staging" }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -90,9 +145,23 @@ spec:
   - port: 2379
     targetPort: 2379
     nodePort: 31379
+{{- else }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-etcd-external
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Release.Name }}-etcd
+  ports:
+  - port: 2379
+    targetPort: 2379
+{{- end }}
 
 ---
 # exp Service
+{{- if eq .Values.configmap.system.env_mode "staging" }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -105,6 +174,19 @@ spec:
   - port: 8080
     targetPort: 8080
     nodePort: 32080
+{{- else }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-exp
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Release.Name }}-producer
+  ports:
+  - port: 8080
+    targetPort: 8080
+{{- end }}
 
 ---
 apiVersion: v1

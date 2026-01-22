@@ -201,7 +201,7 @@
         },
         {
             "key": "database.clickhouse.timezone",
-            "default_value": "Asia/Shanghai",
+            "default_value": "UTC",
             "value_type": 0,
             "scope": 1,
             "category": "database.clickhouse",
@@ -210,7 +210,7 @@
         },
         {
             "key": "injection.system.ts.count",
-            "default_value": "1",
+            "default_value": "5",
             "value_type": 2,
             "scope": 1,
             "category": "injection.system.count",
@@ -299,7 +299,7 @@
         },
         {
             "key": "rate_limiting.max_concurrent_restarts",
-            "default_value": "2",
+            "default_value": "5",
             "value_type": 2,
             "scope": 1,
             "category": "rate_limiting",

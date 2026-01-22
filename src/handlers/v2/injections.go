@@ -2,6 +2,8 @@ package v2
 
 import (
 	"aegis/consts"
+	"aegis/utils"
+	"archive/zip"
 	"context"
 	"fmt"
 	"net/http"
@@ -239,6 +241,47 @@ func SearchInjections(c *gin.Context) {
 	}
 
 	dto.SuccessResponse(c, resp)
+}
+
+// DownloadDatapack handles datapack file download
+//
+//	@Summary		Download datapack
+//	@Description	Download datapack file by injection ID
+//	@Tags			Injections
+//	@ID				download_datapack
+//	@Produce		application/octet-stream
+//	@Security		BearerAuth
+//	@Param			id	path		int							true	"Injection ID"
+//	@Success		200	{file}		binary						"Datapack file"
+//	@Failure		400	{object}	dto.GenericResponse[any]	"Invalid injection ID"
+//	@Failure		403	{object}	dto.GenericResponse[any]	"Permission denied"
+//	@Failure		404	{object}	dto.GenericResponse[any]	"Injection not found"
+//	@Failure		500	{object}	dto.GenericResponse[any]	"Internal server error"
+//	@Router			/api/v2/injections/{id}/download [get]
+//	@x-api-type		{"sdk":"true"}
+func DownloadDatapack(c *gin.Context) {
+	idStr := c.Param(consts.URLPathID)
+	id, ok := handlers.ParsePositiveID(c, idStr, "injection ID")
+	if !ok {
+		return
+	}
+
+	filename, err := producer.GetDatapackFilename(id)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	c.Header("Content-Type", "application/zip")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s.zip", filename))
+
+	zipWriter := zip.NewWriter(c.Writer)
+	defer zipWriter.Close()
+
+	if err := producer.DownloadDatapack(zipWriter, []utils.ExculdeRule{}, id); err != nil {
+		delete(c.Writer.Header(), "Content-Disposition")
+		c.Header("Content-Type", "application/json; charset=utf-8")
+		handlers.HandleServiceError(c, err)
+	}
 }
 
 // ListFaultInjectionNoIssues

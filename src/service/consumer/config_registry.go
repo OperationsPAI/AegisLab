@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"aegis/client"
 	"aegis/client/k8s"
@@ -19,11 +20,12 @@ import (
 // configHandler defines the internal interface for handling configuration changes
 type configHandler interface {
 	// handle processes a configuration change
+	// key: the full configuration key (e.g., "rate_limiting.max_concurrent_builds")
 	// Returns error if the update cannot be applied
-	handle(ctx context.Context, oldValue, newValue string) error
+	handle(ctx context.Context, key, oldValue, newValue string) error
 
-	// key returns the configuration key this handler is responsible for
-	key() string
+	// category returns the configuration category this handler is responsible for
+	category() string
 }
 
 // configRegistry manages configuration handlers
@@ -65,7 +67,7 @@ func HandleConfigChange(ctx context.Context, key, oldValue, newValue string) err
 		logrus.Warnf("failed to update viper for config %s: %v", key, err)
 	}
 
-	if err := handler.handle(ctx, oldValue, newValue); err != nil {
+	if err := handler.handle(ctx, key, oldValue, newValue); err != nil {
 		return fmt.Errorf("handler failed for config %s: %w", key, err)
 	}
 
@@ -97,6 +99,11 @@ func RegisterBuiltinHandlers() {
 
 	// Register handlers using struct implementation
 	registry.register(newChaosSystemCountHandler(GetMonitor(), k8s.GetK8sController()))
+	registry.register(newRateLimitingConfigHandler(
+		GetRestartPedestalRateLimiter(),
+		GetBuildContainerRateLimiter(),
+		GetAlgoExecutionRateLimiter(),
+	))
 
 	// Add more handlers here...
 
@@ -118,13 +125,13 @@ func (r *configRegistry) register(handler configHandler) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	key := handler.key()
-	if _, exists := r.handlers[key]; exists {
-		logrus.Warnf("Config handler for key %s already registered, overwriting", key)
+	category := handler.category()
+	if _, exists := r.handlers[category]; exists {
+		logrus.Warnf("Config handler for category %s already registered, overwriting", category)
 	}
 
-	r.handlers[key] = handler
-	logrus.Debugf("Registered config handler for key: %s", key)
+	r.handlers[category] = handler
+	logrus.Debugf("Registered config handler for category: %s", category)
 }
 
 // publishWrapper wraps a config update function to publish response to Redis
@@ -186,11 +193,11 @@ func newChaosSystemCountHandler(m *monitor, c *k8s.Controller) *chaosSystemCount
 	}
 }
 
-func (h *chaosSystemCountHandler) key() string {
+func (h *chaosSystemCountHandler) category() string {
 	return "injection.system.count"
 }
 
-func (h *chaosSystemCountHandler) handle(ctx context.Context, oldValue, newValue string) error {
+func (h *chaosSystemCountHandler) handle(ctx context.Context, key, oldValue, newValue string) error {
 	return publishWrapper(ctx, func() error {
 		return config.GetChaosSystemConfigManager().Reload(h.onUpdate)
 	})
@@ -235,4 +242,92 @@ func (h *chaosSystemCountHandler) onUpdate() error {
 	namespacesToRemove = append(namespacesToRemove, result.Deleted...)
 
 	return UpdateK8sController(h.controller, namespacesToAdd, namespacesToRemove)
+}
+
+// =====================================================================
+// RateLimitingConfigHandler - handles rate_limiting configuration
+// =====================================================================
+
+// rateLimitingConfigHandler handles rate limiting configuration changes
+type rateLimitingConfigHandler struct {
+	restartLimiter *TokenBucketRateLimiter
+	buildLimiter   *TokenBucketRateLimiter
+	algoLimiter    *TokenBucketRateLimiter
+}
+
+// newRateLimitingConfigHandler creates a new rate limiting config handler
+func newRateLimitingConfigHandler(
+	restartLimiter *TokenBucketRateLimiter,
+	buildLimiter *TokenBucketRateLimiter,
+	algoLimiter *TokenBucketRateLimiter,
+) *rateLimitingConfigHandler {
+	return &rateLimitingConfigHandler{
+		restartLimiter: restartLimiter,
+		buildLimiter:   buildLimiter,
+		algoLimiter:    algoLimiter,
+	}
+}
+
+func (h *rateLimitingConfigHandler) category() string {
+	return "rate_limiting"
+}
+
+func (h *rateLimitingConfigHandler) handle(ctx context.Context, key, oldValue, newValue string) error {
+	return publishWrapper(ctx, func() error {
+		logrus.WithFields(logrus.Fields{
+			"key":       key,
+			"old_value": oldValue,
+			"new_value": newValue,
+		}).Info("Rate limiting configuration updated, applying changes...")
+
+		switch key {
+		case "rate_limiting.max_concurrent_builds":
+			if h.buildLimiter != nil {
+				maxTokens := config.GetInt(consts.MaxTokensKeyBuildContainer)
+				_, currentTimeout := h.buildLimiter.GetConfig()
+				h.buildLimiter.UpdateConfig(maxTokens, currentTimeout)
+			}
+
+		case "rate_limiting.max_concurrent_restarts":
+			if h.restartLimiter != nil {
+				maxTokens := config.GetInt(consts.MaxTokensKeyRestartPedestal)
+				_, currentTimeout := h.restartLimiter.GetConfig()
+				h.restartLimiter.UpdateConfig(maxTokens, currentTimeout)
+			}
+
+		case "rate_limiting.max_concurrent_algo_execution":
+			if h.algoLimiter != nil {
+				maxTokens := config.GetInt(consts.MaxTokensKeyAlgoExecution)
+				_, currentTimeout := h.algoLimiter.GetConfig()
+				h.algoLimiter.UpdateConfig(maxTokens, currentTimeout)
+			}
+
+		case "rate_limiting.token_wait_timeout":
+			// Update timeout for all rate limiters
+			tokenWaitTimeout := config.GetInt("rate_limiting.token_wait_timeout")
+			timeout := time.Duration(tokenWaitTimeout) * time.Second
+
+			if h.restartLimiter != nil {
+				maxTokens, _ := h.restartLimiter.GetConfig()
+				h.restartLimiter.UpdateConfig(maxTokens, timeout)
+			}
+
+			if h.buildLimiter != nil {
+				maxTokens, _ := h.buildLimiter.GetConfig()
+				h.buildLimiter.UpdateConfig(maxTokens, timeout)
+			}
+
+			if h.algoLimiter != nil {
+				maxTokens, _ := h.algoLimiter.GetConfig()
+				h.algoLimiter.UpdateConfig(maxTokens, timeout)
+			}
+
+		default:
+			logrus.Warnf("Unknown rate limiting config key: %s, skipping update", key)
+			return nil
+		}
+
+		logrus.Info("Rate limiting configuration applied successfully")
+		return nil
+	})
 }

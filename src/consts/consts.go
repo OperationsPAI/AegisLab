@@ -320,6 +320,7 @@ const (
 	InjectPedestal    = "pedestal"
 	InjectPedestalID  = "pedestal_id"
 	InjectLabels      = "labels"
+	InjectSystem      = "system"
 
 	BuildBenchmark        = "benchmark"
 	BuildDatapack         = "datapack"
@@ -491,9 +492,8 @@ const (
 )
 
 const (
-	DurationNodeKey       = "0"
-	NamespaceDefaultValue = 1
-	NamespaceNodeKey      = "1"
+	DurationNodeKey = "0"
+	SystemNodeKey   = "1"
 )
 
 // span attribute keys

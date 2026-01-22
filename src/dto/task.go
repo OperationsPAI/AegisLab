@@ -75,7 +75,7 @@ func (t *UnifiedTask) ConvertToTrace(withAlgorithms bool, leafNum int) (*databas
 		if withAlgorithms {
 			traceType = consts.TraceTypeFullPipeline
 		} else {
-			traceType = consts.TraceTypeDatapackBuild
+			traceType = consts.TraceTypeFaultInjection
 		}
 	case consts.TaskTypeBuildDatapack:
 		traceType = consts.TraceTypeDatapackBuild
