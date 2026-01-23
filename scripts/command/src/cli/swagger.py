@@ -1,7 +1,7 @@
 import typer
 
-from src.common.common import settings
-from src.swagger import generate_python_sdk, generate_typescript_sdk, init
+from src.common.common import LanguageType, console, settings
+from src.swagger import Generator, init
 
 app = typer.Typer()
 
@@ -15,9 +15,37 @@ def swagger_init(
 
 
 @app.command()
+def generate_client(
+    language: LanguageType = typer.Option(
+        LanguageType.TYPESCRIPT,
+        "--language",
+        "-l",
+        help="SDK language.",
+    ),
+    version: str = typer.Option(
+        "1.0.0",
+        "--version",
+        "-v",
+        help="API version.",
+    ),
+):
+    """Generates Swagger client documentation."""
+
+    settings.reload()
+
+    if language != LanguageType.TYPESCRIPT:
+        console.print(
+            f"[bold red]❌ Client generation for {language} is not supported yet.[/bold red]"
+        )
+        raise typer.Exit(code=1)
+
+    Generator.get_client_generator(language, version).generate()
+
+
+@app.command()
 def generate_sdk(
-    language: str = typer.Option(
-        "python",
+    language: LanguageType = typer.Option(
+        LanguageType.PYTHON,
         "--language",
         "-l",
         help="SDK language.",
@@ -33,7 +61,4 @@ def generate_sdk(
 
     settings.reload()
 
-    if language.lower() == "python":
-        generate_python_sdk(version)
-    elif language.lower() == "typescript":
-        generate_typescript_sdk(version)
+    Generator.get_sdk_generator(language, version).generate()

@@ -34,6 +34,7 @@ class ENV(str, Enum):
 class LanguageType(str, Enum):
     GO = "go"
     PYTHON = "python"
+    TYPESCRIPT = "typescript"
 
 
 class ScopeType(str, Enum):

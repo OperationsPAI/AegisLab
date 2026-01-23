@@ -29,7 +29,10 @@ class Formatter(ABC):
                 f"Unknown formatter type: {formatter_type}. Available: {available}"
             )
 
-        return formatter_class(scope)  # type: ignore
+        return formatter_class(scope)
+
+    def __init__(self, scope: ScopeType) -> None:
+        self.scope = scope
 
     def run(self) -> int:
         """Run the formatter on the provided files."""

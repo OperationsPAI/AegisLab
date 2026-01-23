@@ -28,6 +28,7 @@ COMMAND := UV_WITH_GROUPS=dev uv run --project $(COMMAND_DIR) python $(COMMAND_D
 LEFTHOOK_CONFIG := lefthook.yml
 SRC_DIR := src
 
+CLIENT_VERSION ?= 0.0.0
 SDK_VERSION ?=0.0.0
 
 # Color definitions
@@ -228,11 +229,11 @@ pre-commit:
 swag-init: ## 📝 Initialize Swagger documentation
 	$(MAKE) run-command ARGS="swagger init -v $(SDK_VERSION)"
 
+generate-typescript-client: swag-init ## ⚙️ Generate TypeScript Client from Swagger documentation
+	$(MAKE) run-command ARGS="swagger generate-client -l typescript -v $(CLIENT_VERSION)"
+
 generate-python-sdk: swag-init ## ⚙️ Generate Python SDK from Swagger documentation
 	$(MAKE) run-command ARGS="swagger generate-sdk -l python -v $(SDK_VERSION)"
-
-generate-typescript-sdk: swag-init ## ⚙️ Generate TypeScript SDK from Swagger documentation
-	$(MAKE) run-command ARGS="swagger generate-sdk -l typescript -v $(SDK_VERSION)"
 
 # =============================================================================
 # Utilities

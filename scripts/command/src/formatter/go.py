@@ -23,7 +23,7 @@ class GoFormatter(Formatter):
         Args:
             scope: The scope type determining which files to format
         """
-        self.scope = scope
+        super().__init__(scope)
         self.files_to_format = self._get_files()
 
     def _get_files(self) -> list[str]:

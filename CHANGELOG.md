@@ -21,6 +21,7 @@ All notable changes to this project will be documented in this file.
 ### Miscellaneous Tasks
 
 - Merge deployment enhancements and config management features
+- Refactor typescript sdk generation workflow
 
 ### Testing
 
