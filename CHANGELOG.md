@@ -24,6 +24,10 @@ All notable changes to this project will be documented in this file.
 - Merge deployment enhancements and config management features
 - Refactor typescript sdk generation workflow
 
+### Refactor
+
+- *(frontend)* Remove entire frontend codebase
+
 ### Testing
 
 - Migrate from Docker Compose to Kubernetes-based testing
