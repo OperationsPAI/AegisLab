@@ -144,6 +144,36 @@
         "status": 1,
         "is_active": true
     },
+    "users": [
+        {
+            "username": "rainysteven1",
+            "email": "rainysteven1@rcabench.local",
+            "password": "rainy123",
+            "full_name": "Rainy Steven1",
+            "status": 1,
+            "is_active": true,
+            "project": [
+                {
+                    "name": "pair_diagnosis",
+                    "role": "project_admin"
+                }
+            ]
+        },
+        {
+            "username": "rainysteven2",
+            "email": "rainysteven2@rcabench.local",
+            "password": "rainy123",
+            "full_name": "Rainy Steven2",
+            "status": 1,
+            "is_active": true,
+            "project": [
+                {
+                    "name": "pair_diagnosis",
+                    "role": "project_developer"
+                }
+            ]
+        }
+    ],
     "dynamic_configs": [
         {
             "key": "debugging.enabled",

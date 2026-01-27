@@ -166,13 +166,19 @@ func (p *InitialDataProject) ConvertToDBProject() *database.Project {
 	}
 }
 
+type InitialUserProject struct {
+	Name string `json:"name"`
+	Role string `json:"role"`
+}
+
 type InitialDataUser struct {
-	Username string            `json:"username"`
-	Email    string            `json:"email"`
-	Password string            `json:"password"`
-	FullName string            `json:"full_name"`
-	Status   consts.StatusType `json:"status"`
-	IsActive bool              `json:"is_active"`
+	Username string                `json:"username"`
+	Email    string                `json:"email"`
+	Password string                `json:"password"`
+	FullName string                `json:"full_name"`
+	Status   consts.StatusType     `json:"status"`
+	IsActive bool                  `json:"is_active"`
+	Projects []InitialUserProject `json:"project,omitempty"`
 }
 
 func (u *InitialDataUser) ConvertToDBUser() *database.User {
@@ -192,6 +198,7 @@ type InitialData struct {
 	Datasets       []InitialDatasaet      `json:"datasets"`
 	Projects       []InitialDataProject   `json:"projects"`
 	AdminUser      InitialDataUser        `json:"admin_user"`
+	Users          []InitialDataUser      `json:"users"`
 }
 
 type ConsumerData struct {

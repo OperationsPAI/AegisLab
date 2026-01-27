@@ -158,6 +158,10 @@ class SDKPostProcesser:
             if new_name.startswith("handler."):
                 new_name = new_name.replace("handler.", "Chaos", 1)
 
+            # Fix duplicate 'Chaos' prefix (e.g., ChaosChaosType -> ChaosType)
+            if new_name.startswith("ChaosChaos"):
+                new_name = new_name.replace("ChaosChaos", "Chaos", 1)
+
             # Also handle nested patterns like 'dto.GenericResponse-dto_XXX'
             # Convert to 'GenericResponse-XXX'
             new_name = new_name.replace("dto_", "")

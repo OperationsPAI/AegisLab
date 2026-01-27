@@ -168,6 +168,10 @@ func initializeProducer() error {
 				return fmt.Errorf("failed to initialize execution labels: %w", err)
 			}
 
+			if err := initializeUsers(tx, initialData); err != nil {
+				return fmt.Errorf("failed to initialize users: %w", err)
+			}
+
 			return nil
 		})
 	})
@@ -382,6 +386,65 @@ func initializeExecutionLabels(tx *gorm.DB) error {
 		if err != nil {
 			return fmt.Errorf("failed to initialize execution label %s=%s: %w",
 				consts.ExecutionLabelSource, labelInfo.value, err)
+		}
+	}
+
+	return nil
+}
+
+func initializeUsers(tx *gorm.DB, data *InitialData) error {
+	if len(data.Users) == 0 {
+		return nil
+	}
+
+	for _, userData := range data.Users {
+		user := userData.ConvertToDBUser()
+
+		if err := repository.CreateUser(tx, user); err != nil {
+			if errors.Is(err, consts.ErrAlreadyExists) {
+				logrus.Warnf("User %s already exists, skipping", user.Username)
+				continue
+			}
+			return fmt.Errorf("failed to create user %s: %w", user.Username, err)
+		}
+
+		// Bind user to specified projects with their roles
+		if len(userData.Projects) > 0 {
+			for _, projectBinding := range userData.Projects {
+				// Get project by name
+				project, err := repository.GetProjectByName(tx, projectBinding.Name)
+				if err != nil {
+					if errors.Is(err, gorm.ErrRecordNotFound) {
+						return fmt.Errorf("project %s not found for user %s", projectBinding.Name, user.Username)
+					}
+					return fmt.Errorf("failed to get project %s: %w", projectBinding.Name, err)
+				}
+
+				// Get role by name
+				role, err := repository.GetRoleByName(tx, consts.RoleName(projectBinding.Role))
+				if err != nil {
+					if errors.Is(err, consts.ErrNotFound) {
+						return fmt.Errorf("role %s not found for user %s in project %s", projectBinding.Role, user.Username, projectBinding.Name)
+					}
+					return fmt.Errorf("failed to get role %s: %w", projectBinding.Role, err)
+				}
+
+				// Bind user to project with role
+				if err := repository.CreateUserProject(tx, &database.UserProject{
+					UserID:    user.ID,
+					ProjectID: project.ID,
+					RoleID:    role.ID,
+					Status:    consts.CommonEnabled,
+				}); err != nil {
+					if !errors.Is(err, consts.ErrAlreadyExists) {
+						return fmt.Errorf("failed to bind user %s to project %s with role %s: %w", user.Username, projectBinding.Name, projectBinding.Role, err)
+					}
+				}
+
+				logrus.Infof("Bound user %s to project %s with role %s", user.Username, projectBinding.Name, projectBinding.Role)
+			}
+		} else {
+			logrus.Infof("Created user %s without project bindings", user.Username)
 		}
 	}
 
