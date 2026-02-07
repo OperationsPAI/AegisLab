@@ -1,12 +1,13 @@
 package consts
 
 import (
+	"encoding/json"
 	"time"
 
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 )
 
-const InitialFilename = "data.json"
+const InitialFilename = "data.yaml"
 const DetectorKey = "algo.detector"
 
 const (
@@ -31,61 +32,9 @@ const (
 	ConfigUpdateResponseChannel = "config:updates:response"
 )
 
-// ResourceName is the type for resource names, used for permission checks
-type ResourceName string
-
-// System resource name constants
-const (
-	ResourceSystem           ResourceName = "system"            // system resource
-	ResourceAudit            ResourceName = "audit"             // audit resource
-	ResourceConfigruation    ResourceName = "configuration"     // configuration resource
-	ResourceContainer        ResourceName = "container"         // container resource
-	ResourceContainerVersion ResourceName = "container_version" // container version resource
-	ResourceDataset          ResourceName = "dataset"           // dataset resource
-	ResourceDatasetVersion   ResourceName = "dataset_version"   // dataset version resource
-	ResourceProject          ResourceName = "project"           // project resource
-	ResourceLabel            ResourceName = "label"             // label resource
-	ResourceUser             ResourceName = "user"              // user resource
-	ResourceRole             ResourceName = "role"              // role resource
-	ResourcePermission       ResourceName = "permission"        // permission resource
-	ResourceTask             ResourceName = "task"              // task resource
-	ResourceTrace            ResourceName = "trace"             // trace resource
-	ResourceInjection        ResourceName = "injection"         // fault injection resource
-	ResourceExecution        ResourceName = "execution"         // execution resource
-)
-
-type ResourceType int
-
-const (
-	ResourceTypeSystem ResourceType = iota
-	ResourceTypeTable
-)
-
-type ResourceCategory int
-
-const (
-	ResourceCore ResourceCategory = iota
-	ResourceAdmin
-)
-
 const Hybrid chaos.ChaosType = -1
 
-// String returns the string representation of the resource name
-func (r ResourceName) String() string {
-	return string(r)
-}
-
-// ActionName is the type for permission action names, used for permission checks
-type ActionName string
-
-// System permission action constants
 const (
-	ActionRead    ActionName = "read"    // read action
-	ActionWrite   ActionName = "write"   // write action
-	ActionDelete  ActionName = "delete"  // delete action
-	ActionExecute ActionName = "execute" // execute action
-	ActionManage  ActionName = "manage"  // manage action
-
 	// Execution result label keys
 	ExecutionLabelSource = "source"
 
@@ -211,6 +160,10 @@ const (
 	DatapackDetectorSuccess
 )
 
+func (ds DatapackState) MarshalJSON() ([]byte, error) {
+	return json.Marshal(GetDatapackStateName(ds))
+}
+
 type ExecutionState int
 
 const (
@@ -218,6 +171,19 @@ const (
 	ExecutionFailed
 	ExecutionSuccess
 )
+
+func (es ExecutionState) MarshalJSON() ([]byte, error) {
+	return json.Marshal(GetExecutionStateName(es))
+}
+
+func (es *ExecutionState) UnmarshalJSON(data []byte) error {
+	var stateName string
+	if err := json.Unmarshal(data, &stateName); err != nil {
+		return err
+	}
+	*es = *GetExecutionStateByName(stateName)
+	return nil
+}
 
 type FaultType chaos.ChaosType
 
@@ -235,9 +201,16 @@ const (
 type PageSize int
 
 const (
+	PageSizeTiny   PageSize = 5
 	PageSizeSmall  PageSize = 10
 	PageSizeMedium PageSize = 20
 	PageSizeLarge  PageSize = 50
+)
+
+type TaskExtra string
+
+const (
+	TaskExtraInjectionAlgorithms TaskExtra = "injection_algorithms"
 )
 
 type TaskState int
@@ -352,8 +325,8 @@ const (
 
 // Redis stream channels and fields
 const (
-	StreamLogKey           = "trace:%s:log"
-	NotificationStreamKey  = "notifications:global"
+	StreamLogKey          = "trace:%s:log"
+	NotificationStreamKey = "notifications:global"
 
 	RdbEventTaskID   = "task_id"
 	RdbEventTaskType = "task_type"
@@ -507,63 +480,6 @@ const (
 	TaskStateKey = "task.task_state"
 )
 
-// RoleName is the type for role constants
-type RoleName string
-
-// Role constants for system roles
-const (
-	RoleSuperAdmin         RoleName = "super_admin"         // Super Admin
-	RoleAdmin              RoleName = "admin"               // Admin
-	RoleContainerAdmin     RoleName = "container_admin"     // Container Admin
-	RoleContainerDeveloper RoleName = "container_developer" // Container Developer
-	RoleContainerViewer    RoleName = "container_viewer"    // Container Viewer
-	RoleDatasetAdmin       RoleName = "dataset_admin"       // Dataset Admin
-	RoleDatasetDeveloper   RoleName = "dataset_developer"   // Dataset Developer
-	RoleDatasetViewer      RoleName = "dataset_viewer"      // Dataset Viewer
-	RoleProjectAdmin       RoleName = "project_admin"       // Project Admin
-	RoleProjectDeveloper   RoleName = "project_developer"   // Project Developer
-	RoleProjectViewer      RoleName = "project_viewer"      // Project Viewer
-)
-
-// PermissionName is the type for permission constants
-type PermissionName string
-
-// Permission constants for system permissions
-const (
-	PermissionReadProject   PermissionName = "read_project"   // Read project
-	PermissionWriteProject  PermissionName = "write_project"  // Write project
-	PermissionDeleteProject PermissionName = "delete_project" // Delete project
-	PermissionManageProject PermissionName = "manage_project" // Manage project
-
-	PermissionReadDataset   PermissionName = "read_dataset"   // Read dataset
-	PermissionWriteDataset  PermissionName = "write_dataset"  // Write dataset
-	PermissionDeleteDataset PermissionName = "delete_dataset" // Delete dataset
-	PermissionManageDataset PermissionName = "manage_dataset" // Manage dataset
-
-	PermissionReadFaultInjection    PermissionName = "read_fault_injection"    // Read fault injection
-	PermissionWriteFaultInjection   PermissionName = "write_fault_injection"   // Write fault injection
-	PermissionDeleteFaultInjection  PermissionName = "delete_fault_injection"  // Delete fault injection
-	PermissionExecuteFaultInjection PermissionName = "execute_fault_injection" // Execute fault injection
-
-	PermissionReadContainer   PermissionName = "read_container"   // Read container
-	PermissionWriteContainer  PermissionName = "write_container"  // Write container
-	PermissionDeleteContainer PermissionName = "delete_container" // Delete container
-	PermissionManageContainer PermissionName = "manage_container" // Manage container
-
-	PermissionReadContainerVersion   PermissionName = "read_container_version"   // Read container version
-	PermissionWriteContainerVersion  PermissionName = "write_container_version"  // Write container version
-	PermissionDeleteContainerVersion PermissionName = "delete_container_version" // Delete container version
-	PermissionManageContainerVersion PermissionName = "manage_container_version" // Manage container version
-
-	PermissionReadTask    PermissionName = "read_task"    // Read task
-	PermissionWriteTask   PermissionName = "write_task"   // Write task
-	PermissionDeleteTask  PermissionName = "delete_task"  // Delete task
-	PermissionExecuteTask PermissionName = "execute_task" // Execute task
-
-	PermissionReadRole       PermissionName = "read_role"       // Read role
-	PermissionReadPermission PermissionName = "read_permission" // Read permission
-)
-
 const (
 	URLPathID           = "id"
 	URLPathUserID       = "user_id"
@@ -574,6 +490,7 @@ const (
 	URLPathVersionID    = "version_id"
 	URLPathDatasetID    = "dataset_id"
 	URLPathProjectID    = "project_id"
+	URLPathTeamID       = "team_id"
 	URLPathTaskID       = "task_id"
 	URLPathDatapackID   = "datapack_id"
 	URLPathExecutionID  = "execution_id"

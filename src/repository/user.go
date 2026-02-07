@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
@@ -16,6 +15,7 @@ const (
 	userContainerOmitFields = "active_user_container"
 	userDatasetOmitFields   = "active_user_dataset"
 	userProjectOmitFields   = "active_user_project"
+	userTeamOmitFields      = "active_user_team"
 )
 
 // CreateUser creates a user
@@ -126,6 +126,19 @@ func DeleteUserRole(db *gorm.DB, userID, roleID int) error {
 	return nil
 }
 
+// IsSystemAdmin checks if a user has system admin role
+func IsSystemAdmin(db *gorm.DB, userID int) (bool, error) {
+	var count int64
+	if err := db.Table("user_roles").
+		Joins("JOIN roles ON user_roles.role_id = roles.id").
+		Where("user_roles.user_id = ? AND roles.name IN (?, ?)",
+			userID, consts.RoleSuperAdmin, consts.RoleAdmin).
+		Count(&count).Error; err != nil {
+		return false, fmt.Errorf("failed to check system admin status: %w", err)
+	}
+	return count > 0, nil
+}
+
 // RemoveUsersFromRole deletes all user-role associations associated with a given role
 func RemoveUsersFromRole(db *gorm.DB, roleID int) error {
 	if err := db.Where("role_id = ?", roleID).
@@ -203,103 +216,6 @@ func BatchDeleteUserPermisssions(db *gorm.DB, userID int, permissionIDs []int) e
 		return fmt.Errorf("failed to batch delete user permissions: %w", err)
 	}
 	return nil
-}
-
-// CheckUserPermission checks if user has specific permission
-func CheckUserPermission(db *gorm.DB, userID int, action string, resourceName string, projectID, containerID, datasetID *int) (bool, error) {
-	// Find the target permission
-	var permission database.Permission
-	if err := db.
-		Select("permissions.*").
-		Joins("JOIN resources ON permissions.resource_id = resources.id").
-		Where("permissions.action = ? AND resources.name = ?", action, resourceName).
-		First(&permission).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return false, nil
-		}
-		return false, fmt.Errorf("failed to find target permission: %w", err)
-	}
-	permissionID := permission.ID
-
-	// Build queries to check direct and role-based permissions
-	directQuery := db.
-		Select("up.permission_id").
-		Table("user_permissions up").
-		Where("up.user_id = ? AND up.permission_id = ?", userID, permissionID).
-		Where("up.grant_type = 'grant'").
-		Where("up.expires_at IS NULL OR up.expires_at > ?", time.Now())
-
-	if projectID != nil {
-		directQuery = directQuery.Where("up.project_id IS NULL OR up.project_id = ?", *projectID)
-	} else {
-		directQuery = directQuery.Where("up.project_id IS NULL")
-	}
-
-	if containerID != nil {
-		directQuery = directQuery.Where("up.container_id IS NULL OR up.container_id = ?", *containerID)
-	} else {
-		directQuery = directQuery.Where("up.container_id IS NULL")
-	}
-
-	if datasetID != nil {
-		directQuery = directQuery.Where("up.dataset_id IS NULL OR up.dataset_id = ?", *datasetID)
-	} else {
-		directQuery = directQuery.Where("up.dataset_id IS NULL")
-	}
-
-	globalRoleQuery := db.
-		Select("rp.permission_id").
-		Table("role_permissions rp").
-		Joins("JOIN user_roles ur ON rp.role_id = ur.role_id").
-		Where("ur.user_id = ? AND rp.permission_id = ?", userID, permissionID)
-
-	finalQuery := db.Table("(? UNION ALL ?) as fixed", directQuery, globalRoleQuery)
-
-	// Project role permissions
-	if projectID != nil {
-		projectRoleQuery := db.
-			Select("rp.permission_id").
-			Table("role_permissions rp").
-			Joins("JOIN user_projects upr ON rp.role_id = upr.role_id").
-			Where("upr.user_id = ? AND upr.project_id = ? AND rp.permission_id = ?",
-				userID, *projectID, permissionID).
-			Where("upr.status = ?", consts.CommonEnabled)
-
-		finalQuery = db.Table("(? UNION ALL ?) as extra", finalQuery, projectRoleQuery)
-	}
-
-	// Container role permissions
-	if containerID != nil {
-		containerRoleQuery := db.
-			Select("rp.permission_id").
-			Table("role_permissions rp").
-			Joins("JOIN user_containers uc ON rp.role_id = uc.role_id").
-			Where("uc.user_id = ? AND uc.container_id = ? AND rp.permission_id = ?",
-				userID, *containerID, permissionID).
-			Where("uc.status = ?", consts.CommonEnabled)
-
-		finalQuery = db.Table("(? UNION ALL ?) as extra", finalQuery, containerRoleQuery)
-	}
-
-	// Dataset role permissions
-	if datasetID != nil {
-		datasetRoleQuery := db.
-			Select("rp.permission_id").
-			Table("role_permissions rp").
-			Joins("JOIN user_datasets ud ON rp.role_id = ud.role_id").
-			Where("ud.user_id = ? AND ud.dataset_id = ? AND rp.permission_id = ?",
-				userID, *datasetID, permissionID).
-			Where("ud.status = ?", consts.CommonEnabled)
-
-		finalQuery = db.Table("(? UNION ALL ?) as extra", finalQuery, datasetRoleQuery)
-	}
-
-	var count int64
-	if err := finalQuery.Limit(1).Count(&count).Error; err != nil {
-		return false, fmt.Errorf("failed to check user permission: %w", err)
-	}
-
-	return count > 0, nil
 }
 
 // RemoveUsersFromPermission deletes all user-permission associations associated with a given permission

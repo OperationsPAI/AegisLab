@@ -30,6 +30,8 @@ func JWTAuth() gin.HandlerFunc {
 			c.Set("username", claims.Username)
 			c.Set("email", claims.Email)
 			c.Set("is_active", claims.IsActive)
+			c.Set("is_admin", claims.IsAdmin)
+			c.Set("user_roles", claims.Roles)
 			c.Set("token_expires_at", claims.ExpiresAt.Time)
 			c.Set("token_type", "user")
 			c.Next()
@@ -82,6 +84,8 @@ func OptionalJWTAuth() gin.HandlerFunc {
 			c.Set("username", claims.Username)
 			c.Set("email", claims.Email)
 			c.Set("is_active", claims.IsActive)
+			c.Set("is_admin", claims.IsAdmin)
+			c.Set("user_roles", claims.Roles)
 			c.Set("token_expires_at", claims.ExpiresAt.Time)
 			c.Set("token_type", "user")
 			c.Next()
@@ -172,6 +176,28 @@ func GetTokenType(c *gin.Context) string {
 		return ""
 	}
 	return t
+}
+
+// IsCurrentUserAdmin checks if current user has system admin role (from JWT token)
+func IsCurrentUserAdmin(c *gin.Context) bool {
+	isAdmin, exists := c.Get("is_admin")
+	if !exists {
+		return false
+	}
+
+	admin, ok := isAdmin.(bool)
+	return ok && admin
+}
+
+// GetCurrentUserRoles returns the roles of the current user (from JWT token)
+func GetCurrentUserRoles(c *gin.Context) ([]string, bool) {
+	roles, exists := c.Get("user_roles")
+	if !exists {
+		return nil, false
+	}
+
+	userRoles, ok := roles.([]string)
+	return userRoles, ok
 }
 
 // GetServiceTaskID extracts task ID from service token context

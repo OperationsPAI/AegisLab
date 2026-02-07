@@ -1,11 +1,69 @@
 package consts
 
 var ValidActions = map[ActionName]struct{}{
-	ActionRead:    {},
-	ActionWrite:   {},
-	ActionDelete:  {},
-	ActionManage:  {},
-	ActionExecute: {},
+	// Basic CRUD Operations
+	ActionCreate: {},
+	ActionRead:   {},
+	ActionUpdate: {},
+	ActionDelete: {},
+
+	// Execution and State Management
+	ActionExecute:  {},
+	ActionStop:     {},
+	ActionRestart:  {},
+	ActionActivate: {},
+	ActionSuspend:  {},
+
+	// File and Data Operations
+	ActionUpload:   {},
+	ActionDownload: {},
+	ActionImport:   {},
+	ActionExport:   {},
+
+	// Permission and Membership Management
+	ActionAssign: {},
+	ActionGrant:  {},
+	ActionRevoke: {},
+
+	// Configuration and Administration
+	ActionConfigure: {},
+	ActionManage:    {},
+
+	// Collaboration and Sharing
+	ActionShare: {},
+	ActionClone: {},
+
+	// Monitoring and Analysis
+	ActionMonitor: {},
+	ActionAnalyze: {},
+	ActionAudit:   {},
+}
+
+var ValidResourceNames = map[ResourceName]struct{}{
+	ResourceSystem:           {},
+	ResourceAudit:            {},
+	ResourceConfiguration:    {},
+	ResourceContainer:        {},
+	ResourceContainerVersion: {},
+	ResourceDataset:          {},
+	ResourceDatasetVersion:   {},
+	ResourceProject:          {},
+	ResourceTeam:             {},
+	ResourceLabel:            {},
+	ResourceUser:             {},
+	ResourceRole:             {},
+	ResourcePermission:       {},
+	ResourceTask:             {},
+	ResourceTrace:            {},
+	ResourceInjection:        {},
+	ResourceExecution:        {},
+}
+
+var ValidResourceScopes = map[ResourceScope]struct{}{
+	ScopeOwn:     {},
+	ScopeProject: {},
+	ScopeTeam:    {},
+	ScopeAll:     {},
 }
 
 var ValidAuditLogStates = map[AuditLogState]struct{}{
@@ -88,8 +146,10 @@ var ValidResourceTypes = map[ResourceType]struct{}{
 }
 
 var ValidResourceCategories = map[ResourceCategory]struct{}{
-	ResourceCore:  {},
-	ResourceAdmin: {},
+	ResourceCategoryChaos:    {},
+	ResourceCategoryAsset:    {},
+	ResourceCategoryPlatform: {},
+	ResourceCategorySystem:   {},
 }
 
 var ValidStatuses = map[StatusType]struct{}{

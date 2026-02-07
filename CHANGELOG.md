@@ -29,6 +29,7 @@ All notable changes to this project will be documented in this file.
 
 - *(frontend)* Remove entire frontend codebase
 - *(deployment)* Convert initial data format from JSON to YAML
+- *(auth)* Implement role-based access control with JWT claims
 
 ### Testing
 

@@ -82,7 +82,7 @@ var valueDataTypeMap = map[ValueDataType]string{
 var resourceDisplayNameMap = map[ResourceName]string{
 	ResourceSystem:           "System",
 	ResourceAudit:            "Audit",
-	ResourceConfigruation:    "Configuration",
+	ResourceConfiguration:    "Configuration",
 	ResourceContainer:        "Container",
 	ResourceContainerVersion: "Container Version",
 	ResourceDataset:          "Dataset",
@@ -104,8 +104,10 @@ var resouceTypeMap = map[ResourceType]string{
 }
 
 var resourceCategoryMap = map[ResourceCategory]string{
-	ResourceCore:  "core",
-	ResourceAdmin: "admin",
+	ResourceCategoryChaos:    "chaos",
+	ResourceCategoryAsset:    "asset",
+	ResourceCategoryPlatform: "platform",
+	ResourceCategorySystem:   "system",
 }
 
 var statusTypeMap = map[StatusType]string{
@@ -149,61 +151,25 @@ var traceStateMap = map[TraceState]string{
 
 // SystemRoleDisplayNames maps system role names to their display names
 var SystemRoleDisplayNames = map[RoleName]string{
-	RoleSuperAdmin:         "Super Admin",
-	RoleAdmin:              "Admin",
-	RoleContainerAdmin:     "Container Admin",
-	RoleContainerDeveloper: "Container Developer",
-	RoleContainerViewer:    "Container Viewer",
-	RoleDatasetAdmin:       "Dataset Admin",
-	RoleDatasetDeveloper:   "Dataset Developer",
-	RoleDatasetViewer:      "Dataset Viewer",
-	RoleProjectAdmin:       "Project Admin",
-	RoleProjectDeveloper:   "Project Developer",
-	RoleProjectViewer:      "Project Viewer",
-}
+	// System Roles
+	RoleSuperAdmin: "Super Admin",
+	RoleAdmin:      "Admin",
 
-// SystemRolePermissions defines the default permissions for each system role
-var SystemRolePermissions = map[RoleName][]PermissionName{
-	RoleSuperAdmin: {},
-	RoleAdmin: {
-		PermissionReadProject, PermissionWriteProject, PermissionDeleteProject, PermissionManageProject,
-		PermissionReadDataset, PermissionWriteDataset, PermissionDeleteDataset, PermissionManageDataset,
-		PermissionReadFaultInjection, PermissionWriteFaultInjection, PermissionDeleteFaultInjection, PermissionExecuteFaultInjection,
-		PermissionReadContainer, PermissionWriteContainer, PermissionDeleteContainer, PermissionManageContainer,
-		PermissionReadTask, PermissionWriteTask, PermissionDeleteTask, PermissionExecuteTask,
-		PermissionReadRole,
-		PermissionReadPermission,
-	},
-	RoleContainerAdmin: {
-		PermissionReadContainer, PermissionWriteContainer, PermissionDeleteContainer, PermissionManageContainer,
-		PermissionReadContainerVersion, PermissionWriteContainerVersion, PermissionDeleteContainerVersion, PermissionManageContainerVersion,
-	},
-	RoleContainerDeveloper: {
-		PermissionReadContainer, PermissionWriteContainer,
-		PermissionReadContainerVersion, PermissionWriteContainerVersion,
-	},
-	RoleContainerViewer: {
-		PermissionReadContainer,
-		PermissionReadContainerVersion,
-	},
-	RoleProjectAdmin: {
-		PermissionReadProject, PermissionWriteProject, PermissionDeleteProject, PermissionManageProject,
-		PermissionReadDataset, PermissionWriteDataset, PermissionDeleteDataset, PermissionManageDataset,
-		PermissionReadFaultInjection, PermissionWriteFaultInjection, PermissionDeleteFaultInjection, PermissionExecuteFaultInjection,
-		PermissionReadTask, PermissionWriteTask, PermissionExecuteTask,
-	},
-	RoleProjectDeveloper: {
-		PermissionReadProject,
-		PermissionReadDataset, PermissionWriteDataset,
-		PermissionReadFaultInjection, PermissionWriteFaultInjection, PermissionExecuteFaultInjection,
-		PermissionReadTask, PermissionWriteTask, PermissionExecuteTask,
-	},
-	RoleProjectViewer: {
-		PermissionReadProject,
-		PermissionReadDataset,
-		PermissionReadFaultInjection,
-		PermissionReadTask,
-	},
+	// Regular User Role
+	RoleUser:                 "User",
+	RoleContainerAdmin:       "Container Admin",
+	RoleContainerDeveloper:   "Container Developer",
+	RoleContainerViewer:      "Container Viewer",
+	RoleDatasetAdmin:         "Dataset Admin",
+	RoleDatasetDeveloper:     "Dataset Developer",
+	RoleDatasetViewer:        "Dataset Viewer",
+	RoleProjectAdmin:         "Project Admin",
+	RoleProjectAlgoDeveloper: "Project Algorithm Developer",
+	RoleProjectDataDeveloper: "Project Data Developer",
+	RoleProjectViewer:        "Project Viewer",
+	RoleTeamAdmin:            "Team Admin",
+	RoleTeamMember:           "Team Member",
+	RoleTeamViewer:           "Team Viewer",
 }
 
 // ------------------- Functions to get names ------------------
@@ -243,6 +209,20 @@ func GetDatapackStateName(state DatapackState) string {
 	return "unknown"
 }
 
+func GetDatapackStateByName(name string) *DatapackState {
+	datapackStateNameToStateMap := make(map[string]DatapackState, len(datapackStateMap))
+	for dState, name := range datapackStateMap {
+		datapackStateNameToStateMap[name] = dState
+	}
+
+	datapackState, exists := datapackStateNameToStateMap[name]
+	if exists {
+		return &datapackState
+	}
+
+	return nil
+}
+
 func GetDynamicConfigTypeName(configType ConfigValueType) string {
 	if name, exists := dynamicConfigTypeMap[configType]; exists {
 		return name
@@ -250,11 +230,25 @@ func GetDynamicConfigTypeName(configType ConfigValueType) string {
 	return "unknown"
 }
 
-func GetExecuteStateName(state ExecutionState) string {
+func GetExecutionStateName(state ExecutionState) string {
 	if name, exists := executeStateMap[state]; exists {
 		return name
 	}
 	return "unknown"
+}
+
+func GetExecutionStateByName(name string) *ExecutionState {
+	executionStateNameToStateMap := make(map[string]ExecutionState, len(executeStateMap))
+	for eState, name := range executeStateMap {
+		executionStateNameToStateMap[name] = eState
+	}
+
+	executionState, exists := executionStateNameToStateMap[name]
+	if exists {
+		return &executionState
+	}
+
+	return nil
 }
 
 func GetGrantTypeName(grantType GrantType) string {
