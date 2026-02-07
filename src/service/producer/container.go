@@ -54,7 +54,7 @@ func CreateContainer(req *dto.CreateContainerReq, userID int) (*dto.ContainerRes
 
 // CreateContainerCore performs the core logic of creating a container within a transaction
 func CreateContainerCore(tx *gorm.DB, container *database.Container, userID int) (*database.Container, error) {
-	role, err := repository.GetRoleByName(tx, consts.RoleContainerAdmin)
+	role, err := repository.GetRoleByName(tx, consts.RoleContainerAdmin.String())
 	if err != nil {
 		if errors.Is(err, consts.ErrNotFound) {
 			return nil, fmt.Errorf("%w: role %v not found", err, consts.RoleContainerAdmin)

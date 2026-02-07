@@ -10,8 +10,9 @@ import (
 )
 
 type LabelItem struct {
-	Key   string `json:"key"`
-	Value string `json:"value"`
+	Key      string `json:"key"`
+	Value    string `json:"value"`
+	IsSystem bool   `json:"is_system,omitempty"`
 }
 
 // ConvertLabelItemssToConditions converts a slice of LabelItem to a slice of map conditions

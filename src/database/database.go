@@ -98,6 +98,7 @@ func InitDB() {
 		&UserRole{},
 		&RolePermission{},
 		&UserPermission{},
+		&UserTeam{},
 
 		// Dynamic configuration entities
 		&DynamicConfig{},

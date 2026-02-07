@@ -106,7 +106,8 @@ type TokenRefreshResp struct {
 type UserInfo struct {
 	ID       int    `json:"id" example:"1"`
 	Username string `json:"username" example:"admin"`
-	Avatar   string `json:"avatar,omitempty" example:"https://example.com/avatar.jpg"`
+	Avatar   string `json:"avatar,omitempty"`
+	Role     string `json:"role,omitempty"`
 }
 
 func NewUserInfo(user *database.User) *UserInfo {

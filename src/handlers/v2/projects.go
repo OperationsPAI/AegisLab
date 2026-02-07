@@ -252,3 +252,253 @@ func ManageProjectCustomLabels(c *gin.Context) {
 
 	dto.SuccessResponse(c, resp)
 }
+
+// ===================== Project-Injection API =====================
+
+// ListProjectInjections lists all fault injections for a project
+//
+//	@Summary		List project fault injections
+//	@Description	Get paginated list of fault injections for a specific project
+//	@Tags			Projects
+//	@ID				list_project_injections
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			project_id	path		int														true	"Project ID"
+//	@Param			page		query		int														false	"Page number"	default(1)
+//	@Param			size		query		int														false	"Page size"		default(20)
+//	@Success		200			{object}	dto.GenericResponse[dto.ListResp[dto.InjectionResp]]	"Fault injections retrieved successfully"
+//	@Failure		400			{object}	dto.GenericResponse[any]								"Invalid project ID or parameters"
+//	@Failure		401			{object}	dto.GenericResponse[any]								"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]								"Permission denied"
+//	@Failure		404			{object}	dto.GenericResponse[any]								"Project not found"
+//	@Failure		500			{object}	dto.GenericResponse[any]								"Internal server error"
+//	@Router			/api/v2/projects/{project_id}/injections [get]
+//	@x-api-type		{"sdk":"true"}
+func ListProjectInjections(c *gin.Context) {
+	projectIDStr := c.Param(consts.URLPathProjectID)
+	projectID, err := strconv.Atoi(projectIDStr)
+	if err != nil || projectID <= 0 {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid project ID")
+		return
+	}
+
+	var req dto.ListInjectionReq
+	if err := c.ShouldBindQuery(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		return
+	}
+
+	resp, err := producer.ListProjectInjections(&req, projectID)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	dto.SuccessResponse(c, resp)
+}
+
+// SearchProjectInjections searches fault injections within a specific project
+//
+//	@Summary		Search project fault injections
+//	@Description	Advanced search for injections within a project with complex filtering
+//	@Tags			Projects
+//	@ID				search_project_injections
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			project_id	path		int														true	"Project ID"
+//	@Param			search		body		dto.SearchInjectionReq									true	"Search criteria"
+//	@Success		200			{object}	dto.GenericResponse[dto.SearchResp[dto.InjectionDetailResp]]	"Search results"
+//	@Failure		400			{object}	dto.GenericResponse[any]								"Invalid project ID or request"
+//	@Failure		401			{object}	dto.GenericResponse[any]								"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]								"Permission denied"
+//	@Failure		404			{object}	dto.GenericResponse[any]								"Project not found"
+//	@Failure		500			{object}	dto.GenericResponse[any]								"Internal server error"
+//	@Router			/api/v2/projects/{project_id}/injections/search [post]
+//	@x-api-type		{"sdk":"true"}
+func SearchProjectInjections(c *gin.Context) {
+	projectIDStr := c.Param(consts.URLPathProjectID)
+	projectID, err := strconv.Atoi(projectIDStr)
+	if err != nil || projectID <= 0 {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid project ID")
+		return
+	}
+
+	searchInjectionsCommon(c, &projectID)
+}
+
+// ListProjectFaultInjectionNoIssues lists fault injections without issues for a project
+//
+//	@Summary		List project fault injections without issues
+//	@Description	Query fault injection records without issues within a project based on time range
+//	@Tags			Projects
+//	@ID				list_project_injections_no_issues
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			project_id			path		int													true	"Project ID"
+//	@Param			labels				query		[]string											false	"Filter by labels"
+//	@Param			lookback			query		string												false	"Time range query"
+//	@Param			custom_start_time	query		string												false	"Custom start time"
+//	@Param			custom_end_time		query		string												false	"Custom end time"
+//	@Success		200					{object}	dto.GenericResponse[[]dto.InjectionNoIssuesResp]	"Injections retrieved successfully"
+//	@Failure		400					{object}	dto.GenericResponse[any]							"Invalid parameters"
+//	@Failure		401					{object}	dto.GenericResponse[any]							"Authentication required"
+//	@Failure		403					{object}	dto.GenericResponse[any]							"Permission denied"
+//	@Failure		404					{object}	dto.GenericResponse[any]							"Project not found"
+//	@Failure		500					{object}	dto.GenericResponse[any]							"Internal server error"
+//	@Router			/api/v2/projects/{project_id}/injections/analysis/no-issues [get]
+//	@x-api-type		{"sdk":"true"}
+func ListProjectFaultInjectionNoIssues(c *gin.Context) {
+	projectIDStr := c.Param(consts.URLPathProjectID)
+	projectID, err := strconv.Atoi(projectIDStr)
+	if err != nil || projectID <= 0 {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid project ID")
+		return
+	}
+
+	listFaultInjectionNoIssuesCommon(c, &projectID)
+}
+
+// ListProjectFaultInjectionWithIssues lists fault injections with issues for a project
+//
+//	@Summary		List project fault injections with issues
+//	@Description	Query fault injection records with issues within a project based on time range
+//	@Tags			Projects
+//	@ID				list_project_injections_with_issues
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			project_id			path		int														true	"Project ID"
+//	@Param			labels				query		[]string												false	"Filter by labels"
+//	@Param			lookback			query		string													false	"Time range query"
+//	@Param			custom_start_time	query		string													false	"Custom start time"
+//	@Param			custom_end_time		query		string													false	"Custom end time"
+//	@Success		200					{object}	dto.GenericResponse[[]dto.InjectionWithIssuesResp]		"Injections retrieved successfully"
+//	@Failure		400					{object}	dto.GenericResponse[any]								"Invalid parameters"
+//	@Failure		401					{object}	dto.GenericResponse[any]								"Authentication required"
+//	@Failure		403					{object}	dto.GenericResponse[any]								"Permission denied"
+//	@Failure		404					{object}	dto.GenericResponse[any]								"Project not found"
+//	@Failure		500					{object}	dto.GenericResponse[any]								"Internal server error"
+//	@Router			/api/v2/projects/{project_id}/injections/analysis/with-issues [get]
+//	@x-api-type		{"sdk":"true"}
+func ListProjectFaultInjectionWithIssues(c *gin.Context) {
+	projectIDStr := c.Param(consts.URLPathProjectID)
+	projectID, err := strconv.Atoi(projectIDStr)
+	if err != nil || projectID <= 0 {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid project ID")
+		return
+	}
+
+	listFaultInjectionWithIssuesCommon(c, &projectID)
+}
+
+// SubmitProjectFaultInjection submits fault injections for a specific project
+//
+//	@Summary		Submit project fault injections
+//	@Description	Submit multiple fault injection tasks for a specific project
+//	@Tags			Projects
+//	@ID				submit_project_fault_injection
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			project_id	path		int												true	"Project ID"
+//	@Param			body		body		dto.SubmitInjectionReq							true	"Fault injection request"
+//	@Success		200			{object}	dto.GenericResponse[dto.SubmitInjectionResp]	"Injections submitted successfully"
+//	@Failure		400			{object}	dto.GenericResponse[any]						"Invalid request"
+//	@Failure		401			{object}	dto.GenericResponse[any]						"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]						"Permission denied"
+//	@Failure		404			{object}	dto.GenericResponse[any]						"Project not found"
+//	@Failure		500			{object}	dto.GenericResponse[any]						"Internal server error"
+//	@Router			/api/v2/projects/{project_id}/injections/inject [post]
+//	@x-api-type		{"sdk":"true"}
+func SubmitProjectFaultInjection(c *gin.Context) {
+	projectIDStr := c.Param(consts.URLPathProjectID)
+	projectID, err := strconv.Atoi(projectIDStr)
+	if err != nil || projectID <= 0 {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid project ID")
+		return
+	}
+
+	submitFaultInjectionCommon(c, &projectID)
+}
+
+// SubmitProjectDatapackBuilding submits datapack building tasks for a specific project
+//
+//	@Summary		Submit project datapack buildings
+//	@Description	Submit multiple datapack building tasks for a specific project
+//	@Tags			Projects
+//	@ID				submit_project_datapack_building
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			project_id	path		int													true	"Project ID"
+//	@Param			body		body		dto.SubmitDatapackBuildingReq						true	"Datapack building request"
+//	@Success		202			{object}	dto.GenericResponse[dto.SubmitDatapackBuildingResp]	"Datapack buildings submitted successfully"
+//	@Failure		400			{object}	dto.GenericResponse[any]							"Invalid request"
+//	@Failure		401			{object}	dto.GenericResponse[any]							"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]							"Permission denied"
+//	@Failure		404			{object}	dto.GenericResponse[any]							"Project not found"
+//	@Failure		500			{object}	dto.GenericResponse[any]							"Internal server error"
+//	@Router			/api/v2/projects/{project_id}/injections/build [post]
+//	@x-api-type		{"sdk":"true"}
+func SubmitProjectDatapackBuilding(c *gin.Context) {
+	projectIDStr := c.Param(consts.URLPathProjectID)
+	projectID, err := strconv.Atoi(projectIDStr)
+	if err != nil || projectID <= 0 {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid project ID")
+		return
+	}
+
+	submitDatapackBuildingCommon(c, &projectID)
+}
+
+// ===================== Project-Execution API =====================
+
+// ListProjectExecutions lists all algorithm executions for a project
+//
+//	@Summary		List project executions
+//	@Description	Get paginated list of algorithm executions for a specific project
+//	@Tags			Projects
+//	@ID				list_project_executions
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			project_id	path		int														true	"Project ID"
+//	@Param			page		query		int														false	"Page number"	default(1)
+//	@Param			size		query		int														false	"Page size"		default(20)
+//	@Success		200			{object}	dto.GenericResponse[dto.ListResp[dto.ExecutionResp]]	"Executions retrieved successfully"
+//	@Failure		400			{object}	dto.GenericResponse[any]								"Invalid project ID or parameters"
+//	@Failure		401			{object}	dto.GenericResponse[any]								"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]								"Permission denied"
+//	@Failure		404			{object}	dto.GenericResponse[any]								"Project not found"
+//	@Failure		500			{object}	dto.GenericResponse[any]								"Internal server error"
+//	@Router			/api/v2/projects/{project_id}/executions [get]
+//	@x-api-type		{"sdk":"true"}
+func ListProjectExecutions(c *gin.Context) {
+	projectIDStr := c.Param(consts.URLPathProjectID)
+	projectID, err := strconv.Atoi(projectIDStr)
+	if err != nil || projectID <= 0 {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid project ID")
+		return
+	}
+
+	var req dto.ListExecutionReq
+	if err := c.ShouldBindQuery(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		return
+	}
+
+	resp, err := producer.ListProjectExecutions(&req, projectID)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	dto.SuccessResponse(c, resp)
+}

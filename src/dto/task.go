@@ -25,24 +25,25 @@ type RetryPolicy struct {
 
 // UnifiedTask represents a task that can be scheduled and executed
 type UnifiedTask struct {
-	TaskID       string                 `json:"task_id"`                      // Unique identifier for the task
-	Type         consts.TaskType        `json:"type"`                         // Task type (determines how it's processed)
-	Immediate    bool                   `json:"immediate"`                    // Whether to execute immediately
-	ExecuteTime  int64                  `json:"execute_time"`                 // Unix timestamp for delayed execution
-	CronExpr     string                 `json:"cron_expr,omitempty"`          // Cron expression for recurring tasks
-	ReStartNum   int                    `json:"restart_num"`                  // Number of restarts for the task
-	RetryPolicy  RetryPolicy            `json:"retry_policy"`                 // Policy for retrying failed tasks
-	Payload      map[string]any         `json:"payload" swaggertype:"object"` // Task-specific data
-	Level        int                    `json:"level"`                        // Task level in the trace
-	Sequence     int                    `json:"sequence"`                     // Task sequence in the trace
-	ParentTaskID *string                `json:"parent_task_id,omitempty"`     // Parent task ID for sub-tasks
-	TraceID      string                 `json:"trace_id"`                     // ID for tracing related tasks
-	GroupID      string                 `json:"group_id"`                     // ID for grouping tasks
-	ProjectID    int                    `json:"project_id"`                   // ID for the project (optional)
-	UserID       int                    `json:"user_id"`                      // ID of the user who created the task (optional)
-	State        consts.TaskState       `json:"state"`                        // Current state of the task
-	TraceCarrier propagation.MapCarrier `json:"trace_carrier,omitempty"`      // Carrier for trace context
-	GroupCarrier propagation.MapCarrier `json:"group_carrier,omitempty"`      // Carrier for group context
+	TaskID       string                   `json:"task_id"`                      // Unique identifier for the task
+	Type         consts.TaskType          `json:"type"`                         // Task type (determines how it's processed)
+	Immediate    bool                     `json:"immediate"`                    // Whether to execute immediately
+	ExecuteTime  int64                    `json:"execute_time"`                 // Unix timestamp for delayed execution
+	CronExpr     string                   `json:"cron_expr,omitempty"`          // Cron expression for recurring tasks
+	ReStartNum   int                      `json:"restart_num"`                  // Number of restarts for the task
+	RetryPolicy  RetryPolicy              `json:"retry_policy"`                 // Policy for retrying failed tasks
+	Payload      map[string]any           `json:"payload" swaggertype:"object"` // Task-specific data
+	Level        int                      `json:"level"`                        // Task level in the trace
+	Sequence     int                      `json:"sequence"`                     // Task sequence in the trace
+	ParentTaskID *string                  `json:"parent_task_id,omitempty"`     // Parent task ID for sub-tasks
+	TraceID      string                   `json:"trace_id"`                     // ID for tracing related tasks
+	GroupID      string                   `json:"group_id"`                     // ID for grouping tasks
+	ProjectID    int                      `json:"project_id"`                   // ID for the project (optional)
+	UserID       int                      `json:"user_id"`                      // ID of the user who created the task (optional)
+	State        consts.TaskState         `json:"state"`                        // Current state of the task
+	TraceCarrier propagation.MapCarrier   `json:"trace_carrier,omitempty"`      // Carrier for trace context
+	GroupCarrier propagation.MapCarrier   `json:"group_carrier,omitempty"`      // Carrier for group context
+	Extra        map[consts.TaskExtra]any `json:"extra,omitempty"`              // Additional metadata
 }
 
 func (t *UnifiedTask) ConvertToTask() (*database.Task, error) {
@@ -63,7 +64,6 @@ func (t *UnifiedTask) ConvertToTask() (*database.Task, error) {
 		Status:       consts.CommonEnabled,
 		ParentTaskID: t.ParentTaskID,
 		TraceID:      t.TraceID,
-		ProjectID:    t.ProjectID,
 	}
 	return task, nil
 }
@@ -275,7 +275,7 @@ type TaskResp struct {
 }
 
 func NewTaskResp(task *database.Task) *TaskResp {
-	resp := &TaskResp{
+	return &TaskResp{
 		ID:          task.ID,
 		Type:        consts.GetTaskTypeName(task.Type),
 		Immediate:   task.Immediate,
@@ -284,15 +284,9 @@ func NewTaskResp(task *database.Task) *TaskResp {
 		TraceID:     task.TraceID,
 		State:       consts.GetTaskStateName(task.State),
 		Status:      consts.GetStatusTypeName(task.Status),
-		ProjectID:   task.Project.ID,
 		CreatedAt:   task.CreatedAt,
 		UpdatedAt:   task.UpdatedAt,
 	}
-
-	if task.Project != nil {
-		resp.ProjectName = task.Project.Name
-	}
-	return resp
 }
 
 type TaskDetailResp struct {

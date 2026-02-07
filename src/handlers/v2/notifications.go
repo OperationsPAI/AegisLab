@@ -24,8 +24,8 @@ import (
 //	@ID				get_notification_stream
 //	@Produce		text/event-stream
 //	@Security		BearerAuth
-//	@Param			last_id	query		string	false	"Last event ID received"	default("0")
-//	@Success		200		{string}	string	"A stream of notification events"
+//	@Param			last_id	query		string						false	"Last event ID received"	default("0")
+//	@Success		200		{string}	string						"A stream of notification events"
 //	@Failure		400		{object}	dto.GenericResponse[any]	"Invalid request format/parameters"
 //	@Failure		401		{object}	dto.GenericResponse[any]	"Authentication required"
 //	@Failure		500		{object}	dto.GenericResponse[any]	"Internal server error"

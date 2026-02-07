@@ -17,13 +17,13 @@ import (
 //	@ID				get_injection_metrics
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			start_time	query		string								false	"Start time (RFC3339)"
-//	@Param			end_time	query		string								false	"End time (RFC3339)"
-//	@Param			fault_type	query		string								false	"Filter by fault type"
+//	@Param			start_time	query		string										false	"Start time (RFC3339)"
+//	@Param			end_time	query		string										false	"End time (RFC3339)"
+//	@Param			fault_type	query		string										false	"Filter by fault type"
 //	@Success		200			{object}	dto.GenericResponse[dto.InjectionMetrics]	"Injection metrics"
-//	@Failure		400			{object}	dto.GenericResponse[any]			"Invalid request"
-//	@Failure		401			{object}	dto.GenericResponse[any]			"Authentication required"
-//	@Failure		500			{object}	dto.GenericResponse[any]			"Internal server error"
+//	@Failure		400			{object}	dto.GenericResponse[any]					"Invalid request"
+//	@Failure		401			{object}	dto.GenericResponse[any]					"Authentication required"
+//	@Failure		500			{object}	dto.GenericResponse[any]					"Internal server error"
 //	@Router			/api/v2/metrics/injections [get]
 //	@x-api-type		{"sdk":"true"}
 func GetInjectionMetrics(c *gin.Context) {
@@ -49,13 +49,13 @@ func GetInjectionMetrics(c *gin.Context) {
 //	@ID				get_execution_metrics
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			start_time	query		string								false	"Start time (RFC3339)"
-//	@Param			end_time	query		string								false	"End time (RFC3339)"
-//	@Param			algorithm_id	query	int									false	"Filter by algorithm ID"
-//	@Success		200			{object}	dto.GenericResponse[dto.ExecutionMetrics]	"Execution metrics"
-//	@Failure		400			{object}	dto.GenericResponse[any]			"Invalid request"
-//	@Failure		401			{object}	dto.GenericResponse[any]			"Authentication required"
-//	@Failure		500			{object}	dto.GenericResponse[any]			"Internal server error"
+//	@Param			start_time		query		string										false	"Start time (RFC3339)"
+//	@Param			end_time		query		string										false	"End time (RFC3339)"
+//	@Param			algorithm_id	query		int											false	"Filter by algorithm ID"
+//	@Success		200				{object}	dto.GenericResponse[dto.ExecutionMetrics]	"Execution metrics"
+//	@Failure		400				{object}	dto.GenericResponse[any]					"Invalid request"
+//	@Failure		401				{object}	dto.GenericResponse[any]					"Authentication required"
+//	@Failure		500				{object}	dto.GenericResponse[any]					"Internal server error"
 //	@Router			/api/v2/metrics/executions [get]
 //	@x-api-type		{"sdk":"true"}
 func GetExecutionMetrics(c *gin.Context) {
@@ -81,13 +81,13 @@ func GetExecutionMetrics(c *gin.Context) {
 //	@ID				get_algorithm_metrics
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			algorithm_ids	query	string								false	"Comma-separated algorithm IDs"
-//	@Param			start_time		query	string								false	"Start time (RFC3339)"
-//	@Param			end_time		query	string								false	"End time (RFC3339)"
+//	@Param			algorithm_ids	query		string										false	"Comma-separated algorithm IDs"
+//	@Param			start_time		query		string										false	"Start time (RFC3339)"
+//	@Param			end_time		query		string										false	"End time (RFC3339)"
 //	@Success		200				{object}	dto.GenericResponse[dto.AlgorithmMetrics]	"Algorithm metrics"
-//	@Failure		400				{object}	dto.GenericResponse[any]			"Invalid request"
-//	@Failure		401				{object}	dto.GenericResponse[any]			"Authentication required"
-//	@Failure		500				{object}	dto.GenericResponse[any]			"Internal server error"
+//	@Failure		400				{object}	dto.GenericResponse[any]					"Invalid request"
+//	@Failure		401				{object}	dto.GenericResponse[any]					"Authentication required"
+//	@Failure		500				{object}	dto.GenericResponse[any]					"Internal server error"
 //	@Router			/api/v2/metrics/algorithms [get]
 //	@x-api-type		{"sdk":"true"}
 func GetAlgorithmMetrics(c *gin.Context) {

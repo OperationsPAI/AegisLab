@@ -59,7 +59,7 @@ func CreateDataset(req *dto.CreateDatasetReq, userID int) (*dto.DatasetResp, err
 
 // CreateDatasetCore performs the core logic of creating a dataset within a transaction
 func CreateDatasetCore(tx *gorm.DB, dataset *database.Dataset, versions []database.DatasetVersion, userID int) (*database.Dataset, error) {
-	role, err := repository.GetRoleByName(tx, consts.RoleDatasetAdmin)
+	role, err := repository.GetRoleByName(tx, consts.RoleDatasetAdmin.String())
 	if err != nil {
 		if errors.Is(err, consts.ErrNotFound) {
 			return nil, fmt.Errorf("%w: role %v not found", err, consts.RoleDatasetAdmin)

@@ -23,7 +23,7 @@ func CreateProject(req *dto.CreateProjectReq, userID int) (*dto.ProjectResp, err
 
 	var createdProject *database.Project
 	err := database.DB.Transaction(func(tx *gorm.DB) error {
-		role, err := repository.GetRoleByName(tx, consts.RoleProjectAdmin)
+		role, err := repository.GetRoleByName(tx, consts.RoleProjectAdmin.String())
 		if err != nil {
 			if errors.Is(err, consts.ErrNotFound) {
 				return fmt.Errorf("%w: role %v not found", err, consts.RoleProjectAdmin)
@@ -54,7 +54,7 @@ func CreateProject(req *dto.CreateProjectReq, userID int) (*dto.ProjectResp, err
 		return nil, err
 	}
 
-	return dto.NewProjectResp(createdProject), nil
+	return dto.NewProjectResp(createdProject, nil), nil
 }
 
 // DeleteProject deletes an existing project by marking its status as deleted
@@ -86,7 +86,14 @@ func GetProjectDetail(projectID int) (*dto.ProjectDetailResp, error) {
 		return nil, fmt.Errorf("failed to get project: %w", err)
 	}
 
-	resp := dto.NewProjectDetailResp(project)
+	// Get project statistics
+	statsMap, err := repository.BatchGetProjectStatistics(database.DB, []int{project.ID})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get project statistics: %w", err)
+	}
+
+	stats := statsMap[project.ID]
+	resp := dto.NewProjectDetailResp(project, stats)
 
 	userCount, err := repository.GetProjectUserCount(database.DB, project.ID)
 	if err != nil {
@@ -101,8 +108,8 @@ func GetProjectDetail(projectID int) (*dto.ProjectDetailResp, error) {
 
 // ListProjects lists projects based on the provided filters
 func ListProjects(req *dto.ListProjectReq) (*dto.ListResp[dto.ProjectResp], error) {
-	if err := req.Validate(); err != nil {
-		return nil, fmt.Errorf("validation failed: %w", err)
+	if req == nil {
+		return nil, fmt.Errorf("list project request is nil")
 	}
 
 	limit, offset := req.ToGormParams()
@@ -122,12 +129,29 @@ func ListProjects(req *dto.ListProjectReq) (*dto.ListResp[dto.ProjectResp], erro
 		return nil, fmt.Errorf("failed to list project labels: %w", err)
 	}
 
+	// Batch get statistics for all projects
+	statsMap, err := repository.BatchGetProjectStatistics(database.DB, projectIDs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to batch get project statistics: %w", err)
+	}
+
 	projectResps := make([]dto.ProjectResp, 0, len(projects))
-	for _, project := range projects {
-		if labels, exists := labelsMap[project.ID]; exists {
-			project.Labels = labels
+	for i := range projects {
+		// Convert repository stats to dto stats
+		var stats *dto.ProjectStatistics
+		if repoStats, exists := statsMap[projects[i].ID]; exists {
+			stats = &dto.ProjectStatistics{
+				InjectionCount:  repoStats.InjectionCount,
+				ExecutionCount:  repoStats.ExecutionCount,
+				LastInjectionAt: repoStats.LastInjectionAt,
+				LastExecutionAt: repoStats.LastExecutionAt,
+			}
 		}
-		projectResps = append(projectResps, *dto.NewProjectResp(&project))
+
+		if labels, exists := labelsMap[projects[i].ID]; exists {
+			projects[i].Labels = labels
+		}
+		projectResps = append(projectResps, *dto.NewProjectResp(&projects[i], stats))
 	}
 
 	resp := dto.ListResp[dto.ProjectResp]{
@@ -164,7 +188,7 @@ func UpdateProject(req *dto.UpdateProjectReq, projectID int) (*dto.ProjectResp, 
 		return nil, err
 	}
 
-	return dto.NewProjectResp(updatedProject), nil
+	return dto.NewProjectResp(updatedProject, nil), nil
 }
 
 // ===================== Project-Label =====================
@@ -234,7 +258,7 @@ func ManageProjectLabels(req *dto.ManageProjectLabelReq, projectID int) (*dto.Pr
 		return nil, err
 	}
 
-	return dto.NewProjectResp(managedProject), nil
+	return dto.NewProjectResp(managedProject, nil), nil
 }
 
 func fetchProjectsMapByIDBatch(db *gorm.DB, projectIDs []int) (map[int]database.Project, error) {
@@ -253,4 +277,123 @@ func fetchProjectsMapByIDBatch(db *gorm.DB, projectIDs []int) (map[int]database.
 	}
 
 	return projectMap, nil
+}
+
+// ===================== Project-Injection =====================
+
+// ListProjectInjections lists all fault injections for a specific project
+func ListProjectInjections(req *dto.ListInjectionReq, projectID int) (*dto.ListResp[dto.InjectionResp], error) {
+	if err := req.Validate(); err != nil {
+		return nil, fmt.Errorf("validation failed: %w", err)
+	}
+
+	// Verify project exists
+	if _, err := repository.GetProjectByID(database.DB, projectID); err != nil {
+		if errors.Is(err, consts.ErrNotFound) {
+			return nil, fmt.Errorf("%w: project id %d not found", consts.ErrNotFound, projectID)
+		}
+		return nil, fmt.Errorf("failed to get project: %w", err)
+	}
+
+	limit, offset := req.ToGormParams()
+
+	injections, total, err := repository.ListInjectionsByProjectID(database.DB, projectID, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list injections for project %d: %w", projectID, err)
+	}
+
+	injectionResps := make([]dto.InjectionResp, 0, len(injections))
+	for _, injection := range injections {
+		injectionResps = append(injectionResps, *dto.NewInjectionResp(&injection))
+	}
+
+	resp := dto.ListResp[dto.InjectionResp]{
+		Items:      injectionResps,
+		Pagination: req.ConvertToPaginationInfo(total),
+	}
+	return &resp, nil
+}
+
+// ===================== Project-Execution =====================
+
+// ListProjectExecutions lists all algorithm executions for a specific project
+func ListProjectExecutions(req *dto.ListExecutionReq, projectID int) (*dto.ListResp[dto.ExecutionResp], error) {
+	if err := req.Validate(); err != nil {
+		return nil, fmt.Errorf("validation failed: %w", err)
+	}
+
+	// Verify project exists
+	if _, err := repository.GetProjectByID(database.DB, projectID); err != nil {
+		if errors.Is(err, consts.ErrNotFound) {
+			return nil, fmt.Errorf("%w: project id %d not found", consts.ErrNotFound, projectID)
+		}
+		return nil, fmt.Errorf("failed to get project: %w", err)
+	}
+
+	limit, offset := req.ToGormParams()
+
+	executions, total, err := repository.ListExecutionsByProjectID(database.DB, projectID, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list executions for project %d: %w", projectID, err)
+	}
+
+	executionResps := make([]dto.ExecutionResp, 0, len(executions))
+	for _, execution := range executions {
+		executionResps = append(executionResps, *dto.NewExecutionResp(&execution, nil))
+	}
+
+	resp := dto.ListResp[dto.ExecutionResp]{
+		Items:      executionResps,
+		Pagination: req.ConvertToPaginationInfo(total),
+	}
+	return &resp, nil
+}
+
+// ============================================================================
+// Project Permission Check Helper Functions (exported for middleware)
+// ============================================================================
+
+// IsUserInProject checks if a user is a member of a project
+func IsUserInProject(userID int, projectID int) (bool, error) {
+	up, err := repository.GetUserProjectRole(database.DB, userID, projectID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+	return up != nil, nil
+}
+
+// IsUserProjectAdmin checks if a user has project admin role in a specific project
+func IsUserProjectAdmin(userID int, projectID int) (bool, error) {
+	up, err := repository.GetUserProjectRole(database.DB, userID, projectID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+	return up != nil && up.Role != nil && up.Role.Name == consts.RoleProjectAdmin.String(), nil
+}
+
+// IsProjectPublic checks if a project is publicly accessible
+func IsProjectPublic(projectID int) (bool, error) {
+	project, err := repository.GetProjectByID(database.DB, projectID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+	return project.IsPublic, nil
+}
+
+// GetProjectTeamID gets the team ID for a project
+func GetProjectTeamID(projectID int) (int, error) {
+	teamID, err := repository.GetProjectTeamID(database.DB, projectID)
+	if err != nil {
+		return 0, err
+	}
+	return teamID, nil
 }

@@ -29,7 +29,7 @@ import (
 //	@Failure		409		{object}	dto.GenericResponse[any]			"Role already exists"
 //	@Failure		500		{object}	dto.GenericResponse[any]			"Internal server error"
 //	@Router			/api/v2/roles [post]
-//	@x-api-type {"sdk":"true"}
+//	@x-api-type		{"sdk":"true"}
 func CreateRole(c *gin.Context) {
 	var req dto.CreateRoleReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -61,7 +61,7 @@ func CreateRole(c *gin.Context) {
 //	@Failure		404	{object}	dto.GenericResponse[any]	"Role not found"
 //	@Failure		500	{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v2/roles/{id} [delete]
-//	@x-api-type {"sdk":"true"}
+//	@x-api-type		{"sdk":"true"}
 func DeleteRole(c *gin.Context) {
 	idStr := c.Param(consts.URLPathID)
 	id, err := strconv.Atoi(idStr)
@@ -94,7 +94,7 @@ func DeleteRole(c *gin.Context) {
 //	@Failure		404	{object}	dto.GenericResponse[any]				"Role not found"
 //	@Failure		500	{object}	dto.GenericResponse[any]				"Internal server error"
 //	@Router			/api/v2/roles/{id} [get]
-//	@x-api-type {"sdk":"true"}
+//	@x-api-type		{"sdk":"true"}
 func GetRole(c *gin.Context) {
 	idStr := c.Param(consts.URLPathID)
 	id, err := strconv.Atoi(idStr)
@@ -129,7 +129,7 @@ func GetRole(c *gin.Context) {
 //	@Failure		403			{object}	dto.GenericResponse[any]				"Permission denied"
 //	@Failure		500			{object}	dto.GenericResponse[any]				"Internal server error"
 //	@Router			/api/v2/roles [get]
-//	@x-api-type {"sdk":"true"}
+//	@x-api-type		{"sdk":"true"}
 func ListRoles(c *gin.Context) {
 	var req dto.ListRoleReq
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -163,7 +163,7 @@ func ListRoles(c *gin.Context) {
 //	@Failure		404		{object}	dto.GenericResponse[any]			"Role not found"
 //	@Failure		500		{object}	dto.GenericResponse[any]			"Internal server error"
 //	@Router			/api/v2/roles/{id} [patch]
-//	@x-api-type {"sdk":"true"}
+//	@x-api-type		{"sdk":"true"}
 func UpdateRole(c *gin.Context) {
 	idStr := c.Param(consts.URLPathID)
 	id, err := strconv.Atoi(idStr)
@@ -211,7 +211,7 @@ func UpdateRole(c *gin.Context) {
 //	@Failure		404		{object}	dto.GenericResponse[any]	"Role not found"
 //	@Failure		500		{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v2/roles/{role_id}/permissions/assign [post]
-//	@x-api-type {"sdk":"true"}
+//	@x-api-type		{"sdk":"true"}
 func AssignRolePermission(c *gin.Context) {
 	roleIdStr := c.Param(consts.URLPathRoleID)
 	roleID, err := strconv.Atoi(roleIdStr)
@@ -252,7 +252,7 @@ func AssignRolePermission(c *gin.Context) {
 //	@Failure		404		{object}	dto.GenericResponse[any]	"Role not found"
 //	@Failure		500		{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v2/roles/{role_id}/permissions/remove [post]
-//	@x-api-type {"sdk":"true"}
+//	@x-api-type		{"sdk":"true"}
 func RemovePermissionsFromRole(c *gin.Context) {
 	roleIDStr := c.Param(consts.URLPathRoleID)
 	roleID, err := strconv.Atoi(roleIDStr)

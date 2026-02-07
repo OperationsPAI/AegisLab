@@ -209,19 +209,19 @@ func (req *SubmitExecutionReq) Validate() error {
 }
 
 type ExecutionResp struct {
-	ID                 int       `json:"id"`
-	Duration           float64   `json:"duration"`
-	State              string    `json:"state"`
-	Status             string    `json:"status"`
-	TaskID             string    `json:"task_id"`
-	AlgorithmID        int       `json:"algorithm_id"`
-	AlgorithmName      string    `json:"algorithm_name"`
-	AlgorithmVersionID int       `json:"algorithm_version_id"`
-	AlgorithmVersion   string    `json:"algorithm_version"`
-	DatapackID         int       `json:"datapack_id,omitempty"`
-	DatapackName       string    `json:"datapack_name,omitempty"`
-	CreatedAt          time.Time `json:"created_at"`
-	UpdatedAt          time.Time `json:"updated_at"`
+	ID                 int                   `json:"id"`
+	Duration           float64               `json:"duration"`
+	State              consts.ExecutionState `json:"state" swaggertype:"string" enums:"Initial,Failed,Success"`
+	Status             string                `json:"status"`
+	TaskID             string                `json:"task_id"`
+	AlgorithmID        int                   `json:"algorithm_id"`
+	AlgorithmName      string                `json:"algorithm_name"`
+	AlgorithmVersionID int                   `json:"algorithm_version_id"`
+	AlgorithmVersion   string                `json:"algorithm_version"`
+	DatapackID         int                   `json:"datapack_id,omitempty"`
+	DatapackName       string                `json:"datapack_name,omitempty"`
+	CreatedAt          time.Time             `json:"created_at"`
+	UpdatedAt          time.Time             `json:"updated_at"`
 
 	Labels []LabelItem `json:"labels,omitempty"`
 }
@@ -230,7 +230,7 @@ func NewExecutionResp(execution *database.Execution, labels []database.Label) *E
 	resp := &ExecutionResp{
 		ID:                 execution.ID,
 		Duration:           execution.Duration,
-		State:              consts.GetExecuteStateName(execution.State),
+		State:              execution.State,
 		Status:             consts.GetStatusTypeName(execution.Status),
 		AlgorithmID:        execution.AlgorithmVersion.ContainerID,
 		AlgorithmName:      execution.AlgorithmVersion.Container.Name,

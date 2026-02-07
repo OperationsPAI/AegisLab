@@ -865,7 +865,7 @@ func updateExecutionState(executionID int, newState consts.ExecutionState) error
 		}
 
 		if execution.State != consts.ExecutionInitial {
-			return fmt.Errorf("cannot change state of execution %d from %s to %s", executionID, consts.GetExecuteStateName(execution.State), consts.GetExecuteStateName(newState))
+			return fmt.Errorf("cannot change state of execution %d from %s to %s", executionID, consts.GetExecutionStateName(execution.State), consts.GetExecutionStateName(newState))
 		}
 
 		if err := repository.UpdateExecution(tx, executionID, map[string]any{

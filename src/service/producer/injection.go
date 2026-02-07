@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -99,37 +100,28 @@ func CreateInjection(injection *database.FaultInjection, labelItems []dto.LabelI
 
 // GetInjectionDetail retrieves detailed information about a specific fault injection
 func GetInjectionDetail(injectionID int) (*dto.InjectionDetailResp, error) {
-	logrus.WithField("injectionID", injectionID).Info("GetInjectionDetail: starting")
+	logEntry := logrus.WithFields(logrus.Fields{
+		"injectionID": injectionID,
+	})
 
 	injection, err := repository.GetInjectionByID(database.DB, injectionID)
 	if err != nil {
-		logrus.WithFields(logrus.Fields{
-			"injectionID": injectionID,
-		}).Error("failed to get injection from repository: %w", err)
-
+		logEntry.Error("failed to get injection from repository: %w", err)
 		if errors.Is(err, consts.ErrNotFound) {
 			return nil, fmt.Errorf("%w: injection id: %d", consts.ErrNotFound, injectionID)
 		}
 		return nil, fmt.Errorf("failed to get injection: %w", err)
 	}
 
-	logrus.WithFields(logrus.Fields{
-		"injectionID":   injectionID,
-		"injectionName": injection.Name,
-	}).Info("GetInjectionDetail: fetched injection from repository")
-
 	labels, err := repository.ListLabelsByInjectionID(database.DB, injection.ID)
 	if err != nil {
-		logrus.WithFields(logrus.Fields{
-			"injectionID": injectionID,
-		}).Error("GetInjectionDetail: failed to get injection labels: %w", err)
+		logEntry.Error("failed to get injection labels from repository: %w", err)
 		return nil, fmt.Errorf("failed to get injection labels: %w", err)
 	}
 
 	injection.Labels = labels
 	resp := dto.NewInjectionDetailResp(injection)
 
-	logrus.WithField("injectionID", injectionID).Info("GetInjectionDetail: completed successfully")
 	return resp, err
 }
 
@@ -233,12 +225,17 @@ func ListInjections(req *dto.ListInjectionReq) (*dto.ListResp[dto.InjectionResp]
 }
 
 // SearchInjections performs advanced search on fault injections
-func SearchInjections(req *dto.SearchInjectionReq) (*dto.SearchResp[dto.InjectionDetailResp], error) {
+func SearchInjections(req *dto.SearchInjectionReq, projectID *int) (*dto.SearchResp[dto.InjectionDetailResp], error) {
 	if req == nil {
 		return nil, fmt.Errorf("search injection request is nil")
 	}
 
 	searchReq := req.ConvertToSearchReq()
+
+	// Add project filter if projectID is provided
+	if projectID != nil {
+		searchReq.AddFilter("project_id", dto.OpEqual, *projectID)
+	}
 
 	injections, total, err := repository.ExecuteSearch(database.DB, searchReq, database.FaultInjection{})
 	if err != nil {
@@ -327,7 +324,7 @@ func DownloadDatapack(zipWriter *zip.Writer, excludeRules []utils.ExculdeRule, i
 }
 
 // ListInjectionsNoissues handles the request to list fault injections without issues
-func ListInjectionsNoIssues(req *dto.ListInjectionNoIssuesReq) ([]dto.InjectionNoIssuesResp, error) {
+func ListInjectionsNoIssues(req *dto.ListInjectionNoIssuesReq, projectID *int) ([]dto.InjectionNoIssuesResp, error) {
 	if len(req.Labels) == 0 {
 		return nil, nil
 	}
@@ -346,7 +343,7 @@ func ListInjectionsNoIssues(req *dto.ListInjectionNoIssuesReq) ([]dto.InjectionN
 		return nil, fmt.Errorf("invalid time range: %w", err)
 	}
 
-	records, err := repository.ListInjectionsNoIssues(database.DB, labelConditions, &opts.CustomStartTime, &opts.CustomEndTime)
+	records, err := repository.ListInjectionsNoIssues(database.DB, labelConditions, &opts.CustomStartTime, &opts.CustomEndTime, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list fault injections without issues: %w", err)
 	}
@@ -365,7 +362,7 @@ func ListInjectionsNoIssues(req *dto.ListInjectionNoIssuesReq) ([]dto.InjectionN
 }
 
 // ListInjectionsNoissues handles the request to list fault injections without issues
-func ListInjectionsWithIssues(req *dto.ListInjectionWithIssuesReq) ([]dto.InjectionWithIssuesResp, error) {
+func ListInjectionsWithIssues(req *dto.ListInjectionWithIssuesReq, projectID *int) ([]dto.InjectionWithIssuesResp, error) {
 	if len(req.Labels) == 0 {
 		return nil, nil
 	}
@@ -384,7 +381,7 @@ func ListInjectionsWithIssues(req *dto.ListInjectionWithIssuesReq) ([]dto.Inject
 		return nil, fmt.Errorf("invalid time range: %w", err)
 	}
 
-	records, err := repository.ListInjectionsWithIssues(database.DB, labelConditions, &opts.CustomStartTime, &opts.CustomEndTime)
+	records, err := repository.ListInjectionsWithIssues(database.DB, labelConditions, &opts.CustomStartTime, &opts.CustomEndTime, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list fault injections without issues: %w", err)
 	}
@@ -670,13 +667,20 @@ func BatchManageInjectionLabels(req *dto.BatchManageInjectionLabelReq) (*dto.Bat
 }
 
 // ProduceRestartPedestalTasks produces pedestal restart tasks with support for parallel fault injection
-func ProduceRestartPedestalTasks(ctx context.Context, req *dto.SubmitInjectionReq, groupID string, userID int) (*dto.SubmitInjectionResp, error) {
-	project, err := repository.GetProjectByName(database.DB, req.ProjectName)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("%w: project %s not found", consts.ErrNotFound, req.ProjectName)
+func ProduceRestartPedestalTasks(ctx context.Context, req *dto.SubmitInjectionReq, groupID string, userID int, projectID *int) (*dto.SubmitInjectionResp, error) {
+	if req == nil {
+		return nil, fmt.Errorf("submit injection request is nil")
+	}
+
+	if projectID == nil {
+		project, err := repository.GetProjectByName(database.DB, req.ProjectName)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, fmt.Errorf("%w: project %s not found", consts.ErrNotFound, req.ProjectName)
+			}
+			return nil, fmt.Errorf("failed to get project: %w", err)
 		}
-		return nil, fmt.Errorf("failed to get project: %w", err)
+		projectID = &project.ID
 	}
 
 	pedestalVersionResults, err := common.MapRefsToContainerVersions([]*dto.ContainerRef{&req.Pedestal.ContainerRef}, consts.ContainerTypePedestal, userID)
@@ -729,18 +733,34 @@ func ProduceRestartPedestalTasks(ctx context.Context, req *dto.SubmitInjectionRe
 
 	// Parse each batch and collect items
 	processedItems := make([]injectionProcessItem, 0, len(req.Specs))
+	var parseWarnings []string
 	for i := range req.Specs {
-		item, err := parseBatchInjectionSpecs(ctx, pedestalItem.ContainerName, i, req.Specs[i])
+		item, warning, err := parseBatchInjectionSpecs(ctx, pedestalItem.ContainerName, i, req.Specs[i])
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse injection spec batch %d: %w", i, err)
 		}
-		processedItems = append(processedItems, *item)
+
+		if warning != "" {
+			parseWarnings = append(parseWarnings, warning)
+		} else {
+			processedItems = append(processedItems, *item)
+		}
 	}
 
 	// Remove duplicated batches
-	uniqueItems, err := removeDuplicated(processedItems)
+	uniqueItems, duplicatedInRequest, alreadyExisted, err := removeDuplicated(processedItems)
 	if err != nil {
 		return nil, fmt.Errorf("failed to remove duplicated batches: %w", err)
+	}
+
+	// Collect warnings about duplications
+	var warnings *dto.InjectionWarnings
+	if len(parseWarnings) > 0 || len(duplicatedInRequest) > 0 || len(alreadyExisted) > 0 {
+		warnings = &dto.InjectionWarnings{
+			DuplicateServicesInBatch:  parseWarnings,
+			DuplicateBatchesInRequest: duplicatedInRequest,
+			BatchesExistInDatabase:    alreadyExisted,
+		}
 	}
 
 	if len(req.Algorithms) > 0 {
@@ -801,9 +821,12 @@ func ProduceRestartPedestalTasks(ctx context.Context, req *dto.SubmitInjectionRe
 			ExecuteTime: item.executeTime.Unix(),
 			Payload:     payload,
 			GroupID:     groupID,
-			ProjectID:   project.ID,
+			ProjectID:   *projectID,
 			UserID:      userID,
 			State:       consts.TaskPending,
+			Extra: map[consts.TaskExtra]any{
+				consts.TaskExtraInjectionAlgorithms: len(req.Algorithms),
+			},
 		}
 		task.SetGroupCtx(ctx)
 
@@ -819,22 +842,34 @@ func ProduceRestartPedestalTasks(ctx context.Context, req *dto.SubmitInjectionRe
 		})
 	}
 
+	sort.Slice(injectionItems, func(i, j int) bool {
+		return injectionItems[i].Index < injectionItems[j].Index
+	})
+
 	return &dto.SubmitInjectionResp{
-		GroupID:         groupID,
-		Items:           injectionItems,
-		DuplicatedCount: len(processedItems) - len(uniqueItems),
-		OriginalCount:   len(processedItems),
+		GroupID:       groupID,
+		Items:         injectionItems,
+		OriginalCount: len(processedItems),
+		Warnings:      warnings,
 	}, nil
 }
 
 // ProduceDatapackBuildingTasks produces datapack building tasks into Redis based on the request specifications
-func ProduceDatapackBuildingTasks(ctx context.Context, req *dto.SubmitDatapackBuildingReq, groupID string, userID int) (*dto.SubmitDatapackBuildingResp, error) {
-	project, err := repository.GetProjectByName(database.DB, req.ProjectName)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("%w: project %s not found", consts.ErrNotFound, req.ProjectName)
+func ProduceDatapackBuildingTasks(ctx context.Context, req *dto.SubmitDatapackBuildingReq, groupID string, userID int, projectID *int) (*dto.SubmitDatapackBuildingResp, error) {
+	if req == nil {
+		return nil, fmt.Errorf("submit datapack building request is nil")
+	}
+
+	if projectID == nil {
+		// Use project name from request
+		project, err := repository.GetProjectByName(database.DB, req.ProjectName)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, fmt.Errorf("%w: project %s not found", consts.ErrNotFound, req.ProjectName)
+			}
+			return nil, fmt.Errorf("failed to get project: %w", err)
 		}
-		return nil, fmt.Errorf("failed to get project: %w", err)
+		projectID = &project.ID
 	}
 
 	refs := make([]*dto.ContainerRef, 0, len(req.Specs))
@@ -885,7 +920,7 @@ func ProduceDatapackBuildingTasks(ctx context.Context, req *dto.SubmitDatapackBu
 				Immediate: true,
 				Payload:   payload,
 				GroupID:   groupID,
-				ProjectID: project.ID,
+				ProjectID: *projectID,
 				UserID:    userID,
 				State:     consts.TaskPending,
 			}
@@ -944,9 +979,10 @@ func batchDeleteInjectionsCore(db *gorm.DB, injectionIDs []int) error {
 }
 
 // parseBatchInjectionSpecs parses a single batch of fault injection specifications for parallel execution
-func parseBatchInjectionSpecs(ctx context.Context, pedestal string, batchIndex int, specs []chaos.Node) (*injectionProcessItem, error) {
+// Returns the processed item, a warning message (if any), and an error
+func parseBatchInjectionSpecs(ctx context.Context, pedestal string, batchIndex int, specs []chaos.Node) (*injectionProcessItem, string, error) {
 	if len(specs) == 0 {
-		return nil, fmt.Errorf("empty fault injection batch at index %d", batchIndex)
+		return nil, "", fmt.Errorf("empty fault injection batch at index %d", batchIndex)
 	}
 
 	// Extract fault duration - use the maximum duration among all faults in the batch
@@ -956,11 +992,11 @@ func parseBatchInjectionSpecs(ctx context.Context, pedestal string, batchIndex i
 	for idx, spec := range specs {
 		childNode, exists := spec.Children[strconv.Itoa(spec.Value)]
 		if !exists {
-			return nil, fmt.Errorf("failed to find key %d in the children at index %d", spec.Value, idx)
+			return nil, "", fmt.Errorf("failed to find key %d in the children at index %d", spec.Value, idx)
 		}
 
 		if len(childNode.Children) < 3 {
-			return nil, fmt.Errorf("no child nodes found for fault spec at index %d", idx)
+			return nil, "", fmt.Errorf("no child nodes found for fault spec at index %d", idx)
 		}
 
 		faultDuration := childNode.Children[consts.DurationNodeKey].Value
@@ -971,28 +1007,31 @@ func parseBatchInjectionSpecs(ctx context.Context, pedestal string, batchIndex i
 		systemIdx := childNode.Children[consts.SystemNodeKey].Value
 		system := chaos.GetAllSystemTypes()[systemIdx]
 		if pedestal != system.String() {
-			return nil, fmt.Errorf("mismatched system type %s for pedestal %s at index %d", system.String(), pedestal, idx)
+			return nil, "", fmt.Errorf("mismatched system type %s for pedestal %s at index %d", system.String(), pedestal, idx)
 		}
 
 		nodes = append(nodes, spec)
 	}
 
 	uniqueServices := make(map[string]int, len(nodes))
+	var duplicateServiceWarnings []string
 	for idx, node := range nodes {
 		conf, err := chaos.NodeToStruct[chaos.InjectionConf](ctx, &node)
 		if err != nil {
-			return nil, fmt.Errorf("failed to convert node to InjectionConf at index %d: %w", idx, err)
+			return nil, "", fmt.Errorf("failed to convert node to InjectionConf at index %d: %w", idx, err)
 		}
 
 		groundtruth, err := conf.GetGroundtruth(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get groundtruth from InjectionConf at index %d: %w", idx, err)
+			return nil, "", fmt.Errorf("failed to get groundtruth from InjectionConf at index %d: %w", idx, err)
 		}
 
 		for _, service := range groundtruth.Service {
 			if service != "" {
 				if oldIdx, exists := uniqueServices[service]; exists {
-					return nil, fmt.Errorf("duplicated groundtruth service %s found at indexes %d and %d", service, oldIdx, idx)
+					duplicateServiceWarnings = append(duplicateServiceWarnings,
+						fmt.Sprintf("service '%s' at positions %d and %d", service, oldIdx, idx))
+					continue
 				}
 				uniqueServices[service] = idx
 			}
@@ -1002,11 +1041,17 @@ func parseBatchInjectionSpecs(ctx context.Context, pedestal string, batchIndex i
 	// Sort nodes to ensure consistent ordering
 	nodes = sortNodes(nodes)
 
+	var warning string
+	if len(duplicateServiceWarnings) > 0 {
+		warning = fmt.Sprintf("Batch %d contains duplicate service injections: %s",
+			batchIndex, strings.Join(duplicateServiceWarnings, "; "))
+	}
+
 	return &injectionProcessItem{
 		index:         batchIndex,
 		faultDuration: maxDuration,
 		nodes:         nodes,
-	}, nil
+	}, warning, nil
 }
 
 // flattenYAMLToParameters converts nested YAML map to flat parameter specs
@@ -1047,7 +1092,7 @@ func flattenYAMLToParameters(data map[string]any, prefix string) []dto.Parameter
 }
 
 // removeDuplicated filters out batches that already exist in DB and removes duplicates within the request
-func removeDuplicated(items []injectionProcessItem) ([]injectionProcessItem, error) {
+func removeDuplicated(items []injectionProcessItem) ([]injectionProcessItem, []int, []int, error) {
 	engineConfigStrs := make([]string, len(items))
 	for i, item := range items {
 		if len(item.nodes) == 0 {
@@ -1058,7 +1103,7 @@ func removeDuplicated(items []injectionProcessItem) ([]injectionProcessItem, err
 		// Marshal the entire batch of nodes as the engine config
 		b, err := json.Marshal(item.nodes)
 		if err != nil {
-			return nil, fmt.Errorf("failed to marshal engine config at batch index %d: %w", i, err)
+			return nil, nil, nil, fmt.Errorf("failed to marshal engine config at batch index %d: %w", i, err)
 		}
 
 		engineConfigStrs[i] = string(b)
@@ -1066,12 +1111,14 @@ func removeDuplicated(items []injectionProcessItem) ([]injectionProcessItem, err
 
 	orderedUniqueIdx := make([]int, 0, len(engineConfigStrs))
 	seen := make(map[string]struct{}, len(engineConfigStrs))
+	duplicatedInRequest := make([]int, 0)
 	for i, key := range engineConfigStrs {
 		if key == "" {
 			orderedUniqueIdx = append(orderedUniqueIdx, i)
 			continue
 		}
 		if _, ok := seen[key]; ok {
+			duplicatedInRequest = append(duplicatedInRequest, items[i].index)
 			continue
 		}
 
@@ -1094,7 +1141,7 @@ func removeDuplicated(items []injectionProcessItem) ([]injectionProcessItem, err
 		batch := keys[start:end]
 		existing, err := repository.ListExistingEngineConfigs(database.DB, batch)
 		if err != nil {
-			return nil, err
+			return nil, nil, nil, err
 		}
 
 		for _, v := range existing {
@@ -1103,6 +1150,7 @@ func removeDuplicated(items []injectionProcessItem) ([]injectionProcessItem, err
 	}
 
 	out := make([]injectionProcessItem, 0, len(orderedUniqueIdx))
+	alreadyExisted := make([]int, 0) // Track batch indices that already exist in DB
 	for _, idx := range orderedUniqueIdx {
 		key := engineConfigStrs[idx]
 		if key == "" {
@@ -1110,6 +1158,7 @@ func removeDuplicated(items []injectionProcessItem) ([]injectionProcessItem, err
 			continue
 		}
 		if _, ok := existed[key]; ok {
+			alreadyExisted = append(alreadyExisted, items[idx].index)
 			continue
 		}
 
@@ -1117,7 +1166,7 @@ func removeDuplicated(items []injectionProcessItem) ([]injectionProcessItem, err
 		out = append(out, items[idx])
 	}
 
-	return out, nil
+	return out, duplicatedInRequest, alreadyExisted, nil
 }
 
 // sortNodes sorts chaos nodes by their Value field and then by their JSON representation for consistency

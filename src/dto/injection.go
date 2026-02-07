@@ -371,7 +371,7 @@ func (req *SearchInjectionReq) ConvertToSearchReq() *SearchReq {
 // SubmitInjectionReq represents a request to submit fault injection tasks with parallel fault support
 // Each element in Specs represents a batch of faults to be injected in parallel within a single experiment
 type SubmitInjectionReq struct {
-	ProjectName string          `json:"project_name" binding:"required"`       // Project name
+	ProjectName string          `json:"project_name" binding:"omitempty"`      // Project name
 	Pedestal    *ContainerSpec  `json:"pedestal" binding:"required"`           // Pedestal (workload) configuration
 	Benchmark   *ContainerSpec  `json:"benchmark" binding:"required"`          // Benchmark (detector) configuration
 	Interval    int             `json:"interval" binding:"required,min=1"`     // Total experiment interval in minutes
@@ -392,9 +392,6 @@ func (req *SubmitInjectionReq) Validate() error {
 
 	if req.Benchmark == nil {
 		return fmt.Errorf("benchmark must not be nil")
-	}
-	if req.ProjectName == "" {
-		return fmt.Errorf("project name must not be blank")
 	}
 	if req.Interval <= req.PreDuration {
 		return fmt.Errorf("interval must be greater than pre_duration")
@@ -422,23 +419,23 @@ func (req *SubmitInjectionReq) Validate() error {
 }
 
 type InjectionResp struct {
-	ID            int            `json:"id"`
-	Name          string         `json:"name"`
-	FaultType     string         `json:"fault_type"`
-	Category      string         `json:"category"`
-	DisplayConfig map[string]any `json:"display_config,omitempty" swaggertype:"object"`
-	PreDuration   int            `json:"pre_duration"`
-	StartTime     *time.Time     `json:"start_time,omitempty"`
-	EndTime       *time.Time     `json:"end_time,omitempty"`
-	State         string         `json:"state"`
-	Status        string         `json:"status"`
-	TaskID        string         `json:"task_id"`
-	BenchmarkID   int            `json:"benchmark_id"`
-	BenchmarkName string         `json:"benchmark_name"`
-	PedestalID    int            `json:"pedestal_id"`
-	PedestalName  string         `json:"pedestal_name"`
-	CreatedAt     time.Time      `json:"created_at"`
-	UpdatedAt     time.Time      `json:"updated_at"`
+	ID            int                  `json:"id"`
+	Name          string               `json:"name"`
+	FaultType     string               `json:"fault_type"`
+	Category      string               `json:"category"`
+	DisplayConfig map[string]any       `json:"display_config,omitempty" swaggertype:"object"`
+	PreDuration   int                  `json:"pre_duration"`
+	StartTime     *time.Time           `json:"start_time,omitempty"`
+	EndTime       *time.Time           `json:"end_time,omitempty"`
+	State         consts.DatapackState `json:"state" swaggertype:"string"`
+	Status        string               `json:"status"`
+	TaskID        string               `json:"task_id"`
+	BenchmarkID   int                  `json:"benchmark_id"`
+	BenchmarkName string               `json:"benchmark_name"`
+	PedestalID    int                  `json:"pedestal_id"`
+	PedestalName  string               `json:"pedestal_name"`
+	CreatedAt     time.Time            `json:"created_at"`
+	UpdatedAt     time.Time            `json:"updated_at"`
 
 	Labels []LabelItem `json:"labels,omitempty"`
 }
@@ -459,7 +456,7 @@ func NewInjectionResp(injection *database.FaultInjection) *InjectionResp {
 		PreDuration: injection.PreDuration,
 		StartTime:   injection.StartTime,
 		EndTime:     injection.EndTime,
-		State:       consts.GetDatapackStateName(injection.State),
+		State:       injection.State,
 		Status:      consts.GetStatusTypeName(injection.Status),
 		BenchmarkID: injection.BenchmarkID,
 		PedestalID:  injection.PedestalID,
@@ -493,8 +490,9 @@ func NewInjectionResp(injection *database.FaultInjection) *InjectionResp {
 		resp.Labels = make([]LabelItem, 0, len(injection.Labels))
 		for _, l := range injection.Labels {
 			resp.Labels = append(resp.Labels, LabelItem{
-				Key:   l.Key,
-				Value: l.Value,
+				Key:      l.Key,
+				Value:    l.Value,
+				IsSystem: l.IsSystem,
 			})
 		}
 	}
@@ -546,11 +544,18 @@ type SubmitInjectionItem struct {
 	TaskID  string `json:"task_id"`
 }
 
+// Structured warnings about duplications and conflicts
+type InjectionWarnings struct {
+	DuplicateServicesInBatch  []string `json:"duplicate_services_in_batch,omitempty"`  // Warnings about duplicate service injections within the same batch
+	DuplicateBatchesInRequest []int    `json:"duplicate_batches_in_request,omitempty"` // Batch indices that have duplicate configurations within this request
+	BatchesExistInDatabase    []int    `json:"batches_exist_in_database,omitempty"`    // Batch indices that already exist in database
+}
+
 type SubmitInjectionResp struct {
-	GroupID         string                `json:"group_id"`
-	Items           []SubmitInjectionItem `json:"items"`
-	DuplicatedCount int                   `json:"duplicated_count"`
-	OriginalCount   int                   `json:"original_count"`
+	GroupID       string                `json:"group_id"`
+	Items         []SubmitInjectionItem `json:"items"`
+	OriginalCount int                   `json:"original_count"`
+	Warnings      *InjectionWarnings    `json:"warnings,omitempty"`
 }
 
 type SubmitDatapackBuildingReq struct {

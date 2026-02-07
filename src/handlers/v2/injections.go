@@ -225,23 +225,7 @@ func ListInjections(c *gin.Context) {
 //	@Router			/api/v2/injections/search [post]
 //	@x-api-type		{"sdk":"true"}
 func SearchInjections(c *gin.Context) {
-	var req dto.SearchInjectionReq
-	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
-		return
-	}
-
-	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
-		return
-	}
-
-	resp, err := producer.SearchInjections(&req)
-	if handlers.HandleServiceError(c, err) {
-		return
-	}
-
-	dto.SuccessResponse(c, resp)
+	searchInjectionsCommon(c, nil)
 }
 
 // DownloadDatapack handles datapack file download
@@ -302,25 +286,7 @@ func DownloadDatapack(c *gin.Context) {
 //	@Router			/api/v2/injections/analysis/no-issues [get]
 //	@x-api-type		{"sdk":"true"}
 func ListFaultInjectionNoIssues(c *gin.Context) {
-	var req dto.ListInjectionNoIssuesReq
-	if err := c.BindQuery(&req); err != nil {
-		logrus.Errorf("failed to bind query parameters: %v", err)
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters")
-		return
-	}
-
-	if err := req.Validate(); err != nil {
-		logrus.Errorf("invalid query parameters: %v", err)
-		dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	items, err := producer.ListInjectionsNoIssues(&req)
-	if handlers.HandleServiceError(c, err) {
-		return
-	}
-
-	dto.SuccessResponse(c, items)
+	listFaultInjectionNoIssuesCommon(c, nil)
 }
 
 // ListFaultInjectionWithIssues
@@ -340,25 +306,7 @@ func ListFaultInjectionNoIssues(c *gin.Context) {
 //	@Router			/api/v2/injections/analysis/with-issues [get]
 //	@x-api-type		{"sdk":"true"}
 func ListFaultInjectionWithIssues(c *gin.Context) {
-	var req dto.ListInjectionWithIssuesReq
-	if err := c.BindQuery(&req); err != nil {
-		logrus.Errorf("failed to bind query parameters: %v", err)
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters")
-		return
-	}
-
-	if err := req.Validate(); err != nil {
-		logrus.Errorf("invalid query parameters: %v", err)
-		dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	items, err := producer.ListInjectionsWithIssues(&req)
-	if handlers.HandleServiceError(c, err) {
-		return
-	}
-
-	dto.SuccessResponse(c, items)
+	listFaultInjectionWithIssuesCommon(c, nil)
 }
 
 // ManageInjectionCustomLabels manages injection custom labels (key-value pairs)
@@ -462,46 +410,7 @@ func BatchManageInjectionLabels(c *gin.Context) {
 //	@Router			/api/v2/injections/inject [post]
 //	@x-api-type		{"sdk":"true"}
 func SubmitFaultInjection(c *gin.Context) {
-	groupID := c.GetString("groupID")
-	userID, exists := middleware.GetCurrentUserID(c)
-	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "Authentication required")
-		return
-	}
-
-	ctx, ok := c.Get(middleware.SpanContextKey)
-	if !ok {
-		logrus.Error("Failed to get span context from gin.Context in SubmitFaultInjection")
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get span context")
-		return
-	}
-
-	spanCtx := ctx.(context.Context)
-	span := trace.SpanFromContext(spanCtx)
-
-	var req dto.SubmitInjectionReq
-	if err := c.BindJSON(&req); err != nil {
-		span.SetStatus(codes.Error, "validation error in SubmitFaultInjection: "+err.Error())
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
-		return
-	}
-
-	if err := req.Validate(); err != nil {
-		span.SetStatus(codes.Error, "validation error in SubmitFaultInjection: "+err.Error())
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
-		return
-	}
-
-	resp, err := producer.ProduceRestartPedestalTasks(spanCtx, &req, groupID, userID)
-	if err != nil {
-		span.SetStatus(codes.Error, "service error in SubmitFaultInjection: "+err.Error())
-		logrus.Errorf("Failed to submit fault injection: %v", err)
-		handlers.HandleServiceError(c, err)
-		return
-	}
-
-	span.SetStatus(codes.Ok, fmt.Sprintf("Successfully submitted %d fault injections with groupID: %s", len(resp.Items), groupID))
-	dto.SuccessResponse(c, resp)
+	submitFaultInjectionCommon(c, nil)
 }
 
 // SubmitDatapackBuilding submits batch datapack buildings
@@ -522,46 +431,7 @@ func SubmitFaultInjection(c *gin.Context) {
 //	@Router			/api/v2/injections/build [post]
 //	@x-api-type		{"sdk":"true"}
 func SubmitDatapackBuilding(c *gin.Context) {
-	groupID := c.GetString("groupID")
-	userID, exists := middleware.GetCurrentUserID(c)
-	if !exists {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "Authentication required")
-		return
-	}
-
-	ctx, ok := c.Get(middleware.SpanContextKey)
-	if !ok {
-		logrus.Error("Failed to get span context from gin.Context in SubmitDatapackBuilding")
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get span context")
-		return
-	}
-
-	spanCtx := ctx.(context.Context)
-	span := trace.SpanFromContext(spanCtx)
-
-	var req dto.SubmitDatapackBuildingReq
-	if err := c.BindJSON(&req); err != nil {
-		span.SetStatus(codes.Error, "validation error in SubmitDatapackBuilding: "+err.Error())
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
-		return
-	}
-
-	if err := req.Validate(); err != nil {
-		span.SetStatus(codes.Error, "validation error in SubmitDatapackBuilding: "+err.Error())
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
-		return
-	}
-
-	resp, err := producer.ProduceDatapackBuildingTasks(spanCtx, &req, groupID, userID)
-	if err != nil {
-		span.SetStatus(codes.Error, "service error in SubmitDatapackBuilding: "+err.Error())
-		logrus.Errorf("Failed to submit datapack building: %v", err)
-		handlers.HandleServiceError(c, err)
-		return
-	}
-
-	span.SetStatus(codes.Ok, fmt.Sprintf("Successfully submitted %d datapack buildings with groupID: %s", len(resp.Items), groupID))
-	dto.SuccessResponse(c, resp)
+	submitDatapackBuildingCommon(c, nil)
 }
 
 // GetInjectionExecutions handles getting executions related to an injection
@@ -679,4 +549,182 @@ func GetInjectionLogs(c *gin.Context) {
 	}
 
 	dto.JSONResponse(c, http.StatusOK, "Logs retrieved successfully", resp)
+}
+
+// ===================== Private Helper Functions =====================
+
+// searchInjectionsCommon is the common logic for searching injections
+func searchInjectionsCommon(c *gin.Context, projectID *int) {
+	var req dto.SearchInjectionReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
+		return
+	}
+
+	// Note: Project filtering should be handled at the service layer
+	// For project-scoped calls, the service layer will filter by project
+
+	resp, err := producer.SearchInjections(&req, projectID)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	dto.SuccessResponse(c, resp)
+}
+
+// listFaultInjectionNoIssuesCommon is the common logic for listing injections without issues
+func listFaultInjectionNoIssuesCommon(c *gin.Context, projectID *int) {
+	var req dto.ListInjectionNoIssuesReq
+	if err := c.BindQuery(&req); err != nil {
+		logrus.Errorf("failed to bind query parameters: %v", err)
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters")
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		logrus.Errorf("invalid query parameters: %v", err)
+		dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// Note: Project filtering should be handled at the service layer
+	// For project-scoped calls, the service layer will filter by project
+
+	items, err := producer.ListInjectionsNoIssues(&req, projectID)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	dto.SuccessResponse(c, items)
+}
+
+// listFaultInjectionWithIssuesCommon is the common logic for listing injections with issues
+func listFaultInjectionWithIssuesCommon(c *gin.Context, projectID *int) {
+	var req dto.ListInjectionWithIssuesReq
+	if err := c.BindQuery(&req); err != nil {
+		logrus.Errorf("failed to bind query parameters: %v", err)
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters")
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		logrus.Errorf("invalid query parameters: %v", err)
+		dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// Note: Project filtering should be handled at the service layer
+	// For project-scoped calls, the service layer will filter by project
+
+	items, err := producer.ListInjectionsWithIssues(&req, projectID)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	dto.SuccessResponse(c, items)
+}
+
+// submitFaultInjectionCommon is the common logic for submitting fault injections
+func submitFaultInjectionCommon(c *gin.Context, projectID *int) {
+	groupID := c.GetString("groupID")
+	userID, exists := middleware.GetCurrentUserID(c)
+	if !exists {
+		dto.ErrorResponse(c, http.StatusUnauthorized, "Authentication required")
+		return
+	}
+
+	ctx, ok := c.Get(middleware.SpanContextKey)
+	if !ok {
+		logrus.Error("Failed to get span context from gin.Context in SubmitFaultInjection")
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get span context")
+		return
+	}
+
+	spanCtx := ctx.(context.Context)
+	span := trace.SpanFromContext(spanCtx)
+
+	var req dto.SubmitInjectionReq
+	if err := c.BindJSON(&req); err != nil {
+		span.SetStatus(codes.Error, "validation error in SubmitFaultInjection: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		span.SetStatus(codes.Error, "validation error in SubmitFaultInjection: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		return
+	}
+
+	if req.ProjectName == "" && projectID == nil {
+		span.SetStatus(codes.Error, "validation error in SubmitFaultInjection: project name is required")
+		dto.ErrorResponse(c, http.StatusBadRequest, "Project name or ID is required")
+		return
+	}
+
+	resp, err := producer.ProduceRestartPedestalTasks(spanCtx, &req, groupID, userID, projectID)
+	if err != nil {
+		span.SetStatus(codes.Error, "service error in SubmitFaultInjection: "+err.Error())
+		logrus.Errorf("Failed to submit fault injection: %v", err)
+		handlers.HandleServiceError(c, err)
+		return
+	}
+
+	span.SetStatus(codes.Ok, fmt.Sprintf("Successfully submitted %d fault injections with groupID: %s", len(resp.Items), groupID))
+	dto.SuccessResponse(c, resp)
+}
+
+// submitDatapackBuildingCommon is the common logic for submitting datapack buildings
+func submitDatapackBuildingCommon(c *gin.Context, projectID *int) {
+	groupID := c.GetString("groupID")
+	userID, exists := middleware.GetCurrentUserID(c)
+	if !exists {
+		dto.ErrorResponse(c, http.StatusUnauthorized, "Authentication required")
+		return
+	}
+
+	ctx, ok := c.Get(middleware.SpanContextKey)
+	if !ok {
+		logrus.Error("Failed to get span context from gin.Context in SubmitDatapackBuilding")
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get span context")
+		return
+	}
+
+	spanCtx := ctx.(context.Context)
+	span := trace.SpanFromContext(spanCtx)
+
+	var req dto.SubmitDatapackBuildingReq
+	if err := c.BindJSON(&req); err != nil {
+		span.SetStatus(codes.Error, "validation error in SubmitDatapackBuilding: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		span.SetStatus(codes.Error, "validation error in SubmitDatapackBuilding: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		return
+	}
+
+	if req.ProjectName == "" && projectID == nil {
+		span.SetStatus(codes.Error, "validation error in SubmitFaultInjection: project name is required")
+		dto.ErrorResponse(c, http.StatusBadRequest, "Project name or ID is required")
+		return
+	}
+
+	resp, err := producer.ProduceDatapackBuildingTasks(spanCtx, &req, groupID, userID, projectID)
+	if err != nil {
+		span.SetStatus(codes.Error, "service error in SubmitDatapackBuilding: "+err.Error())
+		logrus.Errorf("Failed to submit datapack building: %v", err)
+		handlers.HandleServiceError(c, err)
+		return
+	}
+
+	span.SetStatus(codes.Ok, fmt.Sprintf("Successfully submitted %d datapack buildings with groupID: %s", len(resp.Items), groupID))
+	dto.SuccessResponse(c, resp)
 }

@@ -60,10 +60,10 @@ func (w *JobLogWriter) WriteJobLogs(jobName, namespace, traceID string, logMap m
 		return "", fmt.Errorf("no logs to write for job %s in namespace %s", jobName, namespace)
 	}
 
-	// Generate log file path: jobs/{namespace}/{date}/{timestamp}-{jobName}.log
+	// Generate log file path: jobs/{namespace}/{date}/{traceID}/{jobName}-{timestamp}-.log
 	now := time.Now()
 	dateDir := now.Format("2006-01-02")
-	logSubDir := filepath.Join(w.logDir, namespace, dateDir, jobName)
+	logSubDir := filepath.Join(w.logDir, namespace, dateDir, traceID)
 
 	if err := os.MkdirAll(logSubDir, 0755); err != nil {
 		return "", fmt.Errorf("failed to create log subdirectory: %v", err)

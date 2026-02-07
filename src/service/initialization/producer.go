@@ -18,6 +18,17 @@ import (
 	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 )
 
+type permMeta struct {
+	action        consts.ActionName
+	resourceID    int
+	resourceName  consts.ResourceName
+	resourceScope consts.ResourceScope
+}
+
+func (r permMeta) String() string {
+	return fmt.Sprintf("%v %v %v", r.action, r.resourceScope, r.resourceName)
+}
+
 var resourceIDMap map[consts.ResourceName]int
 
 func InitializeProducer() {
@@ -47,23 +58,25 @@ func initializeProducer() error {
 		return fmt.Errorf("failed to load initial data from file: %w", err)
 	}
 
+	// System resources (following the order in system.go)
 	resources := []database.Resource{
-		{Name: consts.ResourceSystem, Type: consts.ResourceTypeSystem, Category: consts.ResourceAdmin},
-		{Name: consts.ResourceAudit, Type: consts.ResourceTypeTable, Category: consts.ResourceAdmin},
-		{Name: consts.ResourceConfigruation, Type: consts.ResourceTypeTable, Category: consts.ResourceAdmin},
-		{Name: consts.ResourceContainer, Type: consts.ResourceTypeTable, Category: consts.ResourceAdmin},
-		{Name: consts.ResourceContainerVersion, Type: consts.ResourceTypeTable, Category: consts.ResourceAdmin},
-		{Name: consts.ResourceDataset, Type: consts.ResourceTypeTable, Category: consts.ResourceAdmin},
-		{Name: consts.ResourceDatasetVersion, Type: consts.ResourceTypeTable, Category: consts.ResourceAdmin},
-		{Name: consts.ResourceProject, Type: consts.ResourceTypeTable, Category: consts.ResourceAdmin},
-		{Name: consts.ResourceLabel, Type: consts.ResourceTypeTable, Category: consts.ResourceAdmin},
-		{Name: consts.ResourceUser, Type: consts.ResourceTypeTable, Category: consts.ResourceAdmin},
-		{Name: consts.ResourceRole, Type: consts.ResourceTypeTable, Category: consts.ResourceAdmin},
-		{Name: consts.ResourcePermission, Type: consts.ResourceTypeTable, Category: consts.ResourceAdmin},
-		{Name: consts.ResourceTask, Type: consts.ResourceTypeTable, Category: consts.ResourceCore},
-		{Name: consts.ResourceTrace, Type: consts.ResourceTypeTable, Category: consts.ResourceCore},
-		{Name: consts.ResourceInjection, Type: consts.ResourceTypeTable, Category: consts.ResourceCore},
-		{Name: consts.ResourceExecution, Type: consts.ResourceTypeTable, Category: consts.ResourceCore},
+		{Name: consts.ResourceSystem, Type: consts.ResourceTypeSystem, Category: consts.ResourceCategorySystem},
+		{Name: consts.ResourceAudit, Type: consts.ResourceTypeTable, Category: consts.ResourceCategorySystem},
+		{Name: consts.ResourceConfiguration, Type: consts.ResourceTypeTable, Category: consts.ResourceCategorySystem},
+		{Name: consts.ResourceContainer, Type: consts.ResourceTypeTable, Category: consts.ResourceCategoryAsset},
+		{Name: consts.ResourceContainerVersion, Type: consts.ResourceTypeTable, Category: consts.ResourceCategoryAsset},
+		{Name: consts.ResourceDataset, Type: consts.ResourceTypeTable, Category: consts.ResourceCategoryAsset},
+		{Name: consts.ResourceDatasetVersion, Type: consts.ResourceTypeTable, Category: consts.ResourceCategoryAsset},
+		{Name: consts.ResourceProject, Type: consts.ResourceTypeTable, Category: consts.ResourceCategoryPlatform},
+		{Name: consts.ResourceTeam, Type: consts.ResourceTypeTable, Category: consts.ResourceCategoryPlatform},
+		{Name: consts.ResourceLabel, Type: consts.ResourceTypeTable, Category: consts.ResourceCategoryAsset},
+		{Name: consts.ResourceUser, Type: consts.ResourceTypeTable, Category: consts.ResourceCategorySystem},
+		{Name: consts.ResourceRole, Type: consts.ResourceTypeTable, Category: consts.ResourceCategorySystem},
+		{Name: consts.ResourcePermission, Type: consts.ResourceTypeTable, Category: consts.ResourceCategorySystem},
+		{Name: consts.ResourceTask, Type: consts.ResourceTypeTable, Category: consts.ResourceCategoryChaos},
+		{Name: consts.ResourceTrace, Type: consts.ResourceTypeTable, Category: consts.ResourceCategoryChaos},
+		{Name: consts.ResourceInjection, Type: consts.ResourceTypeTable, Category: consts.ResourceCategoryChaos},
+		{Name: consts.ResourceExecution, Type: consts.ResourceTypeTable, Category: consts.ResourceCategoryChaos},
 	}
 
 	for i := range resources {
@@ -73,16 +86,11 @@ func initializeProducer() error {
 	systemRoles := make([]database.Role, 0)
 	for role, displayName := range consts.SystemRoleDisplayNames {
 		systemRoles = append(systemRoles, database.Role{
-			Name:        string(role),
+			Name:        role.String(),
 			DisplayName: displayName,
 			IsSystem:    true,
 			Status:      consts.CommonEnabled,
 		})
-	}
-
-	actions := make([]consts.ActionName, 0, len(consts.ValidActions))
-	for action := range consts.ValidActions {
-		actions = append(actions, action)
 	}
 
 	return withOptimizedDBSettings(func() error {
@@ -124,19 +132,53 @@ func initializeProducer() error {
 				return fmt.Errorf("failed to update resource parent IDs: %w", err)
 			}
 
-			var permissionsToCreate []database.Permission
-			for _, resource := range allResourcesInDB {
-				for _, action := range actions {
-					permission := database.Permission{
-						Name:        producer.GetPermissionName(action, resource.Name),
-						DisplayName: producer.GetPermissionDisplayName(action, resource.DisplayName),
-						Action:      string(action),
-						ResourceID:  resourceIDMap[resource.Name],
-						IsSystem:    true,
-						Status:      consts.CommonEnabled,
+			// Extract unique permissions from SystemRolePermissions to avoid creating unused permissions
+			uniquePermissions := make(map[string]permMeta)
+
+			for _, permissionRules := range consts.SystemRolePermissions {
+				for _, rule := range permissionRules {
+					resourceID, ok := resourceIDMap[rule.Resource]
+					if !ok {
+						return fmt.Errorf("resource %s not found in resourceIDMap", rule.Resource)
 					}
-					permissionsToCreate = append(permissionsToCreate, permission)
+
+					key := rule.String()
+					if _, exists := uniquePermissions[key]; !exists {
+						uniquePermissions[key] = permMeta{
+							action:        rule.Action,
+							resourceID:    resourceID,
+							resourceName:  rule.Resource,
+							resourceScope: rule.Scope,
+						}
+					}
 				}
+			}
+
+			var permissionsToCreate []database.Permission
+			for permName, permData := range uniquePermissions {
+				resource, ok := resourceMap[permData.resourceName]
+				if !ok {
+					for _, res := range allResourcesInDB {
+						if res.ID == permData.resourceID {
+							resource = &res
+							break
+						}
+					}
+					if resource == nil {
+						return fmt.Errorf("resource with ID %d not found", permData.resourceID)
+					}
+				}
+
+				permission := database.Permission{
+					Name:        permName,
+					DisplayName: permData.String(),
+					Action:      permData.action,
+					Scope:       permData.resourceScope,
+					ResourceID:  permData.resourceID,
+					IsSystem:    true,
+					Status:      consts.CommonEnabled,
+				}
+				permissionsToCreate = append(permissionsToCreate, permission)
 			}
 
 			if err := repository.BatchUpsertPermissions(tx, permissionsToCreate); err != nil {
@@ -151,9 +193,17 @@ func initializeProducer() error {
 				return fmt.Errorf("failed to assign system role permissions: %w", err)
 			}
 
-			adminUser, err := initializeAdminUserAndProjects(tx, initialData)
+			adminUser, err := initializeAdminUser(tx, initialData)
 			if err != nil {
-				return fmt.Errorf("failed to initialize admin user and projects: %w", err)
+				return fmt.Errorf("failed to initialize admin user: %w", err)
+			}
+
+			if err := initializeProjectsAndTeams(tx, initialData); err != nil {
+				return fmt.Errorf("failed to initialize admin user, projects and teams: %w", err)
+			}
+
+			if err := initializeUsers(tx, initialData); err != nil {
+				return fmt.Errorf("failed to initialize users: %w", err)
 			}
 
 			if err := initializeContainers(tx, initialData, adminUser.ID); err != nil {
@@ -168,18 +218,14 @@ func initializeProducer() error {
 				return fmt.Errorf("failed to initialize execution labels: %w", err)
 			}
 
-			if err := initializeUsers(tx, initialData); err != nil {
-				return fmt.Errorf("failed to initialize users: %w", err)
-			}
-
 			return nil
 		})
 	})
 }
 
 func assignSystemRolePermissions(tx *gorm.DB) error {
-	for roleName, permissionNames := range consts.SystemRolePermissions {
-		role, err := repository.GetRoleByName(tx, roleName)
+	for roleName, permissionRules := range consts.SystemRolePermissions {
+		role, err := repository.GetRoleByName(tx, roleName.String())
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return fmt.Errorf("role %s not found", roleName)
@@ -206,8 +252,8 @@ func assignSystemRolePermissions(tx *gorm.DB) error {
 			}
 		} else {
 			var permissionStrs []string
-			for _, name := range permissionNames {
-				permissionStrs = append(permissionStrs, string(name))
+			for _, rule := range permissionRules {
+				permissionStrs = append(permissionStrs, rule.String())
 			}
 
 			permissions, err := repository.ListPermissionsByNames(tx, permissionStrs)
@@ -232,9 +278,8 @@ func assignSystemRolePermissions(tx *gorm.DB) error {
 	return nil
 }
 
-func initializeAdminUserAndProjects(tx *gorm.DB, data *InitialData) (*database.User, error) {
+func initializeAdminUser(tx *gorm.DB, data *InitialData) (*database.User, error) {
 	adminUser := data.AdminUser.ConvertToDBUser()
-
 	if err := repository.CreateUser(tx, adminUser); err != nil {
 		if errors.Is(err, consts.ErrAlreadyExists) {
 			return nil, fmt.Errorf("admin user already exists")
@@ -261,26 +306,31 @@ func initializeAdminUserAndProjects(tx *gorm.DB, data *InitialData) (*database.U
 		return nil, fmt.Errorf("failed to assign super_admin role to admin user: %w", err)
 	}
 
+	return adminUser, nil
+}
+
+func initializeProjectsAndTeams(tx *gorm.DB, data *InitialData) error {
+	for _, teamData := range data.Teams {
+		team := teamData.ConvertToDBTeam()
+		if err := repository.CreateTeam(tx, team); err != nil {
+			if errors.Is(err, consts.ErrAlreadyExists) {
+				return fmt.Errorf("team %s already exists", team.Name)
+			}
+			return fmt.Errorf("failed to create team %s: %w", team.Name, err)
+		}
+	}
+
 	for _, projectData := range data.Projects {
 		project := projectData.ConvertToDBProject()
 		if err := repository.CreateProject(tx, project); err != nil {
 			if errors.Is(err, consts.ErrAlreadyExists) {
-				return nil, fmt.Errorf("project %s already exists", project.Name)
+				return fmt.Errorf("project %s already exists", project.Name)
 			}
-			return nil, fmt.Errorf("failed to create project %s: %w", project.Name, err)
-		}
-
-		if err := repository.CreateUserProject(tx, &database.UserProject{
-			UserID:    adminUser.ID,
-			ProjectID: project.ID,
-			RoleID:    superAdminRole.ID,
-			Status:    consts.CommonEnabled,
-		}); err != nil {
-			return nil, fmt.Errorf("failed to add admin user to project %s: %w", project.Name, err)
+			return fmt.Errorf("failed to create project %s: %w", project.Name, err)
 		}
 	}
 
-	return adminUser, nil
+	return nil
 }
 
 func initializeContainers(tx *gorm.DB, data *InitialData, userID int) error {
@@ -397,6 +447,14 @@ func initializeUsers(tx *gorm.DB, data *InitialData) error {
 		return nil
 	}
 
+	role, err := repository.GetRoleByName(tx, consts.RoleUser.String())
+	if err != nil {
+		if errors.Is(err, consts.ErrNotFound) {
+			return fmt.Errorf("user role not found, ensure system roles are initialized first")
+		}
+		return fmt.Errorf("failed to get user role: %w", err)
+	}
+
 	for _, userData := range data.Users {
 		user := userData.ConvertToDBUser()
 
@@ -408,7 +466,97 @@ func initializeUsers(tx *gorm.DB, data *InitialData) error {
 			return fmt.Errorf("failed to create user %s: %w", user.Username, err)
 		}
 
-		// Bind user to specified projects with their roles
+		if err := repository.CreateUserRole(tx, &database.UserRole{
+			UserID: user.ID,
+			RoleID: role.ID,
+		}); err != nil {
+			return fmt.Errorf("failed to assign default role to user %s: %w", user.Username, err)
+		}
+
+		// Bind user to specified teams with their roles
+		if len(userData.Teams) > 0 {
+			for _, teamBinding := range userData.Teams {
+				// Get team by name
+				team, err := repository.GetTeamByName(tx, teamBinding.Name)
+				if err != nil {
+					if errors.Is(err, gorm.ErrRecordNotFound) {
+						return fmt.Errorf("team %s not found for user %s", teamBinding.Name, user.Username)
+					}
+					return fmt.Errorf("failed to get team %s: %w", teamBinding.Name, err)
+				}
+
+				// Get role by name for user-team binding
+				teamRole, err := repository.GetRoleByName(tx, teamBinding.Role)
+				if err != nil {
+					if errors.Is(err, consts.ErrNotFound) {
+						return fmt.Errorf("role %s not found for user %s in team %s", teamBinding.Role, user.Username, teamBinding.Name)
+					}
+					return fmt.Errorf("failed to get role %s: %w", teamBinding.Role, err)
+				}
+
+				// Bind user to team with role
+				if err := repository.CreateUserTeam(tx, &database.UserTeam{
+					UserID: user.ID,
+					TeamID: team.ID,
+					RoleID: teamRole.ID,
+					Status: consts.CommonEnabled,
+				}); err != nil {
+					if !errors.Is(err, consts.ErrAlreadyExists) {
+						return fmt.Errorf("failed to bind user %s to team %s with role %s: %w", user.Username, teamBinding.Name, teamBinding.Role, err)
+					}
+				}
+
+				logrus.Infof("Bound user %s to team %s with role %s", user.Username, teamBinding.Name, teamBinding.Role)
+
+				// Bind projects to this team and user if specified
+				if len(teamBinding.Projects) > 0 {
+					for _, projectBinding := range teamBinding.Projects {
+						project, err := repository.GetProjectByName(tx, projectBinding.Name)
+						if err != nil {
+							if errors.Is(err, gorm.ErrRecordNotFound) {
+								return fmt.Errorf("project %s not found for team %s", projectBinding.Name, teamBinding.Name)
+							}
+							return fmt.Errorf("failed to get project %s: %w", projectBinding.Name, err)
+						}
+
+						// Update project's team_id to bind project to team
+						project.TeamID = &team.ID
+						if err := repository.UpdateProject(tx, project); err != nil {
+							return fmt.Errorf("failed to bind project %s to team %s: %w", projectBinding.Name, teamBinding.Name, err)
+						}
+
+						logrus.Infof("Bound project %s to team %s", projectBinding.Name, teamBinding.Name)
+
+						// Get role for user-project binding
+						projectRole, err := repository.GetRoleByName(tx, projectBinding.Role)
+						if err != nil {
+							if errors.Is(err, consts.ErrNotFound) {
+								return fmt.Errorf("role %s not found for user %s in project %s", projectBinding.Role, user.Username, projectBinding.Name)
+							}
+							return fmt.Errorf("failed to get role %s: %w", projectBinding.Role, err)
+						}
+
+						// Bind user to project with role
+						if err := repository.CreateUserProject(tx, &database.UserProject{
+							UserID:    user.ID,
+							ProjectID: project.ID,
+							RoleID:    projectRole.ID,
+							Status:    consts.CommonEnabled,
+						}); err != nil {
+							if !errors.Is(err, consts.ErrAlreadyExists) {
+								return fmt.Errorf("failed to bind user %s to project %s with role %s: %w", user.Username, projectBinding.Name, projectBinding.Role, err)
+							}
+						}
+
+						logrus.Infof("Bound user %s to project %s with role %s", user.Username, projectBinding.Name, projectBinding.Role)
+					}
+				}
+			}
+		} else {
+			logrus.Infof("Created user %s without team bindings", user.Username)
+		}
+
+		// Bind user to specified projects directly (not through teams)
 		if len(userData.Projects) > 0 {
 			for _, projectBinding := range userData.Projects {
 				// Get project by name
@@ -421,7 +569,7 @@ func initializeUsers(tx *gorm.DB, data *InitialData) error {
 				}
 
 				// Get role by name
-				role, err := repository.GetRoleByName(tx, consts.RoleName(projectBinding.Role))
+				projectRole, err := repository.GetRoleByName(tx, projectBinding.Role)
 				if err != nil {
 					if errors.Is(err, consts.ErrNotFound) {
 						return fmt.Errorf("role %s not found for user %s in project %s", projectBinding.Role, user.Username, projectBinding.Name)
@@ -433,7 +581,7 @@ func initializeUsers(tx *gorm.DB, data *InitialData) error {
 				if err := repository.CreateUserProject(tx, &database.UserProject{
 					UserID:    user.ID,
 					ProjectID: project.ID,
-					RoleID:    role.ID,
+					RoleID:    projectRole.ID,
 					Status:    consts.CommonEnabled,
 				}); err != nil {
 					if !errors.Is(err, consts.ErrAlreadyExists) {
@@ -443,8 +591,6 @@ func initializeUsers(tx *gorm.DB, data *InitialData) error {
 
 				logrus.Infof("Bound user %s to project %s with role %s", user.Username, projectBinding.Name, projectBinding.Role)
 			}
-		} else {
-			logrus.Infof("Created user %s without project bindings", user.Username)
 		}
 	}
 

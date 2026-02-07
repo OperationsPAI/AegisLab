@@ -103,26 +103,46 @@ func (req *UpdateProjectReq) PatchProjectModel(target *database.Project) {
 
 // ProjectResp represents basic project response
 type ProjectResp struct {
-	ID          int       `json:"id"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	IsPublic    bool      `json:"is_public"`
-	Status      string    `json:"status"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID        int       `json:"id"`
+	Name      string    `json:"name"`
+	IsPublic  bool      `json:"is_public"`
+	Status    string    `json:"status"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+
+	// Statistics
+	LastInjectionAt *time.Time `json:"last_injection_at,omitempty"` // Last successful injection time
+	LastExecutionAt *time.Time `json:"last_execution_at,omitempty"` // Last successful execution time
+	InjectionCount  int        `json:"injection_count"`              // Total injection count
+	ExecutionCount  int        `json:"execution_count"`              // Total execution count
 
 	Labels []LabelItem `json:"labels,omitempty"`
 }
 
-func NewProjectResp(project *database.Project) *ProjectResp {
+// ProjectStatistics holds statistics for a project
+type ProjectStatistics struct {
+	InjectionCount  int
+	ExecutionCount  int
+	LastInjectionAt *time.Time
+	LastExecutionAt *time.Time
+}
+
+func NewProjectResp(project *database.Project, stats *ProjectStatistics) *ProjectResp {
 	resp := &ProjectResp{
-		ID:          project.ID,
-		Name:        project.Name,
-		Description: project.Description,
-		IsPublic:    project.IsPublic,
-		Status:      consts.GetStatusTypeName(project.Status),
-		CreatedAt:   project.CreatedAt,
-		UpdatedAt:   project.UpdatedAt,
+		ID:        project.ID,
+		Name:      project.Name,
+		IsPublic:  project.IsPublic,
+		Status:    consts.GetStatusTypeName(project.Status),
+		CreatedAt: project.CreatedAt,
+		UpdatedAt: project.UpdatedAt,
+	}
+
+	// Fill statistics if provided
+	if stats != nil {
+		resp.LastInjectionAt = stats.LastInjectionAt
+		resp.LastExecutionAt = stats.LastExecutionAt
+		resp.InjectionCount = stats.InjectionCount
+		resp.ExecutionCount = stats.ExecutionCount
 	}
 
 	if project.Labels != nil {
@@ -147,9 +167,9 @@ type ProjectDetailResp struct {
 	UserCount  int             `json:"user_count"`
 }
 
-func NewProjectDetailResp(project *database.Project) *ProjectDetailResp {
+func NewProjectDetailResp(project *database.Project, stats *ProjectStatistics) *ProjectDetailResp {
 	return &ProjectDetailResp{
-		ProjectResp: *NewProjectResp(project),
+		ProjectResp: *NewProjectResp(project, stats),
 	}
 }
 

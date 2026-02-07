@@ -37,9 +37,9 @@ func CreateOrUpdateLabelsFromItems(db *gorm.DB, labelItems []dto.LabelItem, cate
 	}
 
 	// Build key -> value map for quick lookup
-	kvMap := make(map[string]string, len(labelItems))
+	kvMap := make(map[string]dto.LabelItem, len(labelItems))
 	for _, item := range labelItems {
-		kvMap[item.Key] = item.Value
+		kvMap[item.Key] = item
 	}
 
 	// Find existing labels using slice conditions for repository
@@ -53,7 +53,7 @@ func CreateOrUpdateLabelsFromItems(db *gorm.DB, labelItems []dto.LabelItem, cate
 	result := make([]database.Label, 0, len(labelItems))
 	existingIDs := make([]int, 0, len(existingLabels))
 	for _, existing := range existingLabels {
-		if value, ok := kvMap[existing.Key]; ok && value == existing.Value {
+		if item, ok := kvMap[existing.Key]; ok && item.Value == existing.Value {
 			result = append(result, existing)
 			existingIDs = append(existingIDs, existing.ID)
 			delete(kvMap, existing.Key)
@@ -71,14 +71,15 @@ func CreateOrUpdateLabelsFromItems(db *gorm.DB, labelItems []dto.LabelItem, cate
 	if len(kvMap) > 0 {
 		newLabels := make([]database.Label, 0, len(kvMap))
 
-		for key, value := range kvMap {
+		for key, item := range kvMap {
 			newLabels = append(newLabels, database.Label{
 				Key:         key,
-				Value:       value,
+				Value:       item.Value,
 				Category:    category,
 				Description: fmt.Sprintf(consts.CustomLabelDescriptionTemplate, key, consts.GetLabelCategoryName(category)),
 				Color:       utils.GenerateColorFromKey(key),
 				Usage:       consts.DefaultLabelUsage,
+				IsSystem:    item.IsSystem,
 				Status:      consts.CommonEnabled,
 			})
 		}

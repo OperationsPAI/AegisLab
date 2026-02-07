@@ -25,16 +25,13 @@ func SetupSystemRoutes(router *gin.Engine) {
 			configsRead.GET("/:config_id/histories", system.ListConfigHistories) // Get configuration change history
 		}
 
-		configsWrite := configs.Group("", middleware.RequireConfigurationWrite)
-		{
-			// Frequent operation: Update configuration value (for ops team)
-			configsWrite.PATCH("/:config_id", system.UpdateConfigValue)                 // Update configuration value
-			configsWrite.POST("/:config_id/value/rollback", system.RollbackConfigValue) // Rollback configuration value
+		// Configuration Update operations
+		configs.PATCH("/:config_id", middleware.RequireConfigurationUpdate, system.UpdateConfigValue)                 // Update configuration value
+		configs.POST("/:config_id/value/rollback", middleware.RequireConfigurationUpdate, system.RollbackConfigValue) // Rollback configuration value
 
-			// Rare operation: Update configuration metadata (admin only)
-			configsWrite.PUT("/:config_id/metadata", system.UpdateConfigMetadata)             // Update configuration metadata (schema)
-			configsWrite.POST("/:config_id/metadata/rollback", system.RollbackConfigMetadata) // Rollback configuration metadata
-		}
+		// Configuration Configure operations (metadata management, higher privilege)
+		configs.PUT("/:config_id/metadata", middleware.RequireConfigurationConfigure, system.UpdateConfigMetadata)             // Update configuration metadata (schema)
+		configs.POST("/:config_id/metadata/rollback", middleware.RequireConfigurationConfigure, system.RollbackConfigMetadata) // Rollback configuration metadata
 	}
 
 	health := router.Group("/system/health")

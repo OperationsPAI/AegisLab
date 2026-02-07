@@ -206,3 +206,8 @@ func UpdateUser(req *dto.UpdateUserReq, userID int) (*dto.UserResp, error) {
 func SearchUsers(req *dto.SearchReq) (*dto.SearchResp[dto.UserResp], error) {
 	return nil, nil
 }
+
+// IsUserSystemAdmin checks if a user has system admin role
+func IsUserSystemAdmin(userID int) (bool, error) {
+	return repository.IsSystemAdmin(database.DB, userID)
+}

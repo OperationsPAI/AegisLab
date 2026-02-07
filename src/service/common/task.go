@@ -1,7 +1,6 @@
 package common
 
 import (
-	"aegis/client"
 	"aegis/consts"
 	"aegis/database"
 	"aegis/dto"
@@ -74,15 +73,12 @@ func SubmitTask(ctx context.Context, t *dto.UnifiedTask) error {
 	if t.ParentTaskID == nil && t.State != consts.TaskRescheduled {
 		withAlgorithms := false
 		leafNum := 1
-		if t.Type == consts.TaskTypeRestartPedestal {
-			var algorithms []dto.ContainerVersionItem
-			if err := client.GetHashField(ctx, consts.InjectionAlgorithmsKey, t.GroupID, &algorithms); err != nil {
-				return fmt.Errorf("failed to get algorithms from redis: %w", err)
-			}
-
-			if len(algorithms) > 0 {
-				withAlgorithms = true
-				leafNum = len(algorithms)
+		if t.Type == consts.TaskTypeRestartPedestal && t.Extra != nil {
+			if val, ok := t.Extra[consts.TaskExtraInjectionAlgorithms]; ok {
+				if algoNums, ok := val.(int); ok && algoNums > 0 {
+					withAlgorithms = true
+					leafNum = algoNums
+				}
 			}
 		}
 
