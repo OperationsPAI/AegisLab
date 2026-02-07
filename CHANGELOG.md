@@ -18,6 +18,7 @@ All notable changes to this project will be documented in this file.
 - *(helm)* Add chart version and local path fallback for pedestal deployment
 - *(deployment)* Add staging context and refine service/config management
 - *(initialization)* Add user management with project role bindings
+- *(team)* Add team management with project role bindings
 
 ### Miscellaneous Tasks
 

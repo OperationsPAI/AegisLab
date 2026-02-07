@@ -330,11 +330,17 @@ type Project struct {
 	ID          int    `gorm:"primaryKey"`
 	Name        string `gorm:"unique,index;not null;size:128"` // Project name with size limit
 	Description string `gorm:"type:text"`                      // Project description
+	TeamID      *int   `gorm:"index:idx_project_team"`         // Associated team ID (optional, project can belong to team or user)
 
 	IsPublic  bool              `gorm:"not null;default:false"`   // Whether publicly visible
 	Status    consts.StatusType `gorm:"not null;default:1;index"` // Status: -1:deleted 0:disabled 1:enabled
 	CreatedAt time.Time         `gorm:"autoCreateTime"`           // Creation time
 	UpdatedAt time.Time         `gorm:"autoUpdateTime"`           // Update time
+
+	ActiveName string `gorm:"type:varchar(150) GENERATED ALWAYS AS (CASE WHEN status >= 0 THEN name ELSE NULL END) VIRTUAL;uniqueIndex:idx_active_project_name"`
+
+	// Foreign key association
+	Team *Team `gorm:"foreignKey:TeamID"`
 
 	Containers []Container `gorm:"many2many:project_containers"`
 	Datasets   []Dataset   `gorm:"many2many:project_datasets"`
@@ -357,6 +363,23 @@ type Label struct {
 	UpdatedAt time.Time         `gorm:"autoUpdateTime"`           // Update time
 
 	ActiveKeyValue string `gorm:"type:varchar(100) GENERATED ALWAYS AS (CASE WHEN status >= 0 THEN CONCAT(label_key, ':', label_value) ELSE NULL END) VIRTUAL;uniqueIndex:idx_key_value_unique"`
+}
+
+// Team table - Team management
+type Team struct {
+	ID          int    `gorm:"primaryKey;autoIncrement"` // Unique identifier
+	Name        string `gorm:"not null;size:128"`        // Team name with size limit
+	Description string `gorm:"type:text"`                // Team description
+
+	IsPublic  bool              `gorm:"not null;default:false"`   // Whether publicly visible
+	Status    consts.StatusType `gorm:"not null;default:1;index"` // Status: -1:deleted 0:disabled 1:enabled
+	CreatedAt time.Time         `gorm:"autoCreateTime"`           // Creation time
+	UpdatedAt time.Time         `gorm:"autoUpdateTime"`           // Update time
+
+	ActiveName string `gorm:"type:varchar(150) GENERATED ALWAYS AS (CASE WHEN status >= 0 THEN name ELSE NULL END) VIRTUAL;uniqueIndex:idx_active_team_name"`
+
+	// One-to-many relationship with Project
+	Projects []Project `gorm:"foreignKey:TeamID"`
 }
 
 // User table
@@ -406,12 +429,13 @@ type Role struct {
 
 // Permission table
 type Permission struct {
-	ID          int    `gorm:"primaryKey;autoIncrement"`                // Unique identifier
-	Name        string `gorm:"not null;size:128"`                       // Permission name (unique)
-	DisplayName string `gorm:"not null"`                                // Display name
-	Description string `gorm:"type:text"`                               // Permission description
-	Action      string `gorm:"not null;index:idx_perm_action_resource"` // Action (read, write, delete, execute, etc.)
-	ResourceID  int    `gorm:"not null;index:idx_perm_action_resource"` // Associated resource ID
+	ID          int                  `gorm:"primaryKey;autoIncrement"`                 // Unique identifier
+	Name        string               `gorm:"not null;size:128"`                        // Permission name (unique)
+	DisplayName string               `gorm:"not null"`                                 // Display name
+	Description string               `gorm:"type:text"`                                // Permission description
+	Action      consts.ActionName    `gorm:"type:varchar(16);not null;index:idx_perm"` // Action (read, write, delete, execute, etc.)
+	Scope       consts.ResourceScope `gorm:"type:varchar(8);not null;index:idx_perm"`  // Resource scope (system, project, team, user, global)
+	ResourceID  int                  `gorm:"not null;index:idx_perm"`                  // Associated resource ID
 
 	IsSystem  bool              `gorm:"not null;default:false"`   // Whether system permission
 	Status    consts.StatusType `gorm:"not null;default:1;index"` // 0:disabled 1:enabled -1:deleted
@@ -496,11 +520,10 @@ type Task struct {
 	ID          string          `gorm:"primaryKey;size:64"`         // Task ID with size limit
 	Type        consts.TaskType `gorm:"index:idx_task_type_status"` // Task type with size limit
 	Immediate   bool            // Whether to execute immediately
-	ExecuteTime int64           `gorm:"index"`                                                      // Execution time timestamp
-	CronExpr    string          `gorm:"size:128"`                                                   // Cron expression with size limit
-	Payload     string          `gorm:"type:text"`                                                  // Task payload
-	TraceID     string          `gorm:"index;size:64"`                                              // Trace ID with size limit
-	ProjectID   int             `gorm:"index:idx_task_project_state;index:idx_task_project_status"` // Task can belong to a project (optional)
+	ExecuteTime int64           `gorm:"index"`         // Execution time timestamp
+	CronExpr    string          `gorm:"size:128"`      // Cron expression with size limit
+	Payload     string          `gorm:"type:text"`     // Task payload
+	TraceID     string          `gorm:"index;size:64"` // Trace ID with size limit
 
 	ParentTaskID *string `gorm:"index;size:64"`      // Parent task ID for sub-tasks
 	Level        int     `gorm:"not null;default:0"` // Task level in the trace
@@ -512,9 +535,8 @@ type Task struct {
 	UpdatedAt time.Time         `gorm:"autoUpdateTime"`
 
 	// Foreign key association
-	Project    *Project `gorm:"foreignKey:ProjectID"`
-	Trace      *Trace   `gorm:"foreignKey:TraceID;references:ID;constraint:OnDelete:CASCADE"`
-	ParentTask *Task    `gorm:"foreignKey:ParentTaskID;references:ID;constraint:OnDelete:CASCADE"`
+	Trace      *Trace `gorm:"foreignKey:TraceID;references:ID;constraint:OnDelete:CASCADE"`
+	ParentTask *Task  `gorm:"foreignKey:ParentTaskID;references:ID;constraint:OnDelete:CASCADE"`
 
 	// One-to-one back reference with cascade delete
 	FaultInjection *FaultInjection `gorm:"foreignKey:TaskID;references:ID;constraint:OnDelete:CASCADE"`
@@ -735,7 +757,9 @@ type UserProject struct {
 	ID        int `gorm:"primaryKey;autoIncrement"` // Unique identifier
 	UserID    int `gorm:"not null;index"`           // User ID
 	ProjectID int `gorm:"not null;index"`           // Project ID
-	RoleID    int // Role ID in this project
+	RoleID    int `gorm:"not null"`                 // Role ID in this project
+
+	WorkspaceConfig string `gorm:"type:text"` // JSON configuration (view type, filters, layout, favorites, etc.)
 
 	Status    consts.StatusType `gorm:"not null;default:1;index"` // 0:disabled 1:enabled -1:quit
 	CreatedAt time.Time         `gorm:"autoCreateTime"`           // Creation time
@@ -747,6 +771,25 @@ type UserProject struct {
 	User    *User    `gorm:"foreignKey:UserID"`
 	Project *Project `gorm:"foreignKey:ProjectID"`
 	Role    *Role    `gorm:"foreignKey:RoleID"`
+}
+
+// UserTeam Many-to-many relationship table between User and Team (includes team-level permissions)
+type UserTeam struct {
+	ID     int `gorm:"primaryKey;autoIncrement"` // Unique identifier
+	UserID int `gorm:"not null;index"`           // User ID
+	TeamID int `gorm:"not null;index"`           // Team ID
+	RoleID int // Role ID in this team
+
+	Status    consts.StatusType `gorm:"not null;default:1;index"` // 0:disabled 1:enabled -1:quit
+	CreatedAt time.Time         `gorm:"autoCreateTime"`           // Creation time
+	UpdatedAt time.Time         `gorm:"autoUpdateTime"`           // Update time
+
+	ActiveUserTeam string `gorm:"type:varchar(32) GENERATED ALWAYS AS (CASE WHEN status >= 0 THEN CONCAT(user_id, ':', team_id, ':', role_id) ELSE NULL END) VIRTUAL;uniqueIndex:idx_user_team_unique"`
+
+	// Foreign key association
+	User *User `gorm:"foreignKey:UserID"`
+	Team *Team `gorm:"foreignKey:TeamID"`
+	Role *Role `gorm:"foreignKey:RoleID"`
 }
 
 // UserRole Many-to-many relationship table between User and global roles
