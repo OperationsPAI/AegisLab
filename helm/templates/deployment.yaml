@@ -55,7 +55,7 @@ spec:
             - |
               INIT_KEY="/initialized_producer"
               CONFIG_PREFIX="/rcabench/config/producer"
-              CONFIG_JSON_PATH="/initial-config/etcd.json"
+              CONFIG_YAML_PATH="/initial-config/etcd.yaml"
               FORCE_INIT="{{ .Values.initialConfig.force }}"
               
               echo "=== Etcd Initialization Started: $(date) ==="
@@ -73,25 +73,28 @@ spec:
                 echo "No initialization marker found, proceeding with initialization..."
               fi
               
-              # Load initial config
-              echo "Loading config from $CONFIG_JSON_PATH..."
-              if [ -f "$CONFIG_JSON_PATH" ]; then
-                cat "$CONFIG_JSON_PATH" | sed 's/[{}]//g' | tr ',' '\n' | while IFS= read -r line; do
-                  key_name=$(echo "$line" | cut -d':' -f1 | tr -d '" ' )
-                  val_content=$(echo "$line" | cut -d':' -f2- | sed 's/^[[:space:]]*//; s/,[[:space:]]*$//; s/^"//; s/"$//')
-
-                  key="$CONFIG_PREFIX/$key_name"
-                  value="$val_content"
+              # Load initial config from YAML
+              echo "Loading config from $CONFIG_YAML_PATH..."
+              if [ -f "$CONFIG_YAML_PATH" ]; then
+                while IFS=': ' read -r key_name value || [ -n "$key_name" ]; do
+                  # Skip empty lines and comments
+                  [ -z "$key_name" ] && continue
+                  echo "$key_name" | grep -q '^#' && continue
                   
-                  if [ -n "$key" ]; then
-                    echo "Setting: $key"
+                  # Remove leading/trailing whitespace and quotes
+                  key_name=$(echo "$key_name" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+                  value=$(echo "$value" | sed "s/^[[:space:]]*//; s/[[:space:]]*$//; s/^[\"']//; s/[\"']$//")
+                  
+                  if [ -n "$key_name" ]; then
+                    key="$CONFIG_PREFIX/$key_name"
+                    echo "Setting: $key = $value"
                     etcdctl --endpoints=http://{{ .Release.Name }}-etcd-headless:2379 put "$key" "$value" || true
                   fi
-                done
+                done < "$CONFIG_YAML_PATH"
                 etcdctl --endpoints=http://{{ .Release.Name }}-etcd-headless:2379 put "$INIT_KEY" "true" || true
                 echo "Config loaded successfully"
               else
-                echo "Warning: $CONFIG_JSON_PATH not found"
+                echo "Warning: $CONFIG_YAML_PATH not found"
               fi
               
               echo "=== Etcd Initialization Done: $(date) ==="
@@ -198,7 +201,7 @@ spec:
             - |
               INIT_KEY="/initialized_consumer"
               CONFIG_PREFIX="/rcabench/config/consumer"
-              CONFIG_JSON_PATH="/initial-config/etcd.json"
+              CONFIG_YAML_PATH="/initial-config/etcd.yaml"
               FORCE_INIT="{{ .Values.initialConfig.force }}"
               
               echo "=== Etcd Initialization Started: $(date) ==="
@@ -216,25 +219,28 @@ spec:
                 echo "No initialization marker found, proceeding with initialization..."
               fi
               
-              # Load initial config
-              echo "Loading config from $CONFIG_JSON_PATH..."
-              if [ -f "$CONFIG_JSON_PATH" ]; then
-                cat "$CONFIG_JSON_PATH" | sed 's/[{}]//g' | tr ',' '\n' | while IFS= read -r line; do
-                  key_name=$(echo "$line" | cut -d':' -f1 | tr -d '" ' )
-                  val_content=$(echo "$line" | cut -d':' -f2- | sed 's/^[[:space:]]*//; s/,[[:space:]]*$//; s/^"//; s/"$//')
-
-                  key="$CONFIG_PREFIX/$key_name"
-                  value="$val_content"
+              # Load initial config from YAML
+              echo "Loading config from $CONFIG_YAML_PATH..."
+              if [ -f "$CONFIG_YAML_PATH" ]; then
+                while IFS=': ' read -r key_name value || [ -n "$key_name" ]; do
+                  # Skip empty lines and comments
+                  [ -z "$key_name" ] && continue
+                  echo "$key_name" | grep -q '^#' && continue
                   
-                  if [ -n "$key" ]; then
-                    echo "Setting: $key"
+                  # Remove leading/trailing whitespace and quotes
+                  key_name=$(echo "$key_name" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+                  value=$(echo "$value" | sed "s/^[[:space:]]*//; s/[[:space:]]*$//; s/^[\"']//; s/[\"']$//")
+                  
+                  if [ -n "$key_name" ]; then
+                    key="$CONFIG_PREFIX/$key_name"
+                    echo "Setting: $key = $value"
                     etcdctl --endpoints=http://{{ .Release.Name }}-etcd-headless:2379 put "$key" "$value" || true
                   fi
-                done
+                done < "$CONFIG_YAML_PATH"
                 etcdctl --endpoints=http://{{ .Release.Name }}-etcd-headless:2379 put "$INIT_KEY" "true" || true
                 echo "Config loaded successfully"
               else
-                echo "Warning: $CONFIG_JSON_PATH not found"
+                echo "Warning: $CONFIG_YAML_PATH not found"
               fi
               
               echo "=== Etcd Initialization Done: $(date) ==="

@@ -109,11 +109,11 @@ kind: ConfigMap
 metadata:
   name: {{ .Release.Name }}-initial-data
 data:
-  data.json: |
-{{- if .Values.initialDataFiles.data_json }}
-{{ .Values.initialDataFiles.data_json | indent 4 }}
+  data.yaml: |
+{{- if .Values.initialDataFiles.data_yaml }}
+{{ .Values.initialDataFiles.data_yaml | indent 4 }}
 {{- else }}
-{{ .Files.Get "files/initial_data/data.json" | indent 4 }}
+{{ .Files.Get "files/initial_data/data.yaml" | indent 4 }}
 {{- end }}
   otel-demo.yaml: |
 {{- if .Values.initialDataFiles.otel_demo_yaml }}
@@ -134,7 +134,7 @@ kind: ConfigMap
 metadata:
   name: {{ .Release.Name }}-etcd-producer-config
 data:
-  etcd.json: |
+  etcd.yaml: |
 {{ include "helm.etcd.mergedConfig" (dict "root" . "configType" "producer") | indent 4 }}
 
 ---
@@ -143,7 +143,7 @@ kind: ConfigMap
 metadata:
   name: {{ .Release.Name }}-etcd-consumer-config
 data:
-  etcd.json: |
+  etcd.yaml: |
 {{ include "helm.etcd.mergedConfig" (dict "root" . "configType" "consumer") | indent 4 }}
 
 ---

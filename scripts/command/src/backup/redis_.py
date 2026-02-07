@@ -80,8 +80,10 @@ class RedisClient:
 
         matching_keys = self.source_redis.keys(pattern)
         if not matching_keys:
-            console.print(f"[bold red]No keys found matching '{pattern}'[/bold red]")
-            raise SystemExit(1)
+            console.print(
+                f"[bold yellow]No hash tables found matching '{pattern}'[/bold yellow]"
+            )
+            return []
 
         hashes = []
         for key in matching_keys:  # type: ignore
@@ -179,6 +181,9 @@ class RedisClient:
         Copy hash tables from source to target Redis instance.
         """
         hashes = self._read_hashes_fuzzy(HASH_PATTERN)
+        if not hashes:
+            console.print("[bold yellow]No hash tables to copy.[/bold yellow]")
+            return
 
         if dry_run:
             console.print(

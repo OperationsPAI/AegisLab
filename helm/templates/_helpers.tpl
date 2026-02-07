@@ -92,12 +92,12 @@ Returns: merged JSON configuration
 */}}
 {{- define "helm.etcd.mergedConfig" -}}
 {{- $dataJsonContent := "" -}}
-{{- if .root.Values.initialDataFiles.data_json -}}
-  {{- $dataJsonContent = .root.Values.initialDataFiles.data_json -}}
+{{- if .root.Values.initialDataFiles.data_yaml -}}
+  {{- $dataJsonContent = .root.Values.initialDataFiles.data_yaml -}}
 {{- else -}}
-  {{- $dataJsonContent = .root.Files.Get "files/initial_data/data.json" -}}
+  {{- $dataJsonContent = .root.Files.Get "files/initial_data/data.yaml" -}}
 {{- end -}}
-{{- $dataJson := $dataJsonContent | fromJson -}}
+{{- $dataJson := $dataJsonContent | fromYaml -}}
 {{- $dynamicConfigs := $dataJson.dynamic_configs | default list -}}
 
 {{/* Build default config from dynamic_configs based on scope */}}
@@ -123,22 +123,22 @@ Returns: merged JSON configuration
 
 {{/* Merge: default -> userConfig */}}
 {{- $merged := mergeOverwrite (dict) $defaultConfig $userConfig -}}
-{{- $merged | toJson -}}
+{{- $merged | toYaml -}}
 {{- end -}}
 
 {{/*
-Generate system helm config list from data.json containers (type=2 only)
+Generate system helm config list from data.yaml containers (type=2 only)
 Usage: {{ include "helm.systemHelmConfigs" . }}
 Returns: JSON array of system helm configurations
 */}}
 {{- define "helm.systemHelmConfigs" -}}
 {{- $dataJsonContent := "" -}}
-{{- if .Values.initialDataFiles.data_json -}}
-  {{- $dataJsonContent = .Values.initialDataFiles.data_json -}}
+{{- if .Values.initialDataFiles.data_yaml -}}
+  {{- $dataJsonContent = .Values.initialDataFiles.data_yaml -}}
 {{- else -}}
-  {{- $dataJsonContent = .Files.Get "files/initial_data/data.json" -}}
+  {{- $dataJsonContent = .Files.Get "files/initial_data/data.yaml" -}}
 {{- end -}}
-{{- $dataJson := $dataJsonContent | fromJson -}}
+{{- $dataJson := $dataJsonContent | fromYaml -}}
 {{- $containers := $dataJson.containers | default list -}}
 
 {{- $systemConfigs := list -}}

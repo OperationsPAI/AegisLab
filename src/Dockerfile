@@ -3,7 +3,9 @@ ENV TZ=Asia/Shanghai
 WORKDIR /app
 
 COPY src/go.mod src/go.sum* ./
-RUN go env -w GOPROXY=https://goproxy.cn,direct && go mod download
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go env -w GOPROXY=https://goproxy.cn,direct && \
+    go mod download
 
 COPY src /app
 RUN go build -o /app/exp

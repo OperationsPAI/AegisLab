@@ -192,6 +192,6 @@ initialConfig:
 
 # Initial data files - can be overridden via skaffold setFiles
 initialDataFiles:
-  data_json: ""
+  data_yaml: ""
   otel_demo_yaml: ""
   ts_yaml: ""

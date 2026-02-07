@@ -27,6 +27,7 @@ All notable changes to this project will be documented in this file.
 ### Refactor
 
 - *(frontend)* Remove entire frontend codebase
+- *(deployment)* Convert initial data format from JSON to YAML
 
 ### Testing
 

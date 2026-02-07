@@ -49,6 +49,9 @@ spec:
       mountPath: /logs
     - name: containers
       mountPath: /containers
+    - name: tz-config
+      mountPath: /etc/localtime
+      readOnly: true
   volumes:
   - name: dataset
     persistentVolumeClaim:
@@ -62,3 +65,6 @@ spec:
   - name: containers
     persistentVolumeClaim:
       claimName: rcabench-containers-data
+  - name: tz-config
+    hostPath:
+      path: /etc/localtime

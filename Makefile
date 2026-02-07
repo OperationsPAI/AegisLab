@@ -164,7 +164,7 @@ install-rcabench:  ## 🔧 Deploy RCABench application in prod environment
 	helm upgrade -i rcabench ./helm --namespace exp \
 		--create-namespace \
 		--values ./manifests/prod/rcabench.yaml \
-		--set-file initialDataFiles.data_json=data/initial_data/prod/data.json \
+		--set-file initialDataFiles.data_yaml=data/initial_data/prod/data.yaml \
 		--set-file initialDataFiles.otel_demo_yaml=data/initial_data/prod/otel-demo.yaml \
 		--set-file initialDataFiles.ts_yaml=data/initial_data/prod/ts.yaml \
 		--atomic --timeout 10m
@@ -186,8 +186,8 @@ init-etcd:
 # Test
 # =============================================================================
 
-test-push:
-	SDK_VERSION=1.1.55 ENV_MODE=test devbox run skaffold run
+test:
+	SDK_VERSION="$(SDK_VERSION)" ENV_MODE=test devbox run skaffold run
 
 regression-test:
 	chmod +x ./scripts/regression-test.sh && ./scripts/regression-test.sh
