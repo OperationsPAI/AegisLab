@@ -11,7 +11,7 @@ import (
 	"fmt"
 
 	"aegis/database"
-	"github.com/LGU-SE-Internal/chaos-experiment/handler"
+	"github.com/OperationsPAI/chaos-experiment/handler"
 	"github.com/sirupsen/logrus"
 )
 

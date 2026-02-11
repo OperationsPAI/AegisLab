@@ -104,7 +104,7 @@ if [ "$ENV_MODE" = "prod" ]; then
     
     # Install otel-demo
     echo "Installing OpenTelemetry Demo application..."
-    helm repo add opentelemetry-demo https://lgu-se-internal.github.io/opentelemetry-demo --force-update
+    helm repo add opentelemetry-demo https://operationspai.github.io/opentelemetry-demo --force-update
     retry_helm_install 3 helm install otel-demo0 opentelemetry-demo/opentelemetry-demo \
         --namespace otel-demo0 \
         --create-namespace \
@@ -205,7 +205,7 @@ else
     
     # Install otel-demo
     echo "Installing OpenTelemetry Demo application..."
-    helm repo add opentelemetry-demo https://lgu-se-internal.github.io/opentelemetry-demo --force-update
+    helm repo add opentelemetry-demo https://operationspai.github.io/opentelemetry-demo --force-update
     retry_helm_install 3 helm install otel-demo0 opentelemetry-demo/opentelemetry-demo \
         --namespace otel-demo0 \
         --create-namespace \

@@ -482,9 +482,11 @@ func SetupV2Routes(router *gin.Engine) {
 		}
 
 		// Injection Read operations
-		injections.GET("/:id", v2handlers.GetInjection)              // Get injection by ID
-		injections.GET("/:id/download", v2handlers.DownloadDatapack) // Download injection datapack
-		injections.GET("/metadata", v2handlers.GetInjectionMetadata) // Get injection metadata
+		injections.GET("/:id", v2handlers.GetInjection)                        // Get injection by ID
+		injections.GET("/:id/download", v2handlers.DownloadDatapack)           // Download injection datapack
+		injections.GET("/:id/files", v2handlers.ListDatapackFiles)             // Get injection file structure
+		injections.GET("/:id/files/download", v2handlers.DownloadDatapackFile) // Download specific injection file
+		injections.GET("/metadata", v2handlers.GetInjectionMetadata)           // Get injection metadata
 
 		// Injection Clone operations
 		injections.POST("/:id/clone", v2handlers.CloneInjection) // Clone injection

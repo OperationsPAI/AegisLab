@@ -41,7 +41,7 @@ GRAY    := \033[90m
 RESET   := \033[0m
 
 # Dependency Repositories
-CHAOS_EXPERIMENT_REPO := github.com/LGU-SE-Internal/chaos-experiment@injectionv2
+CHAOS_EXPERIMENT_REPO := github.com/OperationsPAI/chaos-experiment@injectionv2-dev
 
 # ===================================================·==========================
 # Declare all non-file targets

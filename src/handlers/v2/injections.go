@@ -6,6 +6,7 @@ import (
 	"archive/zip"
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 
 	"aegis/dto"
@@ -18,7 +19,7 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
-	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
+	chaos "github.com/OperationsPAI/chaos-experiment/handler"
 )
 
 // BatchDeleteInjections
@@ -228,47 +229,6 @@ func SearchInjections(c *gin.Context) {
 	searchInjectionsCommon(c, nil)
 }
 
-// DownloadDatapack handles datapack file download
-//
-//	@Summary		Download datapack
-//	@Description	Download datapack file by injection ID
-//	@Tags			Injections
-//	@ID				download_datapack
-//	@Produce		application/octet-stream
-//	@Security		BearerAuth
-//	@Param			id	path		int							true	"Injection ID"
-//	@Success		200	{file}		binary						"Datapack file"
-//	@Failure		400	{object}	dto.GenericResponse[any]	"Invalid injection ID"
-//	@Failure		403	{object}	dto.GenericResponse[any]	"Permission denied"
-//	@Failure		404	{object}	dto.GenericResponse[any]	"Injection not found"
-//	@Failure		500	{object}	dto.GenericResponse[any]	"Internal server error"
-//	@Router			/api/v2/injections/{id}/download [get]
-//	@x-api-type		{"sdk":"true"}
-func DownloadDatapack(c *gin.Context) {
-	idStr := c.Param(consts.URLPathID)
-	id, ok := handlers.ParsePositiveID(c, idStr, "injection ID")
-	if !ok {
-		return
-	}
-
-	filename, err := producer.GetDatapackFilename(id)
-	if handlers.HandleServiceError(c, err) {
-		return
-	}
-
-	c.Header("Content-Type", "application/zip")
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s.zip", filename))
-
-	zipWriter := zip.NewWriter(c.Writer)
-	defer zipWriter.Close()
-
-	if err := producer.DownloadDatapack(zipWriter, []utils.ExculdeRule{}, id); err != nil {
-		delete(c.Writer.Header(), "Content-Disposition")
-		c.Header("Content-Type", "application/json; charset=utf-8")
-		handlers.HandleServiceError(c, err)
-	}
-}
-
 // ListFaultInjectionNoIssues
 //
 //	@Summary		Query Fault Injection Records Without Issues
@@ -434,53 +394,6 @@ func SubmitDatapackBuilding(c *gin.Context) {
 	submitDatapackBuildingCommon(c, nil)
 }
 
-// GetInjectionExecutions handles getting executions related to an injection
-//
-//	@Summary		Get injection executions
-//	@Description	Get all algorithm executions related to a specific injection/datapack
-//	@Tags			Injections
-//	@ID				get_injection_executions
-//	@Produce		json
-//	@Security		BearerAuth
-//	@Param			id		path		int											true	"Injection ID"
-//	@Param			page	query		int											false	"Page number"	default(1)
-//	@Param			size	query		int											false	"Page size"		default(20)
-//	@Success		200		{object}	dto.GenericResponse[dto.ListResp[dto.ExecutionResp]]	"Executions retrieved successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]					"Invalid injection ID"
-//	@Failure		401		{object}	dto.GenericResponse[any]					"Authentication required"
-//	@Failure		404		{object}	dto.GenericResponse[any]					"Injection not found"
-//	@Failure		500		{object}	dto.GenericResponse[any]					"Internal server error"
-//	@Router			/api/v2/injections/{id}/executions [get]
-//	@x-api-type		{"sdk":"true"}
-func GetInjectionExecutions(c *gin.Context) {
-	idStr := c.Param(consts.URLPathID)
-	id, ok := handlers.ParsePositiveID(c, idStr, "injection ID")
-	if !ok {
-		return
-	}
-
-	var req dto.ListExecutionReq
-	if err := c.ShouldBindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
-		return
-	}
-
-	if req.Page == 0 {
-		req.Page = 1
-	}
-	if req.Size == 0 {
-		req.Size = 20
-	}
-
-	req.DatapackID = &id
-	resp, err := producer.ListExecutions(&req)
-	if handlers.HandleServiceError(c, err) {
-		return
-	}
-
-	dto.JSONResponse(c, http.StatusOK, "Executions retrieved successfully", resp)
-}
-
 // CloneInjection handles cloning an injection configuration
 //
 //	@Summary		Clone injection
@@ -490,13 +403,13 @@ func GetInjectionExecutions(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			id		path		int											true	"Injection ID"
-//	@Param			body	body		dto.CloneInjectionReq						true	"Clone request"
+//	@Param			id		path		int												true	"Injection ID"
+//	@Param			body	body		dto.CloneInjectionReq							true	"Clone request"
 //	@Success		201		{object}	dto.GenericResponse[dto.InjectionDetailResp]	"Injection cloned successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]					"Invalid request"
-//	@Failure		401		{object}	dto.GenericResponse[any]					"Authentication required"
-//	@Failure		404		{object}	dto.GenericResponse[any]					"Injection not found"
-//	@Failure		500		{object}	dto.GenericResponse[any]					"Internal server error"
+//	@Failure		400		{object}	dto.GenericResponse[any]						"Invalid request"
+//	@Failure		401		{object}	dto.GenericResponse[any]						"Authentication required"
+//	@Failure		404		{object}	dto.GenericResponse[any]						"Injection not found"
+//	@Failure		500		{object}	dto.GenericResponse[any]						"Internal server error"
 //	@Router			/api/v2/injections/{id}/clone [post]
 //	@x-api-type		{"sdk":"true"}
 func CloneInjection(c *gin.Context) {
@@ -528,12 +441,12 @@ func CloneInjection(c *gin.Context) {
 //	@ID				get_injection_logs
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			id		path		int											true	"Injection ID"
-//	@Success		200		{object}	dto.GenericResponse[dto.InjectionLogsResp]	"Logs retrieved successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]					"Invalid injection ID"
-//	@Failure		401		{object}	dto.GenericResponse[any]					"Authentication required"
-//	@Failure		404		{object}	dto.GenericResponse[any]					"Injection not found"
-//	@Failure		500		{object}	dto.GenericResponse[any]					"Internal server error"
+//	@Param			id	path		int											true	"Injection ID"
+//	@Success		200	{object}	dto.GenericResponse[dto.InjectionLogsResp]	"Logs retrieved successfully"
+//	@Failure		400	{object}	dto.GenericResponse[any]					"Invalid injection ID"
+//	@Failure		401	{object}	dto.GenericResponse[any]					"Authentication required"
+//	@Failure		404	{object}	dto.GenericResponse[any]					"Injection not found"
+//	@Failure		500	{object}	dto.GenericResponse[any]					"Internal server error"
 //	@Router			/api/v2/injections/{id}/logs [get]
 //	@x-api-type		{"sdk":"true"}
 func GetInjectionLogs(c *gin.Context) {
@@ -549,6 +462,129 @@ func GetInjectionLogs(c *gin.Context) {
 	}
 
 	dto.JSONResponse(c, http.StatusOK, "Logs retrieved successfully", resp)
+}
+
+// DownloadDatapack handles datapack file download
+//
+//	@Summary		Download datapack
+//	@Description	Download datapack file by injection ID
+//	@Tags			Injections
+//	@ID				download_datapack
+//	@Produce		application/octet-stream
+//	@Security		BearerAuth
+//	@Param			id	path		int							true	"Injection ID"
+//	@Success		200	{file}		binary						"Datapack zip file"
+//	@Failure		400	{object}	dto.GenericResponse[any]	"Invalid injection ID"
+//	@Failure		403	{object}	dto.GenericResponse[any]	"Permission denied"
+//	@Failure		404	{object}	dto.GenericResponse[any]	"Injection not found"
+//	@Failure		500	{object}	dto.GenericResponse[any]	"Internal server error"
+//	@Router			/api/v2/injections/{id}/download [get]
+//	@x-api-type		{"sdk":"true"}
+func DownloadDatapack(c *gin.Context) {
+	idStr := c.Param(consts.URLPathID)
+	id, ok := handlers.ParsePositiveID(c, idStr, "injection ID")
+	if !ok {
+		return
+	}
+
+	filename, err := producer.GetDatapackFilename(id)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	c.Header("Content-Type", "application/zip")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s.zip", filename))
+
+	zipWriter := zip.NewWriter(c.Writer)
+	defer zipWriter.Close()
+
+	if err := producer.DownloadDatapack(zipWriter, []utils.ExculdeRule{}, id); err != nil {
+		delete(c.Writer.Header(), "Content-Disposition")
+		c.Header("Content-Type", "application/json; charset=utf-8")
+		handlers.HandleServiceError(c, err)
+	}
+}
+
+// ListDatapackFiles handles getting the file structure of an injection datapack
+//
+//	@Summary		List datapack files
+//	@Description	Get the file structure of an injection datapack
+//	@Tags			Injections
+//	@ID				list_datapack_files
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path		int											true	"Injection ID"
+//	@Success		200	{object}	dto.GenericResponse[dto.DatapackFilesResp]	"Files retrieved successfully"
+//	@Failure		400	{object}	dto.GenericResponse[any]					"Invalid injection ID"
+//	@Failure		401	{object}	dto.GenericResponse[any]					"Authentication required"
+//	@Failure		404	{object}	dto.GenericResponse[any]					"Datapack not found or not ready"
+//	@Failure		500	{object}	dto.GenericResponse[any]					"Internal server error"
+//	@Router			/api/v2/injections/{id}/files [get]
+func ListDatapackFiles(c *gin.Context) {
+	idStr := c.Param(consts.URLPathID)
+	id, ok := handlers.ParsePositiveID(c, idStr, "datapack ID")
+	if !ok {
+		return
+	}
+
+	// Get base URL from request
+	scheme := "http"
+	if c.Request.TLS != nil {
+		scheme = "https"
+	}
+	baseURL := fmt.Sprintf("%s://%s", scheme, c.Request.Host)
+
+	resp, err := producer.GetDatapackFiles(id, baseURL)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	dto.SuccessResponse(c, resp)
+}
+
+// DownloadDatapackFile handles downloading a specific file from a datapack
+//
+//	@Summary		Download datapack file
+//	@Description	Download a specific file from a datapack
+//	@Tags			Injections
+//	@ID				download_datapack_file
+//	@Produce		application/octet-stream
+//	@Security		BearerAuth
+//	@Param			id		path		int							true	"Injection ID"
+//	@Param			path	query		string						true	"Relative path to the file"
+//	@Success		200		{file}		binary						"Specified file from the datapack"
+//	@Failure		400		{object}	dto.GenericResponse[any]	"Invalid injection ID or file path"
+//	@Failure		401		{object}	dto.GenericResponse[any]	"Authentication required"
+//	@Failure		404		{object}	dto.GenericResponse[any]	"Datapack or file not found"
+//	@Failure		500		{object}	dto.GenericResponse[any]	"Internal server error"
+//	@Router			/api/v2/injections/{id}/files/download [get]
+func DownloadDatapackFile(c *gin.Context) {
+	idStr := c.Param(consts.URLPathID)
+	id, ok := handlers.ParsePositiveID(c, idStr, "datapack ID")
+	if !ok {
+		return
+	}
+
+	filePath := c.Query("path")
+	if filePath == "" {
+		dto.ErrorResponse(c, http.StatusBadRequest, "file path is required")
+		return
+	}
+
+	fileName, contentType, fileReader, err := producer.DownloadDatapackFile(id, filePath)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+	defer fileReader.Close()
+
+	c.Header("Content-Type", contentType)
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", fileName))
+	c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
+
+	if _, err := io.Copy(c.Writer, fileReader); err != nil {
+		logrus.WithError(err).Error("failed to stream file content")
+		return
+	}
 }
 
 // ===================== Private Helper Functions =====================

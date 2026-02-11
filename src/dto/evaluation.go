@@ -5,7 +5,7 @@ import (
 	"aegis/consts"
 	"fmt"
 
-	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
+	chaos "github.com/OperationsPAI/chaos-experiment/handler"
 )
 
 // Execution represents execution data for evaluation

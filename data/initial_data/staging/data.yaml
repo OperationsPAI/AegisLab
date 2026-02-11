@@ -45,13 +45,13 @@ containers:
     status: 1
     versions:
       - name: 1.0.0
-        github_link: LGU-SE-Internal/train-ticket
+        github_link: OperationsPAI/train-ticket
         status: 1
         helm_config:
           version: 0.1.0
           chart_name: trainticket
           repo_name: train-ticket
-          repo_url: https://lgu-se-internal.github.io/train-ticket
+          repo_url: https://operationspai.github.io/train-ticket
           values:
             - key: services.tsUiDashboard.nodePort
               type: 1
@@ -66,13 +66,13 @@ containers:
     status: 1
     versions:
       - name: 1.0.0
-        github_link: LGU-SE-Internal/opentelemetry-demo
+        github_link: OperationsPAI/opentelemetry-demo
         status: 1
         helm_config:
           version: 0.38.1
           chart_name: opentelemetry-demo
           repo_name: open-telemetry
-          repo_url: https://lgu-se-internal.github.io/opentelemetry-demo
+          repo_url: https://operationspai.github.io/opentelemetry-demo
           status: 1
 datasets:
   - name: rca_pair_diagnosis_dataset

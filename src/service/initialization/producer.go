@@ -15,7 +15,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 
-	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
+	chaos "github.com/OperationsPAI/chaos-experiment/handler"
 )
 
 type permMeta struct {

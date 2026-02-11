@@ -11,7 +11,7 @@ import (
 	"aegis/database"
 	"aegis/utils"
 
-	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
+	chaos "github.com/OperationsPAI/chaos-experiment/handler"
 )
 
 var validInjectionSortFields = map[string]struct{}{
@@ -793,6 +793,22 @@ type SubmitBuildingItem struct {
 type SubmitDatapackBuildingResp struct {
 	GroupID string               `json:"group_id"`
 	Items   []SubmitBuildingItem `json:"items"`
+}
+
+// DatapackFileItem represents a file or directory in the datapack
+type DatapackFileItem struct {
+	Name     string             `json:"name"`                  // File or directory name
+	Path     string             `json:"path"`                  // Relative path from datapack root
+	Size     string             `json:"size"`                  // File size in KB/MB format or directory info
+	ModTime  *time.Time         `json:"modified_at,omitempty"` // Last modification time (only for files)
+	Children []DatapackFileItem `json:"children,omitempty"`    // Child items (only for directories)
+}
+
+// DatapackFilesResp represents the response for listing datapack files
+type DatapackFilesResp struct {
+	Files     []DatapackFileItem `json:"files"`
+	FileCount int                `json:"file_count"` // Number of files (excluding directories)
+	DirCount  int                `json:"dir_count"`  // Number of directories
 }
 
 // validateChaosType checks if the provided chaos type is valid

@@ -2,6 +2,7 @@ package producer
 
 import (
 	"aegis/client"
+	"aegis/config"
 	"aegis/consts"
 	"aegis/database"
 	"aegis/dto"
@@ -13,12 +14,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
-	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
+	chaos "github.com/OperationsPAI/chaos-experiment/handler"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -321,6 +325,121 @@ func DownloadDatapack(zipWriter *zip.Writer, excludeRules []utils.ExculdeRule, i
 	}
 
 	return nil
+}
+
+// GetDatapackFiles retrieves the file structure of a datapack in tree format
+func GetDatapackFiles(datapackID int, baseURL string) (*dto.DatapackFilesResp, error) {
+	datapack, err := repository.GetInjectionByID(database.DB, datapackID)
+	if err != nil {
+		if errors.Is(err, consts.ErrNotFound) {
+			return nil, fmt.Errorf("%w: datapack id: %d", consts.ErrNotFound, datapackID)
+		}
+		return nil, fmt.Errorf("failed to get datapack: %w", err)
+	}
+
+	if datapack.State < consts.DatapackBuildSuccess {
+		return nil, fmt.Errorf("datapack %d is not ready", datapackID)
+	}
+
+	workDir := filepath.Join(config.GetString("jfs.dataset_path"), datapack.Name)
+	if !utils.IsAllowedPath(workDir) {
+		return nil, fmt.Errorf("invalid path access to %s", workDir)
+	}
+
+	// Check if directory exists
+	if _, err := os.Stat(workDir); os.IsNotExist(err) {
+		return nil, fmt.Errorf("datapack directory not found for datapack id %d", datapackID)
+	}
+
+	resp := &dto.DatapackFilesResp{
+		Files:     []dto.DatapackFileItem{},
+		FileCount: 0,
+		DirCount:  0,
+	}
+
+	// Build tree structure
+	rootItems, err := buildFileTree(workDir, "", baseURL, datapackID, resp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build file tree: %w", err)
+	}
+
+	resp.Files = rootItems
+	return resp, nil
+}
+
+// DownloadDatapackFile downloads a specific file from a datapack
+func DownloadDatapackFile(datapackID int, filePath string) (string, string, io.ReadCloser, error) {
+	datapack, err := repository.GetInjectionByID(database.DB, datapackID)
+	if err != nil {
+		if errors.Is(err, consts.ErrNotFound) {
+			return "", "", nil, fmt.Errorf("%w: datapack id: %d", consts.ErrNotFound, datapackID)
+		}
+		return "", "", nil, fmt.Errorf("failed to get datapack: %w", err)
+	}
+
+	if datapack.State < consts.DatapackBuildSuccess {
+		return "", "", nil, fmt.Errorf("datapack %d is not ready for download", datapackID)
+	}
+
+	workDir := filepath.Join(config.GetString("jfs.dataset_path"), datapack.Name)
+	if !utils.IsAllowedPath(workDir) {
+		return "", "", nil, fmt.Errorf("invalid path access to %s", workDir)
+	}
+
+	// Clean and validate the file path
+	cleanPath := filepath.Clean(filePath)
+	fullPath := filepath.Join(workDir, cleanPath)
+
+	if !strings.HasPrefix(fullPath, workDir) {
+		return "", "", nil, fmt.Errorf("invalid file path: path traversal detected")
+	}
+	if !utils.IsAllowedPath(fullPath) {
+		return "", "", nil, fmt.Errorf("invalid file path access")
+	}
+
+	fileInfo, err := os.Stat(fullPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", "", nil, fmt.Errorf("%w: file not found: %s", consts.ErrNotFound, cleanPath)
+		}
+		return "", "", nil, fmt.Errorf("failed to stat file: %w", err)
+	}
+
+	if fileInfo.IsDir() {
+		return "", "", nil, fmt.Errorf("path is a directory, not a file: %s", cleanPath)
+	}
+
+	file, err := os.Open(fullPath)
+	if err != nil {
+		return "", "", nil, fmt.Errorf("failed to open file: %w", err)
+	}
+
+	fileName := filepath.Base(fullPath)
+	contentType := "application/octet-stream"
+
+	// Determine content type based on file extension
+	switch filepath.Ext(fileName) {
+	case ".json":
+		contentType = "application/json"
+	case ".yaml", ".yml":
+		contentType = "application/x-yaml"
+	case ".txt", ".log":
+		contentType = "text/plain"
+	case ".csv":
+		contentType = "text/csv"
+	case ".xml":
+		contentType = "application/xml"
+	case ".html", ".htm":
+		contentType = "text/html"
+	case ".pdf":
+		contentType = "application/pdf"
+	case ".zip":
+		contentType = "application/zip"
+	case ".tar", ".gz", ".tgz":
+		contentType = "application/x-tar"
+	}
+
+	return fileName, contentType, file, nil
 }
 
 // ListInjectionsNoissues handles the request to list fault injections without issues
@@ -1201,4 +1320,73 @@ func sortNodes(nodes []chaos.Node) []chaos.Node {
 	}
 
 	return sortedNodes
+}
+
+// buildFileTree recursively builds a tree structure of files and directories
+func buildFileTree(workDir, relPath string, baseURL string, datapackID int, resp *dto.DatapackFilesResp) ([]dto.DatapackFileItem, error) {
+	currentPath := filepath.Join(workDir, relPath)
+	entries, err := os.ReadDir(currentPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var items []dto.DatapackFileItem
+	for _, entry := range entries {
+		itemRelPath := filepath.Join(relPath, entry.Name())
+
+		fileInfo, err := entry.Info()
+		if err != nil {
+			return nil, err
+		}
+
+		item := dto.DatapackFileItem{
+			Name: entry.Name(),
+			Path: filepath.ToSlash(itemRelPath),
+		}
+
+		if entry.IsDir() {
+			children, err := buildFileTree(workDir, itemRelPath, baseURL, datapackID, resp)
+			if err != nil {
+				return nil, err
+			}
+			item.Children = children
+
+			// Count direct subfolders and files
+			subFolderCount := 0
+			fileCount := 0
+			for _, child := range children {
+				if len(child.Children) > 0 {
+					subFolderCount++
+				} else {
+					fileCount++
+				}
+			}
+
+			item.Size = fmt.Sprintf("%d subfolders, %d files", subFolderCount, fileCount)
+			resp.DirCount++
+		} else {
+			fileSize := fileInfo.Size()
+			item.Size = formatFileSize(fileSize)
+			modTime := fileInfo.ModTime()
+			item.ModTime = &modTime
+			resp.FileCount++
+		}
+
+		items = append(items, item)
+	}
+
+	return items, nil
+}
+
+// formatFileSize formats bytes to human readable format (KB or MB) with one decimal place
+func formatFileSize(bytes int64) string {
+	const (
+		KB = 1024
+		MB = 1024 * 1024
+	)
+
+	if bytes < MB {
+		return fmt.Sprintf("%.1fKB", float64(bytes)/float64(KB))
+	}
+	return fmt.Sprintf("%.1fMB", float64(bytes)/float64(MB))
 }

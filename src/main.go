@@ -36,7 +36,7 @@ import (
 	"aegis/service/initialization"
 	"aegis/utils"
 
-	chaosCli "github.com/LGU-SE-Internal/chaos-experiment/client"
+	chaosCli "github.com/OperationsPAI/chaos-experiment/client"
 	nested "github.com/antonfisher/nested-logrus-formatter"
 	"github.com/go-logr/stdr"
 	"github.com/sirupsen/logrus"

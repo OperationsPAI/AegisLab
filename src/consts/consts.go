@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
-	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
+	chaos "github.com/OperationsPAI/chaos-experiment/handler"
 )
 
 const InitialFilename = "data.yaml"

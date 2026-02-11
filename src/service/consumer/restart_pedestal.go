@@ -15,7 +15,7 @@ import (
 	"math/rand"
 	"time"
 
-	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
+	chaos "github.com/OperationsPAI/chaos-experiment/handler"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/trace"
 )

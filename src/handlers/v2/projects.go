@@ -310,14 +310,14 @@ func ListProjectInjections(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			project_id	path		int														true	"Project ID"
-//	@Param			search		body		dto.SearchInjectionReq									true	"Search criteria"
+//	@Param			project_id	path		int																true	"Project ID"
+//	@Param			search		body		dto.SearchInjectionReq											true	"Search criteria"
 //	@Success		200			{object}	dto.GenericResponse[dto.SearchResp[dto.InjectionDetailResp]]	"Search results"
-//	@Failure		400			{object}	dto.GenericResponse[any]								"Invalid project ID or request"
-//	@Failure		401			{object}	dto.GenericResponse[any]								"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]								"Permission denied"
-//	@Failure		404			{object}	dto.GenericResponse[any]								"Project not found"
-//	@Failure		500			{object}	dto.GenericResponse[any]								"Internal server error"
+//	@Failure		400			{object}	dto.GenericResponse[any]										"Invalid project ID or request"
+//	@Failure		401			{object}	dto.GenericResponse[any]										"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]										"Permission denied"
+//	@Failure		404			{object}	dto.GenericResponse[any]										"Project not found"
+//	@Failure		500			{object}	dto.GenericResponse[any]										"Internal server error"
 //	@Router			/api/v2/projects/{project_id}/injections/search [post]
 //	@x-api-type		{"sdk":"true"}
 func SearchProjectInjections(c *gin.Context) {
@@ -371,17 +371,17 @@ func ListProjectFaultInjectionNoIssues(c *gin.Context) {
 //	@ID				list_project_injections_with_issues
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			project_id			path		int														true	"Project ID"
-//	@Param			labels				query		[]string												false	"Filter by labels"
-//	@Param			lookback			query		string													false	"Time range query"
-//	@Param			custom_start_time	query		string													false	"Custom start time"
-//	@Param			custom_end_time		query		string													false	"Custom end time"
-//	@Success		200					{object}	dto.GenericResponse[[]dto.InjectionWithIssuesResp]		"Injections retrieved successfully"
-//	@Failure		400					{object}	dto.GenericResponse[any]								"Invalid parameters"
-//	@Failure		401					{object}	dto.GenericResponse[any]								"Authentication required"
-//	@Failure		403					{object}	dto.GenericResponse[any]								"Permission denied"
-//	@Failure		404					{object}	dto.GenericResponse[any]								"Project not found"
-//	@Failure		500					{object}	dto.GenericResponse[any]								"Internal server error"
+//	@Param			project_id			path		int													true	"Project ID"
+//	@Param			labels				query		[]string											false	"Filter by labels"
+//	@Param			lookback			query		string												false	"Time range query"
+//	@Param			custom_start_time	query		string												false	"Custom start time"
+//	@Param			custom_end_time		query		string												false	"Custom end time"
+//	@Success		200					{object}	dto.GenericResponse[[]dto.InjectionWithIssuesResp]	"Injections retrieved successfully"
+//	@Failure		400					{object}	dto.GenericResponse[any]							"Invalid parameters"
+//	@Failure		401					{object}	dto.GenericResponse[any]							"Authentication required"
+//	@Failure		403					{object}	dto.GenericResponse[any]							"Permission denied"
+//	@Failure		404					{object}	dto.GenericResponse[any]							"Project not found"
+//	@Failure		500					{object}	dto.GenericResponse[any]							"Internal server error"
 //	@Router			/api/v2/projects/{project_id}/injections/analysis/with-issues [get]
 //	@x-api-type		{"sdk":"true"}
 func ListProjectFaultInjectionWithIssues(c *gin.Context) {

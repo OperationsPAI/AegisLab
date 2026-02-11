@@ -7,7 +7,7 @@ import (
 	"aegis/consts"
 	"aegis/utils"
 
-	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
+	chaos "github.com/OperationsPAI/chaos-experiment/handler"
 	"gorm.io/gorm"
 )
 
