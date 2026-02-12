@@ -555,6 +555,7 @@ func ListDatapackFiles(c *gin.Context) {
 //	@Success		200		{file}		binary						"Specified file from the datapack"
 //	@Failure		400		{object}	dto.GenericResponse[any]	"Invalid injection ID or file path"
 //	@Failure		401		{object}	dto.GenericResponse[any]	"Authentication required"
+//	@Failure		403		{object}	dto.GenericResponse[any]	"Permission denied"
 //	@Failure		404		{object}	dto.GenericResponse[any]	"Datapack or file not found"
 //	@Failure		500		{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v2/injections/{id}/files/download [get]
@@ -583,6 +584,60 @@ func DownloadDatapackFile(c *gin.Context) {
 
 	if _, err := io.Copy(c.Writer, fileReader); err != nil {
 		logrus.WithError(err).Error("failed to stream file content")
+		return
+	}
+}
+
+// QueryDatapackFile handles querying the content of a specific file in the datapack
+//
+//	@Summary		Query datapack file content
+//	@Description	Query the content of a parquet file in the datapack, streaming results as Arrow IPC format
+//	@Tags			Injections
+//	@ID				query_datapack_file
+//	@Produce		application/vnd.apache.arrow.stream
+//	@Security		BearerAuth
+//	@Param			id		path		int							true	"Injection ID"
+//	@Param			path	query		string						true	"Relative path to the file"
+//	@Success		200		{file}		binary						"Streaming Arrow IPC data"
+//	@Failure		400		{object}	dto.GenericResponse[any]	"Invalid injection ID or file path"
+//	@Failure		401		{object}	dto.GenericResponse[any]	"Authentication required"
+//	@Failure		403		{object}	dto.GenericResponse[any]	"Permission denied"
+//	@Failure		404		{object}	dto.GenericResponse[any]	"Datapack or file not found"
+//	@Failure		500		{object}	dto.GenericResponse[any]	"Internal server error"
+//	@Router			/api/v2/injections/{id}/files/query [get]
+func QueryDatapackFile(c *gin.Context) {
+	idStr := c.Param(consts.URLPathID)
+	id, ok := handlers.ParsePositiveID(c, idStr, "datapack ID")
+	if !ok {
+		return
+	}
+
+	filePath := c.Query("path")
+	if filePath == "" {
+		dto.ErrorResponse(c, http.StatusBadRequest, "file path is required")
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	fileName, reader, err := producer.QueryDatapackFileContent(ctx, id, filePath)
+	if err != nil {
+		if handlers.HandleServiceError(c, err) {
+			return
+		}
+	}
+	defer reader.Close()
+
+	// Set headers for streaming response with Arrow IPC content type
+	c.Header("Content-Type", "application/vnd.apache.arrow.stream")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s.arrow", fileName))
+	c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
+	c.Header("X-Accel-Buffering", "no")
+	c.Status(http.StatusOK)
+
+	if _, err := io.Copy(c.Writer, reader); err != nil {
+		logrus.Errorf("failed to stream file content: %v", err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to stream file content: "+err.Error())
 		return
 	}
 }

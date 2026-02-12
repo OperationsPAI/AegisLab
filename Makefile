@@ -20,6 +20,8 @@ NS          	:= exp
 PORT        	:= 30080
 RELEASE_NAME    := rcabench
 
+BUILD_FLAGS := -tags=duckdb_arrow
+
 # COMMAND Tool Configuration
 COMMAND_DIR := scripts/command
 COMMAND := UV_WITH_GROUPS=dev uv run --project $(COMMAND_DIR) python $(COMMAND_DIR)/main.py
@@ -198,7 +200,7 @@ regression-test:
 
 local-debug:  ## 🐛 Start local debugging environment
 	@printf "$(BLUE)⌛️ Starting local application...$(RESET)\n"; \
-	cd $(SRC_DIR) && go run main.go both --port 8082
+	cd $(SRC_DIR) && go run $(BUILD_FLAGS) main.go both --port 8082
 
 update-dependencies: ## 📦 Update latest version of dependencies
 	@printf "$(BLUE)📦 Updating latest version of chaos-experiment library...$(RESET)\n"

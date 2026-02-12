@@ -486,6 +486,7 @@ func SetupV2Routes(router *gin.Engine) {
 		injections.GET("/:id/download", v2handlers.DownloadDatapack)           // Download injection datapack
 		injections.GET("/:id/files", v2handlers.ListDatapackFiles)             // Get injection file structure
 		injections.GET("/:id/files/download", v2handlers.DownloadDatapackFile) // Download specific injection file
+		injections.GET("/:id/files/query", v2handlers.QueryDatapackFile)       // Query parquet file content
 		injections.GET("/metadata", v2handlers.GetInjectionMetadata)           // Get injection metadata
 
 		// Injection Clone operations

@@ -8,6 +8,7 @@
       "mode": "auto",
       "program": "${workspaceFolder}/src/main.go",
       "args": ["both", "-c ./config.dev.toml"],
+      "buildFlags": "-tags=duckdb_arrow",
       "cwd": "${workspaceFolder}/src",
       "console": "integratedTerminal"
     },
@@ -18,6 +19,7 @@
       "mode": "auto",
       "program": "${workspaceFolder}/src/main.go",
       "args": ["producer", "-c ./config.dev.toml"],
+      "buildFlags": "-tags=duckdb_arrow",
       "cwd": "${workspaceFolder}/src",
       "console": "integratedTerminal"
     },

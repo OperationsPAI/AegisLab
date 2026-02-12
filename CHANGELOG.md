@@ -21,6 +21,7 @@ All notable changes to this project will be documented in this file.
 - *(team)* Add team management with project role bindings
 - *(project)* Add nested resource APIs and enhance project management
 - *(injection)* Add datapack file browsing and single file download
+- *(injection)* Add Parquet file content query with DuckDB Arrow
 
 ### Miscellaneous Tasks
 

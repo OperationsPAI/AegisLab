@@ -1,11 +1,15 @@
 {
+  "go.buildTags": "duckdb_arrow",
+  "go.toolsEnvVars": {
+    "GOFLAGS": "-tags=duckdb_arrow"
+  },
   // Run Lint tool on save.
   "go.lintOnSave": "file",
   "go.formatTool": "gofmt",
   // Specifies Lint tool name.
   "go.lintTool": "golangci-lint",
   // Flags to pass to Lint tool (e.g. ["-min_confidence=.8"])
-  "go.lintFlags": ["--fast"],
+  "go.lintFlags": ["--fast", "--tags=duckdb_arrow"],
   "go.coverOnSave": false,
   "go.toolsManagement.autoUpdate": true,
   "[go]": {

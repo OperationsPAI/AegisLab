@@ -369,44 +369,9 @@ func GetDatapackFiles(datapackID int, baseURL string) (*dto.DatapackFilesResp, e
 
 // DownloadDatapackFile downloads a specific file from a datapack
 func DownloadDatapackFile(datapackID int, filePath string) (string, string, io.ReadCloser, error) {
-	datapack, err := repository.GetInjectionByID(database.DB, datapackID)
+	fullPath, err := getFileFullPath(datapackID, filePath)
 	if err != nil {
-		if errors.Is(err, consts.ErrNotFound) {
-			return "", "", nil, fmt.Errorf("%w: datapack id: %d", consts.ErrNotFound, datapackID)
-		}
-		return "", "", nil, fmt.Errorf("failed to get datapack: %w", err)
-	}
-
-	if datapack.State < consts.DatapackBuildSuccess {
-		return "", "", nil, fmt.Errorf("datapack %d is not ready for download", datapackID)
-	}
-
-	workDir := filepath.Join(config.GetString("jfs.dataset_path"), datapack.Name)
-	if !utils.IsAllowedPath(workDir) {
-		return "", "", nil, fmt.Errorf("invalid path access to %s", workDir)
-	}
-
-	// Clean and validate the file path
-	cleanPath := filepath.Clean(filePath)
-	fullPath := filepath.Join(workDir, cleanPath)
-
-	if !strings.HasPrefix(fullPath, workDir) {
-		return "", "", nil, fmt.Errorf("invalid file path: path traversal detected")
-	}
-	if !utils.IsAllowedPath(fullPath) {
-		return "", "", nil, fmt.Errorf("invalid file path access")
-	}
-
-	fileInfo, err := os.Stat(fullPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return "", "", nil, fmt.Errorf("%w: file not found: %s", consts.ErrNotFound, cleanPath)
-		}
-		return "", "", nil, fmt.Errorf("failed to stat file: %w", err)
-	}
-
-	if fileInfo.IsDir() {
-		return "", "", nil, fmt.Errorf("path is a directory, not a file: %s", cleanPath)
+		return "", "", nil, fmt.Errorf("invalid file path: %w", err)
 	}
 
 	file, err := os.Open(fullPath)
@@ -440,6 +405,30 @@ func DownloadDatapackFile(datapackID int, filePath string) (string, string, io.R
 	}
 
 	return fileName, contentType, file, nil
+}
+
+// QueryDatapackFileContent reads a parquet file using DuckDB and returns Arrow IPC stream
+// TODO: Implement Arrow IPC streaming from parquet file. The duckdb-go/v2 library does not
+// provide NewArrowFromConn API. This function needs to be reimplemented using standard SQL
+// queries and Arrow conversion, or by using a different parquet reader library.
+func QueryDatapackFileContent(ctx context.Context, datapackID int, filePath string) (string, io.ReadCloser, error) {
+	fullPath, err := getFileFullPath(datapackID, filePath)
+	if err != nil {
+		return "", nil, fmt.Errorf("invalid file path: %w", err)
+	}
+	if filepath.Ext(fullPath) != ".parquet" {
+		return "", nil, fmt.Errorf("file is not a parquet file: %s", filePath)
+	}
+
+	// Open the parquet file directly and return it
+	// This is a temporary solution that returns the raw parquet file
+	// TODO: Implement proper Arrow IPC streaming
+	file, err := os.Open(fullPath)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to open parquet file: %w", err)
+	}
+
+	return filepath.Base(fullPath), file, nil
 }
 
 // ListInjectionsNoissues handles the request to list fault injections without issues
@@ -1389,4 +1378,48 @@ func formatFileSize(bytes int64) string {
 		return fmt.Sprintf("%.1fKB", float64(bytes)/float64(KB))
 	}
 	return fmt.Sprintf("%.1fMB", float64(bytes)/float64(MB))
+}
+
+func getFileFullPath(datapackID int, filePath string) (string, error) {
+	datapack, err := repository.GetInjectionByID(database.DB, datapackID)
+	if err != nil {
+		if errors.Is(err, consts.ErrNotFound) {
+			return "", fmt.Errorf("%w: datapack id: %d", consts.ErrNotFound, datapackID)
+		}
+		return "", fmt.Errorf("failed to get datapack: %w", err)
+	}
+
+	if datapack.State < consts.DatapackBuildSuccess {
+		return "", fmt.Errorf("datapack %d is not ready for download", datapackID)
+	}
+
+	workDir := filepath.Join(config.GetString("jfs.dataset_path"), datapack.Name)
+	if !utils.IsAllowedPath(workDir) {
+		return "", fmt.Errorf("invalid path access to %s", workDir)
+	}
+
+	// Clean and validate the file path
+	cleanPath := filepath.Clean(filePath)
+	fullPath := filepath.Join(workDir, cleanPath)
+
+	if !strings.HasPrefix(fullPath, workDir) {
+		return "", fmt.Errorf("invalid file path: path traversal detected")
+	}
+	if !utils.IsAllowedPath(fullPath) {
+		return "", fmt.Errorf("invalid file path access")
+	}
+
+	fileInfo, err := os.Stat(fullPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", fmt.Errorf("%w: file not found: %s", consts.ErrNotFound, cleanPath)
+		}
+		return "", fmt.Errorf("failed to stat file: %w", err)
+	}
+
+	if fileInfo.IsDir() {
+		return "", fmt.Errorf("path is a directory, not a file: %s", cleanPath)
+	}
+
+	return fullPath, nil
 }

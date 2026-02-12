@@ -1,0 +1,6 @@
+run:
+  issues-exit-code: 1
+  path-prefix: src
+  build-tags: duckdb_arrow
+  whole-files: true
+  new-from-rev: HEAD~1

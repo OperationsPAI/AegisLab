@@ -92,10 +92,8 @@ class GoFormatter(Formatter):
                     [
                         "golangci-lint",
                         "run",
-                        "--issues-exit-code=1",
-                        "--path-prefix=src",
-                        "--whole-files",
-                        "--new-from-rev=HEAD~1",
+                        "--config",
+                        (PROJECT_ROOT / ".golangci.yml").as_posix(),
                     ],
                     cwd=PROJECT_ROOT / "src",
                     check=True,
