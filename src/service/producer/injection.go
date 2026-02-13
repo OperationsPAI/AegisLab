@@ -11,6 +11,7 @@ import (
 	"aegis/utils"
 	"archive/zip"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -23,6 +24,8 @@ import (
 	"time"
 
 	chaos "github.com/OperationsPAI/chaos-experiment/handler"
+	"github.com/apache/arrow-go/v18/arrow/ipc"
+	"github.com/duckdb/duckdb-go/v2"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -368,15 +371,21 @@ func GetDatapackFiles(datapackID int, baseURL string) (*dto.DatapackFilesResp, e
 }
 
 // DownloadDatapackFile downloads a specific file from a datapack
-func DownloadDatapackFile(datapackID int, filePath string) (string, string, io.ReadCloser, error) {
+func DownloadDatapackFile(datapackID int, filePath string) (string, string, int64, io.ReadSeekCloser, error) {
 	fullPath, err := getFileFullPath(datapackID, filePath)
 	if err != nil {
-		return "", "", nil, fmt.Errorf("invalid file path: %w", err)
+		return "", "", 0, nil, fmt.Errorf("invalid file path: %w", err)
 	}
 
 	file, err := os.Open(fullPath)
 	if err != nil {
-		return "", "", nil, fmt.Errorf("failed to open file: %w", err)
+		return "", "", 0, nil, fmt.Errorf("failed to open file: %w", err)
+	}
+
+	stat, err := file.Stat()
+	if err != nil {
+		file.Close()
+		return "", "", 0, nil, fmt.Errorf("failed to stat file: %w", err)
 	}
 
 	fileName := filepath.Base(fullPath)
@@ -404,31 +413,88 @@ func DownloadDatapackFile(datapackID int, filePath string) (string, string, io.R
 		contentType = "application/x-tar"
 	}
 
-	return fileName, contentType, file, nil
+	return fileName, contentType, stat.Size(), file, nil
 }
 
-// QueryDatapackFileContent reads a parquet file using DuckDB and returns Arrow IPC stream
-// TODO: Implement Arrow IPC streaming from parquet file. The duckdb-go/v2 library does not
-// provide NewArrowFromConn API. This function needs to be reimplemented using standard SQL
-// queries and Arrow conversion, or by using a different parquet reader library.
-func QueryDatapackFileContent(ctx context.Context, datapackID int, filePath string) (string, io.ReadCloser, error) {
+// QueryDatapackFileContent reads a parquet file and returns it along with file size
+func QueryDatapackFileContent(ctx context.Context, datapackID int, filePath string) (string, int64, io.ReadCloser, error) {
 	fullPath, err := getFileFullPath(datapackID, filePath)
 	if err != nil {
-		return "", nil, fmt.Errorf("invalid file path: %w", err)
+		return "", 0, nil, fmt.Errorf("invalid file path: %w", err)
 	}
 	if filepath.Ext(fullPath) != ".parquet" {
-		return "", nil, fmt.Errorf("file is not a parquet file: %s", filePath)
+		return "", 0, nil, fmt.Errorf("file is not a parquet file: %s", filePath)
 	}
 
-	// Open the parquet file directly and return it
-	// This is a temporary solution that returns the raw parquet file
-	// TODO: Implement proper Arrow IPC streaming
-	file, err := os.Open(fullPath)
+	connector, err := duckdb.NewConnector("", nil)
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to open parquet file: %w", err)
+		return "", 0, nil, err
 	}
 
-	return filepath.Base(fullPath), file, nil
+	countConn, err := connector.Connect(ctx)
+	if err != nil {
+		logrus.Errorf("connect failed: %v", err)
+		return "", 0, nil, err
+	}
+	defer countConn.Close()
+
+	var totalRows int64
+	countQuery := fmt.Sprintf("SELECT count(*) FROM read_parquet('%s')", fullPath)
+
+	db := sql.OpenDB(connector)
+	if err := db.QueryRowContext(ctx, countQuery).Scan(&totalRows); err != nil {
+		return "", 0, nil, err
+	}
+
+	// Inspect schema and build a SELECT that casts unsupported unsigned integer types
+	safeSQL, err := buildSafeParquetSQL(ctx, db, fullPath)
+	if err != nil {
+		return "", 0, nil, fmt.Errorf("failed to build safe parquet SQL: %w", err)
+	}
+
+	pr, pw := io.Pipe()
+	go func() {
+		defer pw.Close()
+
+		conn, err := connector.Connect(ctx)
+		if err != nil {
+			logrus.Errorf("connect failed: %v", err)
+			return
+		}
+		defer conn.Close()
+
+		arrow, err := duckdb.NewArrowFromConn(conn)
+		if err != nil {
+			logrus.Errorf("failed to get arrow interface: %v", err)
+			return
+		}
+
+		rdr, err := arrow.QueryContext(ctx, safeSQL)
+		if err != nil {
+			logrus.Errorf("query context failed: %v", err)
+			return
+		}
+		defer rdr.Release()
+
+		writer := ipc.NewWriter(pw, ipc.WithSchema(rdr.Schema()), ipc.WithZstd())
+		defer writer.Close()
+
+		for rdr.Next() {
+			record := rdr.RecordBatch()
+			if err := writer.Write(record); err != nil {
+				logrus.Errorf("failed to write arrow record: %v", err)
+				record.Release()
+				break
+			}
+			record.Release()
+		}
+
+		if err := rdr.Err(); err != nil {
+			logrus.Errorf("reader error: %v", err)
+		}
+	}()
+
+	return filepath.Base(fullPath), totalRows, pr, nil
 }
 
 // ListInjectionsNoissues handles the request to list fault injections without issues
@@ -1365,6 +1431,80 @@ func buildFileTree(workDir, relPath string, baseURL string, datapackID int, resp
 	}
 
 	return items, nil
+}
+
+// buildSafeParquetSQL inspects the parquet file schema via DuckDB DESCRIBE and builds
+// a SELECT query that casts unsupported Arrow types (unsigned integers like UBIGINT)
+// to compatible signed types, avoiding "Unsupported type 'uint64'" errors in Arrow IPC.
+func buildSafeParquetSQL(ctx context.Context, db *sql.DB, filePath string) (string, error) {
+	unsupportedCast := map[string]string{
+		"UTINYINT":  "SMALLINT", // uint8  -> int16
+		"USMALLINT": "INTEGER",  // uint16 -> int32
+		"UINTEGER":  "INTEGER",  // uint32 -> int32
+		"UBIGINT":   "INTEGER",  // uint64 -> int32 (values > 2^63-1 will overflow)
+	}
+
+	fallbackSQL := fmt.Sprintf("SELECT * FROM read_parquet('%s')", filePath)
+
+	describeQuery := fmt.Sprintf("DESCRIBE SELECT * FROM read_parquet('%s')", filePath)
+	rows, err := db.QueryContext(ctx, describeQuery)
+	if err != nil {
+		logrus.Warnf("failed to describe parquet file, falling back to SELECT *: %v", err)
+		return fallbackSQL, nil
+	}
+	defer rows.Close()
+
+	colDescs, err := rows.ColumnTypes()
+	if err != nil {
+		logrus.Warnf("failed to get DESCRIBE column types, falling back to SELECT *: %v", err)
+		return fallbackSQL, nil
+	}
+	scanArgs := make([]any, len(colDescs))
+	for i := range scanArgs {
+		scanArgs[i] = new(sql.NullString)
+	}
+
+	var columns []string
+	needsCast := false
+
+	for rows.Next() {
+		if err := rows.Scan(scanArgs...); err != nil {
+			logrus.Warnf("failed to scan DESCRIBE row, falling back to SELECT *: %v", err)
+			return fallbackSQL, nil
+		}
+
+		colName := scanArgs[0].(*sql.NullString).String
+		colType := scanArgs[1].(*sql.NullString).String
+
+		upperColType := strings.ToUpper(colType)
+
+		// Check if it's an array type (ends with [])
+		isArray := strings.HasSuffix(upperColType, "[]")
+		baseType := upperColType
+		if isArray {
+			baseType = strings.TrimSuffix(upperColType, "[]")
+		}
+
+		if castType, ok := unsupportedCast[baseType]; ok {
+			targetType := castType
+			if isArray {
+				targetType = castType + "[]"
+			}
+			columns = append(columns, fmt.Sprintf("CAST(\"%s\" AS %s) AS \"%s\"", colName, targetType, colName))
+			needsCast = true
+			logrus.Infof("parquet column %q: casting %s -> %s", colName, colType, targetType)
+		} else {
+			columns = append(columns, fmt.Sprintf("\"%s\"", colName))
+		}
+	}
+
+	if !needsCast || len(columns) == 0 {
+		return fallbackSQL, nil
+	}
+
+	safeSQL := fmt.Sprintf("SELECT %s FROM read_parquet('%s')", strings.Join(columns, ", "), filePath)
+	logrus.Infof("parquet query uses type casting: %s", safeSQL)
+	return safeSQL, nil
 }
 
 // formatFileSize formats bytes to human readable format (KB or MB) with one decimal place

@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"aegis/dto"
 	"aegis/handlers"
@@ -542,21 +544,24 @@ func ListDatapackFiles(c *gin.Context) {
 	dto.SuccessResponse(c, resp)
 }
 
-// DownloadDatapackFile handles downloading a specific file from a datapack
+// DownloadDatapackFile handles downloading a specific file from a datapack.
+// Supports HTTP Range requests for resumable downloads.
 //
 //	@Summary		Download datapack file
-//	@Description	Download a specific file from a datapack
+//	@Description	Download a specific file from a datapack. Supports Range requests for resumable download.
 //	@Tags			Injections
 //	@ID				download_datapack_file
 //	@Produce		application/octet-stream
 //	@Security		BearerAuth
 //	@Param			id		path		int							true	"Injection ID"
 //	@Param			path	query		string						true	"Relative path to the file"
-//	@Success		200		{file}		binary						"Specified file from the datapack"
+//	@Success		200		{file}		binary						"Complete file content"
+//	@Success		206		{file}		binary						"Partial file content (Range request)"
 //	@Failure		400		{object}	dto.GenericResponse[any]	"Invalid injection ID or file path"
 //	@Failure		401		{object}	dto.GenericResponse[any]	"Authentication required"
 //	@Failure		403		{object}	dto.GenericResponse[any]	"Permission denied"
 //	@Failure		404		{object}	dto.GenericResponse[any]	"Datapack or file not found"
+//	@Failure		416		{object}	dto.GenericResponse[any]	"Range not satisfiable"
 //	@Failure		500		{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v2/injections/{id}/files/download [get]
 func DownloadDatapackFile(c *gin.Context) {
@@ -572,7 +577,7 @@ func DownloadDatapackFile(c *gin.Context) {
 		return
 	}
 
-	fileName, contentType, fileReader, err := producer.DownloadDatapackFile(id, filePath)
+	fileName, contentType, fileSize, fileReader, err := producer.DownloadDatapackFile(id, filePath)
 	if handlers.HandleServiceError(c, err) {
 		return
 	}
@@ -581,6 +586,18 @@ func DownloadDatapackFile(c *gin.Context) {
 	c.Header("Content-Type", contentType)
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", fileName))
 	c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
+	c.Header("Accept-Ranges", "bytes")
+
+	// Handle Range request for resumable download
+	rangeHeader := c.GetHeader("Range")
+	if rangeHeader != "" {
+		serveRangeRequest(c, fileReader, fileSize, rangeHeader)
+		return
+	}
+
+	// Full file response
+	c.Header("Content-Length", strconv.FormatInt(fileSize, 10))
+	c.Status(http.StatusOK)
 
 	if _, err := io.Copy(c.Writer, fileReader); err != nil {
 		logrus.WithError(err).Error("failed to stream file content")
@@ -588,17 +605,22 @@ func DownloadDatapackFile(c *gin.Context) {
 	}
 }
 
-// QueryDatapackFile handles querying the content of a specific file in the datapack
+// QueryDatapackFile handles querying the content of a specific file in the datapack.
+// Returns the complete file with Content-Length for download progress tracking.
+//
+// NOTE: Arrow IPC is a structured stream that must be read sequentially from the
+// beginning — Range requests are intentionally NOT supported here. Use
+// DownloadDatapackFile for resumable downloads of raw files.
 //
 //	@Summary		Query datapack file content
-//	@Description	Query the content of a parquet file in the datapack, streaming results as Arrow IPC format
+//	@Description	Query the content of a parquet file in the datapack, returned as a complete stream. Content-Length header is provided for progress tracking.
 //	@Tags			Injections
 //	@ID				query_datapack_file
 //	@Produce		application/vnd.apache.arrow.stream
 //	@Security		BearerAuth
 //	@Param			id		path		int							true	"Injection ID"
 //	@Param			path	query		string						true	"Relative path to the file"
-//	@Success		200		{file}		binary						"Streaming Arrow IPC data"
+//	@Success		200		{file}		binary						"Complete Arrow IPC stream"
 //	@Failure		400		{object}	dto.GenericResponse[any]	"Invalid injection ID or file path"
 //	@Failure		401		{object}	dto.GenericResponse[any]	"Authentication required"
 //	@Failure		403		{object}	dto.GenericResponse[any]	"Permission denied"
@@ -620,7 +642,7 @@ func QueryDatapackFile(c *gin.Context) {
 
 	ctx := c.Request.Context()
 
-	fileName, reader, err := producer.QueryDatapackFileContent(ctx, id, filePath)
+	fileName, totalRows, reader, err := producer.QueryDatapackFileContent(ctx, id, filePath)
 	if err != nil {
 		if handlers.HandleServiceError(c, err) {
 			return
@@ -628,21 +650,97 @@ func QueryDatapackFile(c *gin.Context) {
 	}
 	defer reader.Close()
 
-	// Set headers for streaming response with Arrow IPC content type
+	// Content-Length enables axios onDownloadProgress to calculate percentage
 	c.Header("Content-Type", "application/vnd.apache.arrow.stream")
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s.arrow", fileName))
 	c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
+	c.Header("X-Total-Rows", strconv.FormatInt(totalRows, 10))
 	c.Header("X-Accel-Buffering", "no")
 	c.Status(http.StatusOK)
 
 	if _, err := io.Copy(c.Writer, reader); err != nil {
 		logrus.Errorf("failed to stream file content: %v", err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to stream file content: "+err.Error())
 		return
 	}
 }
 
 // ===================== Private Helper Functions =====================
+
+// serveRangeRequest handles HTTP Range requests for partial content delivery.
+// Supports single range requests in the format "bytes=start-end".
+func serveRangeRequest(c *gin.Context, reader io.ReadSeeker, fileSize int64, rangeHeader string) {
+	// Parse "bytes=start-end" format
+	const prefix = "bytes="
+	if !strings.HasPrefix(rangeHeader, prefix) {
+		dto.ErrorResponse(c, http.StatusRequestedRangeNotSatisfiable, "invalid range format")
+		return
+	}
+
+	rangeSpec := strings.TrimPrefix(rangeHeader, prefix)
+	// Only support single range (no multi-range)
+	if strings.Contains(rangeSpec, ",") {
+		dto.ErrorResponse(c, http.StatusRequestedRangeNotSatisfiable, "multi-range not supported")
+		return
+	}
+
+	parts := strings.SplitN(rangeSpec, "-", 2)
+	if len(parts) != 2 {
+		dto.ErrorResponse(c, http.StatusRequestedRangeNotSatisfiable, "invalid range format")
+		return
+	}
+
+	var start, end int64
+	var err error
+
+	if parts[0] == "" {
+		// Suffix range: "bytes=-500" means last 500 bytes
+		suffix, err := strconv.ParseInt(parts[1], 10, 64)
+		if err != nil || suffix <= 0 || suffix > fileSize {
+			c.Header("Content-Range", fmt.Sprintf("bytes */%d", fileSize))
+			dto.ErrorResponse(c, http.StatusRequestedRangeNotSatisfiable, "invalid range")
+			return
+		}
+		start = fileSize - suffix
+		end = fileSize - 1
+	} else {
+		start, err = strconv.ParseInt(parts[0], 10, 64)
+		if err != nil || start < 0 || start >= fileSize {
+			c.Header("Content-Range", fmt.Sprintf("bytes */%d", fileSize))
+			dto.ErrorResponse(c, http.StatusRequestedRangeNotSatisfiable, "invalid range start")
+			return
+		}
+
+		if parts[1] == "" {
+			// Open-ended range: "bytes=100-" means from 100 to end
+			end = fileSize - 1
+		} else {
+			end, err = strconv.ParseInt(parts[1], 10, 64)
+			if err != nil || end < start || end >= fileSize {
+				c.Header("Content-Range", fmt.Sprintf("bytes */%d", fileSize))
+				dto.ErrorResponse(c, http.StatusRequestedRangeNotSatisfiable, "invalid range end")
+				return
+			}
+		}
+	}
+
+	contentLength := end - start + 1
+
+	// Seek to start position
+	if _, err := reader.Seek(start, io.SeekStart); err != nil {
+		logrus.Errorf("failed to seek to range start: %v", err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to seek to range start")
+		return
+	}
+
+	c.Header("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, fileSize))
+	c.Header("Content-Length", strconv.FormatInt(contentLength, 10))
+	c.Status(http.StatusPartialContent)
+
+	if _, err := io.CopyN(c.Writer, reader, contentLength); err != nil {
+		logrus.Errorf("failed to stream partial content: %v", err)
+		return
+	}
+}
 
 // searchInjectionsCommon is the common logic for searching injections
 func searchInjectionsCommon(c *gin.Context, projectID *int) {
