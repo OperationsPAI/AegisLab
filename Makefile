@@ -178,6 +178,14 @@ local-deploy: ## 🛠️  Setup local development environment with basic service
 	$(MAKE) run-command ARGS="rcabench local-deploy -f"
 	$(MAKE) init-etcd ENV_MODE=dev
 
+build: ## 🔨 Build RCABench application Docker image
+	@printf "$(BLUE)🔨 Building RCABench application image...$(RESET)\n"
+	docker build --network=host	\
+		--build-arg GO_BUILD_TAGS=duckdb_arrow \
+		-t $(DEFAULT_REPO)/rcabench:latest \
+		-f src/Dockerfile .
+	@printf "$(GREEN)✅ Build completed successfully$(RESET)\n\n"
+
 run: check-prerequisites ## 🚀 Build and deploy application (using skaffold)
 	ENV_MODE=staging devbox run skaffold run
 

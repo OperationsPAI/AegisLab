@@ -19,6 +19,10 @@ images:
   init_data:
     name: pair/init-data
 
+rcabench-frontend:
+  image:
+    repository: pair-diag-cn-guangzhou.cr.volces.com/pair/rcabench-frontend
+
 harbor:
   enabled: false
 

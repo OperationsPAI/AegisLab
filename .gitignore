@@ -184,6 +184,8 @@ src/docs/converted/
 src/docs/openapi2/
 src/docs/openapi3/
 
+helm/charts/
+
 # Sensitive files with credentials
 helm/certs/*.crt
 

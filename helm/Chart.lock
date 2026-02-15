@@ -1,0 +1,6 @@
+dependencies:
+- name: rcabench-frontend
+  repository: https://operationspai.github.io/AegisLab-frontend/
+  version: 0.1.1
+digest: sha256:4d05aae36482be788c04dc63de5b7be12a406e288fea11b75df01c54066d5f6f
+generated: "2026-02-15T17:29:58.933825404+08:00"

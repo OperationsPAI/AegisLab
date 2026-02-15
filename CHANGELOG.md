@@ -23,6 +23,7 @@ All notable changes to this project will be documented in this file.
 - *(injection)* Add datapack file browsing and single file download
 - *(injection)* Add Parquet file content query with DuckDB Arrow
 - *(injection)* Add Parquet file content query with DuckDB Arrow
+- *(build)* Add DuckDB Arrow support and integrate frontend chart
 
 ### Miscellaneous Tasks
 

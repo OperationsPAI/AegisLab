@@ -8,6 +8,7 @@ require (
 	github.com/BurntSushi/toml v1.4.0
 	github.com/OperationsPAI/chaos-experiment v0.0.0-20260211063715-574f42f01f04
 	github.com/antonfisher/nested-logrus-formatter v1.3.1
+	github.com/apache/arrow-go/v18 v18.4.1
 	github.com/distribution/reference v0.6.0
 	github.com/docker/cli v27.4.1+incompatible
 	github.com/duckdb/duckdb-go/v2 v2.5.0
@@ -71,7 +72,6 @@ require (
 	github.com/Microsoft/hcsshim v0.12.8 // indirect
 	github.com/alecthomas/units v0.0.0-20240927000941-0f3dac36c52b // indirect
 	github.com/andybalholm/brotli v1.2.0 // indirect
-	github.com/apache/arrow-go/v18 v18.4.1 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect

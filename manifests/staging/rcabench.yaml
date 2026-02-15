@@ -17,6 +17,15 @@ images:
   buildkit:
     name: library/buildkit
 
+rcabench-frontend:
+  image:
+    repository: 10.10.10.240/library/rcabench-frontend
+
+  service:
+    type: NodePort
+    port: 80
+    nodePort: 32180
+
 harbor:
   enabled: true
 

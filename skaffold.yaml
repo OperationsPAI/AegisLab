@@ -12,6 +12,10 @@ profiles:
           context: .
           docker:
             dockerfile: src/Dockerfile
+            buildArgs:
+              GO_BUILD_TAGS: duckdb_arrow
+              INSTALL_CERTS: "true"
+            network: host
       tagPolicy:
         gitCommit:
           variant: AbbrevCommitSha
@@ -43,6 +47,10 @@ profiles:
           context: .
           docker:
             dockerfile: src/Dockerfile
+            buildArgs:
+              GO_BUILD_TAGS: duckdb_arrow
+              INSTALL_CERTS: "true"
+            network: host
       local:
         push: false
       tagPolicy:

@@ -35,6 +35,13 @@ images:
     tag: buildx-stable-1
     pullPolicy: IfNotPresent
 
+rcabench-frontend:
+  enabled: true
+  image:
+    name: docker.io/opspai/rcabench-frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+
 harbor:
   enabled: true
   registry: "10.10.10.240"

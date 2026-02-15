@@ -10,6 +10,8 @@ spec:
       app: {{ .Release.Name }}-producer
   template:
     metadata:
+      annotations:
+        rollout-timestamp: {{ now | quote }}
       labels:
         app: {{ .Release.Name }}-producer
     spec:
@@ -156,6 +158,8 @@ spec:
       app: {{ .Release.Name }}-consumer
   template:
     metadata:
+      annotations:
+        rollout-timestamp: {{ now | quote }}
       labels:
         app: {{ .Release.Name }}-consumer
     spec:
