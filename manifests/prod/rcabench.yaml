@@ -23,6 +23,9 @@ rcabench-frontend:
   image:
     repository: pair-diag-cn-guangzhou.cr.volces.com/pair/rcabench-frontend
 
+alloy:
+  enabled: false
+
 harbor:
   enabled: false
 

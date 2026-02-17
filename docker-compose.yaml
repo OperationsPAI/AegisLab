@@ -57,10 +57,50 @@ services:
       retries: 3
       start_period: 30s
 
+  loki:
+    image: grafana/loki:3.5.10
+    container_name: loki
+    network_mode: host
+    restart: always
+    volumes:
+      - ./manifests/dev/loki-config.yaml:/etc/loki/local-config.yaml:ro
+    command: -config.file=/etc/loki/local-config.yaml
+
+  prometheus:
+    image: prom/prometheus:v3.9.1
+    container_name: prometheus
+    network_mode: host
+    restart: always
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-remote-write-receiver"
+    volumes:
+      - ./manifests/dev/prometheus.yaml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+
+  grafana:
+    image: grafana/grafana:12.3.0
+    container_name: grafana
+    network_mode: host
+    restart: always
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+    volumes:
+      - ./manifests/dev/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+
   buildkitd:
     image: moby/buildkit:buildx-stable-1
     container_name: buildkitd
     privileged: true
+    environment:
+      - BUILDKIT_DEBUG=1
     command: |
       --addr tcp://0.0.0.0:1234
       --allow-insecure-entitlement security.insecure
@@ -68,10 +108,10 @@ services:
     volumes:
       - buildkit_cache:/var/lib/buildkit
       - /etc/ssl/certs:/etc/ssl/certs:ro
-    restart: always
     network_mode: host
-    environment:
-      - BUILDKIT_DEBUG=1
+    restart: always
 
 volumes:
   buildkit_cache:
+  prometheus_data:
+  grafana_data:

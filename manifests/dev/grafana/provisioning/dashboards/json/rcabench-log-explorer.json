@@ -1,0 +1,220 @@
+{
+    "annotations": {
+        "list": [
+            {
+                "builtIn": 1,
+                "datasource": {
+                    "type": "grafana",
+                    "uid": "-- Grafana --"
+                },
+                "enable": true,
+                "hide": true,
+                "iconColor": "rgba(0, 211, 255, 1)",
+                "name": "Annotations & Alerts",
+                "type": "dashboard"
+            }
+        ]
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 1,
+    "id": null,
+    "links": [],
+    "panels": [
+        {
+            "title": "RCABench Log Volume",
+            "type": "timeseries",
+            "gridPos": {
+                "h": 8,
+                "w": 24,
+                "x": 0,
+                "y": 0
+            },
+            "datasource": {
+                "type": "loki",
+                "uid": ""
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "drawStyle": "bars",
+                        "fillOpacity": 50,
+                        "stacking": {
+                            "mode": "normal"
+                        }
+                    }
+                },
+                "overrides": []
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "loki"
+                    },
+                    "expr": "sum(count_over_time({app=\"rcabench\"} [$__auto])) by (rcabench_app_id)",
+                    "legendFormat": "{{rcabench_app_id}}",
+                    "refId": "A"
+                }
+            ],
+            "options": {
+                "legend": {
+                    "displayMode": "table",
+                    "placement": "right"
+                }
+            }
+        },
+        {
+            "title": "Live Log Stream",
+            "type": "logs",
+            "gridPos": {
+                "h": 16,
+                "w": 24,
+                "x": 0,
+                "y": 8
+            },
+            "datasource": {
+                "type": "loki",
+                "uid": ""
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "loki"
+                    },
+                    "expr": "{app=\"rcabench\"} | json",
+                    "refId": "A"
+                }
+            ],
+            "options": {
+                "showTime": true,
+                "sortOrder": "Descending",
+                "dedupStrategy": "none",
+                "enableLogDetails": true,
+                "prettifyLogMessage": false,
+                "wrapLogMessage": true
+            }
+        },
+        {
+            "title": "Logs by Task ID",
+            "type": "logs",
+            "gridPos": {
+                "h": 12,
+                "w": 24,
+                "x": 0,
+                "y": 24
+            },
+            "datasource": {
+                "type": "loki",
+                "uid": ""
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "loki"
+                    },
+                    "expr": "{app=\"rcabench\"} | task_id=`$task_id`",
+                    "refId": "A"
+                }
+            ],
+            "options": {
+                "showTime": true,
+                "sortOrder": "Descending",
+                "enableLogDetails": true,
+                "wrapLogMessage": true
+            }
+        },
+        {
+            "title": "Logs by Trace ID",
+            "type": "logs",
+            "gridPos": {
+                "h": 12,
+                "w": 24,
+                "x": 0,
+                "y": 36
+            },
+            "datasource": {
+                "type": "loki",
+                "uid": ""
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "loki"
+                    },
+                    "expr": "{app=\"rcabench\"} | trace_id=`$trace_id`",
+                    "refId": "A"
+                }
+            ],
+            "options": {
+                "showTime": true,
+                "sortOrder": "Descending",
+                "enableLogDetails": true,
+                "wrapLogMessage": true
+            }
+        }
+    ],
+    "schemaVersion": 39,
+    "tags": [
+        "rcabench",
+        "loki",
+        "logs"
+    ],
+    "templating": {
+        "list": [
+            {
+                "name": "rcabench_app_id",
+                "type": "query",
+                "datasource": {
+                    "type": "loki"
+                },
+                "query": {
+                    "label": "rcabench_app_id",
+                    "stream": "{app=\"rcabench\"}",
+                    "type": 1
+                },
+                "refresh": 2,
+                "includeAll": true,
+                "multi": true,
+                "current": {
+                    "selected": true,
+                    "text": "All",
+                    "value": "$__all"
+                }
+            },
+            {
+                "name": "task_id",
+                "type": "textbox",
+                "current": {
+                    "selected": false,
+                    "text": "",
+                    "value": ""
+                },
+                "label": "Task ID",
+                "description": "Filter logs by task_id (structured metadata)"
+            },
+            {
+                "name": "trace_id",
+                "type": "textbox",
+                "current": {
+                    "selected": false,
+                    "text": "",
+                    "value": ""
+                },
+                "label": "Trace ID",
+                "description": "Filter logs by trace_id (structured metadata)"
+            }
+        ]
+    },
+    "time": {
+        "from": "now-1h",
+        "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "browser",
+    "title": "RCABench - Log Explorer",
+    "uid": "rcabench-log-explorer",
+    "version": 1
+}

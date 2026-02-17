@@ -163,7 +163,7 @@ install-openebs:
 
 install-rcabench:  ## 🔧 Deploy RCABench application in prod environment
 	@printf "$(BLUE)Deploying RCABench application...$(RESET)\n"
-	helm upgrade -i rcabench ./helm --namespace exp \
+	helm upgrade -i rcabench ./helm --namespace $(NS) \
 		--create-namespace \
 		--values ./manifests/prod/rcabench.yaml \
 		--set-file initialDataFiles.data_yaml=data/initial_data/prod/data.yaml \

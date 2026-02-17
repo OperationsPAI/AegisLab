@@ -1,0 +1,200 @@
+{
+    "annotations": {
+        "list": [
+            {
+                "builtIn": 1,
+                "datasource": {
+                    "type": "grafana",
+                    "uid": "-- Grafana --"
+                },
+                "enable": true,
+                "hide": true,
+                "iconColor": "rgba(0, 211, 255, 1)",
+                "name": "Annotations & Alerts",
+                "type": "dashboard"
+            }
+        ]
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 1,
+    "id": null,
+    "links": [],
+    "panels": [
+        {
+            "title": "Loki - Ingester Bytes Received Rate",
+            "type": "timeseries",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 0
+            },
+            "datasource": {
+                "type": "prometheus"
+            },
+            "targets": [
+                {
+                    "expr": "rate(loki_distributor_bytes_received_total[5m])",
+                    "legendFormat": "{{tenant}}",
+                    "refId": "A"
+                }
+            ]
+        },
+        {
+            "title": "Loki - Ingester Lines Received Rate",
+            "type": "timeseries",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 0
+            },
+            "datasource": {
+                "type": "prometheus"
+            },
+            "targets": [
+                {
+                    "expr": "rate(loki_distributor_lines_received_total[5m])",
+                    "legendFormat": "{{tenant}}",
+                    "refId": "A"
+                }
+            ]
+        },
+        {
+            "title": "Loki - Active Streams",
+            "type": "stat",
+            "gridPos": {
+                "h": 6,
+                "w": 8,
+                "x": 0,
+                "y": 8
+            },
+            "datasource": {
+                "type": "prometheus"
+            },
+            "targets": [
+                {
+                    "expr": "loki_ingester_streams_created_total - loki_ingester_streams_removed_total",
+                    "legendFormat": "Active Streams",
+                    "refId": "A"
+                }
+            ],
+            "options": {
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ]
+                }
+            }
+        },
+        {
+            "title": "Loki - Ingester Memory",
+            "type": "timeseries",
+            "gridPos": {
+                "h": 6,
+                "w": 8,
+                "x": 8,
+                "y": 8
+            },
+            "datasource": {
+                "type": "prometheus"
+            },
+            "targets": [
+                {
+                    "expr": "process_resident_memory_bytes{job=\"loki\"}",
+                    "legendFormat": "RSS Memory",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "bytes"
+                }
+            }
+        },
+        {
+            "title": "Loki - Query Duration (p99)",
+            "type": "timeseries",
+            "gridPos": {
+                "h": 6,
+                "w": 8,
+                "x": 16,
+                "y": 8
+            },
+            "datasource": {
+                "type": "prometheus"
+            },
+            "targets": [
+                {
+                    "expr": "histogram_quantile(0.99, sum(rate(loki_request_duration_seconds_bucket{route=~\"loki_api_v1_query.*\"}[5m])) by (le, route))",
+                    "legendFormat": "{{route}}",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s"
+                }
+            }
+        },
+        {
+            "title": "Loki - Push Request Rate",
+            "type": "timeseries",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 14
+            },
+            "datasource": {
+                "type": "prometheus"
+            },
+            "targets": [
+                {
+                    "expr": "sum(rate(loki_request_duration_seconds_count{route=\"/loki/api/v1/push\"}[5m]))",
+                    "legendFormat": "Push Requests/s",
+                    "refId": "A"
+                }
+            ]
+        },
+        {
+            "title": "Loki - Chunks Stored",
+            "type": "timeseries",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 14
+            },
+            "datasource": {
+                "type": "prometheus"
+            },
+            "targets": [
+                {
+                    "expr": "rate(loki_ingester_chunks_stored_total[5m])",
+                    "legendFormat": "Chunks/s",
+                    "refId": "A"
+                }
+            ]
+        }
+    ],
+    "schemaVersion": 39,
+    "tags": [
+        "rcabench",
+        "loki",
+        "monitoring"
+    ],
+    "templating": {
+        "list": []
+    },
+    "time": {
+        "from": "now-1h",
+        "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "browser",
+    "title": "RCABench - Loki Monitoring",
+    "uid": "rcabench-loki-monitoring",
+    "version": 1
+}
