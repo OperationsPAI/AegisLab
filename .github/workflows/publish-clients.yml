@@ -1,0 +1,171 @@
+name: Publish Python SDK & Frontend Client
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+*"
+
+permissions:
+  actions: read
+  contents: read
+  packages: write
+  id-token: write
+
+jobs:
+  prep:
+    name: Prepare Version
+    runs-on: ubuntu-latest
+
+    env:
+      SEMVER_REGEX: "v[0-9]+.[0-9]+.[0-9]+*"
+
+    outputs:
+      version: ${{ steps.extract_version.outputs.version }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract Tag Version
+        uses: OperationsPAI/shared-workflows/actions/extract-tag-version@main
+        id: extract_version
+        with:
+          semver-regex: ${{ env.SEMVER_REGEX }}
+
+  pypi:
+    name: Publish to PyPI
+    needs: prep
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+
+    env:
+      SDK_DIR: "sdk/python"
+      SDK_OPENAPI_DIR: "sdk/python/src/rcabench/openapi"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: |
+          echo "Installing Ruff..."
+          curl -LsSf https://astral.sh/ruff/install.sh | sh
+          echo "::notice::Ruff installed"
+
+          echo "Installing Go dependencies..."
+          go install github.com/swaggo/swag/cmd/swag@latest
+          (
+            cd src && go mod tidy
+          )
+          echo "::notice::Dependencies installed"
+
+      - name: Generate Python SDK
+        run: |
+          echo "Starting SDK generation via Makefile..."
+
+          make generate-python-sdk SDK_VERSION=${{ needs.prep.outputs.version }}
+
+      - name: Verify SDK Generation
+        run: |
+          echo "Verifying generated SDK..."
+
+          if [ ! -d "${SDK_OPENAPI_DIR}" ]; then
+            echo "::error::SDK openapi directory not found"
+            exit 1
+          fi
+
+          if [ ! -f "${SDK_DIR}/pyproject.toml" ]; then
+            echo "::error::pyproject.toml not found"
+            exit 1
+          fi
+
+          echo "::notice::SDK structure verified"
+          echo "SDK contents:"
+          ls -lh ${SDK_OPENAPI_DIR}
+
+      - name: Build and publish
+        run: |
+          cd ${SDK_DIR}
+          echo "Building SDK package..."
+          uv build
+
+          echo "Publishing to PyPI..."
+          uv publish --trusted-publishing always
+
+          echo "::notice::Successfully published to PyPI!"
+
+  publish-npm:
+    name: Publish Frontend Client
+    needs: prep
+    runs-on: ubuntu-latest
+    environment:
+      name: npm
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: |
+          echo "Installing Go dependencies..."
+          go install github.com/swaggo/swag/cmd/swag@latest
+          (
+            cd src && go mod tidy
+          )
+          echo "::notice::Dependencies installed"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@OperationsPAI'
+          cache: 'pnpm'
+          cache-dependency-path: 'client/typescript/pnpm-lock.yaml'
+
+      - name: Build and Publish
+        run: |
+          make generate-typescript-client CLIENT_VERSION=${{ needs.prep.outputs.version }}
+          cd client/typescript
+          echo "Installing and Building..."
+          pnpm install --frozen-lockfile
+          pnpm run build
+
+          echo "Publishing to GitHub Packages..."
+          pnpm publish --no-git-checks --registry https://npm.pkg.github.com
+
+          echo "::notice::Successfully published to npm!"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -7,9 +7,9 @@ import (
 	"aegis/database"
 	"aegis/dto"
 	"aegis/repository"
-	"aegis/utils"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"slices"
@@ -18,12 +18,7 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
-	"github.com/sirupsen/logrus"
-)
-
-const (
-	historicalCount = 1000
-	historicalBlock = 1 * time.Second
+	"gorm.io/gorm"
 )
 
 var payloadTypeRegistry = map[consts.EventType]reflect.Type{
@@ -44,22 +39,44 @@ var payloadTypeRegistry = map[consts.EventType]reflect.Type{
 
 // ===================== Trace Service =====================
 
-// ListTraceIDs lists unique trace IDs from tasks within the specified time range
-func ListTraceIDs(opts *dto.TimeFilterOptions) ([]string, error) {
-	startTime, endTime := opts.GetTimeRange()
-
-	tasks, err := repository.ListTasksByTimeRange(database.DB, startTime, endTime)
+// GetTraceDetail retrieves detailed information about a specific trace
+func GetTraceDetail(traceID string) (*dto.TraceDetailResp, error) {
+	trace, err := repository.GetTraceByID(database.DB, traceID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query tasks from database: %v", err)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("%w: trace id: %s", consts.ErrNotFound, traceID)
+		}
+		return nil, fmt.Errorf("failed to get trace: %w", err)
 	}
 
-	var traceIDs []string
-	for _, task := range tasks {
-		traceIDs = append(traceIDs, task.TraceID)
+	resp := dto.NewTraceDetailResp(trace)
+	return resp, nil
+}
+
+// ListTraces lists traces based on filter options and pagination
+func ListTraces(req *dto.ListTraceReq) (*dto.ListResp[dto.TraceResp], error) {
+	if req == nil {
+		return nil, fmt.Errorf("list traces request is nil")
 	}
 
-	traceIDs = utils.ToUniqueSlice(traceIDs)
-	return traceIDs, nil
+	limit, offset := req.ToGormParams()
+	filterOptions := req.ToFilterOptions()
+
+	traces, total, err := repository.ListTraces(database.DB, limit, offset, filterOptions)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list traces: %w", err)
+	}
+
+	traceResps := make([]dto.TraceResp, 0, len(traces))
+	for i := range traces {
+		traceResps = append(traceResps, *dto.NewTraceResp(&traces[i]))
+	}
+
+	resp := dto.ListResp[dto.TraceResp]{
+		Items:      traceResps,
+		Pagination: req.ConvertToPaginationInfo(total),
+	}
+	return &resp, nil
 }
 
 // GetGroupStats retrieves statistics for a group of traces
@@ -133,7 +150,7 @@ func (sp *StreamProcessor) IsCompleted() bool {
 }
 
 func (sp *StreamProcessor) ProcessMessageForSSE(msg redis.XMessage) (string, *dto.StreamEvent, error) {
-	streamEvent, err := parseStreamEvent(msg.Values)
+	streamEvent, err := parseStreamEvent(msg.ID, msg.Values)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to parse stream message value: %v", err)
 	}
@@ -170,58 +187,6 @@ func (sp *StreamProcessor) ProcessMessageForSSE(msg redis.XMessage) (string, *dt
 	return msg.ID, streamEvent, nil
 }
 
-// GetTraceStreamEvents retrieves trace events from Redis stream based on the provided TraceQuery
-func GetTraceStreamEvents(ctx context.Context, query *dto.TraceQuery) ([]*dto.StreamEvent, error) {
-	streamKey := fmt.Sprintf(consts.StreamLogKey, query.TraceID)
-
-	historicalMessages, err := client.RedisXRead(ctx, []string{streamKey, "0"}, historicalCount, historicalBlock)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read trace stream messages: %w", err)
-	}
-
-	if len(historicalMessages) == 0 {
-		logrus.Warnf("No messages found in Redis stream %s for trace ID %s", streamKey, query.TraceID)
-		return nil, nil
-	}
-
-	if len(historicalMessages) != 1 {
-		return nil, fmt.Errorf("expected exactly one stream for trace %s, got %d", query.TraceID, len(historicalMessages))
-	}
-
-	events := make([]*dto.StreamEvent, 0)
-	stream := historicalMessages[0]
-
-	for idx, msg := range stream.Messages {
-		streamEvent, err := parseStreamEvent(msg.Values)
-		if err != nil {
-			return nil, err
-		}
-
-		streamEvent.TimeStamp, err = strconv.Atoi(strings.Split(msg.ID, "-")[0])
-		if err != nil {
-			return nil, err
-		}
-
-		if idx == 0 {
-			if streamEvent.TaskType != query.FirstTaskType {
-				break
-			}
-
-			eventTime := time.UnixMilli(int64(streamEvent.TimeStamp))
-			if !query.StartTime.IsZero() && eventTime.Before(query.StartTime) {
-				break
-			}
-			if !query.EndTime.IsZero() && eventTime.After(query.EndTime) {
-				break
-			}
-		}
-
-		events = append(events, streamEvent)
-	}
-
-	return events, nil
-}
-
 // GetTraceStreamProcessor creates and initializes a stream processor for the given trace
 func GetTraceStreamProcessor(ctx context.Context, traceID string) (*StreamProcessor, error) {
 	trace, err := repository.GetTraceByID(database.DB, traceID)
@@ -256,7 +221,7 @@ func ReadTraceStreamMessages(ctx context.Context, streamKey, lastID string, coun
 }
 
 // parseStreamEvent parses a Redis stream message values into a StreamEvent
-func parseStreamEvent(values map[string]any) (*dto.StreamEvent, error) {
+func parseStreamEvent(id string, values map[string]any) (*dto.StreamEvent, error) {
 	message := "missing or invalid key %s in redis stream message values"
 
 	taskID, ok := values[consts.RdbEventTaskID].(string)
@@ -264,8 +229,14 @@ func parseStreamEvent(values map[string]any) (*dto.StreamEvent, error) {
 		return nil, fmt.Errorf(message, consts.RdbEventTaskID)
 	}
 
+	timeStamp, err := strconv.Atoi(strings.Split(id, "-")[0])
+	if err != nil {
+		return nil, err
+	}
+
 	event := &dto.StreamEvent{
-		TaskID: taskID,
+		TimeStamp: timeStamp,
+		TaskID:    taskID,
 	}
 
 	if _, exists := values[consts.RdbEventTaskType]; exists {

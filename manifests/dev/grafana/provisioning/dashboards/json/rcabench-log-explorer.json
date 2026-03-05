@@ -84,7 +84,7 @@
                     "datasource": {
                         "type": "loki"
                     },
-                    "expr": "{app=\"rcabench\"} | json",
+                    "expr": "{app=\"rcabench\"}",
                     "refId": "A"
                 }
             ],

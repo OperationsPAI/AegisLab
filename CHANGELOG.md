@@ -25,6 +25,7 @@ All notable changes to this project will be documented in this file.
 - *(injection)* Add Parquet file content query with DuckDB Arrow
 - *(build)* Add DuckDB Arrow support and integrate frontend chart
 - *(deployment)* Add Loki/Prometheus monitoring and Alloy log collection
+- *(logging)* Add real-time task log streaming via WebSocket
 
 ### Miscellaneous Tasks
 

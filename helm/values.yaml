@@ -26,6 +26,10 @@ images:
     name: quay.io/coreos/etcd
     tag: "v3.6.7"
     pullPolicy: IfNotPresent
+  alloy:
+    name: grafana/alloy
+    tag: "v1.9.1"
+    pullPolicy: IfNotPresent
   busybox:
     name: busybox
     tag: "1.35"
@@ -34,6 +38,22 @@ images:
     name: moby/buildkit
     tag: buildx-stable-1
     pullPolicy: IfNotPresent
+
+alloy:
+  enabled: true
+  lokiUrl: "http://rcabench-loki:3100/loki/api/v1/push"
+  tolerations:
+    - key: "node-role.kubernetes.io/control-plane"
+      operator: "Exists"
+      effect: "NoSchedule"
+  resources:
+    limits:
+      cpu: "200m"
+      memory: "256Mi"
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+
 
 rcabench-frontend:
   enabled: true

@@ -206,3 +206,17 @@ var ValidTaskTypes = map[TaskType]struct{}{
 	TaskTypeRunAlgorithm:    {},
 	TaskTypeCollectResult:   {},
 }
+
+var ValidTraceStates = map[TraceState]struct{}{
+	TracePending:   {},
+	TraceRunning:   {},
+	TraceCompleted: {},
+	TraceFailed:    {},
+}
+
+var ValidTraceTypes = map[TraceType]struct{}{
+	TraceTypeFullPipeline:   {},
+	TraceTypeFaultInjection: {},
+	TraceTypeDatapackBuild:  {},
+	TraceTypeAlgorithmRun:   {},
+}

@@ -11,7 +11,7 @@ import (
 )
 
 type StreamEvent struct {
-	TimeStamp int              `json:"timestamp,omitempty" swaggerignore:"true"`
+	TimeStamp int              `json:"timestamp"`
 	TaskID    string           `json:"task_id"`
 	TaskType  consts.TaskType  `json:"task_type"`
 	FileName  string           `json:"file_name" swaggerignore:"true"`
@@ -183,5 +183,115 @@ func NewDefaultGroupStats() *GroupStats {
 		AvgDuration: 0.0,
 		MinDuration: 0.0,
 		MaxDuration: 0.0,
+	}
+}
+
+// ===================== Trace CRUD DTOs =====================
+
+// TraceResp represents the response for a trace in list views
+type TraceResp struct {
+	ID          string     `json:"id"`
+	Type        string     `json:"type"`
+	LastEvent   string     `json:"last_event"`
+	StartTime   time.Time  `json:"start_time"`
+	EndTime     *time.Time `json:"end_time,omitempty"`
+	GroupID     string     `json:"group_id"`
+	ProjectID   int        `json:"project_id,omitempty"`
+	ProjectName string     `json:"project_name,omitempty"`
+	LeafNum     int        `json:"leaf_num"`
+	State       string     `json:"state"`
+	Status      string     `json:"status"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
+}
+
+func NewTraceResp(trace *database.Trace) *TraceResp {
+	resp := &TraceResp{
+		ID:        trace.ID,
+		Type:      consts.GetTraceTypeName(trace.Type),
+		LastEvent: trace.LastEvent.String(),
+		StartTime: trace.StartTime,
+		EndTime:   trace.EndTime,
+		GroupID:   trace.GroupID,
+		ProjectID: trace.ProjectID,
+		LeafNum:   trace.LeafNum,
+		State:     consts.GetTraceStateName(trace.State),
+		Status:    consts.GetStatusTypeName(trace.Status),
+		CreatedAt: trace.CreatedAt,
+		UpdatedAt: trace.UpdatedAt,
+	}
+	if trace.Project != nil {
+		resp.ProjectName = trace.Project.Name
+	}
+	return resp
+}
+
+// TraceDetailResp represents the detailed response for a single trace
+type TraceDetailResp struct {
+	TraceResp
+
+	Tasks []TaskResp `json:"tasks"`
+}
+
+func NewTraceDetailResp(trace *database.Trace) *TraceDetailResp {
+	resp := &TraceDetailResp{
+		TraceResp: *NewTraceResp(trace),
+		Tasks:     make([]TaskResp, 0, len(trace.Tasks)),
+	}
+	for i := range trace.Tasks {
+		resp.Tasks = append(resp.Tasks, *NewTaskResp(&trace.Tasks[i]))
+	}
+	return resp
+}
+
+// ListTraceFilters represents the filters for listing traces
+type ListTraceFilters struct {
+	TraceType *consts.TraceType
+	GroupID   string
+	ProjectID int
+	State     *consts.TraceState
+	Status    *consts.StatusType
+}
+
+// ListTraceReq represents the request to list traces
+type ListTraceReq struct {
+	PaginationReq
+	TraceType *consts.TraceType  `form:"trace_type" binding:"omitempty"`
+	GroupID   string             `form:"group_id" binding:"omitempty"`
+	ProjectID int                `form:"project_id" binding:"omitempty"`
+	State     *consts.TraceState `form:"state" binding:"omitempty"`
+	Status    *consts.StatusType `form:"status" binding:"omitempty"`
+}
+
+func (req *ListTraceReq) Validate() error {
+	if err := req.PaginationReq.Validate(); err != nil {
+		return err
+	}
+	if req.TraceType != nil {
+		if _, exists := consts.ValidTraceTypes[*req.TraceType]; !exists {
+			return fmt.Errorf("invalid trace type: %d", *req.TraceType)
+		}
+	}
+	if err := validateUUID(req.GroupID); err != nil {
+		return err
+	}
+	if req.ProjectID < 0 {
+		return fmt.Errorf("invalid project ID: %d", req.ProjectID)
+	}
+	if req.State != nil {
+		if _, exists := consts.ValidTraceStates[*req.State]; !exists {
+			return fmt.Errorf("invalid trace state: %d", *req.State)
+		}
+	}
+	return validateStatusField(req.Status, true)
+}
+
+func (req *ListTraceReq) ToFilterOptions() *ListTraceFilters {
+	return &ListTraceFilters{
+		TraceType: req.TraceType,
+		GroupID:   req.GroupID,
+		ProjectID: req.ProjectID,
+		State:     req.State,
+		Status:    req.Status,
 	}
 }

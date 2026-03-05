@@ -1,16 +1,29 @@
 package v2
 
 import (
-	"aegis/consts"
 	"net/http"
 
+	"aegis/consts"
+	"aegis/database"
 	"aegis/dto"
 	"aegis/handlers"
+	"aegis/repository"
 	producer "aegis/service/producer"
 	"aegis/utils"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
+	"github.com/sirupsen/logrus"
+	"gorm.io/gorm"
 )
+
+var wsUpgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 4096,
+	CheckOrigin: func(r *http.Request) bool {
+		return true // Allow all origins (JWT already handles auth)
+	},
+}
 
 // BatchDeleteTasks
 //
@@ -122,4 +135,62 @@ func ListTasks(c *gin.Context) {
 	}
 
 	dto.SuccessResponse(c, resp)
+}
+
+// GetTaskLogsWS handles WebSocket connections for real-time job log streaming
+//
+//	@Summary		Stream task logs via WebSocket
+//	@Description	Establishes a WebSocket connection to stream real-time logs.
+//	@Description	Process: 1. Validate Token -> 2. Push historical logs from Loki -> 3. Subscribe to Redis for real-time updates -> 4. Close on task completion.
+//	@Tags			Tasks
+//	@ID				get_task_logs_ws
+//	@Param			task_id	path		string				true	"Task ID"
+//	@Param			token	query		string				true	"JWT authentication token"
+//	@Success		101		{object}	dto.WSLogMessage	"WebSocket connection established"
+//	@Failure		400		"Invalid task ID"
+//	@Failure		401		"Authentication failed"
+//	@Failure		404		"Task not found"
+//	@Router			/api/v2/tasks/{task_id}/logs/ws [get]
+func GetTaskLogsWS(c *gin.Context) {
+	taskID := c.Param(consts.URLPathTaskID)
+	if taskID == "" {
+		dto.ErrorResponse(c, http.StatusBadRequest, "task_id is required")
+		return
+	}
+
+	// Authenticate via query parameter (WebSocket doesn't support custom headers)
+	token := c.Query("token")
+	if token == "" {
+		dto.ErrorResponse(c, http.StatusUnauthorized, "token query parameter is required")
+		return
+	}
+
+	if _, err := utils.ValidateToken(token); err != nil {
+		dto.ErrorResponse(c, http.StatusUnauthorized, "invalid token: "+err.Error())
+		return
+	}
+
+	// Verify task exists
+	task, err := repository.GetTaskByID(database.DB, taskID)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			dto.ErrorResponse(c, http.StatusNotFound, "task not found")
+			return
+		}
+
+		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to retrieve task: "+err.Error())
+		return
+	}
+
+	// Upgrade to WebSocket
+	conn, err := wsUpgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		logrus.Errorf("WebSocket upgrade failed for task %s: %v", taskID, err)
+		return
+	}
+	defer conn.Close()
+
+	// Delegate all streaming logic to the service layer
+	streamer := producer.NewTaskLogStreamer(conn, taskID)
+	streamer.StreamLogs(c.Request.Context(), task)
 }

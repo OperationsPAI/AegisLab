@@ -353,7 +353,7 @@ data:
         }
       }
 
-      forward_to = [loki.write.default.receiver]
+      forward_to = [loki.write.default.receiver, otelcol.receiver.loki.backend.receiver]
     }
 
     // 6. Write to Loki
@@ -363,9 +363,36 @@ data:
       }
     }
 
+    // 7. OTLP dual-write: bridge Loki format → OpenTelemetry format
+    otelcol.receiver.loki "backend" {
+      output {
+        logs = [otelcol.exporter.otlphttp.backend.input]
+      }
+    }
+
+    // 8. OTLP HTTP export to backend log receiver
+    otelcol.exporter.otlphttp "backend" {
+      client {
+        endpoint = "http://10.10.10.161:4319"
+      }
+
+      retry_on_failure {
+          enabled          = true
+          initial_interval = "1s"
+          max_interval     = "30s"
+          max_elapsed_time = "5m"
+      }
+
+      sending_queue {
+          enabled       = true
+          num_consumers = 4
+          queue_size    = 1000
+      }
+    }
+
     prometheus.remote_write "default" {
       endpoint {
-        url = "http://10.10.10.119:9090/api/v1/write"
+        url = "http://10.10.10.161:9090/api/v1/write"
       }
     }
 
@@ -399,7 +426,7 @@ spec:
           args:
             - run
             - /etc/alloy/config.alloy
-            - --stability.level=generally-available
+            - --stability.level=public-preview
           env:
             - name: HOSTNAME
               valueFrom:

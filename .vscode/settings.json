@@ -35,5 +35,8 @@
     "./sdk/python-gen",
     "./scripts/command"
   ],
-  "ruff.path": ["ruff"]
+  "ruff.path": ["ruff"],
+  "chat.tools.terminal.autoApprove": {
+    "go": true
+  }
 }

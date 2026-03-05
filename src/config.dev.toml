@@ -67,3 +67,12 @@ storage_path = "/home/nn/workspace/AegisLab/containers"
 
 [buildkit]
 address = "localhost:1234"
+
+[loki]
+url = "http://10.10.10.161:3100"
+timeout = "10s"
+max_entries = 5000
+
+[otlp_receiver]
+port = 4319
+max_request_size = 5242880

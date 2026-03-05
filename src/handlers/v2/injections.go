@@ -85,18 +85,12 @@ func BatchDeleteInjections(c *gin.Context) {
 //	@x-api-type		{"sdk":"true"}
 func GetInjection(c *gin.Context) {
 	idStr := c.Param(consts.URLPathID)
-	logrus.WithFields(logrus.Fields{
-		"idStr": idStr,
-		"path":  c.Request.URL.Path,
-	}).Info("GetInjection: received request")
-
 	id, ok := handlers.ParsePositiveID(c, idStr, "injection ID")
 	if !ok {
 		logrus.WithField("idStr", idStr).Warn("GetInjection: invalid ID format or ID <= 0")
 		return
 	}
 
-	logrus.WithField("id", id).Info("GetInjection: calling GetInjectionDetail")
 	resp, err := producer.GetInjectionDetail(id)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{

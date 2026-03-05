@@ -458,17 +458,24 @@ func SetupV2Routes(router *gin.Engine) {
 	// =====================================================================
 
 	// Task Management - Task Entity
-	tasks := v2.Group("/tasks", middleware.JWTAuth())
+	tasks := v2.Group("/tasks")
 	{
-		// Task Read operations
-		taskRead := tasks.Group("", middleware.RequireTaskRead)
+		taskWithAuth := tasks.Group("", middleware.JWTAuth())
 		{
-			taskRead.GET("", v2handlers.ListTasks)        // List tasks
-			taskRead.GET("/:task_id", v2handlers.GetTask) // Get task by ID
+
+			// Task Read operations
+			taskRead := taskWithAuth.Group("", middleware.RequireTaskRead)
+			{
+				taskRead.GET("", v2handlers.ListTasks)        // List tasks
+				taskRead.GET("/:task_id", v2handlers.GetTask) // Get task by ID
+			}
+
+			// Task Delete operations
+			taskWithAuth.POST("/batch-delete", middleware.RequireTaskDelete, v2handlers.BatchDeleteTasks) // Batch delete tasks
 		}
 
-		// Task Delete operations
-		tasks.POST("/batch-delete", middleware.RequireTaskDelete, v2handlers.BatchDeleteTasks) // Batch delete tasks
+		// Task Log streaming (WebSocket) - auth via query param, not middleware
+		tasks.GET("/:task_id/logs/ws", v2handlers.GetTaskLogsWS) // Stream task logs via WebSocket
 	}
 
 	// Fault Injection Management - FaultInjectionSchedule Entity
@@ -525,7 +532,9 @@ func SetupV2Routes(router *gin.Engine) {
 	// Trace Management - Trace Entity
 	traces := v2.Group("/traces", middleware.JWTAuth())
 	{
+		traces.GET("", v2handlers.ListTraces)                      // List traces
 		traces.GET("/group/stats", v2handlers.GetGroupStats)       // Get group traces statistics
+		traces.GET("/:trace_id", v2handlers.GetTrace)              // Get trace detail
 		traces.GET("/:trace_id/stream", v2handlers.GetTraceStream) // Get trace stream (SSE)
 	}
 

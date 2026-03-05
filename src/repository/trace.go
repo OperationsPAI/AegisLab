@@ -6,6 +6,7 @@ import (
 
 	"aegis/consts"
 	"aegis/database"
+	"aegis/dto"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -19,6 +20,7 @@ import (
 func GetTraceByID(db *gorm.DB, traceID string) (*database.Trace, error) {
 	var trace database.Trace
 	if err := db.Model(&database.Trace{}).
+		Preload("Project").
 		Preload("Tasks", func(db *gorm.DB) *gorm.DB {
 			return db.Order("level ASC, sequence ASC")
 		}).
@@ -27,6 +29,39 @@ func GetTraceByID(db *gorm.DB, traceID string) (*database.Trace, error) {
 		return nil, err
 	}
 	return &trace, nil
+}
+
+// ListTraces lists traces based on filter and pagination with preloaded associations
+func ListTraces(db *gorm.DB, limit, offset int, filterOptions *dto.ListTraceFilters) ([]database.Trace, int64, error) {
+	var traces []database.Trace
+	var total int64
+
+	query := db.Model(&database.Trace{}).Preload("Project")
+	if filterOptions.TraceType != nil {
+		query = query.Where("type = ?", *filterOptions.TraceType)
+	}
+	if filterOptions.GroupID != "" {
+		query = query.Where("group_id = ?", filterOptions.GroupID)
+	}
+	if filterOptions.ProjectID > 0 {
+		query = query.Where("project_id = ?", filterOptions.ProjectID)
+	}
+	if filterOptions.State != nil {
+		query = query.Where("state = ?", *filterOptions.State)
+	}
+	if filterOptions.Status != nil {
+		query = query.Where("status = ?", *filterOptions.Status)
+	}
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to count traces: %w", err)
+	}
+
+	if err := query.Limit(limit).Offset(offset).Order("created_at DESC").Find(&traces).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to list traces: %w", err)
+	}
+
+	return traces, total, nil
 }
 
 // GetTracesByGroupID retrieves all traces belonging to a specific group

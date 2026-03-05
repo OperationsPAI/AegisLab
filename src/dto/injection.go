@@ -429,7 +429,6 @@ type InjectionResp struct {
 	EndTime       *time.Time           `json:"end_time,omitempty"`
 	State         consts.DatapackState `json:"state" swaggertype:"string"`
 	Status        string               `json:"status"`
-	TaskID        string               `json:"task_id"`
 	BenchmarkID   int                  `json:"benchmark_id"`
 	BenchmarkName string               `json:"benchmark_name"`
 	PedestalID    int                  `json:"pedestal_id"`
@@ -441,17 +440,9 @@ type InjectionResp struct {
 }
 
 func NewInjectionResp(injection *database.FaultInjection) *InjectionResp {
-	var faultTypeName string
-	if injection.FaultType == consts.Hybrid {
-		faultTypeName = "hybrid"
-	} else {
-		faultTypeName = chaos.ChaosTypeMap[injection.FaultType]
-	}
-
 	resp := &InjectionResp{
 		ID:          injection.ID,
 		Name:        injection.Name,
-		FaultType:   faultTypeName,
 		Category:    injection.Category.String(),
 		PreDuration: injection.PreDuration,
 		StartTime:   injection.StartTime,
@@ -462,6 +453,12 @@ func NewInjectionResp(injection *database.FaultInjection) *InjectionResp {
 		PedestalID:  injection.PedestalID,
 		CreatedAt:   injection.CreatedAt,
 		UpdatedAt:   injection.UpdatedAt,
+	}
+
+	if injection.FaultType == consts.Hybrid {
+		resp.FaultType = "hybrid"
+	} else {
+		resp.FaultType = chaos.ChaosTypeMap[injection.FaultType]
 	}
 
 	if injection.DisplayConfig != nil {
@@ -481,10 +478,6 @@ func NewInjectionResp(injection *database.FaultInjection) *InjectionResp {
 		}
 	}
 
-	if injection.TaskID != nil {
-		resp.TaskID = *injection.TaskID
-	}
-
 	// Get labels from associated Task instead of directly from injection
 	if len(injection.Labels) > 0 {
 		resp.Labels = make([]LabelItem, 0, len(injection.Labels))
@@ -502,27 +495,37 @@ func NewInjectionResp(injection *database.FaultInjection) *InjectionResp {
 type InjectionDetailResp struct {
 	InjectionResp
 
+	TaskID  string `json:"task_id"`
+	TraceID string `json:"trace_id"`
+
 	Description  string              `json:"description,omitempty"`
 	EngineConfig []map[string]any    `json:"engine_config" swaggertype:"array,object"`
 	Groundtruths []chaos.Groundtruth `json:"ground_truth,omitempty"`
 }
 
-func NewInjectionDetailResp(entity *database.FaultInjection) *InjectionDetailResp {
-	injectionResp := NewInjectionResp(entity)
+func NewInjectionDetailResp(injection *database.FaultInjection) *InjectionDetailResp {
+	injectionResp := NewInjectionResp(injection)
 	resp := &InjectionDetailResp{
 		InjectionResp: *injectionResp,
-		Description:   entity.Description,
+		Description:   injection.Description,
 	}
 
-	if entity.EngineConfig != "" {
+	if injection.Task != nil {
+		resp.TaskID = injection.Task.ID
+		if injection.Task.Trace != nil {
+			resp.TraceID = injection.Task.Trace.ID
+		}
+	}
+
+	if injection.EngineConfig != "" {
 		var engineConfigData []map[string]any
-		_ = json.Unmarshal([]byte(entity.EngineConfig), &engineConfigData)
+		_ = json.Unmarshal([]byte(injection.EngineConfig), &engineConfigData)
 		resp.EngineConfig = engineConfigData
 	}
 
-	resp.Groundtruths = make([]chaos.Groundtruth, 0, len(entity.Groundtruths))
-	if len(entity.Groundtruths) > 0 {
-		for _, gt := range entity.Groundtruths {
+	resp.Groundtruths = make([]chaos.Groundtruth, 0, len(injection.Groundtruths))
+	if len(injection.Groundtruths) > 0 {
+		for _, gt := range injection.Groundtruths {
 			resp.Groundtruths = append(resp.Groundtruths, *gt.ConvertToChaosGroundtruth())
 		}
 	}
@@ -559,16 +562,12 @@ type SubmitInjectionResp struct {
 }
 
 type SubmitDatapackBuildingReq struct {
-	ProjectName string         `json:"project_name" binding:"required"`
+	ProjectName string         `json:"project_name" binding:"omitempty"`
 	Specs       []BuildingSpec `json:"specs" binding:"required"`
 	Labels      []LabelItem    `json:"labels" binding:"omitempty"`
 }
 
 func (req *SubmitDatapackBuildingReq) Validate() error {
-	if req.ProjectName == "" {
-		return fmt.Errorf("project_name is required")
-	}
-
 	if len(req.Specs) == 0 {
 		return fmt.Errorf("at least one datapack spec is required")
 	}

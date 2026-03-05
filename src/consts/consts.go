@@ -382,7 +382,7 @@ const (
 	EventDatapackNoAnomaly        EventType = "datapack.no_anomaly"
 	EventDatapackNoDetectorData   EventType = "datapack.no_detector_data"
 
-	EventImageBUildStarted EventType = "image.build.started"
+	EventImageBuildStarted EventType = "image.build.started"
 	EventImageBuildSucceed EventType = "image.build.succeed"
 	EventImageBuildFailed  EventType = "image.build.failed"
 
@@ -453,6 +453,25 @@ type SSEEventName string
 const (
 	EventEnd    SSEEventName = "end"
 	EventUpdate SSEEventName = "update"
+)
+
+type LogLevel string
+
+const (
+	LogLevelError LogLevel = "error"
+	LogLevelWarn  LogLevel = "warn"
+	LogLevelInfo  LogLevel = "info"
+	LogLevelDebug LogLevel = "debug"
+)
+
+type WSLogType string
+
+// WebSocket log message types
+const (
+	WSLogTypeHistory  WSLogType = "history"
+	WSLogTypeRealtime WSLogType = "realtime"
+	WSLogTypeEnd      WSLogType = "end"
+	WSLogTypeError    WSLogType = "error"
 )
 
 const (

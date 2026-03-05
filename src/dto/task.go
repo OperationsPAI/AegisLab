@@ -135,7 +135,12 @@ func (t *UnifiedTask) GetLabels() map[string]string {
 // GetTraceCtx extracts the trace context from the carrier
 func (t *UnifiedTask) GetTraceCtx() context.Context {
 	if t.TraceCarrier == nil {
-		logrus.WithField("task_id", t.TaskID).WithField("task_type", t.Type).Error("No group context, create a new one")
+		logrus.WithFields(
+			logrus.Fields{
+				"task_id":   t.TaskID,
+				"task_type": consts.GetTaskTypeName(t.Type),
+			},
+		).Warn("No trace context, create a new one")
 		return context.Background()
 	}
 
@@ -146,12 +151,17 @@ func (t *UnifiedTask) GetTraceCtx() context.Context {
 // GetGroupCtx extracts the group context from the carrier
 func (t *UnifiedTask) GetGroupCtx() context.Context {
 	if t.GroupCarrier == nil {
-		logrus.WithField("task_id", t.TaskID).WithField("task_type", t.Type).Error("No group context, create a new one")
+		logrus.WithFields(
+			logrus.Fields{
+				"task_id":   t.TaskID,
+				"task_type": consts.GetTaskTypeName(t.Type),
+			},
+		).Warn("No group context, create a new one")
 		return context.Background()
 	}
 
-	traceCtx := otel.GetTextMapPropagator().Extract(context.Background(), t.GroupCarrier)
-	return traceCtx
+	groupCtx := otel.GetTextMapPropagator().Extract(context.Background(), t.GroupCarrier)
+	return groupCtx
 }
 
 func (t *UnifiedTask) Reschedule(executeTime time.Time) {

@@ -11,6 +11,9 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    environment:
+      name: test-server
+
     permissions:
       contents: read
       id-token: write
@@ -30,7 +33,7 @@ jobs:
         run: |
           echo "Testing DNS resolution:"
           for i in {1..5}; do
-            ping -c 1 ${{ vars.TEST_SERVER_HOST }} && break || sleep 2
+            ping -c 1 ${{ vars.HOST }} && break || sleep 2
           done
 
       - name: Run Regression Tests via SSH
@@ -39,7 +42,7 @@ jobs:
           ssh -o StrictHostKeyChecking=no \
               -o UserKnownHostsFile=/dev/null \
               -o LogLevel=ERROR \
-              ${{ vars.TEST_SERVER_USER }}@${{ vars.TEST_SERVER_HOST }} \
+              ${{ vars.USER }}@${{ vars.HOST }} \
               "cd ~/workspace/AegisLab && \
                git fetch origin && \
                git reset --hard origin/main && \
