@@ -1,6 +1,7 @@
 package consumer
 
 import (
+	"aegis/client"
 	"aegis/consts"
 	"aegis/database"
 	"aegis/dto"
@@ -80,7 +81,7 @@ func getEventTypeByTask(taskType consts.TaskType, taskState consts.TaskState) co
 
 // updateTraceState updates trace state based on task state change
 // This function is called after task state is persisted to ensure real-time sync
-func updateTraceState(traceID, taskID string, newState consts.TaskState, event *dto.StreamEvent) error {
+func updateTraceState(traceID, taskID string, newState consts.TaskState, event *dto.TraceStreamEvent) error {
 	logEntry := logrus.WithField("trace_id", traceID).WithField("task_id", taskID)
 
 	// Update trace state asynchronously to avoid blocking task processing
@@ -97,7 +98,7 @@ func updateTraceState(traceID, taskID string, newState consts.TaskState, event *
 }
 
 // performTraceStateUpdate performs the actual trace state update with retry logic
-func performTraceStateUpdate(ctx context.Context, traceID, taskID string, newState consts.TaskState, event *dto.StreamEvent) error {
+func performTraceStateUpdate(ctx context.Context, traceID, taskID string, newState consts.TaskState, event *dto.TraceStreamEvent) error {
 	const maxRetries = 3
 	logEntry := logrus.WithField("trace_id", traceID)
 
@@ -121,7 +122,7 @@ func performTraceStateUpdate(ctx context.Context, traceID, taskID string, newSta
 }
 
 // tryUpdateTraceStateCore attempts to update trace state once
-func tryUpdateTraceStateCore(ctx context.Context, traceID, taskID string, newState consts.TaskState, streamEvent *dto.StreamEvent) error {
+func tryUpdateTraceStateCore(ctx context.Context, traceID, taskID string, newState consts.TaskState, streamEvent *dto.TraceStreamEvent) error {
 	logEntry := logrus.WithField("trace_id", traceID)
 
 	// 1. Fetch trace with all tasks (including the just-updated task)
@@ -190,6 +191,11 @@ func tryUpdateTraceStateCore(ctx context.Context, traceID, taskID string, newSta
 	if (inferredState == consts.TraceCompleted || inferredState == consts.TraceFailed) && trace.EndTime == nil {
 		now := time.Now()
 		updates["end_time"] = &now
+
+		// Publish to group-level stream for real-time group progress SSE
+		if trace.GroupID != "" {
+			publishGroupStreamEvent(ctx, trace.GroupID, traceID, inferredState, inferredEventType)
+		}
 	}
 
 	// 6. Execute optimistic locking update
@@ -249,7 +255,7 @@ func buildLevelStatistics(tasks []database.Task, treeHeight int) map[int]*levelS
 
 // hasEarlyTerminationEvent checks if any CollectResult task has completed with early termination events
 // Now also checks the streamEvent to accurately determine if it's truly an early termination
-func hasEarlyTerminationEvent(tasks []database.Task, streamEvent *dto.StreamEvent) bool {
+func hasEarlyTerminationEvent(tasks []database.Task, streamEvent *dto.TraceStreamEvent) bool {
 	// Priority 1: Check if streamEvent explicitly indicates early termination
 	if streamEvent != nil && streamEvent.EventName != "" {
 		// These events indicate early termination - no further processing needed
@@ -291,7 +297,7 @@ func hasEarlyTerminationEvent(tasks []database.Task, streamEvent *dto.StreamEven
 
 // findEarlyTerminationEvent finds and returns the early termination event from completed CollectResult tasks
 // Now uses streamEvent to accurately return the correct event type
-func findEarlyTerminationEvent(tasks []database.Task, streamEvent *dto.StreamEvent) consts.EventType {
+func findEarlyTerminationEvent(tasks []database.Task, streamEvent *dto.TraceStreamEvent) consts.EventType {
 	// Priority 1: If streamEvent is provided with early termination events, use it directly
 	if streamEvent != nil && streamEvent.EventName != "" {
 		if streamEvent.EventName == consts.EventDatapackNoAnomaly ||
@@ -329,7 +335,7 @@ func findEarlyTerminationEvent(tasks []database.Task, streamEvent *dto.StreamEve
 }
 
 // selectBestLastEvent selects the most appropriate last event from completed leaf tasks
-func selectBestLastEvent(tasks []database.Task, leafLevel int, streamEvent *dto.StreamEvent) consts.EventType {
+func selectBestLastEvent(tasks []database.Task, leafLevel int, streamEvent *dto.TraceStreamEvent) consts.EventType {
 	// Event priority map: higher value = higher priority
 	eventPriority := map[consts.EventType]int{
 		consts.EventFaultInjectionCompleted:  80,
@@ -381,7 +387,7 @@ func selectBestLastEvent(tasks []database.Task, leafLevel int, streamEvent *dto.
 
 // inferTraceState infers trace state and last event from all tasks
 // streamEvent parameter helps distinguish between early termination vs continuation scenarios
-func inferTraceState(trace *database.Trace, tasks []database.Task, streamEvent *dto.StreamEvent) (consts.TraceState, consts.EventType) {
+func inferTraceState(trace *database.Trace, tasks []database.Task, streamEvent *dto.TraceStreamEvent) (consts.TraceState, consts.EventType) {
 	treeHeight := traceTypeHeightMap[trace.Type]
 	stats := buildLevelStatistics(tasks, treeHeight)
 
@@ -490,4 +496,23 @@ func inferTraceState(trace *database.Trace, tasks []database.Task, streamEvent *
 // isOptimisticLockError checks if an error is due to optimistic lock failure
 func isOptimisticLockError(err error) bool {
 	return err != nil && err.Error() == "optimistic lock conflict: trace was modified by another job"
+}
+
+// publishGroupStreamEvent publishes a lightweight event to the group-level Redis stream
+// when a trace reaches a terminal state (Completed/Failed).
+// This enables real-time SSE updates for group progress tracking on the frontend.
+func publishGroupStreamEvent(ctx context.Context, groupID, traceID string, state consts.TraceState, lastEvent consts.EventType) {
+	streamKey := fmt.Sprintf(consts.StreamGroupLogKey, groupID)
+	logEntry := logrus.WithField("group_id", groupID).WithField("trace_id", traceID)
+
+	event := &dto.GroupStreamEvent{
+		TraceID:   traceID,
+		State:     state,
+		LastEvent: lastEvent,
+	}
+
+	if err := client.RedisXAdd(ctx, streamKey, event.ToRedisStream()); err != nil {
+		logEntry.Errorf("failed to publish group stream event: %v", err)
+		return
+	}
 }

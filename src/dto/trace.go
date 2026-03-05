@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-type StreamEvent struct {
+type TraceStreamEvent struct {
 	TimeStamp int              `json:"timestamp"`
 	TaskID    string           `json:"task_id"`
 	TaskType  consts.TaskType  `json:"task_type"`
@@ -21,7 +21,7 @@ type StreamEvent struct {
 	Payload   any              `json:"payload,omitempty" swaggertype:"object"`
 }
 
-func (s *StreamEvent) ToRedisStream() map[string]any {
+func (s *TraceStreamEvent) ToRedisStream() map[string]any {
 	payload, err := json.Marshal(s.Payload)
 	if err != nil {
 		return nil
@@ -38,7 +38,7 @@ func (s *StreamEvent) ToRedisStream() map[string]any {
 	}
 }
 
-func (s *StreamEvent) ToSSE() (string, error) {
+func (s *TraceStreamEvent) ToSSE() (string, error) {
 	jsonData, err := json.Marshal(s)
 	if err != nil {
 		return "", err

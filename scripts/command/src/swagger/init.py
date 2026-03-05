@@ -52,7 +52,8 @@ class SDKPostProcesser:
     # Models that should always be kept in SDK even if not directly referenced
     # These are typically used in SSE events or other indirect references
     ALWAYS_KEEP_MODELS = {
-        "StreamEvent",
+        "TraceStreamEvent",
+        "GroupStreamEvent",
         "DatapackInfo",
         "DatapackResult",
         "ExecutionInfo",

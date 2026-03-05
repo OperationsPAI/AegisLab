@@ -533,9 +533,14 @@ func SetupV2Routes(router *gin.Engine) {
 	traces := v2.Group("/traces", middleware.JWTAuth())
 	{
 		traces.GET("", v2handlers.ListTraces)                      // List traces
-		traces.GET("/group/stats", v2handlers.GetGroupStats)       // Get group traces statistics
-		traces.GET("/:trace_id", v2handlers.GetTrace)              // Get trace detail
 		traces.GET("/:trace_id/stream", v2handlers.GetTraceStream) // Get trace stream (SSE)
+	}
+
+	// Group Management - Group stream for real-time batch progress
+	groups := v2.Group("/groups", middleware.JWTAuth())
+	{
+		groups.GET("/:group_id/stats", v2handlers.GetAlgorithmMetrics) // Get group stats (can be used for progress tracking)
+		groups.GET("/:group_id/stream", v2handlers.GetGroupStream)     // Stream group trace events (SSE)
 	}
 
 	// =====================================================================

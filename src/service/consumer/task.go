@@ -92,7 +92,7 @@ type taskStateUpdate struct {
 	taskType  consts.TaskType
 	taskState consts.TaskState
 	message   string
-	event     *dto.StreamEvent // Optional: custom event to publish
+	event     *dto.TraceStreamEvent // Optional: custom event to publish
 }
 
 // newTaskStateUpdate creates a basic TaskStateUpdate with required fields
@@ -124,7 +124,7 @@ func taskCompletedWithEvent(task *dto.UnifiedTask, eventType consts.EventType, p
 
 // withEvent adds a custom event to the TaskStateUpdate
 func (u *taskStateUpdate) withEvent(eventType consts.EventType, payload any) *taskStateUpdate {
-	u.event = &dto.StreamEvent{
+	u.event = &dto.TraceStreamEvent{
 		TaskID:    u.taskID,
 		TaskType:  u.taskType,
 		EventName: eventType,
@@ -349,7 +349,7 @@ func executeTaskWithRetry(ctx context.Context, task *dto.UnifiedTask) {
 		message := fmt.Sprintf("Attempt %d failed: %v", attempt+1, err)
 		span.AddEvent(message)
 		logrus.WithField("task_id", task.TaskID).Warn(message)
-		publishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
+		publishEvent(ctx, fmt.Sprintf(consts.StreamTraceLogKey, task.TraceID), dto.TraceStreamEvent{
 			TaskID:    task.TaskID,
 			TaskType:  task.Type,
 			EventName: consts.EventTaskRetryStatus,
@@ -462,7 +462,7 @@ func CancelTask(taskID string) error {
 
 // publishEvent publishes a StreamEvent to the specified Redis stream
 // This adds caller information and handles error logging
-func publishEvent(ctx context.Context, stream string, event dto.StreamEvent, opts ...eventPublishOption) {
+func publishEvent(ctx context.Context, stream string, event dto.TraceStreamEvent, opts ...eventPublishOption) {
 	options := &eventPublishOptions{
 		callerLevel: 2,
 	}
@@ -502,7 +502,7 @@ func updateTaskState(ctx context.Context, update *taskStateUpdate) {
 			span.SetStatus(codes.Error, description)
 		}
 
-		stream := fmt.Sprintf(consts.StreamLogKey, update.traceID)
+		stream := fmt.Sprintf(consts.StreamTraceLogKey, update.traceID)
 
 		// Publish custom event or default state update event
 		if update.event != nil {

@@ -436,7 +436,7 @@ func (h *k8sHandler) HandleJobFailed(job *batchv1.Job, annotations map[string]st
 		taskSpan.AddEvent("job failed", spanAttrs...)
 	}
 
-	publishEvent(taskCtx, fmt.Sprintf(consts.StreamLogKey, parsedLabels.traceID), dto.StreamEvent{
+	publishEvent(taskCtx, fmt.Sprintf(consts.StreamTraceLogKey, parsedLabels.traceID), dto.TraceStreamEvent{
 		TaskID:    parsedLabels.taskID,
 		TaskType:  parsedLabels.taskType,
 		EventName: consts.EventJobFailed,
@@ -527,7 +527,7 @@ func (h *k8sHandler) HandleJobSucceeded(job *batchv1.Job, annotations map[string
 		return
 	}
 
-	stream := fmt.Sprintf(consts.StreamLogKey, parsedLabels.traceID)
+	stream := fmt.Sprintf(consts.StreamTraceLogKey, parsedLabels.traceID)
 
 	taskCtx := otel.GetTextMapPropagator().Extract(context.Background(), parsedAnnotations.taskCarrier)
 	traceCtx := otel.GetTextMapPropagator().Extract(context.Background(), parsedAnnotations.traceCarrier)
@@ -545,7 +545,7 @@ func (h *k8sHandler) HandleJobSucceeded(job *batchv1.Job, annotations map[string
 		return
 	}
 
-	publishEvent(taskCtx, stream, dto.StreamEvent{
+	publishEvent(taskCtx, stream, dto.TraceStreamEvent{
 		TaskID:    parsedLabels.taskID,
 		TaskType:  parsedLabels.taskType,
 		EventName: consts.EventJobSucceed,

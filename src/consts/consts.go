@@ -2,6 +2,7 @@ package consts
 
 import (
 	"encoding/json"
+	"strconv"
 	"time"
 
 	chaos "github.com/OperationsPAI/chaos-experiment/handler"
@@ -242,6 +243,10 @@ const (
 	TraceFailed                      // Trace failed with errors
 )
 
+func (t TraceState) MarshalBinary() ([]byte, error) {
+	return []byte(strconv.Itoa(int(t))), nil
+}
+
 type TaskType int
 
 const (
@@ -325,7 +330,8 @@ const (
 
 // Redis stream channels and fields
 const (
-	StreamLogKey          = "trace:%s:log"
+	StreamTraceLogKey     = "trace:%s:log"
+	StreamGroupLogKey     = "group:%s:log"
 	NotificationStreamKey = "notifications:global"
 
 	RdbEventTaskID   = "task_id"
@@ -336,6 +342,10 @@ const (
 	RdbEventName     = "name"
 	RdbEventPayload  = "payload"
 	RdbEventFn       = "function_name"
+
+	RdbEventTraceID        = "trace_id"
+	RdbEventTraceState     = "state"
+	RdbEventTraceLastEvent = "last_event"
 )
 
 const (
@@ -402,6 +412,10 @@ const (
 
 func (e EventType) String() string {
 	return string(e)
+}
+
+func (e EventType) MarshalBinary() ([]byte, error) {
+	return []byte(e), nil
 }
 
 const (
@@ -516,6 +530,7 @@ const (
 	URLPathAlgorithmID  = "algorithm_id"
 	URLPathInjectionID  = "injection_id"
 	URLPathTraceID      = "trace_id"
+	URLPathGroupID      = "group_id"
 	URLPathLabelID      = "label_id"
 	URLPathResourceID   = "resource_id"
 	URLPathName         = "name"

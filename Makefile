@@ -162,7 +162,9 @@ install-openebs:
 	@printf "$(GREEN)✅ OpenEBS installed successfully$(RESET)\n\n"
 
 install-rcabench:  ## 🔧 Deploy RCABench application in prod environment
-	@printf "$(BLUE)Deploying RCABench application...$(RESET)\n"
+	@printf "$(BLUE)💾 Backup MySQL database before deploying RCABench...$(RESET)\n"
+	@$(MAKE) backup-mysql
+	@printf "$(BLUE)🔧 Deploying RCABench application...$(RESET)\n"
 	helm upgrade -i rcabench ./helm --namespace $(NS) \
 		--create-namespace \
 		--values ./manifests/prod/rcabench.yaml \
@@ -191,6 +193,13 @@ run: check-prerequisites ## 🚀 Build and deploy application (using skaffold)
 
 init-etcd:
 	$(MAKE) run-command ARGS="etcd init -e $(ENV_MODE) -f"
+
+# =============================================================================
+# Backup
+# =============================================================================
+
+backup-mysql: ## 💾 Backup MySQL database
+	$(MAKE) run-command ARGS="backup mysql backup -f"
 
 # =============================================================================
 # Test

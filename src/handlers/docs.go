@@ -12,7 +12,8 @@ import (
 //	@Tags			Documentation
 //	@Accept			json
 //	@Produce		json
-//	@Success		200	{object}	dto.StreamEvent				"Server-Sent Event payload structure"
+//	@Success		200	{object}	dto.TraceStreamEvent		"Trace-level stream event structure"
+//	@Success		200	{object}	dto.GroupStreamEvent		"Group-level stream event structure"
 //	@Success		200	{object}	dto.DatapackInfo			"Datapack information structure"
 //	@Success		200	{object}	dto.DatapackResult			"Datapack result structure"
 //	@Success		200	{object}	dto.ExecutionInfo			"Execution information structure"

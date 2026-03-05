@@ -77,6 +77,17 @@ func GetTracesByGroupID(db *gorm.DB, groupID string) ([]database.Trace, error) {
 	return traces, nil
 }
 
+// CountTracesByGroupID counts the total number of non-deleted traces in a group
+func CountTracesByGroupID(db *gorm.DB, groupID string) (int64, error) {
+	var count int64
+	if err := db.Model(&database.Trace{}).
+		Where("group_id = ? AND status != ?", groupID, consts.CommonDeleted).
+		Count(&count).Error; err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
 // ListTraceIDs retrieves distinct trace IDs from tasks within the specified time range
 func ListTraceIDs(db *gorm.DB, startTime, endTime *time.Time) ([]string, error) {
 	var traceIDs []string

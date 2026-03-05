@@ -26,6 +26,7 @@ All notable changes to this project will be documented in this file.
 - *(build)* Add DuckDB Arrow support and integrate frontend chart
 - *(deployment)* Add Loki/Prometheus monitoring and Alloy log collection
 - *(logging)* Add real-time task log streaming via WebSocket
+- *(groups)* Introduce group SSE stream API
 
 ### Miscellaneous Tasks
 

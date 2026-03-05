@@ -58,18 +58,18 @@ func GetTrace(c *gin.Context) {
 //	@ID				list_traces
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			page		query		int												false	"Page number"	default(1)
-//	@Param			size		query		int												false	"Page size"		default(20)
-//	@Param			trace_type	query		consts.TraceType								false	"Filter by trace type"
-//	@Param			group_id	query		string											false	"Filter by group ID (uuid format)"
-//	@Param			project_id	query		int												false	"Filter by project ID"
-//	@Param			state		query		consts.TraceState								false	"Filter by state"
-//	@Param			status		query		consts.StatusType								false	"Filter by status"
+//	@Param			page		query		int													false	"Page number"	default(1)
+//	@Param			size		query		int													false	"Page size"		default(20)
+//	@Param			trace_type	query		consts.TraceType									false	"Filter by trace type"
+//	@Param			group_id	query		string												false	"Filter by group ID (uuid format)"
+//	@Param			project_id	query		int													false	"Filter by project ID"
+//	@Param			state		query		consts.TraceState									false	"Filter by state"
+//	@Param			status		query		consts.StatusType									false	"Filter by status"
 //	@Success		200			{object}	dto.GenericResponse[dto.ListResp[dto.TraceResp]]	"Traces retrieved successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]						"Invalid request format or parameters"
-//	@Failure		401			{object}	dto.GenericResponse[any]						"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]						"Permission denied"
-//	@Failure		500			{object}	dto.GenericResponse[any]						"Internal server error"
+//	@Failure		400			{object}	dto.GenericResponse[any]							"Invalid request format or parameters"
+//	@Failure		401			{object}	dto.GenericResponse[any]							"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]							"Permission denied"
+//	@Failure		500			{object}	dto.GenericResponse[any]							"Internal server error"
 //	@Router			/api/v2/traces [get]
 //	@x-api-type		{"sdk":"true"}
 func ListTraces(c *gin.Context) {
@@ -135,7 +135,7 @@ func GetTraceStream(c *gin.Context) {
 		return
 	}
 
-	streamKey := fmt.Sprintf(consts.StreamLogKey, traceID)
+	streamKey := fmt.Sprintf(consts.StreamTraceLogKey, traceID)
 	logEntry := logrus.WithFields(logrus.Fields{
 		"trace_id":   traceID,
 		"stream_key": streamKey,
@@ -213,42 +213,6 @@ func GetTraceStream(c *gin.Context) {
 			logrus.Info("Sent SSE messages, lastID:", lastID)
 		}
 	}
-}
-
-// GetGroupStats handles retrieval of group trace statistics
-//
-//	@Summary		Get statistics for a group of traces
-//	@Description	Retrieves statistics such as total traces, average duration, and state distribution for a specified group of traces.
-//	@Tags			Traces
-//	@ID				get_group_stats
-//	@Produce		json
-//	@Security		BearerAuth
-//	@Param			group_id	query		string								true	"Group ID to query"
-//	@Success		200			{object}	dto.GenericResponse[dto.GroupStats]	"Group trace statistics"
-//	@Failure		400			{object}	dto.GenericResponse[any]			"Invalid request format/parameters"
-//	@Failure		401			{object}	dto.GenericResponse[any]			"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]			"Permission denied"
-//	@Failure		500			{object}	dto.GenericResponse[any]			"Internal server error"
-//	@Router			/api/v2/traces/group/stats [get]
-//	@x-api-type		{"sdk":"true"}
-func GetGroupStats(c *gin.Context) {
-	var req dto.GetGroupStatsReq
-	if err := c.ShouldBindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format")
-		return
-	}
-
-	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
-		return
-	}
-
-	stats, err := producer.GetGroupStats(&req)
-	if handlers.HandleServiceError(c, err) {
-		return
-	}
-
-	dto.SuccessResponse(c, stats)
 }
 
 // sendSSEEvents processes and sends stream messages as SSE events

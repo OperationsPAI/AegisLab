@@ -12,7 +12,6 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -79,51 +78,6 @@ func ListTraces(req *dto.ListTraceReq) (*dto.ListResp[dto.TraceResp], error) {
 	return &resp, nil
 }
 
-// GetGroupStats retrieves statistics for a group of traces
-func GetGroupStats(req *dto.GetGroupStatsReq) (*dto.GroupStats, error) {
-	if req == nil {
-		return nil, fmt.Errorf("request cannot be nil")
-	}
-
-	// Query all traces belonging to this group
-	traces, err := repository.GetTracesByGroupID(database.DB, req.GroupID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query traces for group %s: %w", req.GroupID, err)
-	}
-
-	if len(traces) == 0 {
-		return dto.NewDefaultGroupStats(), nil
-	}
-
-	durations := make([]float64, 0, len(traces))
-	totalDuration := 0.0
-	for _, trace := range traces {
-		if trace.EndTime != nil {
-			duration := trace.EndTime.Sub(trace.StartTime).Seconds()
-			durations = append(durations, duration)
-			totalDuration += duration
-		}
-	}
-
-	traceStateMap := make(map[string][]dto.TraceStatsItem, 4)
-	for _, trace := range traces {
-		stateName := consts.GetTraceStateName(trace.State)
-		if _, exists := traceStateMap[stateName]; !exists {
-			traceStateMap[stateName] = make([]dto.TraceStatsItem, 0)
-		}
-
-		traceStateMap[stateName] = append(traceStateMap[stateName], *dto.NewTraceStats(&trace))
-	}
-
-	return &dto.GroupStats{
-		TotalTraces:   len(traces),
-		AvgDuration:   totalDuration / float64(len(durations)),
-		MinDuration:   slices.Min(durations),
-		MaxDuration:   slices.Max(durations),
-		TraceStateMap: traceStateMap,
-	}, nil
-}
-
 // ===================== Trace Stream Service =====================
 
 type StreamProcessor struct {
@@ -149,7 +103,7 @@ func (sp *StreamProcessor) IsCompleted() bool {
 	return sp.isCompleted
 }
 
-func (sp *StreamProcessor) ProcessMessageForSSE(msg redis.XMessage) (string, *dto.StreamEvent, error) {
+func (sp *StreamProcessor) ProcessMessageForSSE(msg redis.XMessage) (string, *dto.TraceStreamEvent, error) {
 	streamEvent, err := parseStreamEvent(msg.ID, msg.Values)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to parse stream message value: %v", err)
@@ -221,7 +175,7 @@ func ReadTraceStreamMessages(ctx context.Context, streamKey, lastID string, coun
 }
 
 // parseStreamEvent parses a Redis stream message values into a StreamEvent
-func parseStreamEvent(id string, values map[string]any) (*dto.StreamEvent, error) {
+func parseStreamEvent(id string, values map[string]any) (*dto.TraceStreamEvent, error) {
 	message := "missing or invalid key %s in redis stream message values"
 
 	taskID, ok := values[consts.RdbEventTaskID].(string)
@@ -234,7 +188,7 @@ func parseStreamEvent(id string, values map[string]any) (*dto.StreamEvent, error
 		return nil, err
 	}
 
-	event := &dto.StreamEvent{
+	event := &dto.TraceStreamEvent{
 		TimeStamp: timeStamp,
 		TaskID:    taskID,
 	}
