@@ -19,7 +19,7 @@ echo "✅ Generated Command Environment"
 echo -e "\nGenerating Python SDK..."
 go install github.com/swaggo/swag/cmd/swag@latest
 cd "$PROJECT_ROOT"
-make generate-python-sdk SDK_VERSION="$VERSION"
+just generate-python-sdk "$VERSION"
 echo "✅ Generated Python SDK..."
 
 echo -e "\nRunning regression tests..."

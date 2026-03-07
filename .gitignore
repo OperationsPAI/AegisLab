@@ -194,3 +194,7 @@ scripts/command/*.build/
 scripts/command/*.dist/
 scripts/command/*.onefile-build/
 scripts/command/command.bin
+
+CLAUDE.md
+
+.vscode/

@@ -77,5 +77,5 @@ profiles:
         hooks:
           after:
             - host:
-                command: ["make", "regression-test"]
+                command: ["just", "regression-test"]
                 os: [darwin, linux]
