@@ -345,7 +345,7 @@ func selectBestLastEvent(tasks []database.Task, leafLevel int, streamEvent *dto.
 	}
 
 	var bestEvent consts.EventType
-	var bestPriority int = -1
+	bestPriority := -1
 	var latestTime time.Time
 
 	// First, check for early termination events at any level (not just leaf level)

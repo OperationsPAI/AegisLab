@@ -492,7 +492,7 @@ func DownloadDatapack(c *gin.Context) {
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s.zip", filename))
 
 	zipWriter := zip.NewWriter(c.Writer)
-	defer zipWriter.Close()
+	defer func() { _ = zipWriter.Close() }()
 
 	if err := producer.DownloadDatapack(zipWriter, []utils.ExculdeRule{}, id); err != nil {
 		delete(c.Writer.Header(), "Content-Disposition")
@@ -575,7 +575,7 @@ func DownloadDatapackFile(c *gin.Context) {
 	if handlers.HandleServiceError(c, err) {
 		return
 	}
-	defer fileReader.Close()
+	defer func() { _ = fileReader.Close() }()
 
 	c.Header("Content-Type", contentType)
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", fileName))
@@ -642,7 +642,7 @@ func QueryDatapackFile(c *gin.Context) {
 			return
 		}
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 
 	// Content-Length enables axios onDownloadProgress to calculate percentage
 	c.Header("Content-Type", "application/vnd.apache.arrow.stream")

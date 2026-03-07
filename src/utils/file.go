@@ -44,7 +44,7 @@ func AddToZip(zipWriter *zip.Writer, fileInfo fs.FileInfo, srcPath string, zipPa
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	_, err = io.Copy(writer, file)
 	return err
@@ -87,7 +87,7 @@ func CopyFile(src, dst string) error {
 	if err != nil {
 		return fmt.Errorf("failed to open source file: %v", err)
 	}
-	defer srcFile.Close()
+	defer func() { _ = srcFile.Close() }()
 
 	srcInfo, err := srcFile.Stat()
 	if err != nil {
@@ -98,7 +98,7 @@ func CopyFile(src, dst string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create destination file: %v", err)
 	}
-	defer dstFile.Close()
+	defer func() { _ = dstFile.Close() }()
 
 	if _, err = io.Copy(dstFile, srcFile); err != nil {
 		return fmt.Errorf("failed to copy file content: %v", err)
@@ -113,13 +113,13 @@ func CopyFileFromFileHeader(fileHeader *multipart.FileHeader, dst string) error 
 	if err != nil {
 		return fmt.Errorf("failed to open uploaded file: %w", err)
 	}
-	defer srcFile.Close()
+	defer func() { _ = srcFile.Close() }()
 
 	dstFile, err := os.Create(dst)
 	if err != nil {
 		return fmt.Errorf("failed to create destination file: %w", err)
 	}
-	defer dstFile.Close()
+	defer func() { _ = dstFile.Close() }()
 
 	if _, err := io.Copy(dstFile, srcFile); err != nil {
 		return fmt.Errorf("failed to save file: %w", err)
@@ -134,7 +134,7 @@ func CalculateFileSHA256(filePath string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to open file: %w", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	hash := sha256.New()
 	if _, err := io.Copy(hash, file); err != nil {
@@ -202,7 +202,7 @@ func ExtractZip(zipFile, destDir string) error {
 	if err != nil {
 		return err
 	}
-	defer r.Close()
+	defer func() { _ = r.Close() }()
 
 	var topLevelDir string
 	allInSingleDir := true
@@ -258,13 +258,13 @@ func ExtractZip(zipFile, destDir string) error {
 
 		rc, err := f.Open()
 		if err != nil {
-			outFile.Close()
+			_ = outFile.Close()
 			return err
 		}
 
 		_, err = io.Copy(outFile, rc)
-		outFile.Close()
-		rc.Close()
+		_ = outFile.Close()
+		_ = rc.Close()
 		if err != nil {
 			return err
 		}
@@ -278,13 +278,13 @@ func ExtractTarGz(tarGzFile, destDir string) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	gzr, err := gzip.NewReader(file)
 	if err != nil {
 		return err
 	}
-	defer gzr.Close()
+	defer func() { _ = gzr.Close() }()
 
 	tr := tar.NewReader(gzr)
 
@@ -313,18 +313,18 @@ func ExtractTarGz(tarGzFile, destDir string) error {
 		}
 	}
 
-	file.Close()
+	_ = file.Close()
 	file, err = os.Open(tarGzFile)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	gzr, err = gzip.NewReader(file)
 	if err != nil {
 		return err
 	}
-	defer gzr.Close()
+	defer func() { _ = gzr.Close() }()
 
 	tr = tar.NewReader(gzr)
 
@@ -371,11 +371,11 @@ func ExtractTarGz(tarGzFile, destDir string) error {
 			}
 
 			if _, err := io.Copy(outFile, tr); err != nil {
-				outFile.Close()
+				_ = outFile.Close()
 				return err
 			}
 
-			outFile.Close()
+			_ = outFile.Close()
 		}
 	}
 

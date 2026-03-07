@@ -284,7 +284,7 @@ func GetJobPodLogs(ctx context.Context, namespace, jobName string) (map[string][
 		if err != nil {
 			return nil, fmt.Errorf("failed to get logs for pod %s: %v", pod.Name, err)
 		}
-		defer logStream.Close()
+		defer func() { _ = logStream.Close() }()
 
 		var logLines []string
 		scanner := bufio.NewScanner(logStream)

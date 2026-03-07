@@ -283,7 +283,7 @@ func (c *HelmClient) InstallRelease(ctx context.Context, releaseName, chartName,
 			cp = cachedPath
 		} else {
 			logrus.Infof("Chart %s not found in cache, downloading...", chartName)
-			cp, err = client.ChartPathOptions.LocateChart(chartName, c.settings)
+			cp, err = client.LocateChart(chartName, c.settings)
 			if err != nil {
 				return fmt.Errorf("failed to locate chart %s: %w", chartName, err)
 			}

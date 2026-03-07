@@ -150,10 +150,10 @@ func IsValidEnvVar(envVar string) error {
 // IsValidHelmValueKey checks if the provided string is a valid Helm Value Path key
 func IsValidHelmValueKey(key string) error {
 	if key == "" {
-		return fmt.Errorf("Helm value key cannot be empty")
+		return fmt.Errorf("helm value key cannot be empty")
 	}
 	if ok := helmKeyRegex.MatchString(key); !ok {
-		return fmt.Errorf("Helm value key contains invalid characters")
+		return fmt.Errorf("helm value key contains invalid characters")
 	}
 	return nil
 }

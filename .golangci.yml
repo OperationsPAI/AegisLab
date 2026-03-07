@@ -1,6 +1,14 @@
+version: "2"
+
 run:
   issues-exit-code: 1
   path-prefix: src
-  build-tags: duckdb_arrow
-  whole-files: true
+  build-tags:
+    - duckdb_arrow
   new-from-rev: HEAD~1
+
+issues:
+  exclude-rules:
+    - path: ".*_test\\.go"
+      linters:
+        - errcheck

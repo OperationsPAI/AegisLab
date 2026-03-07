@@ -555,7 +555,7 @@ func DownloadDatasetVersion(c *gin.Context) {
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s.zip", filename))
 
 	zipWriter := zip.NewWriter(c.Writer)
-	defer zipWriter.Close()
+	defer func() { _ = zipWriter.Close() }()
 
 	if err := producer.DownloadDatasetVersion(zipWriter, []utils.ExculdeRule{}, versionID); err != nil {
 		delete(c.Writer.Header(), "Content-Disposition")

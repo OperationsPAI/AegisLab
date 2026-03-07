@@ -119,7 +119,7 @@ func validateStatusField(statusPtr *consts.StatusType, isMutation bool) error {
 	status := *statusPtr
 
 	if _, exists := consts.ValidStatuses[status]; !exists {
-		return fmt.Errorf("invalid status value: %d.", status)
+		return fmt.Errorf("invalid status value: %d", status)
 	}
 
 	if isMutation && status == consts.CommonDeleted {

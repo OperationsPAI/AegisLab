@@ -101,7 +101,7 @@ func (req *SearchDatasetReq) Validate() error {
 }
 
 func (req *SearchDatasetReq) ConvertToSearchReq() *SearchReq {
-	sr := req.AdvancedSearchReq.ConvertAdvancedToSearch()
+	sr := req.ConvertAdvancedToSearch()
 
 	if req.NamePattern != "" {
 		sr.AddFilter("name", OpLike, req.NamePattern)

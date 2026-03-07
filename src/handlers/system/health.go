@@ -92,7 +92,7 @@ func checkBuildKitHealth() dto.ServiceInfo {
 			Details:      fmt.Sprintf("Cannot connect to BuildKit at %s: %v", buildkitAddr, err),
 		}
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	return dto.ServiceInfo{
 		Status:       "healthy",
@@ -172,7 +172,7 @@ func checkJaegerHealth() dto.ServiceInfo {
 			Details:      err.Error(),
 		}
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// OTLP endpoints typically return 405 Method Not Allowed for HEAD requests
 	if resp.StatusCode != http.StatusMethodNotAllowed && resp.StatusCode != http.StatusOK {

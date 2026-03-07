@@ -269,7 +269,7 @@ type AlgorithmSearchReq struct {
 
 // ConvertToSearchRequest converts AlgorithmSearchRequest to SearchRequest
 func (req *AlgorithmSearchReq) ConvertToSearchRequest() *SearchReq {
-	sr := req.AdvancedSearchReq.ConvertAdvancedToSearch()
+	sr := req.ConvertAdvancedToSearch()
 
 	// Add algorithm-specific filters
 	if req.Name != nil {

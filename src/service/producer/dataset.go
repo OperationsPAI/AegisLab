@@ -599,7 +599,7 @@ func packageDatapackToZip(zipWriter *zip.Writer, datapack *database.FaultInjecti
 
 	workDir := filepath.Join(config.GetString("jfs.dataset_path"), datapack.Name)
 	if !utils.IsAllowedPath(workDir) {
-		return fmt.Errorf("Invalid path access to %s", workDir)
+		return fmt.Errorf("invalid path access to %s", workDir)
 	}
 
 	err := filepath.WalkDir(workDir, func(path string, dir fs.DirEntry, err error) error {

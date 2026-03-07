@@ -187,7 +187,7 @@ func GetTaskLogsWS(c *gin.Context) {
 		logrus.Errorf("WebSocket upgrade failed for task %s: %v", taskID, err)
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	// Delegate all streaming logic to the service layer
 	streamer := producer.NewTaskLogStreamer(conn, taskID)

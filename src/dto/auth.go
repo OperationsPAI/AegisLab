@@ -47,10 +47,10 @@ type LoginReq struct {
 func (req *LoginReq) Validate() error {
 	usernameRegex := regexp.MustCompile(usernamePattern)
 	if !usernameRegex.MatchString(req.Username) {
-		return fmt.Errorf("Invalid username name or password")
+		return fmt.Errorf("invalid username or password")
 	}
 	if req.Password == "" {
-		return fmt.Errorf("Invalid username name or password")
+		return fmt.Errorf("invalid username or password")
 	}
 	return nil
 }
@@ -62,7 +62,7 @@ type TokenRefreshReq struct {
 
 func (req *TokenRefreshReq) Validate() error {
 	if req.Token == "" {
-		return fmt.Errorf("Invalid token")
+		return fmt.Errorf("invalid token")
 	}
 	return nil
 }

@@ -74,9 +74,10 @@ func GetInjectionMetrics(req *dto.GetMetricsReq) (*dto.InjectionMetrics, error) 
 		}
 
 		// Count success/failed
-		if inj.State == 2 { // Assuming 2 is success state
+		switch inj.State {
+		case 2: // success state
 			successCount++
-		} else if inj.State == 3 { // Assuming 3 is failed state
+		case 3: // failed state
 			failedCount++
 		}
 	}
@@ -153,9 +154,10 @@ func GetExecutionMetrics(req *dto.GetMetricsReq) (*dto.ExecutionMetrics, error) 
 		}
 
 		// Count success/failed
-		if exec.State == 2 { // Assuming 2 is success state
+		switch exec.State {
+		case 2: // success state
 			successCount++
-		} else if exec.State == 3 { // Assuming 3 is failed state
+		case 3: // failed state
 			failedCount++
 		}
 	}
@@ -234,9 +236,10 @@ func GetAlgorithmMetrics(req *dto.GetMetricsReq) (*dto.AlgorithmMetrics, error) 
 			}
 
 			// Count success/failed
-			if exec.State == 2 { // Assuming 2 is success state
+			switch exec.State {
+			case 2: // success state
 				successCount++
-			} else if exec.State == 3 { // Assuming 3 is failed state
+			case 3: // failed state
 				failedCount++
 			}
 		}

@@ -294,7 +294,7 @@ func (req *SearchInjectionReq) Validate() error {
 }
 
 func (req *SearchInjectionReq) ConvertToSearchReq() *SearchReq {
-	sr := req.AdvancedSearchReq.ConvertAdvancedToSearch()
+	sr := req.ConvertAdvancedToSearch()
 
 	if len(req.TaskIDs) > 0 {
 		sr.AddFilter("task_id", OpIn, req.TaskIDs)

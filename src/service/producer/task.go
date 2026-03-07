@@ -136,7 +136,7 @@ func (s *TaskLogStreamer) StreamLogs(ctx context.Context, task *database.Task) {
 	// Step 1: Subscribe to Redis Pub/Sub first (before querying Loki to avoid gaps)
 	pubsubChannel := "joblogs:" + s.taskID
 	pubsub := client.GetRedisClient().Subscribe(ctx, pubsubChannel)
-	defer pubsub.Close()
+	defer func() { _ = pubsub.Close() }()
 
 	if _, err := pubsub.Receive(ctx); err != nil {
 		s.log.Errorf("Failed to subscribe to Redis Pub/Sub channel %s: %v", pubsubChannel, err)

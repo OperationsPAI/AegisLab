@@ -550,7 +550,7 @@ func waitForConfigUpdateResponse(timeout time.Duration) (*dto.ConfigUpdateRespon
 	defer cancel()
 
 	pubsub := redisClient.Subscribe(ctx, consts.ConfigUpdateResponseChannel)
-	defer pubsub.Close()
+	defer func() { _ = pubsub.Close() }()
 
 	if _, err := pubsub.Receive(ctx); err != nil {
 		return nil, fmt.Errorf("failed to confirm subscription: %w", err)

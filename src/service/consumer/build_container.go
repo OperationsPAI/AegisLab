@@ -187,7 +187,7 @@ func buildImageAndPush(ctx context.Context, payload *containerPayload, logEntry 
 			return handleExecutionError(span, logEntry, "failed to create buildkit client", err)
 		}
 
-		defer c.Close()
+		defer func() { _ = c.Close() }()
 
 		dockerConfig := con.LoadDefaultConfigFile(os.Stderr)
 		attachable := []session.Attachable{

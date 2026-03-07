@@ -132,7 +132,7 @@ func (r *OTLPLogReceiver) handleLogs(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "failed to read request body", http.StatusBadRequest)
 		return
 	}
-	defer req.Body.Close()
+	defer func() { _ = req.Body.Close() }()
 
 	if len(body) == 0 {
 		http.Error(w, "empty request body", http.StatusBadRequest)
@@ -149,7 +149,7 @@ func (r *OTLPLogReceiver) handleLogs(w http.ResponseWriter, req *http.Request) {
 			http.Error(w, "failed to parse gzip body", http.StatusBadRequest)
 			return
 		}
-		defer gzReader.Close()
+		defer func() { _ = gzReader.Close() }()
 
 		decompressedBody, err := io.ReadAll(gzReader)
 		if err != nil {

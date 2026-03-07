@@ -501,7 +501,7 @@ type SearchContainerReq struct {
 
 // ConvertToSearchRequest converts SearchContainerReq to SearchRequest
 func (csr *SearchContainerReq) ConvertToSearchRequest() *SearchReq {
-	sr := csr.AdvancedSearchReq.ConvertAdvancedToSearch()
+	sr := csr.ConvertAdvancedToSearch()
 
 	// Add container-specific filters
 	if csr.Name != nil {

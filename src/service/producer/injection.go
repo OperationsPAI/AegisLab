@@ -384,7 +384,7 @@ func DownloadDatapackFile(datapackID int, filePath string) (string, string, int6
 
 	stat, err := file.Stat()
 	if err != nil {
-		file.Close()
+		_ = file.Close()
 		return "", "", 0, nil, fmt.Errorf("failed to stat file: %w", err)
 	}
 
@@ -436,7 +436,7 @@ func QueryDatapackFileContent(ctx context.Context, datapackID int, filePath stri
 		logrus.Errorf("connect failed: %v", err)
 		return "", 0, nil, err
 	}
-	defer countConn.Close()
+	defer func() { _ = countConn.Close() }()
 
 	var totalRows int64
 	countQuery := fmt.Sprintf("SELECT count(*) FROM read_parquet('%s')", fullPath)
@@ -454,14 +454,14 @@ func QueryDatapackFileContent(ctx context.Context, datapackID int, filePath stri
 
 	pr, pw := io.Pipe()
 	go func() {
-		defer pw.Close()
+		defer func() { _ = pw.Close() }()
 
 		conn, err := connector.Connect(ctx)
 		if err != nil {
 			logrus.Errorf("connect failed: %v", err)
 			return
 		}
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 
 		arrow, err := duckdb.NewArrowFromConn(conn)
 		if err != nil {
@@ -477,7 +477,7 @@ func QueryDatapackFileContent(ctx context.Context, datapackID int, filePath stri
 		defer rdr.Release()
 
 		writer := ipc.NewWriter(pw, ipc.WithSchema(rdr.Schema()), ipc.WithZstd())
-		defer writer.Close()
+		defer func() { _ = writer.Close() }()
 
 		for rdr.Next() {
 			record := rdr.RecordBatch()
@@ -512,7 +512,7 @@ func ListInjectionsNoIssues(req *dto.ListInjectionNoIssuesReq, projectID *int) (
 		})
 	}
 
-	opts, err := req.TimeRangeQuery.Convert()
+	opts, err := req.Convert()
 	if err != nil {
 		return nil, fmt.Errorf("invalid time range: %w", err)
 	}
@@ -550,7 +550,7 @@ func ListInjectionsWithIssues(req *dto.ListInjectionWithIssuesReq, projectID *in
 		})
 	}
 
-	opts, err := req.TimeRangeQuery.Convert()
+	opts, err := req.Convert()
 	if err != nil {
 		return nil, fmt.Errorf("invalid time range: %w", err)
 	}
@@ -1452,7 +1452,7 @@ func buildSafeParquetSQL(ctx context.Context, db *sql.DB, filePath string) (stri
 		logrus.Warnf("failed to describe parquet file, falling back to SELECT *: %v", err)
 		return fallbackSQL, nil
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	colDescs, err := rows.ColumnTypes()
 	if err != nil {
