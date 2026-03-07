@@ -15,7 +15,7 @@ import (
 	"math/rand"
 	"time"
 
-	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
+	chaos "github.com/OperationsPAI/chaos-experiment/handler"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -137,7 +137,7 @@ func executeRestartPedestal(ctx context.Context, task *dto.UnifiedTask) error {
 
 		if payload.pedestal.Extra == nil {
 			toReleased = true
-			publishEvent(childCtx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
+			publishEvent(childCtx, fmt.Sprintf(consts.StreamTraceLogKey, task.TraceID), dto.TraceStreamEvent{
 				TaskID:    task.TaskID,
 				TaskType:  consts.TaskTypeRestartPedestal,
 				EventName: consts.EventRestartPedestalFailed,
@@ -149,7 +149,7 @@ func executeRestartPedestal(ctx context.Context, task *dto.UnifiedTask) error {
 
 		if err := installPedestal(childCtx, namespace, index, payload.pedestal.Extra); err != nil {
 			toReleased = true
-			publishEvent(childCtx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
+			publishEvent(childCtx, fmt.Sprintf(consts.StreamTraceLogKey, task.TraceID), dto.TraceStreamEvent{
 				TaskID:    task.TaskID,
 				TaskType:  consts.TaskTypeRestartPedestal,
 				EventName: consts.EventRestartPedestalFailed,

@@ -36,7 +36,7 @@ class PythonFormatter(Formatter):
             scope: The scope type determining which files to format
             sdk_dir: Custom SDK directory path (only used when scope is SDK)
         """
-        self.scope = scope
+        super().__init__(scope)
         self.sdk_dir = sdk_dir or settings.python_sdk_dir
         self.has_errors = False
         self.extra_args = ["--config", os.path.join(self.sdk_dir, "pyproject.toml")]

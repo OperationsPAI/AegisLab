@@ -66,54 +66,54 @@ data:
     claim_name = {{ $value.claim_name | quote }}
     {{- end }}
     {{- end }}
-
-    [logging]
-    dir = "{{ .Values.configmap.logging.dir }}"
-    [logging.job]
-    dir = "{{ .Values.configmap.logging.job.dir }}"
-
+    
     [jfs]
+    container_path = "{{ .Values.configmap.jfs.container_path }}"
     dataset_path = "{{ .Values.configmap.jfs.dataset_path }}"
     experiment_storage_path = "{{ .Values.configmap.jfs.experiment_storage_path }}"
 
-    [container]
-    storage_path = "{{ .Values.configmap.container.storage_path }}"
-
+    {{- if .Values.buildkit.enabled }}
     [buildkit]
     address = "{{ .Release.Name }}-buildkit:1234"
+    {{- end }}
+
+    {{- if .Values.loki.enabled }}
+    [loki]
+    address = "http://{{ .Release.Name }}-loki:3100"
+    timeout = "{{ .Values.configmap.loki.timeout }}"
+    max_entries = {{ .Values.configmap.loki.max_entries }}
+
+    [otlp.receiver]
+    port = {{ .Values.configmap.otlp.port }}
+    max_request_size = {{ .Values.configmap.otlp.max_request_size }}
+    {{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ .Release.Name }}-buildkit-config
+  name: {{ .Release.Name }}-etcd-producer-config
 data:
-  buildkitd.toml: |
-    debug = true
-    trace = false
-    insecure-entitlements = ["security.insecure"]
-
-    [grpc]
-    address = ["tcp://0.0.0.0:1234"]
-
-    {{- if .Values.harbor.enabled }}
-    [registry."10.10.10.240"]
-    http = false
-    ca = ["/usr/local/share/ca-certificates/harbor.lab.pj.crt"]
-    {{- else }}
-    [registry."pair-diag-cn-guangzhou.cr.volces.com/pair"]
-    http = false
-    {{- end }}
+  etcd.yaml: |
+{{ include "helm.etcd.mergedConfig" (dict "root" . "configType" "producer") | indent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-etcd-consumer-config
+data:
+  etcd.yaml: |
+{{ include "helm.etcd.mergedConfig" (dict "root" . "configType" "consumer") | indent 4 }}
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ .Release.Name }}-initial-data
 data:
-  data.json: |
-{{- if .Values.initialDataFiles.data_json }}
-{{ .Values.initialDataFiles.data_json | indent 4 }}
+  data.yaml: |
+{{- if .Values.initialDataFiles.data_yaml }}
+{{ .Values.initialDataFiles.data_yaml | indent 4 }}
 {{- else }}
-{{ .Files.Get "files/initial_data/data.json" | indent 4 }}
+{{ .Files.Get "files/initial_data/data.yaml" | indent 4 }}
 {{- end }}
   otel-demo.yaml: |
 {{- if .Values.initialDataFiles.otel_demo_yaml }}
@@ -127,25 +127,6 @@ data:
 {{- else }}
 {{ .Files.Get "files/initial_data/ts.yaml" | indent 4 }}
 {{- end }}
-
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ .Release.Name }}-etcd-producer-config
-data:
-  etcd.json: |
-{{ include "helm.etcd.mergedConfig" (dict "root" . "configType" "producer") | indent 4 }}
-
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ .Release.Name }}-etcd-consumer-config
-data:
-  etcd.json: |
-{{ include "helm.etcd.mergedConfig" (dict "root" . "configType" "consumer") | indent 4 }}
-
 ---
 apiVersion: v1
 kind: ConfigMap

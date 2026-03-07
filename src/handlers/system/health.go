@@ -66,7 +66,7 @@ func GetHealth(c *gin.Context) {
 	response := dto.HealthCheckResp{
 		Status:    overallStatus,
 		Timestamp: time.Now(),
-		Version:   "1.0.0",
+		Version:   config.GetString("version"),
 		Uptime:    time.Since(start).String(),
 		Services:  services,
 	}

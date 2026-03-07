@@ -1,5 +1,5 @@
 name = "AegisLab"
-version = "1.1.55"
+version = "0.0.0"
 
 port = 8082
 workspace = "/home/nn/workspace/AegisLab"
@@ -52,18 +52,19 @@ mount_path = "/experiment_storage"
 source_type = "pvc"
 claim_name = "rcabench-juicefs-experiment-storage"
 
-[logging]
-dir = "/home/nn/workspace/AegisLab/logs"
-
-[logging.job]
-dir = "jobs"
-
 [jfs]
+container_path = "/home/nn/workspace/AegisLab/containers"
 dataset_path = "/mnt/jfs/rcabench_dataset"
 experiment_storage_path = "/mnt/jfs/experiment_storage"
 
-[container]
-storage_path = "/home/nn/workspace/AegisLab/containers"
-
 [buildkit]
 address = "localhost:1234"
+
+[loki]
+address = "http://10.10.10.161:3100"
+timeout = "10s"
+max_entries = 5000
+
+[otlp_receiver]
+port = 4319
+max_request_size = 5242880

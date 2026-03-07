@@ -8,17 +8,17 @@ import (
 const AdminUsername = "admin"
 
 type InitialDynamicConfig struct {
-	Key          string                 `json:"key"`
-	DefaultValue string                 `json:"default_value"`
-	ValueType    consts.ConfigValueType `json:"value_type"`
-	Scope        consts.ConfigScope     `json:"scope"`
-	Category     string                 `json:"category"`
-	Description  string                 `json:"description"`
-	IsSecret     bool                   `json:"is_secret"`
-	MinValue     *float64               `json:"min_value,omitempty"`
-	MaxValue     *float64               `json:"max_value,omitempty"`
-	Pattern      string                 `json:"pattern,omitempty"`
-	Options      string                 `json:"options,omitempty"`
+	Key          string                 `yaml:"key"`
+	DefaultValue string                 `yaml:"default_value"`
+	ValueType    consts.ConfigValueType `yaml:"value_type"`
+	Scope        consts.ConfigScope     `yaml:"scope"`
+	Category     string                 `yaml:"category"`
+	Description  string                 `yaml:"description"`
+	IsSecret     bool                   `yaml:"is_secret"`
+	MinValue     *float64               `yaml:"min_value"`
+	MaxValue     *float64               `yaml:"max_value"`
+	Pattern      string                 `yaml:"pattern"`
+	Options      string                 `yaml:"options"`
 }
 
 func (c *InitialDynamicConfig) ConvertToDBDynamicConfig() *database.DynamicConfig {
@@ -38,11 +38,11 @@ func (c *InitialDynamicConfig) ConvertToDBDynamicConfig() *database.DynamicConfi
 }
 
 type InitialDataContainer struct {
-	Type     consts.ContainerType      `json:"type"`
-	Name     string                    `json:"name"`
-	IsPublic bool                      `json:"is_public"`
-	Status   consts.StatusType         `json:"status"`
-	Versions []InitialContainerVersion `json:"versions"`
+	Type     consts.ContainerType      `yaml:"type"`
+	Name     string                    `yaml:"name"`
+	IsPublic bool                      `yaml:"is_public"`
+	Status   consts.StatusType         `yaml:"status"`
+	Versions []InitialContainerVersion `yaml:"versions"`
 }
 
 func (c *InitialDataContainer) ConvertToDBContainer() *database.Container {
@@ -55,13 +55,13 @@ func (c *InitialDataContainer) ConvertToDBContainer() *database.Container {
 }
 
 type InitialContainerVersion struct {
-	Name       string                   `json:"name"`
-	GithubLink string                   `json:"github_link"`
-	ImageRef   string                   `json:"image_ref"`
-	Command    string                   `json:"command"`
-	EnvVars    []InitialParameterConfig `json:"env_vars"`
-	Status     consts.StatusType        `json:"status"`
-	HelmConfig *InitialHelmConfig       `json:"helm_config"`
+	Name       string                   `yaml:"name"`
+	GithubLink string                   `yaml:"github_link"`
+	ImageRef   string                   `yaml:"image_ref"`
+	Command    string                   `yaml:"command"`
+	EnvVars    []InitialParameterConfig `yaml:"env_vars"`
+	Status     consts.StatusType        `yaml:"status"`
+	HelmConfig *InitialHelmConfig       `yaml:"helm_config"`
 }
 
 func (cv *InitialContainerVersion) ConvertToDBContainerVersion() *database.ContainerVersion {
@@ -75,11 +75,11 @@ func (cv *InitialContainerVersion) ConvertToDBContainerVersion() *database.Conta
 }
 
 type InitialHelmConfig struct {
-	Version   string                   `json:"version"`
-	ChartName string                   `json:"chart_name"`
-	RepoName  string                   `json:"repo_name"`
-	RepoURL   string                   `json:"repo_url"`
-	Values    []InitialParameterConfig `json:"values"`
+	Version   string                   `yaml:"version"`
+	ChartName string                   `yaml:"chart_name"`
+	RepoName  string                   `yaml:"repo_name"`
+	RepoURL   string                   `yaml:"repo_url"`
+	Values    []InitialParameterConfig `yaml:"values"`
 }
 
 func (hc *InitialHelmConfig) ConvertToDBHelmConfig() *database.HelmConfig {
@@ -92,14 +92,14 @@ func (hc *InitialHelmConfig) ConvertToDBHelmConfig() *database.HelmConfig {
 }
 
 type InitialParameterConfig struct {
-	Key            string                   `json:"key"`
-	Type           consts.ParameterType     `json:"type"`
-	Category       consts.ParameterCategory `json:"category"`
-	ValueType      consts.ValueDataType     `json:"value_type"`
-	DefaultValue   *string                  `json:"default_value"`
-	TemplateString *string                  `json:"template_string"`
-	Required       bool                     `json:"required"`
-	Overridable    *bool                    `json:"overridable"`
+	Key            string                   `yaml:"key"`
+	Type           consts.ParameterType     `yaml:"type"`
+	Category       consts.ParameterCategory `yaml:"category"`
+	ValueType      consts.ValueDataType     `yaml:"value_type"`
+	DefaultValue   *string                  `yaml:"default_value"`
+	TemplateString *string                  `yaml:"template_string"`
+	Required       bool                     `yaml:"required"`
+	Overridable    *bool                    `yaml:"overridable"`
 }
 
 func (pc *InitialParameterConfig) ConvertToDBParameterConfig() *database.ParameterConfig {
@@ -122,12 +122,12 @@ func (pc *InitialParameterConfig) ConvertToDBParameterConfig() *database.Paramet
 }
 
 type InitialDatasaet struct {
-	Name        string                  `json:"name"`
-	Type        string                  `json:"type"`
-	Description string                  `json:"description"`
-	IsPublic    bool                    `json:"is_public"`
-	Status      consts.StatusType       `json:"status"`
-	Versions    []InitialDatasetVersion `json:"versions"`
+	Name        string                  `yaml:"name"`
+	Type        string                  `yaml:"type"`
+	Description string                  `yaml:"description"`
+	IsPublic    bool                    `yaml:"is_public"`
+	Status      consts.StatusType       `yaml:"status"`
+	Versions    []InitialDatasetVersion `yaml:"versions"`
 }
 
 func (d *InitialDatasaet) ConvertToDBDataset() *database.Dataset {
@@ -141,8 +141,8 @@ func (d *InitialDatasaet) ConvertToDBDataset() *database.Dataset {
 }
 
 type InitialDatasetVersion struct {
-	Name   string            `json:"name"`
-	Status consts.StatusType `json:"status"`
+	Name   string            `yaml:"name"`
+	Status consts.StatusType `yaml:"status"`
 }
 
 func (dv *InitialDatasetVersion) ConvertToDBDatasetVersion() *database.DatasetVersion {
@@ -153,9 +153,9 @@ func (dv *InitialDatasetVersion) ConvertToDBDatasetVersion() *database.DatasetVe
 }
 
 type InitialDataProject struct {
-	Name        string            `json:"name"`
-	Description string            `json:"description"`
-	Status      consts.StatusType `json:"status"`
+	Name        string            `yaml:"name"`
+	Description string            `yaml:"description"`
+	Status      consts.StatusType `yaml:"status"`
 }
 
 func (p *InitialDataProject) ConvertToDBProject() *database.Project {
@@ -166,13 +166,42 @@ func (p *InitialDataProject) ConvertToDBProject() *database.Project {
 	}
 }
 
+type InitialDataTeam struct {
+	Name        string            `yaml:"name"`
+	Description string            `yaml:"description"`
+	IsPublic    bool              `yaml:"is_public"`
+	Status      consts.StatusType `yaml:"status"`
+}
+
+func (t *InitialDataTeam) ConvertToDBTeam() *database.Team {
+	return &database.Team{
+		Name:        t.Name,
+		Description: t.Description,
+		IsPublic:    t.IsPublic,
+		Status:      t.Status,
+	}
+}
+
+type InitialUserProject struct {
+	Name string `yaml:"name"`
+	Role string `yaml:"role"`
+}
+
+type InitialUserTeam struct {
+	Name     string               `yaml:"name"`
+	Role     string               `yaml:"role"`
+	Projects []InitialUserProject `yaml:"projects"`
+}
+
 type InitialDataUser struct {
-	Username string            `json:"username"`
-	Email    string            `json:"email"`
-	Password string            `json:"password"`
-	FullName string            `json:"full_name"`
-	Status   consts.StatusType `json:"status"`
-	IsActive bool              `json:"is_active"`
+	Username string               `yaml:"username"`
+	Email    string               `yaml:"email"`
+	Password string               `yaml:"password"`
+	FullName string               `yaml:"full_name"`
+	Status   consts.StatusType    `yaml:"status"`
+	IsActive bool                 `yaml:"is_active"`
+	Projects []InitialUserProject `yaml:"projects"`
+	Teams    []InitialUserTeam    `yaml:"teams"`
 }
 
 func (u *InitialDataUser) ConvertToDBUser() *database.User {
@@ -187,11 +216,13 @@ func (u *InitialDataUser) ConvertToDBUser() *database.User {
 }
 
 type InitialData struct {
-	DynamicConfigs []InitialDynamicConfig `json:"dynamic_configs"`
-	Containers     []InitialDataContainer `json:"containers"`
-	Datasets       []InitialDatasaet      `json:"datasets"`
-	Projects       []InitialDataProject   `json:"projects"`
-	AdminUser      InitialDataUser        `json:"admin_user"`
+	DynamicConfigs []InitialDynamicConfig `yaml:"dynamic_configs"`
+	Containers     []InitialDataContainer `yaml:"containers"`
+	Datasets       []InitialDatasaet      `yaml:"datasets"`
+	Projects       []InitialDataProject   `yaml:"projects"`
+	Teams          []InitialDataTeam      `yaml:"teams"`
+	AdminUser      InitialDataUser        `yaml:"admin_user"`
+	Users          []InitialDataUser      `yaml:"users"`
 }
 
 type ConsumerData struct {

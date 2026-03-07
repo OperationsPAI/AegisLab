@@ -11,9 +11,34 @@ All notable changes to this project will be documented in this file.
 
 ### Features
 
+- Add design skill
+- Add design skill
+- Update fe
 - *(config)* Introduce etcd for dynamic configuration management
 - *(helm)* Add chart version and local path fallback for pedestal deployment
 - *(deployment)* Add staging context and refine service/config management
+- *(initialization)* Add user management with project role bindings
+- *(team)* Add team management with project role bindings
+- *(project)* Add nested resource APIs and enhance project management
+- *(injection)* Add datapack file browsing and single file download
+- *(injection)* Add Parquet file content query with DuckDB Arrow
+- *(injection)* Add Parquet file content query with DuckDB Arrow
+- *(build)* Add DuckDB Arrow support and integrate frontend chart
+- *(deployment)* Add Loki/Prometheus monitoring and Alloy log collection
+- *(logging)* Add real-time task log streaming via WebSocket
+- *(groups)* Introduce group SSE stream API
+
+### Miscellaneous Tasks
+
+- Merge deployment enhancements and config management features
+- Refactor typescript sdk generation workflow
+- *(.claude)* Remove ui-ux-pro-max skill and vscode configs
+
+### Refactor
+
+- *(frontend)* Remove entire frontend codebase
+- *(deployment)* Convert initial data format from JSON to YAML
+- *(auth)* Implement role-based access control with JWT claims
 
 ### Testing
 

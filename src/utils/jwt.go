@@ -21,10 +21,12 @@ const (
 
 // Claims represents JWT claims structure
 type Claims struct {
-	UserID   int    `json:"user_id"`
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	IsActive bool   `json:"is_active"`
+	UserID   int      `json:"user_id"`
+	Username string   `json:"username"`
+	Email    string   `json:"email"`
+	IsActive bool     `json:"is_active"`
+	IsAdmin  bool     `json:"is_admin"` // System admin flag (super_admin or admin)
+	Roles    []string `json:"roles"`    // Global role names
 	jwt.RegisteredClaims
 }
 
@@ -42,7 +44,7 @@ type ServiceClaims struct {
 }
 
 // GenerateToken generates a new JWT token for the given user
-func GenerateToken(userID int, username, email string, isActive bool) (string, time.Time, error) {
+func GenerateToken(userID int, username, email string, isActive, isAdmin bool, roles []string) (string, time.Time, error) {
 	expirationTime := time.Now().Add(TokenExpiration)
 
 	claims := &Claims{
@@ -50,6 +52,8 @@ func GenerateToken(userID int, username, email string, isActive bool) (string, t
 		Username: username,
 		Email:    email,
 		IsActive: isActive,
+		IsAdmin:  isAdmin,
+		Roles:    roles,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ID:        fmt.Sprintf("jwt_%d_%d", userID, time.Now().Unix()), // JWT ID (jti)
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
@@ -198,37 +202,6 @@ func ValidateServiceToken(tokenString string) (*ServiceClaims, error) {
 	}
 
 	return claims, nil
-}
-
-// RefreshToken refreshes an existing token if it's a valid refresh token
-func RefreshToken(refreshTokenString string) (string, time.Time, error) {
-	// Parse refresh token
-	token, err := jwt.ParseWithClaims(refreshTokenString, &RefreshClaims{}, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return []byte(JWTSecret), nil
-	})
-
-	if err != nil {
-		return "", time.Time{}, fmt.Errorf("failed to parse refresh token: %v", err)
-	}
-
-	refreshClaims, ok := token.Claims.(*RefreshClaims)
-	if !ok || !token.Valid {
-		return "", time.Time{}, errors.New("invalid refresh token")
-	}
-
-	// Note: No need to manually check ExpiresAt - jwt.ParseWithClaims already validates it
-
-	// Check if it's a refresh token (issued by refresh issuer)
-	if refreshClaims.Issuer != "rcabench-refresh" {
-		return "", time.Time{}, errors.New("not a valid refresh token")
-	}
-
-	// Generate new access token
-	// Note: In production, you should fetch fresh user data from database
-	return GenerateToken(refreshClaims.UserID, refreshClaims.Username, "", true)
 }
 
 // GetUserIDFromToken extracts user ID from a valid token

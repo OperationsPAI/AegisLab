@@ -18,7 +18,7 @@ func BatchUpsertResources(db *gorm.DB, resources []database.Resource) error {
 
 	if err := db.Omit(commonOmitFields).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "name"}},
-		DoNothing: true,
+		DoUpdates: clause.AssignmentColumns([]string{}),
 	}).Create(&resources).Error; err != nil {
 		return fmt.Errorf("failed to batch upsert resources: %w", err)
 	}

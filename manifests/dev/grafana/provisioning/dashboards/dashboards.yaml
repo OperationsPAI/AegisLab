@@ -1,0 +1,14 @@
+# Grafana dashboard provisioning
+apiVersion: 1
+
+providers:
+  - name: "AegisLab"
+    orgId: 1
+    folder: "AegisLab"
+    type: file
+    disableDeletion: false
+    editable: true
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/provisioning/dashboards/json
+      foldersFromFilesStructure: false

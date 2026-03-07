@@ -27,6 +27,7 @@ import (
 //	@Failure		409		{object}	dto.GenericResponse[any]			"User already exists"
 //	@Failure		500		{object}	dto.GenericResponse[any]			"Internal server error"
 //	@Router			/api/v2/users [post]
+//	@x-api-type		{"sdk":"true"}
 func CreateUser(c *gin.Context) {
 	var req dto.CreateUserReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -63,6 +64,7 @@ func CreateUser(c *gin.Context) {
 //	@Failure		404	{object}	dto.GenericResponse[any]	"User not found"
 //	@Failure		500	{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v2/users/{id} [delete]
+//	@x-api-type		{"sdk":"true"}
 func DeleteUser(c *gin.Context) {
 	idStr := c.Param(consts.URLPathID)
 	id, err := strconv.Atoi(idStr)
@@ -95,6 +97,7 @@ func DeleteUser(c *gin.Context) {
 //	@Failure		404	{object}	dto.GenericResponse[any]				"User not found"
 //	@Failure		500	{object}	dto.GenericResponse[any]				"Internal server error"
 //	@Router			/api/v2/users/{id}/detail [get]
+//	@x-api-type		{"sdk":"true"}
 func GetUserDetailV2(c *gin.Context) {
 	idStr := c.Param(consts.URLPathID)
 	id, err := strconv.Atoi(idStr)
@@ -130,7 +133,8 @@ func GetUserDetailV2(c *gin.Context) {
 //	@Failure		401			{object}	dto.GenericResponse[any]						"Authentication required"
 //	@Failure		403			{object}	dto.GenericResponse[any]						"Permission denied"
 //	@Failure		500			{object}	dto.GenericResponse[any]						"Internal server error"
-//	@Router			/api/v2/users [get]/
+//	@Router			/api/v2/users [get]
+//	@x-api-type		{"sdk":"true"}
 func ListUsersV2(c *gin.Context) {
 	var req dto.ListUserReq
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -169,6 +173,7 @@ func ListUsersV2(c *gin.Context) {
 //	@Failure		404		{object}	dto.GenericResponse[any]			"User not found"
 //	@Failure		500		{object}	dto.GenericResponse[any]			"Internal server error"
 //	@Router			/api/v2/users/{id} [patch]
+//	@x-api-type		{"sdk":"true"}
 func UpdateUser(c *gin.Context) {
 	idStr := c.Param(consts.URLPathID)
 	id, err := strconv.Atoi(idStr)

@@ -76,7 +76,7 @@ func GetMonitor() *monitor {
 // Returns nil on success, error if the lock cannot be acquired
 func (m *monitor) AcquireLock(namespace string, endTime time.Time, traceID string, taskType consts.TaskType) (err error) {
 	defer func() {
-		publishEvent(context.Background(), fmt.Sprintf(consts.StreamLogKey, namespace), dto.StreamEvent{
+		publishEvent(context.Background(), fmt.Sprintf(consts.StreamTraceLogKey, namespace), dto.TraceStreamEvent{
 			TaskType:  taskType,
 			EventName: consts.EventAcquireLock,
 			Payload: LockMessage{
@@ -180,7 +180,7 @@ func (m *monitor) AcquireLock(namespace string, endTime time.Time, traceID strin
 // ReleaseLock releases a lock on a namespace if it's owned by the specified traceID
 func (m *monitor) ReleaseLock(ctx context.Context, namespace string, traceID string) (err error) {
 	defer func() {
-		publishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, namespace), dto.StreamEvent{
+		publishEvent(ctx, fmt.Sprintf(consts.StreamTraceLogKey, namespace), dto.TraceStreamEvent{
 			TaskType:  consts.TaskTypeRestartPedestal,
 			EventName: consts.EventReleaseLock,
 			Payload: LockMessage{

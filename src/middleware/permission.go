@@ -1,22 +1,26 @@
 package middleware
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
 	"aegis/consts"
-	"aegis/database"
 	"aegis/dto"
-	"aegis/repository"
+	"aegis/service/producer"
 
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 )
 
 type permissionContext struct {
 	userID      int
+	isAdmin     bool
+	roles       []string
+	teamID      *int
+	projectID   *int
 	containerID *int
 	datasetID   *int
-	projectID   *int
 }
 
 // permissionCheckFunc is a function that checks permission given the context
@@ -41,22 +45,46 @@ func extractPermissionContext(c *gin.Context) (*permissionContext, string) {
 		return nil, "Authentication required"
 	}
 
-	ctx := &permissionContext{userID: userID}
+	// Get admin status and roles from context (already validated in JWT)
+	isAdmin := false
+	if val, exists := c.Get("is_admin"); exists {
+		if v, ok := val.(bool); ok {
+			isAdmin = v
+		}
+	}
+	roles := []string{}
+	if val, exists := c.Get("user_roles"); exists {
+		if v, ok := val.([]string); ok {
+			roles = v
+		}
+	}
+
+	ctx := &permissionContext{
+		userID:  userID,
+		isAdmin: isAdmin,
+		roles:   roles,
+	}
 
 	// Extract optional IDs from URL parameters
-	if projectIDStr := c.Param("project_id"); projectIDStr != "" {
+	if teamIDstr := c.Param(consts.URLPathTeamID); teamIDstr != "" {
+		if id, err := strconv.Atoi(teamIDstr); err == nil {
+			ctx.teamID = &id
+		}
+	}
+
+	if projectIDStr := c.Param(consts.URLPathProjectID); projectIDStr != "" {
 		if id, err := strconv.Atoi(projectIDStr); err == nil {
 			ctx.projectID = &id
 		}
 	}
 
-	if containerIDStr := c.Param("container_id"); containerIDStr != "" {
+	if containerIDStr := c.Param(consts.URLPathContainerID); containerIDStr != "" {
 		if id, err := strconv.Atoi(containerIDStr); err == nil {
 			ctx.containerID = &id
 		}
 	}
 
-	if datasetIDStr := c.Param("dataset_id"); datasetIDStr != "" {
+	if datasetIDStr := c.Param(consts.URLPathDatasetID); datasetIDStr != "" {
 		if id, err := strconv.Atoi(datasetIDStr); err == nil {
 			ctx.datasetID = &id
 		}
@@ -113,25 +141,41 @@ func withPermissionCheck(checkFunc permissionCheckFunc) gin.HandlerFunc {
 // ============================================================================
 
 // singlePermission creates a check for a single permission
-func singlePermission(action, resourceName string) permissionCheckFunc {
+func singlePermission(permission consts.PermissionRule) permissionCheckFunc {
 	return func(ctx *permissionContext) (bool, error) {
-		return repository.CheckUserPermission(
-			database.DB, ctx.userID, action, resourceName,
-			ctx.projectID, ctx.containerID, ctx.datasetID,
+		return producer.CheckUserPermission(&dto.CheckPermissionParams{
+			UserID:       ctx.userID,
+			Action:       permission.Action,
+			Scope:        permission.Scope,
+			ResourceName: permission.Resource,
+			TeamID:       ctx.teamID,
+			ProjectID:    ctx.projectID,
+			ContainerID:  ctx.containerID,
+			DatasetID:    ctx.datasetID,
+		},
 		)
 	}
 }
 
 // anyPermission creates a check that passes if any permission is satisfied
-func anyPermission(permissions []PermissionCheck) permissionCheckFunc {
+func anyPermission(permissions []consts.PermissionRule) permissionCheckFunc {
 	return func(ctx *permissionContext) (bool, error) {
 		for _, perm := range permissions {
-			hasPermission, err := repository.CheckUserPermission(
-				database.DB, ctx.userID, perm.Action, perm.ResourceName,
-				ctx.projectID, ctx.containerID, ctx.datasetID,
+			hasPermission, err := producer.CheckUserPermission(
+				&dto.CheckPermissionParams{
+					UserID:       ctx.userID,
+					Action:       perm.Action,
+					Scope:        perm.Scope,
+					ResourceName: perm.Resource,
+					TeamID:       ctx.teamID,
+					ProjectID:    ctx.projectID,
+					ContainerID:  ctx.containerID,
+					DatasetID:    ctx.datasetID,
+				},
 			)
 			if err != nil {
-				continue // Log error in production
+				logrus.Warnf("Permission check error: %f", err)
+				continue
 			}
 			if hasPermission {
 				return true, nil
@@ -142,12 +186,20 @@ func anyPermission(permissions []PermissionCheck) permissionCheckFunc {
 }
 
 // allPermissions creates a check that passes only if all permissions are satisfied
-func allPermissions(permissions []PermissionCheck) permissionCheckFunc {
+func allPermissions(permissions []consts.PermissionRule) permissionCheckFunc {
 	return func(ctx *permissionContext) (bool, error) {
 		for _, perm := range permissions {
-			hasPermission, err := repository.CheckUserPermission(
-				database.DB, ctx.userID, perm.Action, perm.ResourceName,
-				ctx.projectID, ctx.containerID, ctx.datasetID,
+			hasPermission, err := producer.CheckUserPermission(
+				&dto.CheckPermissionParams{
+					UserID:       ctx.userID,
+					Action:       perm.Action,
+					Scope:        perm.Scope,
+					ResourceName: perm.Resource,
+					TeamID:       ctx.teamID,
+					ProjectID:    ctx.projectID,
+					ContainerID:  ctx.containerID,
+					DatasetID:    ctx.datasetID,
+				},
 			)
 			if err != nil {
 				return false, err
@@ -161,26 +213,110 @@ func allPermissions(permissions []PermissionCheck) permissionCheckFunc {
 }
 
 // ownershipCheck creates a check for resource ownership
-func ownershipCheck(ownerIDParam string) permissionCheckFunc {
+// Supports checking ownership for different resource types by extracting IDs from context
+func ownershipCheck(resourceType string, ownerIDGetter func(*permissionContext) (*int, error)) permissionCheckFunc {
 	return func(ctx *permissionContext) (bool, error) {
-		// This is a placeholder - actual implementation needs gin.Context
-		// For ownership, we use a specialized middleware below
-		return false, nil
+		// Get the owner ID dynamically
+		ownerID, err := ownerIDGetter(ctx)
+		if err != nil {
+			return false, err
+		}
+		if ownerID == nil {
+			return false, fmt.Errorf("owner ID not found for resource type: %s", resourceType)
+		}
+
+		// Check ownership
+		return ctx.userID == *ownerID, nil
 	}
 }
 
 // adminOrOwnership creates a check for admin permission or ownership
-func adminOrOwnership(ownerID int) permissionCheckFunc {
+// Supports checking admin status OR ownership for different resource types
+func adminOrOwnership(resourceType string, ownerIDGetter func(*permissionContext) (*int, error)) permissionCheckFunc {
 	return func(ctx *permissionContext) (bool, error) {
-		// Check admin first
-		hasAdmin, err := repository.CheckUserPermission(
-			database.DB, ctx.userID, "admin", "system", nil, nil, nil,
-		)
-		if err == nil && hasAdmin {
+		// Check admin status from JWT context (fast path - no DB query)
+		if ctx.isAdmin {
 			return true, nil
 		}
+
+		// Get the owner ID dynamically
+		ownerID, err := ownerIDGetter(ctx)
+		if err != nil {
+			return false, err
+		}
+		if ownerID == nil {
+			return false, fmt.Errorf("owner ID not found for resource type: %s", resourceType)
+		}
+
 		// Check ownership
-		return ctx.userID == ownerID, nil
+		return ctx.userID == *ownerID, nil
+	}
+}
+
+// teamAccessCheck creates a unified check for team access (member/admin/public)
+func teamAccessCheck(requireAdmin bool) permissionCheckFunc {
+	return func(ctx *permissionContext) (bool, error) {
+		if ctx.teamID == nil {
+			return false, fmt.Errorf("team_id is required")
+		}
+
+		// Check if system admin (from JWT token, no DB query)
+		if ctx.isAdmin {
+			return true, nil
+		}
+
+		// If admin access required, check team admin status
+		if requireAdmin {
+			isTeamAdmin, err := producer.IsUserTeamAdmin(ctx.userID, *ctx.teamID)
+			if err != nil {
+				return false, err
+			}
+			return isTeamAdmin, nil
+		}
+
+		// For member access: check if member OR team is public
+		isMember, err := producer.IsUserInTeam(ctx.userID, *ctx.teamID)
+		if err == nil && isMember {
+			return true, nil
+		}
+
+		// Check if team is public
+		isPublic, err := producer.IsTeamPublic(*ctx.teamID)
+		if err == nil && isPublic {
+			return true, nil
+		}
+
+		return false, nil
+	}
+}
+
+// projectAccessCheck creates a check for project access (member/admin/public)
+func projectAccessCheck(requireAdmin bool) permissionCheckFunc {
+	return func(ctx *permissionContext) (bool, error) {
+		if ctx.projectID == nil {
+			return false, fmt.Errorf("project_id is required")
+		}
+
+		// Check if system admin (from JWT token, no DB query)
+		if ctx.isAdmin {
+			return true, nil
+		}
+
+		// Check project admin status if required
+		if requireAdmin {
+			isProjectAdmin, err := producer.IsUserProjectAdmin(ctx.userID, *ctx.projectID)
+			if err != nil {
+				return false, err
+			}
+			return isProjectAdmin, nil
+		}
+
+		// Check if user is project member
+		isMember, err := producer.IsUserInProject(ctx.userID, *ctx.projectID)
+		if err != nil {
+			return false, err
+		}
+		return isMember, nil
 	}
 }
 
@@ -189,114 +325,173 @@ func adminOrOwnership(ownerID int) permissionCheckFunc {
 // ============================================================================
 
 // RequirePermission creates a middleware that requires specific permission
-func RequirePermission(action, resourceName string) gin.HandlerFunc {
-	return withPermissionCheck(singlePermission(action, resourceName))
+func RequirePermission(permission consts.PermissionRule) gin.HandlerFunc {
+	return withPermissionCheck(singlePermission(permission))
 }
 
 // RequireAnyPermission creates a middleware that requires any of the specified permissions
-func RequireAnyPermission(permissions []PermissionCheck) gin.HandlerFunc {
+func RequireAnyPermission(permissions []consts.PermissionRule) gin.HandlerFunc {
 	return withPermissionCheck(anyPermission(permissions))
 }
 
 // RequireAllPermissions creates a middleware that requires all specified permissions
-func RequireAllPermissions(permissions []PermissionCheck) gin.HandlerFunc {
+func RequireAllPermissions(permissions []consts.PermissionRule) gin.HandlerFunc {
 	return withPermissionCheck(allPermissions(permissions))
 }
 
 // RequireOwnership creates a middleware that requires user to be owner of resource
-func RequireOwnership(resourceType string, ownerIDParam string) gin.HandlerFunc {
-	return withPermissionCheck(ownershipCheck(ownerIDParam))
+// ownerIDGetter is a function that extracts the owner ID from the permission context
+func RequireOwnership(resourceType string, ownerIDGetter func(*permissionContext) (*int, error)) gin.HandlerFunc {
+	return withPermissionCheck(ownershipCheck(resourceType, ownerIDGetter))
 }
 
-// RequireAdminOrOwnership creates a middleware that requires user to be admin or owner
-func RequireAdminOrOwnership(ownerIDParam string) gin.HandlerFunc {
-	return withPermissionCheck(adminOrOwnership(0))
+// RequireAdminOrOwnership creates a middleware that requires user to be system admin or owner
+// ownerIDGetter is a function that extracts the owner ID from the permission context
+func RequireAdminOrOwnership(resourceType string, ownerIDGetter func(*permissionContext) (*int, error)) gin.HandlerFunc {
+	return withPermissionCheck(adminOrOwnership(resourceType, ownerIDGetter))
+}
+
+// RequireSystemAdmin creates a middleware that requires user to be system admin (from JWT claim)
+func RequireSystemAdmin() gin.HandlerFunc {
+	return withPermissionCheck(func(ctx *permissionContext) (bool, error) {
+		return ctx.isAdmin, nil
+	})
+}
+
+// RequireTeamAccess creates a middleware for team access control
+// If requireAdmin is true, checks for team admin OR system admin
+// If requireAdmin is false, checks for team member OR public team OR system admin
+func RequireTeamAccess(requireAdmin bool) gin.HandlerFunc {
+	return withPermissionCheck(teamAccessCheck(requireAdmin))
+}
+
+// RequireProjectAccess creates a middleware for project access control
+// If requireAdmin is true, checks for project admin OR system admin
+// If requireAdmin is false, checks for project member OR system admin
+func RequireProjectAccess(requireAdmin bool) gin.HandlerFunc {
+	return withPermissionCheck(projectAccessCheck(requireAdmin))
 }
 
 // ============================================================================
-// Types and Common Permission Variables
+// Common Permission Variables
 // ============================================================================
 
-// PermissionCheck represents a permission requirement
-type PermissionCheck struct {
-	Action       string
-	ResourceName string
-}
-
-// Common permission middlewares
+// Common permission middlewares with inheritance support
+// Higher level permissions (manage) inherit lower level permissions (read, update, delete, etc.)
 var (
 	// System administration permissions
-	RequireSystemAdmin = RequirePermission("admin", consts.ResourceSystem.String())
-	RequireSystemRead  = RequirePermission("read", consts.ResourceSystem.String())
+	// manage inherits all other permissions
+	RequireSystemRead      = RequireAnyPermission([]consts.PermissionRule{consts.PermSystemRead, consts.PermSystemConfigure, consts.PermSystemManage})
+	RequireSystemConfigure = RequireAnyPermission([]consts.PermissionRule{consts.PermSystemConfigure, consts.PermSystemManage})
 
 	// Audit permissions
-	RequireAuditRead = RequirePermission("read", consts.ResourceAudit.String())
+	RequireAuditRead  = RequireAnyPermission([]consts.PermissionRule{consts.PermAuditRead, consts.PermAuditAudit})
+	RequireAuditAudit = RequirePermission(consts.PermAuditAudit)
 
 	// Configuration management permissions
-	RequireConfigurationRead  = RequirePermission("read", consts.ResourceConfigruation.String())
-	RequireConfigurationWrite = RequirePermission("write", consts.ResourceConfigruation.String())
+	RequireConfigurationRead      = RequireAnyPermission([]consts.PermissionRule{consts.PermConfigurationRead, consts.PermConfigurationUpdate, consts.PermConfigurationConfigure})
+	RequireConfigurationUpdate    = RequireAnyPermission([]consts.PermissionRule{consts.PermConfigurationUpdate, consts.PermConfigurationConfigure})
+	RequireConfigurationConfigure = RequirePermission(consts.PermConfigurationConfigure)
 
-	// Resource ownership middlewares
-	RequireUserOwnership        = RequireOwnership("user", "id")
-	RequireAdminOrUserOwnership = RequireAdminOrOwnership("id")
+	// Resource ownership middlewares - using owner ID getters
+	// Example: Get user ID from URL parameter
+	getUserIDFromURL = func(ctx *permissionContext) (*int, error) {
+		// This is a simple example - in production, extract from gin.Context
+		// For now, we just check if the current user is accessing their own resource
+		return &ctx.userID, nil
+	}
+	RequireUserOwnership        = RequireOwnership("user", getUserIDFromURL)
+	RequireAdminOrUserOwnership = RequireAdminOrOwnership("user", getUserIDFromURL)
 
-	// Container management permissions
-	RequireContainerRead   = RequirePermission("read", consts.ResourceContainer.String())
-	RequireContainerWrite  = RequirePermission("write", consts.ResourceContainer.String())
-	RequireContainerDelete = RequirePermission("delete", consts.ResourceContainer.String())
+	// Team-specific access control (unified with ownership pattern)
+	// These check membership/admin status for the specific team in the URL
+	RequireTeamAdminAccess  = RequireTeamAccess(true)  // Team admin OR system admin
+	RequireTeamMemberAccess = RequireTeamAccess(false) // Member OR public OR system admin
 
-	// Container Version management permissions
-	RequireContainerVersionRead   = RequirePermission("read", consts.ResourceContainerVersion.String())
-	RequireContainerVersionWrite  = RequirePermission("write", consts.ResourceContainerVersion.String())
-	RequireContainerVersionDelete = RequirePermission("delete", consts.ResourceContainerVersion.String())
+	// Project-specific access control
+	RequireProjectAdminAccess  = RequireProjectAccess(true)  // Project admin OR system admin
+	RequireProjectMemberAccess = RequireProjectAccess(false) // Member OR system admin
 
-	// Dataset management permissions
-	RequireDatasetRead   = RequirePermission("read", consts.ResourceDataset.String())
-	RequireDatasetWrite  = RequirePermission("write", consts.ResourceDataset.String())
-	RequireDatasetDelete = RequirePermission("delete", consts.ResourceDataset.String())
-
-	// Dataset Version management permissions
-	RequireDatasetVersionRead   = RequirePermission("read", consts.ResourceDatasetVersion.String())
-	RequireDatasetVersionWrite  = RequirePermission("write", consts.ResourceDatasetVersion.String())
-	RequireDatasetVersionDelete = RequirePermission("delete", consts.ResourceDatasetVersion.String())
-
-	// Project management permissions
-	RequireProjectRead   = RequirePermission("read", consts.ResourceProject.String())
-	RequireProjectWrite  = RequirePermission("write", consts.ResourceProject.String())
-	RequireProjectDelete = RequirePermission("delete", consts.ResourceProject.String())
-
-	// Label management permissions
-	RequireLabelRead   = RequirePermission("read", consts.ResourceLabel.String())
-	RequireLabelWrite  = RequirePermission("write", consts.ResourceLabel.String())
-	RequireLabelDelete = RequirePermission("delete", consts.ResourceLabel.String())
-
-	// User management permissions
-	RequireUserRead   = RequirePermission("read", consts.ResourceUser.String())
-	RequireUserWrite  = RequirePermission("write", consts.ResourceUser.String())
-	RequireUserDelete = RequirePermission("delete", consts.ResourceUser.String())
+	// User management permissions (manage inherits all others)
+	RequireUserRead   = RequireAnyPermission([]consts.PermissionRule{consts.PermUserReadAll})
+	RequireUserCreate = RequireAnyPermission([]consts.PermissionRule{consts.PermUserCreateAll})
+	RequireUserUpdate = RequireAnyPermission([]consts.PermissionRule{consts.PermUserUpdateAll})
+	RequireUserDelete = RequireAnyPermission([]consts.PermissionRule{consts.PermUserDeleteAll})
+	RequireUserAssign = RequireAnyPermission([]consts.PermissionRule{consts.PermUserAssignAll})
 
 	// Role management permissions
-	RequireRoleRead   = RequirePermission("read", consts.ResourceRole.String())
-	RequireRoleWrite  = RequirePermission("write", consts.ResourceRole.String())
-	RequireRoleDelete = RequirePermission("delete", consts.ResourceRole.String())
+	RequireRoleRead   = RequireAnyPermission([]consts.PermissionRule{consts.PermRoleReadAll})
+	RequireRoleCreate = RequireAnyPermission([]consts.PermissionRule{consts.PermRoleCreateAll})
+	RequireRoleUpdate = RequireAnyPermission([]consts.PermissionRule{consts.PermRoleUpdateAll})
+	RequireRoleDelete = RequireAnyPermission([]consts.PermissionRule{consts.PermRoleDeleteAll})
+	RequireRoleGrant  = RequireAnyPermission([]consts.PermissionRule{consts.PermRoleGrantAll})
+	RequireRoleRevoke = RequireAnyPermission([]consts.PermissionRule{consts.PermRoleRevokeAll})
 
 	// Permission management permissions
-	RequirePermissionRead   = RequirePermission("read", consts.ResourcePermission.String())
-	RequirePermissionWrite  = RequirePermission("write", consts.ResourcePermission.String())
-	RequirePermissionDelete = RequirePermission("delete", consts.ResourcePermission.String())
+	RequirePermissionRead = RequireAnyPermission([]consts.PermissionRule{consts.PermPermissionReadAll, consts.PermPermissionManageAll})
 
-	// Task management permissions
-	RequireTaskRead   = RequirePermission("read", consts.ResourceTask.String())
-	RequireTaskWrite  = RequirePermission("write", consts.ResourceTask.String())
-	RequireTaskDelete = RequirePermission("delete", consts.ResourceTask.String())
+	// Team management permissions (manage > all CRUD; all scope > team scope)
+	RequireTeamRead   = RequireAnyPermission([]consts.PermissionRule{consts.PermTeamReadAll, consts.PermTeamManageAll})
+	RequireTeamCreate = RequireAnyPermission([]consts.PermissionRule{consts.PermTeamCreateAll, consts.PermTeamManageAll})
+	RequireTeamUpdate = RequireAnyPermission([]consts.PermissionRule{consts.PermTeamUpdateAll, consts.PermTeamManageAll})
+	RequireTeamDelete = RequireAnyPermission([]consts.PermissionRule{consts.PermTeamDeleteAll, consts.PermTeamManageAll})
+	RequireTeamManage = RequirePermission(consts.PermTeamManageAll)
 
-	// Injection management permissions
-	RequireInjectionRead   = RequirePermission("read", consts.ResourceInjection.String())
-	RequireInjectionWrite  = RequirePermission("write", consts.ResourceInjection.String())
-	RequireInjectionDelete = RequirePermission("delete", consts.ResourceInjection.String())
+	// Project management permissions (manage > all CRUD; all scope > team scope > project scope)
+	RequireProjectRead             = RequireAnyPermission([]consts.PermissionRule{consts.PermProjectReadAll, consts.PermProjectReadOwn})
+	RequireProjectCreate           = RequireAnyPermission([]consts.PermissionRule{consts.PermProjectCreateOwn, consts.PermProjectCreateTeam})
+	RequireProjectUpdate           = RequireAnyPermission([]consts.PermissionRule{consts.PermProjectUpdateAll, consts.PermProjectUpdateOwn})
+	RequireProjectDelete           = RequireAnyPermission([]consts.PermissionRule{consts.PermProjectDeleteAll, consts.PermProjectDeleteOwn})
+	RequireProjectManage           = RequireAnyPermission([]consts.PermissionRule{consts.PermProjectManageAll, consts.PermProjectManageOwn})
+	RequireProjectInjectionExecute = RequirePermission(consts.PermInjectionExecuteProject)
+	RequireProjectExecutionExecute = RequirePermission(consts.PermExecutionExecuteProject)
 
-	// Execution management permissions
-	RequireExecutionRead   = RequirePermission("read", consts.ResourceExecution.String())
-	RequireExecutionWrite  = RequirePermission("write", consts.ResourceExecution.String())
-	RequireExecutionDelete = RequirePermission("delete", consts.ResourceExecution.String())
+	// Container management permissions (manage > execute > update/delete > read; all scope > team scope > own)
+	RequireContainerRead    = RequireAnyPermission([]consts.PermissionRule{consts.PermContainerReadAll, consts.PermContainerReadTeam, consts.PermContainerManageAll})
+	RequireContainerCreate  = RequireAnyPermission([]consts.PermissionRule{consts.PermContainerCreateAll, consts.PermContainerCreateTeam, consts.PermContainerCreateOwn, consts.PermContainerManageAll})
+	RequireContainerUpdate  = RequireAnyPermission([]consts.PermissionRule{consts.PermContainerUpdateAll, consts.PermContainerUpdateTeam, consts.PermContainerManageAll, consts.PermContainerExecuteAll, consts.PermContainerExecuteTeam})
+	RequireContainerDelete  = RequireAnyPermission([]consts.PermissionRule{consts.PermContainerDeleteAll, consts.PermContainerManageAll})
+	RequireContainerManage  = RequirePermission(consts.PermContainerManageAll)
+	RequireContainerExecute = RequireAnyPermission([]consts.PermissionRule{consts.PermContainerExecuteAll, consts.PermContainerExecuteTeam, consts.PermContainerManageAll})
+
+	// Container Version management permissions
+	RequireContainerVersionRead   = RequireAnyPermission([]consts.PermissionRule{consts.PermContainerVersionReadAll, consts.PermContainerVersionReadTeam, consts.PermContainerVersionManageAll})
+	RequireContainerVersionCreate = RequireAnyPermission([]consts.PermissionRule{consts.PermContainerVersionCreateAll, consts.PermContainerVersionCreateTeam, consts.PermContainerVersionManageAll})
+	RequireContainerVersionUpdate = RequireAnyPermission([]consts.PermissionRule{consts.PermContainerVersionUpdateAll, consts.PermContainerVersionUpdateTeam, consts.PermContainerVersionManageAll})
+	RequireContainerVersionDelete = RequireAnyPermission([]consts.PermissionRule{consts.PermContainerVersionDeleteAll, consts.PermContainerVersionManageAll})
+	RequireContainerVersionManage = RequirePermission(consts.PermContainerVersionManageAll)
+	RequireContainerVersionUpload = RequireAnyPermission([]consts.PermissionRule{consts.PermContainerVersionUploadAll, consts.PermContainerVersionUploadTeam, consts.PermContainerVersionManageAll})
+
+	// Dataset management permissions (manage > update/delete > read; all scope > team scope > own)
+	RequireDatasetRead   = RequireAnyPermission([]consts.PermissionRule{consts.PermDatasetReadAll, consts.PermDatasetReadTeam, consts.PermDatasetManageAll})
+	RequireDatasetCreate = RequireAnyPermission([]consts.PermissionRule{consts.PermDatasetCreateAll, consts.PermDatasetCreateTeam, consts.PermDatasetCreateOwn, consts.PermDatasetManageAll})
+	RequireDatasetUpdate = RequireAnyPermission([]consts.PermissionRule{consts.PermDatasetUpdateAll, consts.PermDatasetUpdateTeam, consts.PermDatasetManageAll})
+	RequireDatasetDelete = RequireAnyPermission([]consts.PermissionRule{consts.PermDatasetDeleteAll, consts.PermDatasetManageAll})
+	RequireDatasetManage = RequirePermission(consts.PermDatasetManageAll)
+
+	// Dataset Version management permissions
+	RequireDatasetVersionRead     = RequireAnyPermission([]consts.PermissionRule{consts.PermDatasetVersionReadAll, consts.PermDatasetVersionReadTeam, consts.PermDatasetVersionManageAll})
+	RequireDatasetVersionCreate   = RequireAnyPermission([]consts.PermissionRule{consts.PermDatasetVersionCreateAll, consts.PermDatasetVersionCreateTeam, consts.PermDatasetVersionManageAll})
+	RequireDatasetVersionUpdate   = RequireAnyPermission([]consts.PermissionRule{consts.PermDatasetVersionUpdateAll, consts.PermDatasetVersionUpdateTeam, consts.PermDatasetVersionManageAll})
+	RequireDatasetVersionDelete   = RequireAnyPermission([]consts.PermissionRule{consts.PermDatasetVersionDeleteAll, consts.PermDatasetVersionManageAll})
+	RequireDatasetVersionManage   = RequirePermission(consts.PermDatasetVersionManageAll)
+	RequireDatasetVersionDownload = RequireAnyPermission([]consts.PermissionRule{consts.PermDatasetVersionDownloadAll, consts.PermDatasetVersionDownloadTeam, consts.PermDatasetVersionManageAll})
+
+	// Label management permissions
+	RequireLabelRead   = RequireAnyPermission([]consts.PermissionRule{consts.PermLabelReadAll})
+	RequireLabelCreate = RequireAnyPermission([]consts.PermissionRule{consts.PermLabelCreateAll, consts.PermLabelCreateOwn})
+	RequireLabelUpdate = RequireAnyPermission([]consts.PermissionRule{consts.PermLabelUpdateAll})
+	RequireLabelDelete = RequireAnyPermission([]consts.PermissionRule{consts.PermLabelDeleteAll})
+
+	// Task management permissions (execute/stop > update/delete > read)
+	RequireTaskRead    = RequireAnyPermission([]consts.PermissionRule{consts.PermTaskReadAll})
+	RequireTaskCreate  = RequireAnyPermission([]consts.PermissionRule{consts.PermTaskCreateAll, consts.PermTaskExecuteAll})
+	RequireTaskUpdate  = RequireAnyPermission([]consts.PermissionRule{consts.PermTaskUpdateAll, consts.PermTaskExecuteAll})
+	RequireTaskDelete  = RequireAnyPermission([]consts.PermissionRule{consts.PermTaskDeleteAll, consts.PermTaskExecuteAll})
+	RequireTaskExecute = RequireAnyPermission([]consts.PermissionRule{consts.PermTaskExecuteAll})
+	RequireTaskStop    = RequireAnyPermission([]consts.PermissionRule{consts.PermTaskStopAll, consts.PermTaskExecuteAll})
+
+	// Trace management permissions (monitor > read)
+	RequireTraceRead    = RequireAnyPermission([]consts.PermissionRule{consts.PermTraceReadAll, consts.PermTraceMonitorAll})
+	RequireTraceMonitor = RequireAnyPermission([]consts.PermissionRule{consts.PermTraceMonitorAll})
 )

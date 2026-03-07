@@ -8,7 +8,7 @@ import (
 	"aegis/service/common"
 	"fmt"
 
-	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
+	chaos "github.com/OperationsPAI/chaos-experiment/handler"
 	"github.com/sirupsen/logrus"
 )
 

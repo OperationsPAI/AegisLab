@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"sync"
 
-	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
+	chaos "github.com/OperationsPAI/chaos-experiment/handler"
 	"github.com/mitchellh/mapstructure"
 	"github.com/sirupsen/logrus"
 )

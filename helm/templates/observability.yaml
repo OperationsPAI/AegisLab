@@ -1,0 +1,604 @@
+# This file defines Kubernetes resources for the observability stack components:
+# - Grafana Alloy (log collection agent)
+# - Loki (log storage)
+# - Prometheus (metrics storage)
+# - Grafana (visualization)
+{{- if .Values.alloy.enabled }}
+---
+# Alloy ServiceAccount, ClusterRole, and ClusterRoleBinding for log collection
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Release.Name }}-alloy
+  namespace: {{ .Values.configmap.k8s.namespace }}
+  labels:
+    app: alloy
+    release: {{ .Release.Name }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Release.Name }}-alloy-role
+  labels:
+    app: alloy
+    release: {{ .Release.Name }}
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "namespaces", "nodes"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Release.Name }}-alloy-rolebinding
+  labels:
+    app: alloy
+    release: {{ .Release.Name }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Release.Name }}-alloy
+    namespace: {{ .Values.configmap.k8s.namespace }}
+roleRef:
+  kind: ClusterRole
+  name: {{ .Release.Name }}-alloy-role
+  apiGroup: rbac.authorization.k8s.io
+---
+# Alloy ConfigMap - Grafana Alloy River configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-alloy-config
+  namespace: {{ .Values.configmap.k8s.namespace }}
+data:
+  config.alloy: |
+    // ============================================================
+    // Grafana Alloy - RCABench Log Collection Pipeline
+    // ============================================================
+
+    // 1. Discover K8s pods on this node
+    discovery.kubernetes "pods" {
+      role = "pod"
+
+      selectors {
+        role  = "pod"
+        field = "spec.nodeName=" + coalesce(env("HOSTNAME"), constants.hostname)
+      }
+    }
+
+    // 2. Relabel: filter by rcabench labels, extract metadata
+    discovery.relabel "rcabench_pods" {
+      targets = discovery.kubernetes.pods.targets
+
+      // Keep only pods with job_name label
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_job_name"]
+        action        = "keep"
+        regex         = ".+"
+      }
+
+      // Keep only pods with rcabench_app_id label
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_rcabench_app_id"]
+        action        = "keep"
+        regex         = ".+"
+      }
+
+      // Extract labels
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_job_name"]
+        target_label  = "job_id"
+      }
+
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_rcabench_app_id"]
+        target_label  = "rcabench_app_id"
+      }
+
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_trace_id"]
+        target_label  = "trace_id"
+      }
+
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_task_id"]
+        target_label  = "task_id"
+      }
+
+      // Set __path__ for log file discovery
+      rule {
+        source_labels = ["__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
+        target_label  = "__path__"
+        separator     = "/"
+        replacement   = "/var/log/pods/*$1/*.log"
+      }
+    }
+
+    // 3. Match log files on node filesystem
+    local.file_match "pods" {
+      path_targets = discovery.relabel.rcabench_pods.output
+    }
+
+    // 4. Read log files (tail)
+    loki.source.file "pods" {
+      targets    = local.file_match.pods.targets
+      forward_to = [loki.process.pipeline.receiver]
+    }
+
+    // 5. Process log lines
+    //    - High-cardinality fields (trace_id, task_id, job_id) → Structured Metadata
+    //    - Low-cardinality fields (rcabench_app_id, namespace, etc.) → Stream Labels
+    //    Structured Metadata is queryable via LogQL:
+    //      {app="rcabench"} | trace_id="xxx" | task_id="yyy"
+    loki.process "pipeline" {
+      stage.cri {}
+
+      // Move high-cardinality labels to Loki Structured Metadata
+      // (avoids index cardinality explosion, still queryable via LogQL filters)
+      // stage.structured_metadata reads from both extracted data AND stream labels
+      stage.structured_metadata {
+        values = {
+          trace_id = "",
+          task_id  = "",
+          job_id   = "",
+        }
+      }
+
+      // Drop high-cardinality + internal labels from stream labels
+      stage.label_drop {
+        values = ["trace_id", "task_id", "job_id", "filename"]
+      }
+
+      stage.static_labels {
+        values = {
+          app = "rcabench",
+        }
+      }
+
+      forward_to = [loki.write.default.receiver, otelcol.receiver.loki.backend.receiver]
+    }
+
+    // 6. Write to Loki
+    loki.write "default" {
+      endpoint {
+        url = "http://{{ .Release.Name }}-loki:3100/loki/api/v1/push"
+      }
+    }
+
+    // 7. OTLP dual-write: bridge Loki format → OpenTelemetry format
+    otelcol.receiver.loki "backend" {
+      output {
+        logs = [otelcol.exporter.otlphttp.backend.input]
+      }
+    }
+
+    // 8. OTLP HTTP export to backend log receiver
+    otelcol.exporter.otlphttp "backend" {
+      client {
+        endpoint = "http://{{ .Release.Name }}-exp:4319"
+      }
+
+      retry_on_failure {
+          enabled          = true
+          initial_interval = "1s"
+          max_interval     = "30s"
+          max_elapsed_time = "5m"
+      }
+
+      sending_queue {
+          enabled       = true
+          num_consumers = 4
+          queue_size    = 1000
+      }
+    }
+
+    prometheus.remote_write "default" {
+      endpoint {
+        url = "http://{{ .Release.Name }}-prometheus:9090/api/v1/write"
+      }
+    }
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ .Release.Name }}-alloy-daemon
+  namespace: {{ .Values.configmap.k8s.namespace }}
+  labels:
+    app: alloy
+    release: {{ .Release.Name }}
+spec:
+  selector:
+    matchLabels:
+      app: alloy
+  template:
+    metadata:
+      labels:
+        app: alloy
+    spec:
+      serviceAccountName: {{ .Release.Name }}-alloy
+      {{- with .Values.alloy.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: alloy
+          image: {{ include "helm.image" (dict "imageConfig" .Values.images.alloy "global" .Values.global) }}
+          args:
+            - run
+            - /etc/alloy/config.alloy
+            - --stability.level=generally-available
+          env:
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          securityContext:
+            runAsUser: 0
+          {{- with .Values.alloy.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: varlogcontainers
+              mountPath: /var/log/containers
+              readOnly: true
+            - name: varlogpods
+              mountPath: /var/log/pods
+              readOnly: true
+            - name: varlibdockercontainers
+              mountPath: /var/lib/docker/containers
+              readOnly: true
+            - name: config
+              mountPath: /etc/alloy/config.alloy
+              subPath: config.alloy
+            - name: data
+              mountPath: /var/lib/alloy/data
+      volumes:
+        - name: varlogcontainers
+          hostPath:
+            path: /var/log/containers
+        - name: varlogpods
+          hostPath:
+            path: /var/log/pods
+        - name: varlibdockercontainers
+          hostPath:
+            path: /var/lib/docker/containers
+        - name: config
+          configMap:
+            name: {{ .Release.Name }}-alloy-config
+        - name: data
+          hostPath:
+            path: /var/lib/alloy-data
+            type: DirectoryOrCreate
+{{- end }}
+{{- if .Values.loki.enabled }}
+---
+# Loki ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-loki-config
+data:
+  local-config.yaml: |
+    auth_enabled: false
+
+    server:
+      http_listen_port: 3100
+
+    common:
+      path_prefix: /loki
+      storage:
+        filesystem:
+          chunks_directory: /loki/chunks
+          rules_directory: /loki/rules
+      replication_factor: 1
+      ring:
+        kvstore:
+          store: inmemory
+
+    schema_config:
+      configs:
+        - from: "2024-01-01"
+          store: tsdb
+          object_store: filesystem
+          schema: v13
+          index:
+            prefix: index_
+            period: 24h
+
+    limits_config:
+      allow_structured_metadata: true
+      ingestion_rate_mb: 10
+      ingestion_burst_size_mb: 20
+      max_streams_per_user: 10000
+      max_global_streams_per_user: 10000
+
+    query_range:
+      results_cache:
+        cache:
+          embedded_cache:
+            enabled: true
+            max_size_mb: 100
+---
+# Loki StatefulSet
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Release.Name }}-loki
+spec:
+  serviceName: {{ .Release.Name }}-loki
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-loki
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-loki
+    spec:
+      containers:
+        - name: loki
+          image: {{ include "helm.image" (dict "imageConfig" .Values.images.loki "global" .Values.global) }}
+          imagePullPolicy: "{{ .Values.images.loki.pullPolicy }}"
+          args:
+            - -config.file=/etc/loki/local-config.yaml
+          ports:
+            - name: http
+              containerPort: 3100
+          {{- with .Values.loki.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: loki-data
+              mountPath: /loki
+              subPath: loki
+            - name: config
+              mountPath: /etc/loki/local-config.yaml
+              subPath: local-config.yaml
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Release.Name }}-loki-config
+        - name: loki-data
+          {{- if .Values.persistence.observability.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-observability-data
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+{{- end }}
+
+{{- if .Values.prometheus.enabled }}
+---
+# Prometheus ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-prometheus-config
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+
+    scrape_configs:
+      - job_name: "prometheus"
+        static_configs:
+          - targets: ["localhost:9090"]
+
+      {{- if .Values.loki.enabled }}
+      - job_name: "loki"
+        static_configs:
+          - targets: ["{{ .Release.Name }}-loki:3100"]
+            labels:
+              instance: "loki"
+      {{- end }}
+
+      {{- if .Values.alloy.enabled }}
+      - job_name: "alloy-discovery"
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names: ["{{ .Values.configmap.k8s.namespace }}"]
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_container_name]
+            action: keep
+            regex: alloy
+          - source_labels: [__meta_kubernetes_pod_ip]
+            action: replace
+            target_label: __address__
+            replacement: $1:12345
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: instance
+      {{- end }}
+---
+# Prometheus StatefulSet
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Release.Name }}-prometheus
+spec:
+  serviceName: {{ .Release.Name }}-prometheus
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-prometheus
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-prometheus
+    spec:
+      securityContext:
+        fsGroup: 65534
+        runAsUser: 65534
+        runAsGroup: 65534
+      containers:
+        - name: prometheus
+          image: {{ include "helm.image" (dict "imageConfig" .Values.images.prometheus "global" .Values.global) }}
+          imagePullPolicy: "{{ .Values.images.prometheus.pullPolicy }}"
+          args:
+            - --config.file=/etc/prometheus/prometheus.yml
+            - --storage.tsdb.path=/prometheus
+            - --storage.tsdb.retention.time=15d
+            - --web.enable-remote-write-receiver
+          ports:
+            - name: http
+              containerPort: 9090
+          {{- with .Values.prometheus.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: prometheus-data
+              mountPath: /prometheus
+              subPath: prometheus
+            - name: config
+              mountPath: /etc/prometheus/prometheus.yml
+              subPath: prometheus.yml
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Release.Name }}-prometheus-config
+        - name: prometheus-data
+          {{- if .Values.persistence.observability.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-observability-data
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+{{- end }}
+
+{{- if .Values.grafana.enabled }}
+---
+# Grafana datasources provisioning ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-grafana-datasources
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      {{- if .Values.loki.enabled }}
+      - name: Loki
+        type: loki
+        access: proxy
+        url: http://{{ .Release.Name }}-loki:3100
+        isDefault: true
+        editable: true
+        jsonData:
+          maxLines: 1000
+      {{- end }}
+      {{- if .Values.prometheus.enabled }}
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://{{ .Release.Name }}-prometheus:9090
+        editable: true
+        jsonData:
+          timeInterval: 15s
+      {{- end }}
+---
+# Grafana dashboards provisioning ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-grafana-dashboard-provider
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: "AegisLab"
+        orgId: 1
+        folder: "AegisLab"
+        type: file
+        disableDeletion: false
+        editable: true
+        updateIntervalSeconds: 30
+        options:
+          path: /etc/grafana/provisioning/dashboards/json
+          foldersFromFilesStructure: false
+---
+# Grafana dashboard JSON ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-grafana-dashboards
+data:
+  rcabench-log-explorer.json: |
+{{ .Files.Get "files/grafana/dashboards/rcabench-log-explorer.json" | indent 4 }}
+  rcabench-loki-monitoring.json: |
+{{ .Files.Get "files/grafana/dashboards/rcabench-loki-monitoring.json" | indent 4 }}
+---
+# Grafana StatefulSet
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Release.Name }}-grafana
+spec:
+  serviceName: {{ .Release.Name }}-grafana
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-grafana
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-grafana
+    spec:
+      securityContext:
+        fsGroup: 472
+        runAsUser: 472
+        runAsGroup: 472
+      containers:
+        - name: grafana
+          image: {{ include "helm.image" (dict "imageConfig" .Values.images.grafana "global" .Values.global) }}
+          imagePullPolicy: "{{ .Values.images.grafana.pullPolicy }}"
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              value: "{{ .Values.grafana.adminUser }}"
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              value: "{{ .Values.grafana.adminPassword }}"
+            - name: GF_USERS_ALLOW_SIGN_UP
+              value: "false"
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: "true"
+            - name: GF_AUTH_ANONYMOUS_ORG_ROLE
+              value: "Viewer"
+          ports:
+            - name: http
+              containerPort: 3000
+          {{- with .Values.grafana.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: grafana-data
+              mountPath: /var/lib/grafana
+              subPath: grafana
+            - name: datasources
+              mountPath: /etc/grafana/provisioning/datasources
+            - name: dashboard-provider
+              mountPath: /etc/grafana/provisioning/dashboards
+            - name: dashboards
+              mountPath: /etc/grafana/provisioning/dashboards/json
+      volumes:
+        - name: datasources
+          configMap:
+            name: {{ .Release.Name }}-grafana-datasources
+        - name: dashboard-provider
+          configMap:
+            name: {{ .Release.Name }}-grafana-dashboard-provider
+        - name: dashboards
+          configMap:
+            name: {{ .Release.Name }}-grafana-dashboards
+        - name: grafana-data
+          {{- if .Values.persistence.observability.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-observability-data
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+{{- end }}

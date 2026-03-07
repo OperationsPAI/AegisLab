@@ -1148,7 +1148,7 @@ wheels = [
 
 [[package]]
 name = "rcabench"
-version = "1.1.55"
+version = "1.2.0"
 source = { editable = "../../sdk/python" }
 dependencies = [
     { name = "lazy-imports" },

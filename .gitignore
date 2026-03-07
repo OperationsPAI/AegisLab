@@ -174,15 +174,17 @@ __debug*
 temp
 ts
 logs/
-containers
 .codebuddy
 .github/instructions/tmp/
 .husky/
+client/
 sdk/python-gen/
 sdk/python/src/rcabench/openapi/
 src/docs/converted/
 src/docs/openapi2/
 src/docs/openapi3/
+
+helm/charts/
 
 # Sensitive files with credentials
 helm/certs/*.crt
@@ -192,3 +194,7 @@ scripts/command/*.build/
 scripts/command/*.dist/
 scripts/command/*.onefile-build/
 scripts/command/command.bin
+
+CLAUDE.md
+
+.vscode/

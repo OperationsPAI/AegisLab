@@ -18,6 +18,9 @@ images:
   buildkit:
     name: pair/buildkit
 
+rcabench-frontend:
+  enabled: false
+
 harbor:
   enabled: false
 

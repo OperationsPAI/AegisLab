@@ -8,13 +8,13 @@ pre-commit:
     # Go formatting check
     go-format:
       glob: "*.go"
-      run: make run-command ARGS="git pre-commit-go"
+      run: just run-command git pre-commit-go
       stage_fixed: true
 
     # Python formatting check  
     python-format:
       glob: "*.py"
-      run: make run-command ARGS="git pre-commit-python"
+      run: just run-command git pre-commit-python
       stage_fixed: true
 
 # Commit-msg hook: Lint commit message with git-cliff
@@ -45,23 +45,3 @@ commit-msg:
           exit 1
         }
 
-# Post-commit hook: Auto-generate changelog after each commit
-post-commit:
-  commands:
-    auto-changelog:
-      run: |
-        echo "📝 Generating CHANGELOG.md..."
-        make changelog
-        
-        # Check if CHANGELOG.md has changes
-        if ! git diff --quiet CHANGELOG.md; then
-          echo "✅ CHANGELOG.md has been updated"
-          
-          # Auto-add and amend to the last commit
-          git add CHANGELOG.md
-          git commit --amend --no-edit --no-verify
-          
-          echo "✅ CHANGELOG.md automatically added to the last commit"
-        else
-          echo "⚠️ No CHANGELOG.md changes detected"
-        fi

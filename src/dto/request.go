@@ -4,79 +4,10 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
-	"strings"
 	"time"
 
 	"gorm.io/gorm"
 )
-
-type ListOptionsQuery struct {
-	SortField string `form:"sort_field" bindging:"omitempty"`
-	SortOrder string `form:"sort_order" binding:"omitempty,oneof=asc desc"`
-	Limit     int    `form:"limit" binding:"omitempty"`
-}
-
-func (req *ListOptionsQuery) setDefaults() {
-	if req.SortOrder == "" {
-		req.SortOrder = "desc"
-	}
-
-	if req.SortField == "" {
-		req.SortField = "created_at"
-	}
-}
-
-func (req *ListOptionsQuery) Validate() error {
-	req.setDefaults()
-
-	if req.Limit < 0 {
-		return fmt.Errorf("limit must be a non-negative integer")
-	}
-
-	return nil
-}
-
-var ValidPageSizeMap = map[int]struct{}{
-	10: {},
-	20: {},
-	50: {},
-}
-
-func getValidPageSizes() string {
-	sizes := make([]string, 0, len(ValidPageSizeMap))
-	for size := range ValidPageSizeMap {
-		sizes = append(sizes, fmt.Sprintf("%d", size))
-	}
-
-	return strings.Join(sizes, ", ")
-}
-
-type PaginationQuery struct {
-	PageNum  int `form:"page_num" binding:"omitempty"`
-	PageSize int `form:"page_size" binding:"omitempty"`
-}
-
-func (req *PaginationQuery) Validate() error {
-	if req.PageNum < 0 {
-		return fmt.Errorf("page number must be a non-negative integer")
-	}
-
-	if req.PageSize < 0 {
-		return fmt.Errorf("page size must be a non-negative integer")
-	}
-
-	if (req.PageNum == 0) != (req.PageSize == 0) {
-		return fmt.Errorf("both page_num and page_size must be provided together or both be 0")
-	}
-
-	if req.PageSize > 0 {
-		if _, exists := ValidPageSizeMap[req.PageSize]; !exists {
-			return fmt.Errorf("invalid page size: %d (supported: %s)", req.PageSize, getValidPageSizes())
-		}
-	}
-
-	return nil
-}
 
 type TimeRangeQuery struct {
 	Lookback       string `form:"lookback" binding:"omitempty"`

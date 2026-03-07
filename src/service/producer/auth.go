@@ -82,9 +82,10 @@ func Login(req *dto.LoginReq) (*dto.LoginResp, error) {
 			return fmt.Errorf("%w: invalid username or password", consts.ErrAuthenticationFailed)
 		}
 
-		token, expiresAt, err = utils.GenerateToken(user.ID, user.Username, user.Email, user.IsActive)
+		// Generate token with user roles
+		token, expiresAt, err = generateTokenWithRoles(tx, user)
 		if err != nil {
-			return fmt.Errorf("failed to generate token: %w", err)
+			return err
 		}
 
 		if err := repository.UpdateUserLoginTime(tx, user.ID); err != nil {
@@ -98,10 +99,22 @@ func Login(req *dto.LoginReq) (*dto.LoginResp, error) {
 		return nil, err
 	}
 
+	roles, err := repository.ListRolesByUserID(database.DB, loginedUser.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user role: %w", err)
+	}
+
+	if len(roles) == 0 {
+		return nil, fmt.Errorf("%w: user has no assigned role", consts.ErrPermissionDenied)
+	}
+
+	info := dto.NewUserInfo(loginedUser)
+	info.Role = roles[0].Name
+
 	resp := &dto.LoginResp{
 		Token:     token,
 		ExpiresAt: expiresAt,
-		User:      *dto.NewUserInfo(loginedUser),
+		User:      *info,
 	}
 	return resp, nil
 }
@@ -125,10 +138,22 @@ func RefreshToken(req *dto.TokenRefreshReq) (*dto.TokenRefreshResp, error) {
 		return nil, fmt.Errorf("token refresh request is nil")
 	}
 
-	// Refresh the token
-	newToken, expiresAt, err := utils.RefreshToken(req.Token)
+	// Validate refresh token and get user info
+	refreshClaims, err := utils.ValidateToken(req.Token)
 	if err != nil {
 		return nil, fmt.Errorf("token refresh failed: %w", err)
+	}
+
+	// Fetch fresh user data from database
+	user, err := repository.GetUserByID(database.DB, refreshClaims.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("user not found: %w", err)
+	}
+
+	// Generate new access token with fresh user data
+	newToken, expiresAt, err := generateTokenWithRoles(database.DB, user)
+	if err != nil {
+		return nil, err
 	}
 
 	response := &dto.TokenRefreshResp{
@@ -227,4 +252,35 @@ func getAllUserResourceRoles(userID int) ([]dto.UserContainerInfo, []dto.UserDat
 	}
 
 	return containerRoles, datasetRoles, projectRoles, nil
+}
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+// generateTokenWithRoles fetches user roles and generates a JWT token with role information
+func generateTokenWithRoles(db *gorm.DB, user *database.User) (string, time.Time, error) {
+	// Get user's global roles
+	roles, err := repository.ListRolesByUserID(db, user.ID)
+	if err != nil {
+		return "", time.Time{}, fmt.Errorf("failed to get user roles: %w", err)
+	}
+
+	// Check if user is system admin and build role names list
+	isAdmin := false
+	roleNames := make([]string, 0, len(roles))
+	for _, role := range roles {
+		roleNames = append(roleNames, role.Name)
+		if role.Name == string(consts.RoleSuperAdmin) || role.Name == string(consts.RoleAdmin) {
+			isAdmin = true
+		}
+	}
+
+	// Generate token with role information
+	token, expiresAt, err := utils.GenerateToken(user.ID, user.Username, user.Email, user.IsActive, isAdmin, roleNames)
+	if err != nil {
+		return "", time.Time{}, fmt.Errorf("failed to generate token: %w", err)
+	}
+
+	return token, expiresAt, nil
 }

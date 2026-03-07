@@ -18,7 +18,7 @@ func BatchUpsertRoles(db *gorm.DB, roles []database.Role) error {
 
 	if err := db.Omit(commonOmitFields).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "name"}},
-		DoNothing: true,
+		DoUpdates: clause.AssignmentColumns([]string{}),
 	},
 	).Create(&roles).Error; err != nil {
 		return fmt.Errorf("failed to batch upsert roles: %v", err)
@@ -56,7 +56,7 @@ func GetRoleByID(db *gorm.DB, id int) (*database.Role, error) {
 }
 
 // GetRoleByName gets role by name
-func GetRoleByName(db *gorm.DB, name consts.RoleName) (*database.Role, error) {
+func GetRoleByName(db *gorm.DB, name string) (*database.Role, error) {
 	var role database.Role
 	if err := db.
 		Where("name = ? and status != ?", name, consts.CommonDeleted).
@@ -100,6 +100,16 @@ func ListRoles(db *gorm.DB, limit, offset int, isSystem *bool, status *consts.St
 	}
 
 	return roles, total, nil
+}
+
+// ListRolesByIDs gets roles by a list of IDs
+func ListRolesByIDs(db *gorm.DB, roleIDs []int) ([]database.Role, error) {
+	var roles []database.Role
+	if err := db.Where("id IN (?) AND status = ?", roleIDs, consts.CommonEnabled).
+		Find(&roles).Error; err != nil {
+		return nil, fmt.Errorf("failed to list roles by IDs: %v", err)
+	}
+	return roles, nil
 }
 
 // ListSystemRoles gets system roles

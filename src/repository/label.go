@@ -54,7 +54,6 @@ func BatchIncreaseLabelUsages(db *gorm.DB, labelIDs []int, increament int) error
 	}
 
 	expr := gorm.Expr("usage_count + ?", increament)
-
 	if err := db.Model(&database.Label{}).
 		Where("id IN (?)", labelIDs).
 		UpdateColumn("usage_count", expr).Error; err != nil {
@@ -70,7 +69,7 @@ func BatchDecreaseLabelUsages(db *gorm.DB, labelIDs []int, decrement int) error 
 		return nil
 	}
 
-	expr := fmt.Sprintf("GREATEST(0, usage_count - %d)", decrement)
+	expr := gorm.Expr("GREATEST(0, usage_count - ?)", decrement)
 	if err := db.Model(&database.Label{}).
 		Where("id IN (?)", labelIDs).
 		Clauses(clause.Returning{}).

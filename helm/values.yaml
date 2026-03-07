@@ -34,6 +34,85 @@ images:
     name: moby/buildkit
     tag: buildx-stable-1
     pullPolicy: IfNotPresent
+  alloy:
+    name: grafana/alloy
+    tag: "v1.13.1"
+    pullPolicy: IfNotPresent
+  loki:
+    name: grafana/loki
+    tag: "3.5.10"
+    pullPolicy: IfNotPresent
+  prometheus:
+    name: prom/prometheus
+    tag: "v3.9.1"
+    pullPolicy: IfNotPresent
+  grafana:
+    name: grafana/grafana
+    tag: "12.3.0"
+    pullPolicy: IfNotPresent
+
+buildkit:
+  enabled: true
+  resources:
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+
+alloy:
+  enabled: true
+  tolerations:
+    - key: "node-role.kubernetes.io/control-plane"
+      operator: "Exists"
+      effect: "NoSchedule"
+  resources:
+    limits:
+      cpu: "200m"
+      memory: "256Mi"
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+
+loki:
+  enabled: true
+  resources:
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+
+prometheus:
+  enabled: true
+  resources:
+    limits:
+      cpu: "1000m"
+      memory: "2Gi"
+    requests:
+      cpu: "200m"
+      memory: "512Mi"
+
+grafana:
+  enabled: true
+  adminUser: "admin"
+  adminPassword: "admin"
+  resources:
+    limits:
+      cpu: "200m"
+      memory: "256Mi"
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+
+rcabench-frontend:
+  enabled: true
+  image:
+    name: docker.io/opspai/rcabench-frontend
+    tag: latest
+    pullPolicy: IfNotPresent
 
 harbor:
   enabled: true
@@ -51,7 +130,7 @@ initialization:
     image:
       name: opspai/init-drain-template
       tag: latest
-      pullPolicy: IfNotPresent
+      pullPolicy: Always
     env:
       TARGET_PATH: /var/lib/rcabench/dataset/drain_template
 
@@ -60,14 +139,14 @@ initialization:
     image:
       name: opspai/init-helm-charts
       tag: latest
-      pullPolicy: IfNotPresent
+      pullPolicy: Always
     env:
       HELM_CHARTS_CONFIG: /app/config.json
       HELM_CHARTS_TARGET_PATH: /var/lib/rcabench/dataset/helm-charts
 
 configmap:
   name: "rcabench"
-  version: "1.1.55"
+  version: "0.0.0"
   port: 8080
   workspace: "/app"
   system:
@@ -103,15 +182,16 @@ configmap:
           mount_path: "/experiment_storage"
           source_type: "pvc"
           claim_name: "rcabench-juicefs-experiment-storage"
-  logging:
-    dir: "/app/logs"
-    job:
-      dir: "jobs"
   jfs:
+    container_path: "/app/containers"
     dataset_path: "/var/lib/rcabench/dataset"
     experiment_storage_path: "/var/lib/rcabench/experiment_storage"
-  container:
-    storage_path: "/app/containers"
+  loki:
+    timeout: "10s"
+    max_entries: 5000
+  otlp:
+    port: 4319
+    max_request_size: 5242880
 
 persistence:
   # Global storage type setting - applies to containers, logs, and juicefs sections
@@ -148,16 +228,16 @@ persistence:
     accessMode: ReadWriteMany
     size: 20Gi
     # storageClass is determined by persistence.storageType
-  logs:
+  observability:
     enabled: true
     accessMode: ReadWriteMany
-    size: 20Gi
+    size: 50Gi
     # storageClass is determined by persistence.storageType
   juicefs:
     enabled: true
     size: 1000Gi
     # Uses persistence.storageType for storage selection
-    useStaticPV: true  # Only applies when storageType is "juicefs"
+    useStaticPV: true # Only applies when storageType is "juicefs"
     subPath:
       dataset: "rcabench_dataset"
       experiment_storage: "experiment_storage"
@@ -183,7 +263,7 @@ juicefs:
 # Only specify keys you want to override from environment metadata defaults
 # The defaults are defined in helm/_helpers.tpl based on the environment
 initialConfig:
-  force: false  # Set to true to force reinitialize etcd config on pod restart
+  force: false # Set to true to force reinitialize etcd config on pod restart
   producer:
     settings: {}
 
@@ -192,6 +272,6 @@ initialConfig:
 
 # Initial data files - can be overridden via skaffold setFiles
 initialDataFiles:
-  data_json: ""
+  data_yaml: ""
   otel_demo_yaml: ""
   ts_yaml: ""

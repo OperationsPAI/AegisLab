@@ -16,6 +16,26 @@ images:
     name: library/busybox
   buildkit:
     name: library/buildkit
+  alloy:
+    name: library/alloy
+  loki:
+    name: library/loki
+  prometheus:
+    name: library/prometheus
+  grafana:
+    name: library/grafana
+
+buildkit:
+  enabled: false
+
+rcabench-frontend:
+  image:
+    repository: 10.10.10.240/library/rcabench-frontend
+
+  service:
+    type: NodePort
+    port: 80
+    nodePort: 32180
 
 harbor:
   enabled: true

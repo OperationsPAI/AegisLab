@@ -3,8 +3,6 @@ package middleware
 import (
 	"regexp"
 
-	"context"
-
 	"github.com/google/uuid"
 
 	"github.com/gin-gonic/gin"
@@ -53,7 +51,7 @@ func TracerMiddleware() gin.HandlerFunc {
 		spanName := c.Request.Method + " " + c.Request.URL.Path
 
 		ctx, span := otel.Tracer("rcabench/group").Start(
-			context.Background(),
+			c.Request.Context(),
 			spanName,
 			trace.WithAttributes(
 				attribute.String("group_id", groupID),

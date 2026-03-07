@@ -23,7 +23,7 @@ class GoFormatter(Formatter):
         Args:
             scope: The scope type determining which files to format
         """
-        self.scope = scope
+        super().__init__(scope)
         self.files_to_format = self._get_files()
 
     def _get_files(self) -> list[str]:
@@ -92,10 +92,8 @@ class GoFormatter(Formatter):
                     [
                         "golangci-lint",
                         "run",
-                        "--issues-exit-code=1",
-                        "--path-prefix=src",
-                        "--whole-files",
-                        "--new-from-rev=HEAD~1",
+                        "--config",
+                        (PROJECT_ROOT / ".golangci.yml").as_posix(),
                     ],
                     cwd=PROJECT_ROOT / "src",
                     check=True,

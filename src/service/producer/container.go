@@ -54,7 +54,7 @@ func CreateContainer(req *dto.CreateContainerReq, userID int) (*dto.ContainerRes
 
 // CreateContainerCore performs the core logic of creating a container within a transaction
 func CreateContainerCore(tx *gorm.DB, container *database.Container, userID int) (*database.Container, error) {
-	role, err := repository.GetRoleByName(tx, consts.RoleContainerAdmin)
+	role, err := repository.GetRoleByName(tx, consts.RoleContainerAdmin.String())
 	if err != nil {
 		if errors.Is(err, consts.ErrNotFound) {
 			return nil, fmt.Errorf("%w: role %v not found", err, consts.RoleContainerAdmin)
@@ -776,7 +776,7 @@ func fetchContainersMapByIDBatch(db *gorm.DB, containerIDs []int) (map[int]datab
 
 // processGitHubSource processes the GitHub source for building the container
 func processGitHubSource(req *dto.SubmitBuildContainerReq) (string, error) {
-	targetDir := filepath.Join(config.GetString("container.storage_path"), req.ImageName, fmt.Sprintf("build_%d", time.Now().Unix()))
+	targetDir := filepath.Join(config.GetString("jfs.container_path"), req.ImageName, fmt.Sprintf("build_%d", time.Now().Unix()))
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
 		return "", fmt.Errorf("failed to create target directory: %w", err)
 	}
@@ -818,7 +818,7 @@ func processGitHubSource(req *dto.SubmitBuildContainerReq) (string, error) {
 			return "", fmt.Errorf("sub path '%s' does not exist in repository", req.SubPath)
 		}
 
-		newTargetDir := filepath.Join(config.GetString("container.storage_path"), req.ImageName, fmt.Sprintf("build_final_%d", time.Now().Unix()))
+		newTargetDir := filepath.Join(config.GetString("jfs.container_path"), req.ImageName, fmt.Sprintf("build_final_%d", time.Now().Unix()))
 		if err := utils.CopyDir(sourcePath, newTargetDir); err != nil {
 			return "", fmt.Errorf("failed to copy subdirectory: %w", err)
 		}

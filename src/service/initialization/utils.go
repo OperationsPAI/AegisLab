@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"aegis/database"
 
 	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert/yaml"
 )
 
 func loadInitialDataFromFile(filePath string) (*InitialData, error) {
@@ -17,8 +19,17 @@ func loadInitialDataFromFile(filePath string) (*InitialData, error) {
 	}
 
 	var initialData InitialData
-	if err := json.Unmarshal(data, &initialData); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal initial data: %w", err)
+
+	ext := filepath.Ext(filePath)
+	switch ext {
+	case ".json":
+		if err := json.Unmarshal(data, &initialData); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal initial data: %w", err)
+		}
+	case ".yaml":
+		if err := yaml.Unmarshal(data, &initialData); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal initial data: %w", err)
+		}
 	}
 
 	return &initialData, nil

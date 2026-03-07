@@ -151,6 +151,55 @@ docker compose up redis mysql jaeger buildkitd -d
 
 ## Project-Specific Patterns
 
+### Workflow Orchestration via CRD Callbacks
+
+**Important**: Workflow orchestration is NOT implemented as a separate "Workflow" entity. Instead, it's implemented through **Kubernetes CRD event callbacks** that automatically trigger the next task in the pipeline.
+
+#### How It Works
+
+1. **CRD Lifecycle Events**: When a Chaos Mesh CRD (fault injection) completes, the K8s controller detects it
+2. **Callback Trigger**: `HandleCRDSucceeded()` callback is invoked in [`src/service/consumer/k8s_handler.go:230`](src/service/consumer/k8s_handler.go:230)
+3. **Next Task Submission**: The callback automatically submits the next task (e.g., BuildDatapack) using `common.SubmitTask()`
+4. **Chain Reaction**: Each task completion triggers the next task in the workflow
+
+#### Workflow Chain Example
+
+```
+FaultInjection (CRD) → HandleCRDSucceeded() → SubmitTask(BuildDatapack)
+                                                    ↓
+                                            Job Completes → HandleJobSucceeded()
+                                                    ↓
+                                            SubmitTask(RunAlgorithm)
+                                                    ↓
+                                            Job Completes → HandleJobSucceeded()
+                                                    ↓
+                                            SubmitTask(CollectResult)
+```
+
+#### Key Implementation Details
+
+- **Callback Interface**: [`src/client/k8s/controller.go:46-54`](src/client/k8s/controller.go:46-54) defines the Callback interface
+- **CRD Success Handler**: [`src/service/consumer/k8s_handler.go:230-317`](src/service/consumer/k8s_handler.go:230-317)
+  - Parses K8s annotations and labels to extract task context
+  - Updates injection state
+  - Submits BuildDatapack task as child task
+  - Handles batch injections with `batchManager`
+- **Job Success Handler**: [`src/service/consumer/k8s_handler.go:517-650`](src/service/consumer/k8s_handler.go:517-650)
+  - Handles different task types (BuildDatapack, RunAlgorithm, etc.)
+  - Automatically submits next task based on current task type
+  - Publishes events to Redis stream for real-time updates
+
+#### Task Context Propagation
+
+- **Annotations**: K8s annotations carry OpenTelemetry trace context (taskCarrier, traceCarrier)
+- **Labels**: K8s labels carry task metadata (taskID, traceID, taskType, groupID, projectID, userID)
+- **Parent-Child Relationship**: Each submitted task has `ParentTaskID` pointing to the previous task
+
+#### Batch Injection Support
+
+- **batchManager**: Tracks batch injection progress in [`src/service/consumer/fault_injection.go:34-89`](src/service/consumer/fault_injection.go:34-89)
+- **Hybrid Mode**: When multiple faults are injected in parallel, the callback waits for all to complete before submitting BuildDatapack
+
 ### Tracing Context
 
 Tasks use hierarchical tracing contexts:
@@ -187,9 +236,131 @@ See [`extractContext()`](src/service/consumer/task.go:275-306) in task.go.
 4. For API changes: Regenerate swagger (`make swag-init`) and SDK (`make generate-python-sdk`)
 5. Use `make local-debug` for interactive development with live reload
 
+## Testing Methodology
+
+### Backend API Testing
+
+After implementing new API endpoints, always test manually before committing:
+
+1. **Start Infrastructure Services**:
+   ```bash
+   cd /home/nn/workspace/proj/AegisLab
+   docker compose up -d redis mysql
+   ```
+
+2. **Build and Start Server**:
+   ```bash
+   cd src
+   go build -o /tmp/aegislab-test ./main.go
+   ENV_MODE=dev /tmp/aegislab-test both --port 8082
+   ```
+
+3. **Test Endpoints with curl**:
+   ```bash
+   # Test authentication
+   curl -s -X POST http://localhost:8082/api/v2/auth/login \
+     -H "Content-Type: application/json" \
+     -d '{"username":"admin","password":"admin"}' | jq -r '.data.access_token'
+
+   # Test new endpoint (should return 401 without auth)
+   curl -s http://localhost:8082/api/v2/datapacks | jq '.'
+
+   # Test with auth token
+   TOKEN="your_token_here"
+   curl -s -H "Authorization: Bearer $TOKEN" \
+     http://localhost:8082/api/v2/datapacks?page=1&size=10 | jq '.'
+   ```
+
+4. **Verify in Logs**:
+   ```bash
+   tail -f /tmp/aegislab-server.log
+   ```
+
+### Frontend Testing
+
+1. **Start Frontend Dev Server**:
+   ```bash
+   cd frontend
+   npm run dev
+   ```
+
+2. **Manual Browser Testing**:
+   - Navigate to http://localhost:3000
+   - Test new pages and features
+   - Check browser console for errors
+   - Verify API calls in Network tab
+
+3. **Build Verification**:
+   ```bash
+   npm run build
+   npm run preview
+   ```
+
+### Integration Testing
+
+1. **End-to-End Workflow**:
+   - Create injection → verify datapack created → run algorithm → view results
+   - Test real-time updates (SSE)
+   - Verify navigation and routing
+
+2. **Common Issues**:
+   - **CORS errors**: Check API proxy in `vite.config.ts`
+   - **Auth failures**: Verify token storage in localStorage
+   - **404 errors**: Check route definitions in `App.tsx`
+
 ## Troubleshooting
 
 - **Database connection issues**: Ensure MySQL container is running and accessible
 - **Kubernetes errors**: Expected in non-K8s environments; application requires K8s for full functionality
 - **BuildKit failures**: May occasionally fail to start; doesn't affect core development
 - **Import errors**: Run `go mod tidy` in `src/` directory
+
+## SDK Generation
+
+### Adding APIs to SDK
+
+The SDK generator only includes APIs that are explicitly marked for SDK inclusion. To add an API to the generated SDK:
+
+1. Add `@x-api-type {"sdk":"true"}` annotation to the handler function's Swagger comments:
+
+```go
+// @Router  /api/v2/your-endpoint [get]
+// @x-api-type {"sdk":"true"}
+func YourHandler(c *gin.Context) {
+```
+
+2. Regenerate the SDK:
+```bash
+make generate-typescript-sdk SDK_VERSION=0.0.0
+```
+
+3. Install the updated SDK in frontend:
+```bash
+cd frontend && npm install
+```
+
+### SDK Files Location
+- **TypeScript SDK**: `sdk/typescript/` - Used by frontend via `@rcabench/client`
+- **Python SDK**: `sdk/python/` - Used by CLI tools
+
+### API Filtering Logic
+The SDK generation script (`scripts/command/src/swagger.py`) filters APIs based on the `x-api-type.sdk` field. Only APIs with `{"sdk":"true"}` are included in the generated SDK.
+
+## Reference Documentation
+
+For comprehensive factual documentation about existing implementations, data models, and API endpoints, refer to:
+
+- **[Codebase Facts & Relationships](/.claude/plans/codebase-facts-and-relationships.md)** - Complete inventory of:
+  - Data model relationships (FaultInjection, Task, Execution, DatasetVersion, ContainerVersion)
+  - All 58+ v2 API endpoints organized by domain
+  - 30+ existing frontend pages and components
+  - Key facts: FaultInjection = Datapack (same entity), workflow orchestration via CRD callbacks
+  - Database relationships and label system
+
+- **[Implementation Status](/.claude/plans/implementation-status-updated.md)** - Current progress:
+  - Phase 1 completion status (75%)
+  - Verified working components (backend API, frontend services)
+  - Remaining tasks for Phase 1 completion
+  - Phase 2-4 roadmap
+
+These documents prevent duplicate implementation and provide quick reference for existing functionality.

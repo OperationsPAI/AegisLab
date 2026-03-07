@@ -62,6 +62,8 @@ exclude = [ #
     "logs/",
     "vendor/",
     "output/",
+    "**/node_modules",
+    "**/.*",
 ]
 
 [tool.pytest.ini_options]

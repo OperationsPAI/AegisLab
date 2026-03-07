@@ -1,6 +1,9 @@
+import re
 import time
 
+import tomlkit
 from python_on_whales import DockerClient
+from ruamel.yaml import YAML
 
 from src.common.common import ENV, PROJECT_ROOT, console, settings
 from src.common.kubernetes_manager import KubernetesManager, with_k8s_manager
@@ -117,3 +120,34 @@ def local_deploy(env: ENV, k8s_manager: KubernetesManager):
 
     console.print()
     k8s_manager.delete_jobs(settings.k8s_namespace, output_err=True)
+
+
+def update_version(version: str):
+    """Updates the version number across all relevant files."""
+    # Update version in src/main.go Swagger annotation
+    main_go_path = PROJECT_ROOT / "src" / "main.go"
+    content = main_go_path.read_text(encoding="utf-8")
+    content = re.sub(r"(@version\s+)\S+", rf"\g<1>{version}", content)
+    main_go_path.write_text(content, encoding="utf-8")
+
+    # Update version in src/config.dev.toml
+    dev_config_path = PROJECT_ROOT / "src" / "config.dev.toml"
+    with open(dev_config_path, encoding="utf-8") as f:
+        dev_config = tomlkit.load(f)
+
+    dev_config["version"] = version
+    with open(dev_config_path, "w", encoding="utf-8") as f:
+        tomlkit.dump(dev_config, f)
+
+    # Update version in helm/values.yaml
+    yaml = YAML()
+    yaml.preserve_quotes = True
+    yaml.indent(mapping=2, sequence=4, offset=2)
+
+    helm_values_path = PROJECT_ROOT / "helm" / "values.yaml"
+    with open(helm_values_path, encoding="utf-8") as f:
+        helm_values = yaml.load(f)
+
+    helm_values["configmap"]["version"] = version
+    with open(helm_values_path, "w", encoding="utf-8") as f:
+        yaml.dump(helm_values, f)

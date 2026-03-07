@@ -2,9 +2,11 @@ package repository
 
 import (
 	"fmt"
+	"time"
 
 	"aegis/consts"
 	"aegis/database"
+	"aegis/dto"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -18,7 +20,7 @@ func BatchUpsertPermissions(db *gorm.DB, perimissons []database.Permission) erro
 
 	if err := db.Omit(commonOmitFields).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "name"}},
-		DoNothing: true,
+		DoUpdates: clause.AssignmentColumns([]string{}),
 	}).Create(&perimissons).Error; err != nil {
 		return fmt.Errorf("failed to batch upsert permissions: %v", err)
 	}
@@ -73,6 +75,20 @@ func GetPermissionsByAction(db *gorm.DB, action string) ([]database.Permission, 
 		return nil, fmt.Errorf("failed to get permissions by action: %v", err)
 	}
 	return permissions, nil
+}
+
+// GetPermissionByActionAndResource gets permission by action and resource name
+func GetPermissionByActionAndResource(db *gorm.DB, action consts.ActionName, scope consts.ResourceScope, resourceName consts.ResourceName) (*database.Permission, error) {
+	var permission database.Permission
+	if err := db.
+		Select("permissions.*").
+		Joins("JOIN resources ON permissions.resource_id = resources.id").
+		Where("permissions.action = ? AND permissions.scope= ? AND resources.name = ?", action, scope, resourceName).
+		Where("permissions.status != ?", consts.CommonDeleted).
+		First(&permission).Error; err != nil {
+		return nil, fmt.Errorf("failed to find permission with action %s and resource %s: %w", action, resourceName, err)
+	}
+	return &permission, nil
 }
 
 // GetPermissionsByResource gets permissions by resource
@@ -188,4 +204,126 @@ func ListRolesByPermissionID(db *gorm.DB, permissionID int) ([]database.Role, er
 	}
 
 	return roles, nil
+}
+
+// CheckUserHasPermission checks if user has specific permission through various sources
+func CheckUserHasPermission(db *gorm.DB, params *dto.CheckPermissionParams, permissionID int) (bool, error) {
+	// Build direct permission query
+	directQuery := buildDirectPermissionQuery(db, params.UserID, permissionID, params.ProjectID, params.ContainerID, params.DatasetID)
+
+	// Build global role permission query
+	globalRoleQuery := buildGlobalRolePermissionQuery(db, params.UserID, permissionID)
+
+	// Combine direct and global role permissions
+	finalQuery := db.Table("(? UNION ALL ?) as base", directQuery, globalRoleQuery)
+
+	// Add team role permissions if teamID is provided
+	if params.TeamID != nil {
+		teamRoleQuery := buildTeamRolePermissionQuery(db, params.UserID, permissionID, *params.TeamID)
+		finalQuery = db.Table("(? UNION ALL ?) as combined", finalQuery, teamRoleQuery)
+	}
+
+	// Add project role permissions if projectID is provided
+	if params.ProjectID != nil {
+		projectRoleQuery := buildProjectRolePermissionQuery(db, params.UserID, permissionID, *params.ProjectID)
+		finalQuery = db.Table("(? UNION ALL ?) as combined", finalQuery, projectRoleQuery)
+	}
+
+	// Add container role permissions if containerID is provided
+	if params.ContainerID != nil {
+		containerRoleQuery := buildContainerRolePermissionQuery(db, params.UserID, permissionID, *params.ContainerID)
+		finalQuery = db.Table("(? UNION ALL ?) as combined", finalQuery, containerRoleQuery)
+	}
+
+	// Add dataset role permissions if datasetID is provided
+	if params.DatasetID != nil {
+		datasetRoleQuery := buildDatasetRolePermissionQuery(db, params.UserID, permissionID, *params.DatasetID)
+		finalQuery = db.Table("(? UNION ALL ?) as combined", finalQuery, datasetRoleQuery)
+	}
+
+	var count int64
+	if err := finalQuery.Limit(1).Count(&count).Error; err != nil {
+		return false, fmt.Errorf("failed to check user permission: %w", err)
+	}
+
+	return count > 0, nil
+}
+
+// buildDirectPermissionQuery builds query for direct user permissions
+func buildDirectPermissionQuery(db *gorm.DB, userID int, permissionID int, projectID, containerID, datasetID *int) *gorm.DB {
+	query := db.
+		Select("up.permission_id").
+		Table("user_permissions up").
+		Where("up.user_id = ? AND up.permission_id = ?", userID, permissionID).
+		Where("up.grant_type = ?", consts.GrantTypeGrant).
+		Where("up.expires_at IS NULL OR up.expires_at > ?", time.Now())
+
+	if projectID != nil {
+		query = query.Where("up.project_id IS NULL OR up.project_id = ?", *projectID)
+	} else {
+		query = query.Where("up.project_id IS NULL")
+	}
+
+	if containerID != nil {
+		query = query.Where("up.container_id IS NULL OR up.container_id = ?", *containerID)
+	} else {
+		query = query.Where("up.container_id IS NULL")
+	}
+
+	if datasetID != nil {
+		query = query.Where("up.dataset_id IS NULL OR up.dataset_id = ?", *datasetID)
+	} else {
+		query = query.Where("up.dataset_id IS NULL")
+	}
+
+	return query
+}
+
+// buildGlobalRolePermissionQuery builds query for global role permissions
+func buildGlobalRolePermissionQuery(db *gorm.DB, userID int, permissionID int) *gorm.DB {
+	return db.
+		Select("rp.permission_id").
+		Table("role_permissions rp").
+		Joins("JOIN user_roles ur ON rp.role_id = ur.role_id").
+		Where("ur.user_id = ? AND rp.permission_id = ?", userID, permissionID)
+}
+
+// buildTeamRolePermissionQuery builds query for team-specific role permissions
+func buildTeamRolePermissionQuery(db *gorm.DB, userID int, permissionID int, teamID int) *gorm.DB {
+	return db.
+		Select("rp.permission_id").
+		Table("role_permissions rp").
+		Joins("JOIN user_teams ut ON rp.role_id = ut.role_id").
+		Where("ut.user_id = ? AND ut.team_id = ? AND rp.permission_id = ?", userID, teamID, permissionID).
+		Where("ut.status = ?", consts.CommonEnabled)
+}
+
+// buildProjectRolePermissionQuery builds query for project-specific role permissions
+func buildProjectRolePermissionQuery(db *gorm.DB, userID int, permissionID int, projectID int) *gorm.DB {
+	return db.
+		Select("rp.permission_id").
+		Table("role_permissions rp").
+		Joins("JOIN user_projects upr ON rp.role_id = upr.role_id").
+		Where("upr.user_id = ? AND upr.project_id = ? AND rp.permission_id = ?", userID, projectID, permissionID).
+		Where("upr.status = ?", consts.CommonEnabled)
+}
+
+// buildContainerRolePermissionQuery builds query for container-specific role permissions
+func buildContainerRolePermissionQuery(db *gorm.DB, userID int, permissionID int, containerID int) *gorm.DB {
+	return db.
+		Select("rp.permission_id").
+		Table("role_permissions rp").
+		Joins("JOIN user_containers uc ON rp.role_id = uc.role_id").
+		Where("uc.user_id = ? AND uc.container_id = ? AND rp.permission_id = ?", userID, containerID, permissionID).
+		Where("uc.status = ?", consts.CommonEnabled)
+}
+
+// buildDatasetRolePermissionQuery builds query for dataset-specific role permissions
+func buildDatasetRolePermissionQuery(db *gorm.DB, userID int, permissionID int, datasetID int) *gorm.DB {
+	return db.
+		Select("rp.permission_id").
+		Table("role_permissions rp").
+		Joins("JOIN user_datasets ud ON rp.role_id = ud.role_id").
+		Where("ud.user_id = ? AND ud.dataset_id = ? AND rp.permission_id = ?", userID, datasetID, permissionID).
+		Where("ud.status = ?", consts.CommonEnabled)
 }

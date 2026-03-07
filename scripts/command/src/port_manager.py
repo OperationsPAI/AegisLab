@@ -134,20 +134,24 @@ class PortForwardManager:
         console.print("[bold green]✅ Old forwards cleaned[/bold green]\n")
 
     def _calculate_local_port(self, remote_port: int) -> int:
-        """Calculate local port with overflow protection
+        """Calculate local port, padding to 5 digits
 
-        Args:
-            remote_port: Remote service port
-
-        Returns:
-            Local mapped port
+        Examples: 80->10180/20180, 443->10443/20443, 8080->18080/28080
         """
-        local_port = int(f"{self.prefix}{remote_port}")
+        port_digits = len(str(remote_port))
 
-        # Handle port number overflow (>65535)
-        if local_port > 65535:
-            # Map to prefix0000 + (port % 55535)
-            local_port = int(self.prefix) * 10000 + (remote_port % 55535)
+        if port_digits == 4:
+            local_port = int(f"{self.prefix}{remote_port}")
+        elif port_digits == 3:
+            prefix_padding = "10" if self.prefix == "1" else "20"
+            local_port = int(f"{prefix_padding}{remote_port}")
+        elif port_digits == 2:
+            prefix_padding = "101" if self.prefix == "1" else "201"
+            local_port = int(f"{prefix_padding}{remote_port}")
+        else:
+            local_port = int(f"{self.prefix}{remote_port}")
+            if local_port > 65535:
+                local_port = int(self.prefix) * 10000 + (remote_port % 55535)
 
         return local_port
 

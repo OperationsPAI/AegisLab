@@ -147,14 +147,15 @@ func SetupV2Routes(router *gin.Engine) {
 				versionRead.GET("", v2handlers.ListContainerVersions)           // List container versions
 			}
 
-			// Container Version Write operations
-			versionWrite := versions.Group("", middleware.RequireContainerVersionWrite)
-			{
-				versionWrite.POST("", v2handlers.CreateContainerVersion)                      // Create container version
-				versionWrite.POST("/:version_id/helm-chart", v2handlers.UploadHelmChart)      // Upload Helm chart tgz file
-				versionWrite.POST("/:version_id/helm-values", v2handlers.UploadHelmValueFile) // Upload Helm values file
-				versionWrite.PATCH("/:version_id", v2handlers.UpdateContainerVersion)         // Update container version
-			}
+			// Container Version Create operations
+			versions.POST("", middleware.RequireContainerVersionCreate, v2handlers.CreateContainerVersion) // Create container version
+
+			// Container Version Upload operations
+			versions.POST("/:version_id/helm-chart", middleware.RequireContainerVersionUpload, v2handlers.UploadHelmChart)      // Upload Helm chart tgz file
+			versions.POST("/:version_id/helm-values", middleware.RequireContainerVersionUpload, v2handlers.UploadHelmValueFile) // Upload Helm values file
+
+			// Container Version Update operations
+			versions.PATCH("/:version_id", middleware.RequireContainerVersionUpdate, v2handlers.UpdateContainerVersion) // Update container version
 
 			// Container Version Delete operations
 			versions.DELETE("/:version_id", middleware.RequireContainerVersionDelete, v2handlers.DeleteContainerVersion)
@@ -167,14 +168,15 @@ func SetupV2Routes(router *gin.Engine) {
 			containerRead.GET("", v2handlers.ListContainers)             // List containers
 		}
 
-		// Container Write operations
-		containerWrite := containers.Group("", middleware.RequireContainerWrite)
-		{
-			containerWrite.POST("", v2handlers.CreateContainer)                                   // Create container
-			containers.POST("/build", v2handlers.SubmitContainerBuilding)                         // Build container
-			containerWrite.PATCH("/:container_id", v2handlers.UpdateContainer)                    // Update container
-			containerWrite.PATCH("/:container_id/labels", v2handlers.ManageContainerCustomLabels) // Manage container labels
-		}
+		// Container Create operations
+		containers.POST("", middleware.RequireContainerCreate, v2handlers.CreateContainer) // Create container
+
+		// Container Execute operations (build requires execute permission)
+		containers.POST("/build", middleware.RequireContainerExecute, v2handlers.SubmitContainerBuilding) // Build container
+
+		// Container Update operations
+		containers.PATCH("/:container_id", middleware.RequireContainerUpdate, v2handlers.UpdateContainer)                    // Update container
+		containers.PATCH("/:container_id/labels", middleware.RequireContainerUpdate, v2handlers.ManageContainerCustomLabels) // Manage container labels
 
 		// Container Delete operations
 		containers.DELETE("/:container_id", middleware.RequireContainerDelete, v2handlers.DeleteContainer) // Delete container
@@ -193,12 +195,12 @@ func SetupV2Routes(router *gin.Engine) {
 				versionRead.GET("/:version_id/download", v2handlers.DownloadDatasetVersion) // Download dataset version
 			}
 
-			versionWrite := versions.Group("", middleware.RequireDatasetVersionWrite)
-			{
-				versionWrite.POST("", v2handlers.CreateDatasetVersion)                                   // Create dataset version
-				versionWrite.PATCH("/:version_id", v2handlers.UpdateDatasetVersion)                      // Update dataset version
-				versionWrite.PATCH("/:version_id/injections", v2handlers.ManageDatasetVersionInjections) // Manage dataset version injections
-			}
+			// Dataset Version Create operations
+			versions.POST("", middleware.RequireDatasetVersionCreate, v2handlers.CreateDatasetVersion) // Create dataset version
+
+			// Dataset Version Update operations
+			versions.PATCH("/:version_id", middleware.RequireDatasetVersionUpdate, v2handlers.UpdateDatasetVersion)                      // Update dataset version
+			versions.PATCH("/:version_id/injections", middleware.RequireDatasetVersionUpdate, v2handlers.ManageDatasetVersionInjections) // Manage dataset version injections
 
 			versions.DELETE("/:version_id", middleware.RequireDatasetVersionDelete, v2handlers.DeleteDatasetVersion) // Delete dataset version
 		}
@@ -210,13 +212,12 @@ func SetupV2Routes(router *gin.Engine) {
 			datasetRead.GET("", v2handlers.ListDatasets)           // List datasets
 		}
 
-		// Dataset Write operations
-		datasetWrite := datasets.Group("", middleware.RequireDatasetWrite)
-		{
-			datasetWrite.POST("", v2handlers.CreateDataset)                                 // Create dataset
-			datasetWrite.PATCH("/:dataset_id", v2handlers.UpdateDataset)                    // Update dataset
-			datasetWrite.PATCH("/:dataset_id/labels", v2handlers.ManageDatasetCustomLabels) // Manage dataset labels
-		}
+		// Dataset Create operations
+		datasets.POST("", middleware.RequireDatasetCreate, v2handlers.CreateDataset) // Create dataset
+
+		// Dataset Update operations
+		datasets.PATCH("/:dataset_id", middleware.RequireDatasetUpdate, v2handlers.UpdateDataset)                    // Update dataset
+		datasets.PATCH("/:dataset_id/labels", middleware.RequireDatasetUpdate, v2handlers.ManageDatasetCustomLabels) // Manage dataset labels
 
 		// Dataset Delete operations
 		datasets.DELETE("/:dataset_id", middleware.RequireDatasetDelete, v2handlers.DeleteDataset) // Delete dataset
@@ -225,6 +226,40 @@ func SetupV2Routes(router *gin.Engine) {
 	// Project Management - Project Entity
 	projects := v2.Group("/projects", middleware.JWTAuth())
 	{
+		injections := projects.Group("/:project_id/injections")
+		{
+			injectionRead := injections.Group("", middleware.RequireProjectRead)
+			{
+				analysis := injectionRead.Group("/analysis")
+				{
+					analysis.GET("/no-issues", v2handlers.ListFaultInjectionNoIssues)
+					analysis.GET("/with-issues", v2handlers.ListFaultInjectionWithIssues)
+				}
+
+				injectionRead.GET("", v2handlers.ListProjectInjections)
+				injectionRead.POST("", v2handlers.SearchInjections)
+			}
+
+			injectionExecute := injections.Group("", middleware.RequireProjectInjectionExecute)
+			{
+				injectionExecute.POST("/inject", v2handlers.SubmitProjectFaultInjection)
+				injectionExecute.POST("/build", v2handlers.SubmitProjectDatapackBuilding)
+			}
+		}
+
+		executions := projects.Group("/:project_id/executions")
+		{
+			executionRead := executions.Group("", middleware.RequireProjectRead)
+			{
+				executionRead.GET("", v2handlers.ListProjectExecutions)
+			}
+
+			executionExecute := executions.Group("", middleware.RequireProjectExecutionExecute)
+			{
+				executionExecute.POST("/execute", v2handlers.SubmitAlgorithmExecution)
+			}
+		}
+
 		// Project Read operations
 		projectRead := projects.Group("", middleware.RequireProjectRead)
 		{
@@ -232,16 +267,46 @@ func SetupV2Routes(router *gin.Engine) {
 			projectRead.GET("", v2handlers.ListProjects)                 // List projects
 		}
 
-		// Project Write operations
-		projectWrite := projects.Group("", middleware.RequireProjectWrite)
-		{
-			projectWrite.POST("", v2handlers.CreateProject)                                 // Create project
-			projectWrite.PATCH("/:project_id", v2handlers.UpdateProject)                    // Update project
-			projectWrite.PATCH("/:project_id/labels", v2handlers.ManageProjectCustomLabels) // Manage project labels
-		}
+		// Project Create operations
+		projects.POST("", middleware.RequireProjectCreate, v2handlers.CreateProject) // Create project
+
+		// Project Update operations
+		projects.PATCH("/:project_id", middleware.RequireProjectUpdate, v2handlers.UpdateProject)                    // Update project
+		projects.PATCH("/:project_id/labels", middleware.RequireProjectUpdate, v2handlers.ManageProjectCustomLabels) // Manage project labels
 
 		// Project Delete operations
 		projects.DELETE("/:project_id", middleware.RequireProjectDelete, v2handlers.DeleteProject) // Delete project
+	}
+
+	// Team Management - Team Entity
+	teams := v2.Group("/teams", middleware.JWTAuth())
+	{
+		// Anyone can create a team (will become team admin automatically)
+		teams.POST("", v2handlers.CreateTeam)
+
+		// List teams - returns public teams + user's teams (no special permission needed)
+		teams.GET("", v2handlers.ListTeams)
+
+		// Team Write/Delete/Manage operations - requires team admin OR system admin
+		TeamAdmin := teams.Group("/:team_id", middleware.RequireTeamAdminAccess)
+		{
+			TeamAdmin.PATCH("", v2handlers.UpdateTeam)  // Update team
+			TeamAdmin.DELETE("", v2handlers.DeleteTeam) // Delete team
+
+			// Team Member Management - only team admins can manage members
+			TeamManagement := TeamAdmin.Group("/members")
+			TeamManagement.POST("", v2handlers.AddTeamMember)                       // Add team member
+			TeamManagement.DELETE("/:user_id", v2handlers.RemoveTeamMember)         // Remove team member
+			TeamManagement.PATCH("/:user_id/role", v2handlers.UpdateTeamMemberRole) // Update team member role
+		}
+
+		// Team Read operations - requires being a member OR team is public OR system admin
+		TeamMember := teams.Group("", middleware.RequireTeamMemberAccess)
+		{
+			TeamMember.GET("/:team_id", v2handlers.GetTeamDetail)             // Get team by ID
+			TeamMember.GET("/:team_id/members", v2handlers.ListTeamMembers)   // List team members
+			TeamMember.GET("/:team_id/projects", v2handlers.ListTeamProjects) // List team projects
+		}
 	}
 
 	// Label Management - Label Entity
@@ -254,12 +319,11 @@ func SetupV2Routes(router *gin.Engine) {
 			labelRead.GET("", v2handlers.ListLabels)               // List labels
 		}
 
-		// Label Write operations
-		labelWrite := labels.Group("", middleware.RequireLabelWrite)
-		{
-			labelWrite.POST("", v2handlers.CreateLabel)            // Create label
-			labelWrite.PATCH("/:label_id", v2handlers.UpdateLabel) // Update label
-		}
+		// Label Create operations
+		labels.POST("", middleware.RequireLabelCreate, v2handlers.CreateLabel) // Create label
+
+		// Label Update operations
+		labels.PATCH("/:label_id", middleware.RequireLabelUpdate, v2handlers.UpdateLabel) // Update label
 
 		// Label Delete operations
 		labels.DELETE("/:label_id", middleware.RequireLabelDelete, v2handlers.DeleteLabel)        // Delete label
@@ -269,39 +333,39 @@ func SetupV2Routes(router *gin.Engine) {
 	// User Management - User Entity
 	users := v2.Group("/users", middleware.JWTAuth())
 	{
-		// User-Role relationship routes
+		// User-Role relationship routes (assign roles requires assign permission)
 		roles := users.Group("/:user_id/roles")
 		{
-			roles.POST("/:role_id", middleware.RequireUserWrite, v2handlers.AssignUserRole)     // Assign role to user
-			roles.DELETE("/:role_id", middleware.RequireUserWrite, v2handlers.RemoveGlobalRole) // Remove role from user
+			roles.POST("/:role_id", middleware.RequireUserAssign, v2handlers.AssignUserRole)     // Assign role to user
+			roles.DELETE("/:role_id", middleware.RequireUserAssign, v2handlers.RemoveGlobalRole) // Remove role from user
 		}
 
-		// User-Project relationship routes
+		// User-Project relationship routes (assign requires assign permission)
 		projects := users.Group("/:user_id/projects")
 		{
-			projects.POST("/:project_id/roles/:role_id", middleware.RequireUserWrite, v2handlers.AssignUserProject) // Assign user to project
-			projects.DELETE("/:project_id", middleware.RequireUserWrite, v2handlers.RemoveUserProject)              // Remove user from project
+			projects.POST("/:project_id/roles/:role_id", middleware.RequireUserAssign, v2handlers.AssignUserProject) // Assign user to project
+			projects.DELETE("/:project_id", middleware.RequireUserAssign, v2handlers.RemoveUserProject)              // Remove user from project
 		}
 
-		// User-Permission relationship routes
+		// User-Permission relationship routes (assign requires assign permission)
 		permissions := users.Group("/:user_id/permissions")
 		{
-			permissions.POST("/assign", middleware.RequireUserWrite, v2handlers.AssignUserPermission) // Assign permission to user
-			permissions.POST("/remove", middleware.RequireUserWrite, v2handlers.RemoveUserPermission) // Remove permission from user
+			permissions.POST("/assign", middleware.RequireUserAssign, v2handlers.AssignUserPermission) // Assign permission to user
+			permissions.POST("/remove", middleware.RequireUserAssign, v2handlers.RemoveUserPermission) // Remove permission from user
 		}
 
-		// User-Container relationship routes
+		// User-Container relationship routes (assign requires assign permission)
 		containers := users.Group("/:user_id/containers")
 		{
-			containers.POST("/:container_id/roles/:role_id", middleware.RequireUserWrite, v2handlers.AssignUserContainer) // Assign container to user
-			containers.DELETE("/:container_id", middleware.RequireUserWrite, v2handlers.RemoveUserContainer)              // Remove container from user
+			containers.POST("/:container_id/roles/:role_id", middleware.RequireUserAssign, v2handlers.AssignUserContainer) // Assign container to user
+			containers.DELETE("/:container_id", middleware.RequireUserAssign, v2handlers.RemoveUserContainer)              // Remove container from user
 		}
 
-		// User-Dataset relationship routes
+		// User-Dataset relationship routes (assign requires assign permission)
 		datasets := users.Group("/:user_id/datasets")
 		{
-			datasets.POST("/:dataset_id/roles/:role_id", middleware.RequireUserWrite, v2handlers.AssignUserDataset) // Assign dataset to user
-			datasets.DELETE("/:dataset_id", middleware.RequireUserWrite, v2handlers.RemoveUserDataset)              // Remove dataset from user
+			datasets.POST("/:dataset_id/roles/:role_id", middleware.RequireUserAssign, v2handlers.AssignUserDataset) // Assign dataset to user
+			datasets.DELETE("/:dataset_id", middleware.RequireUserAssign, v2handlers.RemoveUserDataset)              // Remove dataset from user
 		}
 
 		// User Read operations
@@ -311,12 +375,11 @@ func SetupV2Routes(router *gin.Engine) {
 			userRead.GET("/:user_id/detail", middleware.RequireAdminOrUserOwnership, v2handlers.GetUserDetailV2) // Get user by ID
 		}
 
-		// User Write operations
-		userWrite := users.Group("", middleware.RequireUserWrite)
-		{
-			userWrite.POST("", v2handlers.CreateUser)           // Create user
-			userWrite.PATCH("/:user_id", v2handlers.UpdateUser) // Update user
-		}
+		// User Create operations
+		users.POST("", middleware.RequireUserCreate, v2handlers.CreateUser) // Create user
+
+		// User Update operations
+		users.PATCH("/:user_id", middleware.RequireUserUpdate, v2handlers.UpdateUser) // Update user
 
 		// User Delete operations
 		users.DELETE("/:user_id", middleware.RequireUserDelete, v2handlers.DeleteUser) // Delete user
@@ -329,11 +392,11 @@ func SetupV2Routes(router *gin.Engine) {
 	// Role Management - Role Entity
 	roles := v2.Group("/roles", middleware.JWTAuth())
 	{
-		// Role-Permission relationship routes
+		// Role-Permission relationship routes (grant/revoke)
 		permissions := roles.Group("/:role_id/permissions")
 		{
-			permissions.POST("/assign", middleware.RequireRoleWrite, v2handlers.AssignRolePermission)      // Assign permissions to role
-			permissions.POST("/remove", middleware.RequireRoleWrite, v2handlers.RemovePermissionsFromRole) // Remove permissions from role
+			permissions.POST("/assign", middleware.RequireRoleGrant, v2handlers.AssignRolePermission)       // Assign permissions to role
+			permissions.POST("/remove", middleware.RequireRoleRevoke, v2handlers.RemovePermissionsFromRole) // Remove permissions from role
 		}
 
 		// Role-User relationship routes
@@ -349,12 +412,11 @@ func SetupV2Routes(router *gin.Engine) {
 			roleRead.GET("", v2handlers.ListRoles)        // List roles
 		}
 
-		// Role Write operations
-		roleWrite := roles.Group("", middleware.RequireRoleWrite)
-		{
-			roleWrite.POST("", v2handlers.CreateRole)           // Create role
-			roleWrite.PATCH("/:role_id", v2handlers.UpdateRole) // Update role
-		}
+		// Role Create operations
+		roles.POST("", middleware.RequireRoleCreate, v2handlers.CreateRole) // Create role
+
+		// Role Update operations
+		roles.PATCH("/:role_id", middleware.RequireRoleUpdate, v2handlers.UpdateRole) // Update role
 
 		// Role Delete operations
 		roles.DELETE("/:role_id", middleware.RequireRoleDelete, v2handlers.DeleteRole) // Delete role
@@ -375,16 +437,6 @@ func SetupV2Routes(router *gin.Engine) {
 			permRead.GET("", v2handlers.ListPermissions)              // List permissions
 			permRead.GET("/:permission_id", v2handlers.GetPermission) // Get permission by ID
 		}
-
-		// Permission Write operations
-		permWrite := permissions.Group("", middleware.RequirePermissionWrite)
-		{
-			permWrite.POST("", v2handlers.CreatePermission)               // Create permission
-			permWrite.PUT("/:permission_id", v2handlers.UpdatePermission) // Update permission
-		}
-
-		// Permission Delete operations
-		permissions.DELETE("/:permission_id", middleware.RequirePermissionDelete, v2handlers.DeletePermission) // Delete permission
 	}
 
 	// Resource Management - Resource Entity
@@ -406,62 +458,69 @@ func SetupV2Routes(router *gin.Engine) {
 	// =====================================================================
 
 	// Task Management - Task Entity
-	tasks := v2.Group("/tasks", middleware.JWTAuth())
+	tasks := v2.Group("/tasks")
 	{
-		// Task Read operations
-		taskRead := tasks.Group("", middleware.RequireTaskRead)
+		taskWithAuth := tasks.Group("", middleware.JWTAuth())
 		{
-			taskRead.GET("", v2handlers.ListTasks)        // List tasks
-			taskRead.GET("/:task_id", v2handlers.GetTask) // Get task by ID
+
+			// Task Read operations
+			taskRead := taskWithAuth.Group("", middleware.RequireTaskRead)
+			{
+				taskRead.GET("", v2handlers.ListTasks)        // List tasks
+				taskRead.GET("/:task_id", v2handlers.GetTask) // Get task by ID
+			}
+
+			// Task Delete operations
+			taskWithAuth.POST("/batch-delete", middleware.RequireTaskDelete, v2handlers.BatchDeleteTasks) // Batch delete tasks
 		}
 
-		// Task Delete operations
-		tasks.POST("/batch-delete", middleware.RequireTaskDelete, v2handlers.BatchDeleteTasks) // Batch delete tasks
+		// Task Log streaming (WebSocket) - auth via query param, not middleware
+		tasks.GET("/:task_id/logs/ws", v2handlers.GetTaskLogsWS) // Stream task logs via WebSocket
 	}
 
 	// Fault Injection Management - FaultInjectionSchedule Entity
+	// Note: These global routes are for system admins only. Regular users should access injections via /projects/:project_id
 	injections := v2.Group("/injections", middleware.JWTAuth())
 	{
-		// Injection Analysis sub-group
-		analysis := injections.Group("/analysis", middleware.RequireInjectionRead)
+		injectionSystemAdmin := injections.Group("", middleware.RequireSystemAdmin())
 		{
-			analysis.GET("/no-issues", v2handlers.ListFaultInjectionNoIssues)     // Get fault injections with no issues
-			analysis.GET("/with-issues", v2handlers.ListFaultInjectionWithIssues) // Get fault injections with issues
+			injectionSystemAdmin.GET("", v2handlers.ListInjections)           // List injections
+			injectionSystemAdmin.POST("/search", v2handlers.SearchInjections) // Advanced search
 		}
 
 		// Injection Read operations
-		injectionRead := injections.Group("", middleware.RequireInjectionRead)
-		{
-			injectionRead.GET("", v2handlers.ListInjections)                // List injections
-			injectionRead.GET("/:id", v2handlers.GetInjection)              // Get injection by ID
-			injectionRead.GET("/:id/download", v2handlers.DownloadDatapack) // Download injection datapack
-			injectionRead.GET("/metadata", v2handlers.GetInjectionMetadata) // Get injection metadata
-			injectionRead.POST("/search", v2handlers.SearchInjections)      // Advanced search
-		}
+		injections.GET("/:id", v2handlers.GetInjection)                        // Get injection by ID
+		injections.GET("/:id/download", v2handlers.DownloadDatapack)           // Download injection datapack
+		injections.GET("/:id/files", v2handlers.ListDatapackFiles)             // Get injection file structure
+		injections.GET("/:id/files/download", v2handlers.DownloadDatapackFile) // Download specific injection file
+		injections.GET("/:id/files/query", v2handlers.QueryDatapackFile)       // Query parquet file content
+		injections.GET("/metadata", v2handlers.GetInjectionMetadata)           // Get injection metadata
 
-		// Injection Write operations
-		injectionWrite := injections.Group("", middleware.RequireInjectionWrite)
-		{
-			injectionWrite.POST("/inject", v2handlers.SubmitFaultInjection)              // Submit new injection
-			injectionWrite.POST("/build", v2handlers.SubmitDatapackBuilding)             // Submit new datapack building
-			injectionWrite.PATCH("/:id/labels", v2handlers.ManageInjectionCustomLabels)  // Manage injection custom labels
-			injectionWrite.PATCH("/labels/batch", v2handlers.BatchManageInjectionLabels) // Batch manage injection labels
-		}
+		// Injection Clone operations
+		injections.POST("/:id/clone", v2handlers.CloneInjection) // Clone injection
+
+		// Injection Update operations (label management)
+		injections.PATCH("/:id/labels", v2handlers.ManageInjectionCustomLabels)  // Manage injection custom labels
+		injections.PATCH("/labels/batch", v2handlers.BatchManageInjectionLabels) // Batch manage injection labels
 
 		// Injection Delete operations
-		injections.POST("/batch-delete", middleware.RequireInjectionDelete, v2handlers.BatchDeleteInjections) // Batch delete injections
+		injections.POST("/batch-delete", v2handlers.BatchDeleteInjections) // Batch delete injections
 	}
 
 	// Execution Result Management - ExecutionResult Entity
+	// Note: These global routes are for system admins only. Regular users should access executions via /projects/:project_id
 	executions := v2.Group("/executions", middleware.JWTAuth())
 	{
-		// Execution Read operations
-		executions.GET("", v2handlers.ListExecutions)                      // List executions
-		executions.GET("/:execution_id", v2handlers.GetExecution)          // Get execution by ID
-		executions.GET("/labels", v2handlers.ListAvaliableExecutionLabels) // List available execution labels
+		executionSystemAdmin := executions.Group("", middleware.RequireSystemAdmin())
+		{
+			executionSystemAdmin.GET("", v2handlers.ListExecutions)                      // List executions
+			executionSystemAdmin.GET("/labels", v2handlers.ListAvaliableExecutionLabels) // List available execution labels
+		}
 
-		// Execution Write operations
-		executions.POST("/execute", v2handlers.SubmitAlgorithmExecution)                           // Submit algorithm execution
+		// Execution Read operations
+		executions.GET("/:execution_id", v2handlers.GetExecution) // Get execution by ID
+
+		// Execution Update operations (upload results and manage labels)
 		executions.POST("/:execution_id/detector_results", v2handlers.UploadDetectorResults)       // Upload detector results
 		executions.POST("/:execution_id/granularity_results", v2handlers.UploadGranularityResults) // Upload granularity results
 		executions.PATCH("/:execution_id/labels", v2handlers.ManageExecutionCustomLabels)          // Manage execution custom labels
@@ -473,8 +532,25 @@ func SetupV2Routes(router *gin.Engine) {
 	// Trace Management - Trace Entity
 	traces := v2.Group("/traces", middleware.JWTAuth())
 	{
-		traces.GET("/group/stats", v2handlers.GetGroupStats)       // Get group traces statistics
+		traces.GET("", v2handlers.ListTraces)                      // List traces
 		traces.GET("/:trace_id/stream", v2handlers.GetTraceStream) // Get trace stream (SSE)
+	}
+
+	// Group Management - Group stream for real-time batch progress
+	groups := v2.Group("/groups", middleware.JWTAuth())
+	{
+		groups.GET("/:group_id/stats", v2handlers.GetAlgorithmMetrics) // Get group stats (can be used for progress tracking)
+		groups.GET("/:group_id/stream", v2handlers.GetGroupStream)     // Stream group trace events (SSE)
+	}
+
+	// =====================================================================
+	// Notification API Group
+	// =====================================================================
+
+	// Notification Management - Global workflow notifications
+	notifications := v2.Group("/notifications", middleware.JWTAuth())
+	{
+		notifications.GET("/stream", v2handlers.GetNotificationStream) // Stream global notifications (SSE)
 	}
 
 	// =====================================================================
@@ -497,5 +573,28 @@ func SetupV2Routes(router *gin.Engine) {
 
 		// POST /api/v2/evaluations/datapacks - Get algorithm evaluations on multiple datapacks (requires dataset read permission)
 		evaluations.POST("/datapacks", middleware.RequireDatasetRead, v2handlers.ListDatapackEvaluationResults)
+	}
+
+	// =====================================================================
+	// Metrics API Group
+	// =====================================================================
+
+	// Metrics routes
+	metrics := v2.Group("/metrics", middleware.JWTAuth())
+	{
+		metrics.GET("/injections", v2handlers.GetInjectionMetrics) // Get injection metrics
+		metrics.GET("/executions", v2handlers.GetExecutionMetrics) // Get execution metrics
+		metrics.GET("/algorithms", v2handlers.GetAlgorithmMetrics) // Get algorithm comparison metrics
+	}
+
+	// =====================================================================
+	// System Metrics API Group
+	// =====================================================================
+
+	// System metrics routes
+	system := v2.Group("/system", middleware.JWTAuth())
+	{
+		system.GET("/metrics", v2handlers.GetSystemMetrics)                // Get current system metrics
+		system.GET("/metrics/history", v2handlers.GetSystemMetricsHistory) // Get historical system metrics
 	}
 }

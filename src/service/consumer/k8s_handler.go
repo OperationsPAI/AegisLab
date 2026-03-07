@@ -397,46 +397,16 @@ func (h *k8sHandler) HandleJobFailed(job *batchv1.Job, annotations map[string]st
 
 	var filePath string
 	if len(logMap) > 0 {
-		jobLogBytes, err := json.Marshal(logMap)
-		if err != nil {
-			errCtx.Warn(logrus.WithField("job_name", job.Name), "failed to marshal job logs", err)
-		}
-
-		jobLog := string(jobLogBytes)
 		spanAttrs := []trace.EventOption{
 			trace.WithAttributes(
 				attribute.String("job_name", job.Name),
 				attribute.String("namespace", job.Namespace),
 			),
 		}
-
-		filePath, err = writeJobLogs(job, parsedLabels.traceID, logMap)
-		if err != nil {
-			errCtx.Warn(logrus.WithFields(logrus.Fields{
-				"job_name":  job.Name,
-				"pod_count": len(logMap),
-			}), "job failed - logs available but file writing failed", err)
-
-			for podName, log := range logMap {
-				logrus.WithField("pod_name", podName).Warn("job logs:")
-				logrus.Warn(log)
-			}
-
-			spanAttrs = append(spanAttrs, trace.WithAttributes(
-				attribute.String("logs", jobLog),
-			))
-		}
-
-		if filePath != "" {
-			spanAttrs = append(spanAttrs, trace.WithAttributes(
-				attribute.String("log_file", filePath),
-			))
-		}
-
 		taskSpan.AddEvent("job failed", spanAttrs...)
 	}
 
-	publishEvent(taskCtx, fmt.Sprintf(consts.StreamLogKey, parsedLabels.traceID), dto.StreamEvent{
+	publishEvent(taskCtx, fmt.Sprintf(consts.StreamTraceLogKey, parsedLabels.traceID), dto.TraceStreamEvent{
 		TaskID:    parsedLabels.taskID,
 		TaskType:  parsedLabels.taskType,
 		EventName: consts.EventJobFailed,
@@ -527,7 +497,7 @@ func (h *k8sHandler) HandleJobSucceeded(job *batchv1.Job, annotations map[string
 		return
 	}
 
-	stream := fmt.Sprintf(consts.StreamLogKey, parsedLabels.traceID)
+	stream := fmt.Sprintf(consts.StreamTraceLogKey, parsedLabels.traceID)
 
 	taskCtx := otel.GetTextMapPropagator().Extract(context.Background(), parsedAnnotations.taskCarrier)
 	traceCtx := otel.GetTextMapPropagator().Extract(context.Background(), parsedAnnotations.traceCarrier)
@@ -545,7 +515,7 @@ func (h *k8sHandler) HandleJobSucceeded(job *batchv1.Job, annotations map[string
 		return
 	}
 
-	publishEvent(taskCtx, stream, dto.StreamEvent{
+	publishEvent(taskCtx, stream, dto.TraceStreamEvent{
 		TaskID:    parsedLabels.taskID,
 		TaskType:  parsedLabels.taskType,
 		EventName: consts.EventJobSucceed,
@@ -865,7 +835,7 @@ func updateExecutionState(executionID int, newState consts.ExecutionState) error
 		}
 
 		if execution.State != consts.ExecutionInitial {
-			return fmt.Errorf("cannot change state of execution %d from %s to %s", executionID, consts.GetExecuteStateName(execution.State), consts.GetExecuteStateName(newState))
+			return fmt.Errorf("cannot change state of execution %d from %s to %s", executionID, consts.GetExecutionStateName(execution.State), consts.GetExecutionStateName(newState))
 		}
 
 		if err := repository.UpdateExecution(tx, executionID, map[string]any{
@@ -929,18 +899,4 @@ func updateInjectionTimestamp(injectionName string, startTime time.Time, endTime
 
 	injectionItem := dto.NewInjectionItem(updatedInjection)
 	return &injectionItem, err
-}
-
-func writeJobLogs(job *batchv1.Job, traceID string, logMap map[string][]string) (string, error) {
-	logWriter, err := utils.NewJobLogWriter()
-	if err != nil {
-		return "", fmt.Errorf("failed to create job log writer: %w", err)
-	}
-
-	filePath, err := logWriter.WriteJobLogs(job.Name, job.Namespace, traceID, logMap)
-	if err != nil {
-		return "", fmt.Errorf("failed to write job logs to file: %w", err)
-	}
-
-	return filePath, nil
 }

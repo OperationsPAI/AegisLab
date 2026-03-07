@@ -34,9 +34,10 @@ import (
 	"aegis/router"
 	"aegis/service/consumer"
 	"aegis/service/initialization"
+	"aegis/service/logreceiver"
 	"aegis/utils"
 
-	chaosCli "github.com/LGU-SE-Internal/chaos-experiment/client"
+	chaosCli "github.com/OperationsPAI/chaos-experiment/client"
 	nested "github.com/antonfisher/nested-logrus-formatter"
 	"github.com/go-logr/stdr"
 	"github.com/sirupsen/logrus"
@@ -133,6 +134,19 @@ func main() {
 
 			client.InitTraceProvider()
 
+			// Start OTLP log receiver for real-time job log streaming
+			go func() {
+				otlpPort := config.GetInt("otlp_receiver.port")
+				if otlpPort == 0 {
+					otlpPort = logreceiver.DefaultPort
+				}
+				receiver := logreceiver.NewOTLPLogReceiver(otlpPort, 0)
+				if err := receiver.Start(ctx); err != nil {
+					logrus.Errorf("OTLP log receiver error: %v", err)
+				}
+				defer receiver.Shutdown()
+			}()
+
 			go consumer.StartScheduler(ctx)
 			consumer.ConsumeTasks(ctx)
 		},
@@ -158,6 +172,19 @@ func main() {
 
 			utils.InitValidator()
 			client.InitTraceProvider()
+
+			// Start OTLP log receiver for real-time job log streaming
+			go func() {
+				otlpPort := config.GetInt("otlp_receiver.port")
+				if otlpPort == 0 {
+					otlpPort = logreceiver.DefaultPort
+				}
+				receiver := logreceiver.NewOTLPLogReceiver(otlpPort, 0)
+				if err := receiver.Start(ctx); err != nil {
+					logrus.Errorf("OTLP log receiver error: %v", err)
+				}
+				defer receiver.Shutdown()
+			}()
 
 			go consumer.StartScheduler(ctx)
 			go consumer.ConsumeTasks(ctx)

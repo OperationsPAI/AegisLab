@@ -10,6 +10,8 @@ spec:
       app: {{ .Release.Name }}-producer
   template:
     metadata:
+      annotations:
+        rollout-timestamp: {{ now | quote }}
       labels:
         app: {{ .Release.Name }}-producer
     spec:
@@ -55,7 +57,7 @@ spec:
             - |
               INIT_KEY="/initialized_producer"
               CONFIG_PREFIX="/rcabench/config/producer"
-              CONFIG_JSON_PATH="/initial-config/etcd.json"
+              CONFIG_YAML_PATH="/initial-config/etcd.yaml"
               FORCE_INIT="{{ .Values.initialConfig.force }}"
               
               echo "=== Etcd Initialization Started: $(date) ==="
@@ -73,25 +75,28 @@ spec:
                 echo "No initialization marker found, proceeding with initialization..."
               fi
               
-              # Load initial config
-              echo "Loading config from $CONFIG_JSON_PATH..."
-              if [ -f "$CONFIG_JSON_PATH" ]; then
-                cat "$CONFIG_JSON_PATH" | sed 's/[{}]//g' | tr ',' '\n' | while IFS= read -r line; do
-                  key_name=$(echo "$line" | cut -d':' -f1 | tr -d '" ' )
-                  val_content=$(echo "$line" | cut -d':' -f2- | sed 's/^[[:space:]]*//; s/,[[:space:]]*$//; s/^"//; s/"$//')
-
-                  key="$CONFIG_PREFIX/$key_name"
-                  value="$val_content"
+              # Load initial config from YAML
+              echo "Loading config from $CONFIG_YAML_PATH..."
+              if [ -f "$CONFIG_YAML_PATH" ]; then
+                while IFS=': ' read -r key_name value || [ -n "$key_name" ]; do
+                  # Skip empty lines and comments
+                  [ -z "$key_name" ] && continue
+                  echo "$key_name" | grep -q '^#' && continue
                   
-                  if [ -n "$key" ]; then
-                    echo "Setting: $key"
+                  # Remove leading/trailing whitespace and quotes
+                  key_name=$(echo "$key_name" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+                  value=$(echo "$value" | sed "s/^[[:space:]]*//; s/[[:space:]]*$//; s/^[\"']//; s/[\"']$//")
+                  
+                  if [ -n "$key_name" ]; then
+                    key="$CONFIG_PREFIX/$key_name"
+                    echo "Setting: $key = $value"
                     etcdctl --endpoints=http://{{ .Release.Name }}-etcd-headless:2379 put "$key" "$value" || true
                   fi
-                done
+                done < "$CONFIG_YAML_PATH"
                 etcdctl --endpoints=http://{{ .Release.Name }}-etcd-headless:2379 put "$INIT_KEY" "true" || true
                 echo "Config loaded successfully"
               else
-                echo "Warning: $CONFIG_JSON_PATH not found"
+                echo "Warning: $CONFIG_YAML_PATH not found"
               fi
               
               echo "=== Etcd Initialization Done: $(date) ==="
@@ -108,7 +113,7 @@ spec:
             - containerPort: 8080
           env:
             - name: GOPRIVATE
-              value: "github.com/LGU-SE-Internal/chaos-experiment"
+              value: "github.com/OperationsPAI/chaos-experiment"
             - name: ENV
               value: "prod"
             - name: GIN_MODE
@@ -121,7 +126,7 @@ spec:
               mountPath: "{{ .Values.configmap.initialization.data_path }}"
               readOnly: true
             - name: containers-data
-              mountPath: "{{ .Values.configmap.container.storage_path }}"
+              mountPath: "{{ .Values.configmap.jfs.container_path }}"
             - name: dataset
               mountPath: "{{ .Values.configmap.jfs.dataset_path }}"
       volumes:
@@ -153,6 +158,8 @@ spec:
       app: {{ .Release.Name }}-consumer
   template:
     metadata:
+      annotations:
+        rollout-timestamp: {{ now | quote }}
       labels:
         app: {{ .Release.Name }}-consumer
     spec:
@@ -198,7 +205,7 @@ spec:
             - |
               INIT_KEY="/initialized_consumer"
               CONFIG_PREFIX="/rcabench/config/consumer"
-              CONFIG_JSON_PATH="/initial-config/etcd.json"
+              CONFIG_YAML_PATH="/initial-config/etcd.yaml"
               FORCE_INIT="{{ .Values.initialConfig.force }}"
               
               echo "=== Etcd Initialization Started: $(date) ==="
@@ -216,25 +223,28 @@ spec:
                 echo "No initialization marker found, proceeding with initialization..."
               fi
               
-              # Load initial config
-              echo "Loading config from $CONFIG_JSON_PATH..."
-              if [ -f "$CONFIG_JSON_PATH" ]; then
-                cat "$CONFIG_JSON_PATH" | sed 's/[{}]//g' | tr ',' '\n' | while IFS= read -r line; do
-                  key_name=$(echo "$line" | cut -d':' -f1 | tr -d '" ' )
-                  val_content=$(echo "$line" | cut -d':' -f2- | sed 's/^[[:space:]]*//; s/,[[:space:]]*$//; s/^"//; s/"$//')
-
-                  key="$CONFIG_PREFIX/$key_name"
-                  value="$val_content"
+              # Load initial config from YAML
+              echo "Loading config from $CONFIG_YAML_PATH..."
+              if [ -f "$CONFIG_YAML_PATH" ]; then
+                while IFS=': ' read -r key_name value || [ -n "$key_name" ]; do
+                  # Skip empty lines and comments
+                  [ -z "$key_name" ] && continue
+                  echo "$key_name" | grep -q '^#' && continue
                   
-                  if [ -n "$key" ]; then
-                    echo "Setting: $key"
+                  # Remove leading/trailing whitespace and quotes
+                  key_name=$(echo "$key_name" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+                  value=$(echo "$value" | sed "s/^[[:space:]]*//; s/[[:space:]]*$//; s/^[\"']//; s/[\"']$//")
+                  
+                  if [ -n "$key_name" ]; then
+                    key="$CONFIG_PREFIX/$key_name"
+                    echo "Setting: $key = $value"
                     etcdctl --endpoints=http://{{ .Release.Name }}-etcd-headless:2379 put "$key" "$value" || true
                   fi
-                done
+                done < "$CONFIG_YAML_PATH"
                 etcdctl --endpoints=http://{{ .Release.Name }}-etcd-headless:2379 put "$INIT_KEY" "true" || true
                 echo "Config loaded successfully"
               else
-                echo "Warning: $CONFIG_JSON_PATH not found"
+                echo "Warning: $CONFIG_YAML_PATH not found"
               fi
               
               echo "=== Etcd Initialization Done: $(date) ==="
@@ -249,7 +259,7 @@ spec:
           command: ["/app/entrypoint.sh", "consumer"]
           env:
             - name: GOPRIVATE
-              value: "github.com/LGU-SE-Internal/chaos-experiment"
+              value: "github.com/OperationsPAI/chaos-experiment"
             - name: ENV
               value: "prod"
           volumeMounts:
@@ -267,13 +277,11 @@ spec:
               subPath: harbor.lab.pj.crt
             {{- end }}
             - name: containers-data
-              mountPath: "{{ .Values.configmap.container.storage_path }}"
+              mountPath: "{{ .Values.configmap.jfs.container_path }}"
             - name: dataset
               mountPath: "{{ .Values.configmap.jfs.dataset_path }}"
             - name: experiment-storage
               mountPath: "{{ .Values.configmap.jfs.experiment_storage_path }}"
-            - name: logs-data
-              mountPath: "{{ .Values.configmap.logging.dir }}"
       volumes:
         - name: config
           configMap:
@@ -307,9 +315,29 @@ spec:
         - name: experiment-storage
           persistentVolumeClaim:
             claimName: {{ .Release.Name }}-juicefs-experiment-storage
-        - name: logs-data
-          persistentVolumeClaim:
-            claimName: {{ .Release.Name }}-logs-data
+{{- if .Values.buildkit.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-buildkit-config
+data:
+  buildkitd.toml: |
+    debug = true
+    trace = false
+    insecure-entitlements = ["security.insecure"]
+
+    [grpc]
+    address = ["tcp://0.0.0.0:1234"]
+
+    {{- if .Values.harbor.enabled }}
+    [registry."10.10.10.240"]
+    http = false
+    ca = ["/usr/local/share/ca-certificates/harbor.lab.pj.crt"]
+    {{- else }}
+    [registry."pair-diag-cn-guangzhou.cr.volces.com/pair"]
+    http = false
+    {{- end }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -336,6 +364,10 @@ spec:
           ports:
             - containerPort: 1234
             - containerPort: 5678
+          {{- with .Values.buildkit.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           securityContext:
             privileged: true
           volumeMounts:
@@ -374,4 +406,4 @@ spec:
               - key: harbor.lab.pj.crt
                 path: harbor.lab.pj.crt
         {{- end }}
-
+{{- end }}

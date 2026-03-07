@@ -11,7 +11,7 @@ import (
 	"aegis/database"
 	"aegis/utils"
 
-	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
+	chaos "github.com/OperationsPAI/chaos-experiment/handler"
 )
 
 var validInjectionSortFields = map[string]struct{}{
@@ -97,6 +97,19 @@ func (req *BatchDeleteInjectionReq) Validate() error {
 	return nil
 }
 
+// CloneInjectionReq represents the request to clone an injection
+type CloneInjectionReq struct {
+	Name   string      `json:"name" binding:"required"`    // New name for cloned injection
+	Labels []LabelItem `json:"labels" binding:"omitempty"` // Optional labels for cloned injection
+}
+
+// InjectionLogsResp represents the response for injection logs
+type InjectionLogsResp struct {
+	InjectionID int      `json:"injection_id"`
+	TaskID      string   `json:"task_id,omitempty"`
+	Logs        []string `json:"logs"`
+}
+
 // TriggerDatasetBuildItemResponse represents the response for a single injection in batch trigger
 type TriggerDatasetBuildItemResponse struct {
 	TaskID        string `json:"task_id"`
@@ -179,8 +192,9 @@ func (req *ListInjectionReq) Validate() error {
 	if err := validateChaosType(req.Type); err != nil {
 		return err
 	}
+	// Only validate category if it's provided (not nil)
 	if req.Category != nil && !req.Category.IsValid() {
-		return fmt.Errorf("invalid category: %s", req.Category)
+		return fmt.Errorf("invalid category: %s", *req.Category)
 	}
 	if err := validateDatapackState(req.State); err != nil {
 		return err
@@ -357,7 +371,7 @@ func (req *SearchInjectionReq) ConvertToSearchReq() *SearchReq {
 // SubmitInjectionReq represents a request to submit fault injection tasks with parallel fault support
 // Each element in Specs represents a batch of faults to be injected in parallel within a single experiment
 type SubmitInjectionReq struct {
-	ProjectName string          `json:"project_name" binding:"required"`       // Project name
+	ProjectName string          `json:"project_name" binding:"omitempty"`      // Project name
 	Pedestal    *ContainerSpec  `json:"pedestal" binding:"required"`           // Pedestal (workload) configuration
 	Benchmark   *ContainerSpec  `json:"benchmark" binding:"required"`          // Benchmark (detector) configuration
 	Interval    int             `json:"interval" binding:"required,min=1"`     // Total experiment interval in minutes
@@ -378,9 +392,6 @@ func (req *SubmitInjectionReq) Validate() error {
 
 	if req.Benchmark == nil {
 		return fmt.Errorf("benchmark must not be nil")
-	}
-	if req.ProjectName == "" {
-		return fmt.Errorf("project name must not be blank")
 	}
 	if req.Interval <= req.PreDuration {
 		return fmt.Errorf("interval must be greater than pre_duration")
@@ -408,49 +419,46 @@ func (req *SubmitInjectionReq) Validate() error {
 }
 
 type InjectionResp struct {
-	ID            int            `json:"id"`
-	Name          string         `json:"name"`
-	FaultType     string         `json:"fault_type"`
-	Category      string         `json:"category"`
-	DisplayConfig map[string]any `json:"display_config,omitempty" swaggertype:"object"`
-	PreDuration   int            `json:"pre_duration"`
-	StartTime     *time.Time     `json:"start_time,omitempty"`
-	EndTime       *time.Time     `json:"end_time,omitempty"`
-	State         string         `json:"state"`
-	Status        string         `json:"status"`
-	TaskID        string         `json:"task_id"`
-	BenchmarkID   int            `json:"benchmark_id"`
-	BenchmarkName string         `json:"benchmark_name"`
-	PedestalID    int            `json:"pedestal_id"`
-	PedestalName  string         `json:"pedestal_name"`
-	CreatedAt     time.Time      `json:"created_at"`
-	UpdatedAt     time.Time      `json:"updated_at"`
+	ID            int                  `json:"id"`
+	Name          string               `json:"name"`
+	FaultType     string               `json:"fault_type"`
+	Category      string               `json:"category"`
+	DisplayConfig map[string]any       `json:"display_config,omitempty" swaggertype:"object"`
+	PreDuration   int                  `json:"pre_duration"`
+	StartTime     *time.Time           `json:"start_time,omitempty"`
+	EndTime       *time.Time           `json:"end_time,omitempty"`
+	State         consts.DatapackState `json:"state" swaggertype:"string"`
+	Status        string               `json:"status"`
+	BenchmarkID   int                  `json:"benchmark_id"`
+	BenchmarkName string               `json:"benchmark_name"`
+	PedestalID    int                  `json:"pedestal_id"`
+	PedestalName  string               `json:"pedestal_name"`
+	CreatedAt     time.Time            `json:"created_at"`
+	UpdatedAt     time.Time            `json:"updated_at"`
 
 	Labels []LabelItem `json:"labels,omitempty"`
 }
 
 func NewInjectionResp(injection *database.FaultInjection) *InjectionResp {
-	var faultTypeName string
-	if injection.FaultType == consts.Hybrid {
-		faultTypeName = "hybrid"
-	} else {
-		faultTypeName = chaos.ChaosTypeMap[injection.FaultType]
-	}
-
 	resp := &InjectionResp{
 		ID:          injection.ID,
 		Name:        injection.Name,
-		FaultType:   faultTypeName,
 		Category:    injection.Category.String(),
 		PreDuration: injection.PreDuration,
 		StartTime:   injection.StartTime,
 		EndTime:     injection.EndTime,
-		State:       consts.GetDatapackStateName(injection.State),
+		State:       injection.State,
 		Status:      consts.GetStatusTypeName(injection.Status),
 		BenchmarkID: injection.BenchmarkID,
 		PedestalID:  injection.PedestalID,
 		CreatedAt:   injection.CreatedAt,
 		UpdatedAt:   injection.UpdatedAt,
+	}
+
+	if injection.FaultType == consts.Hybrid {
+		resp.FaultType = "hybrid"
+	} else {
+		resp.FaultType = chaos.ChaosTypeMap[injection.FaultType]
 	}
 
 	if injection.DisplayConfig != nil {
@@ -470,17 +478,14 @@ func NewInjectionResp(injection *database.FaultInjection) *InjectionResp {
 		}
 	}
 
-	if injection.TaskID != nil {
-		resp.TaskID = *injection.TaskID
-	}
-
 	// Get labels from associated Task instead of directly from injection
 	if len(injection.Labels) > 0 {
 		resp.Labels = make([]LabelItem, 0, len(injection.Labels))
 		for _, l := range injection.Labels {
 			resp.Labels = append(resp.Labels, LabelItem{
-				Key:   l.Key,
-				Value: l.Value,
+				Key:      l.Key,
+				Value:    l.Value,
+				IsSystem: l.IsSystem,
 			})
 		}
 	}
@@ -490,27 +495,37 @@ func NewInjectionResp(injection *database.FaultInjection) *InjectionResp {
 type InjectionDetailResp struct {
 	InjectionResp
 
+	TaskID  string `json:"task_id"`
+	TraceID string `json:"trace_id"`
+
 	Description  string              `json:"description,omitempty"`
 	EngineConfig []map[string]any    `json:"engine_config" swaggertype:"array,object"`
 	Groundtruths []chaos.Groundtruth `json:"ground_truth,omitempty"`
 }
 
-func NewInjectionDetailResp(entity *database.FaultInjection) *InjectionDetailResp {
-	injectionResp := NewInjectionResp(entity)
+func NewInjectionDetailResp(injection *database.FaultInjection) *InjectionDetailResp {
+	injectionResp := NewInjectionResp(injection)
 	resp := &InjectionDetailResp{
 		InjectionResp: *injectionResp,
-		Description:   entity.Description,
+		Description:   injection.Description,
 	}
 
-	if entity.EngineConfig != "" {
+	if injection.Task != nil {
+		resp.TaskID = injection.Task.ID
+		if injection.Task.Trace != nil {
+			resp.TraceID = injection.Task.Trace.ID
+		}
+	}
+
+	if injection.EngineConfig != "" {
 		var engineConfigData []map[string]any
-		_ = json.Unmarshal([]byte(entity.EngineConfig), &engineConfigData)
+		_ = json.Unmarshal([]byte(injection.EngineConfig), &engineConfigData)
 		resp.EngineConfig = engineConfigData
 	}
 
-	resp.Groundtruths = make([]chaos.Groundtruth, 0, len(entity.Groundtruths))
-	if len(entity.Groundtruths) > 0 {
-		for _, gt := range entity.Groundtruths {
+	resp.Groundtruths = make([]chaos.Groundtruth, 0, len(injection.Groundtruths))
+	if len(injection.Groundtruths) > 0 {
+		for _, gt := range injection.Groundtruths {
 			resp.Groundtruths = append(resp.Groundtruths, *gt.ConvertToChaosGroundtruth())
 		}
 	}
@@ -532,24 +547,27 @@ type SubmitInjectionItem struct {
 	TaskID  string `json:"task_id"`
 }
 
+// Structured warnings about duplications and conflicts
+type InjectionWarnings struct {
+	DuplicateServicesInBatch  []string `json:"duplicate_services_in_batch,omitempty"`  // Warnings about duplicate service injections within the same batch
+	DuplicateBatchesInRequest []int    `json:"duplicate_batches_in_request,omitempty"` // Batch indices that have duplicate configurations within this request
+	BatchesExistInDatabase    []int    `json:"batches_exist_in_database,omitempty"`    // Batch indices that already exist in database
+}
+
 type SubmitInjectionResp struct {
-	GroupID         string                `json:"group_id"`
-	Items           []SubmitInjectionItem `json:"items"`
-	DuplicatedCount int                   `json:"duplicated_count"`
-	OriginalCount   int                   `json:"original_count"`
+	GroupID       string                `json:"group_id"`
+	Items         []SubmitInjectionItem `json:"items"`
+	OriginalCount int                   `json:"original_count"`
+	Warnings      *InjectionWarnings    `json:"warnings,omitempty"`
 }
 
 type SubmitDatapackBuildingReq struct {
-	ProjectName string         `json:"project_name" binding:"required"`
+	ProjectName string         `json:"project_name" binding:"omitempty"`
 	Specs       []BuildingSpec `json:"specs" binding:"required"`
 	Labels      []LabelItem    `json:"labels" binding:"omitempty"`
 }
 
 func (req *SubmitDatapackBuildingReq) Validate() error {
-	if req.ProjectName == "" {
-		return fmt.Errorf("project_name is required")
-	}
-
 	if len(req.Specs) == 0 {
 		return fmt.Errorf("at least one datapack spec is required")
 	}
@@ -774,6 +792,22 @@ type SubmitBuildingItem struct {
 type SubmitDatapackBuildingResp struct {
 	GroupID string               `json:"group_id"`
 	Items   []SubmitBuildingItem `json:"items"`
+}
+
+// DatapackFileItem represents a file or directory in the datapack
+type DatapackFileItem struct {
+	Name     string             `json:"name"`                  // File or directory name
+	Path     string             `json:"path"`                  // Relative path from datapack root
+	Size     string             `json:"size"`                  // File size in KB/MB format or directory info
+	ModTime  *time.Time         `json:"modified_at,omitempty"` // Last modification time (only for files)
+	Children []DatapackFileItem `json:"children,omitempty"`    // Child items (only for directories)
+}
+
+// DatapackFilesResp represents the response for listing datapack files
+type DatapackFilesResp struct {
+	Files     []DatapackFileItem `json:"files"`
+	FileCount int                `json:"file_count"` // Number of files (excluding directories)
+	DirCount  int                `json:"dir_count"`  // Number of directories
 }
 
 // validateChaosType checks if the provided chaos type is valid

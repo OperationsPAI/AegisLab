@@ -189,3 +189,286 @@ spec:
   resources:
     requests:
       storage: 100Gi
+
+---
+# ============================================================
+# Grafana Alloy DaemonSet - Local Development Log Collection
+# Replaces: Filebeat DaemonSet + Logstash
+# K8s Job logs → Alloy → Loki (direct, no intermediary)
+# ============================================================
+
+---
+# Alloy ServiceAccount
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rcabench-alloy
+  namespace: exp
+  labels:
+    app: alloy
+    environment: development
+
+---
+# Alloy ClusterRole (read-only permissions for K8s pod discovery)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: rcabench-alloy-role
+  labels:
+    app: alloy
+    environment: development
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "namespaces", "nodes"]
+    verbs: ["get", "list", "watch"]
+
+---
+# Alloy ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: rcabench-alloy-rolebinding
+  labels:
+    app: alloy
+    environment: development
+subjects:
+  - kind: ServiceAccount
+    name: rcabench-alloy
+    namespace: exp
+roleRef:
+  kind: ClusterRole
+  name: rcabench-alloy-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# Alloy ConfigMap - Grafana Alloy River configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rcabench-alloy-config
+  namespace: exp
+data:
+  config.alloy: |
+    // ============================================================
+    // Grafana Alloy - RCABench Log Collection Pipeline
+    // ============================================================
+
+    // 1. Discover K8s pods on this node
+    discovery.kubernetes "pods" {
+      role = "pod"
+
+      selectors {
+        role  = "pod"
+        field = "spec.nodeName=" + coalesce(env("HOSTNAME"), constants.hostname)
+      }
+    }
+
+    // 2. Relabel: filter by rcabench labels, extract metadata
+    discovery.relabel "rcabench_pods" {
+      targets = discovery.kubernetes.pods.targets
+
+      // Keep only pods with job_name label
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_job_name"]
+        action        = "keep"
+        regex         = ".+"
+      }
+
+      // Keep only pods with rcabench_app_id label
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_rcabench_app_id"]
+        action        = "keep"
+        regex         = ".+"
+      }
+
+      // Extract labels
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_job_name"]
+        target_label  = "job_id"
+      }
+
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_rcabench_app_id"]
+        target_label  = "rcabench_app_id"
+      }
+
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_trace_id"]
+        target_label  = "trace_id"
+      }
+
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_task_id"]
+        target_label  = "task_id"
+      }
+
+      // Set __path__ for log file discovery
+      rule {
+        source_labels = ["__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
+        target_label  = "__path__"
+        separator     = "/"
+        replacement   = "/var/log/pods/*$1/*.log"
+      }
+    }
+
+    // 3. Match log files on node filesystem
+    local.file_match "pods" {
+      path_targets = discovery.relabel.rcabench_pods.output
+    }
+
+    // 4. Read log files (tail)
+    loki.source.file "pods" {
+      targets    = local.file_match.pods.targets
+      forward_to = [loki.process.pipeline.receiver]
+    }
+
+    // 5. Process log lines
+    //    - High-cardinality fields (trace_id, task_id, job_id) → Structured Metadata
+    //    - Low-cardinality fields (rcabench_app_id, namespace, etc.) → Stream Labels
+    //    Structured Metadata is queryable via LogQL:
+    //      {app="rcabench"} | trace_id="xxx" | task_id="yyy"
+    loki.process "pipeline" {
+      stage.cri {}
+
+      // Move high-cardinality labels to Loki Structured Metadata
+      // (avoids index cardinality explosion, still queryable via LogQL filters)
+      // stage.structured_metadata reads from both extracted data AND stream labels
+      stage.structured_metadata {
+        values = {
+          trace_id = "",
+          task_id  = "",
+          job_id   = "",
+        }
+      }
+
+      // Drop high-cardinality + internal labels from stream labels
+      stage.label_drop {
+        values = ["trace_id", "task_id", "job_id", "filename"]
+      }
+
+      stage.static_labels {
+        values = {
+          app = "rcabench",
+        }
+      }
+
+      forward_to = [loki.write.default.receiver, otelcol.receiver.loki.backend.receiver]
+    }
+
+    // 6. Write to Loki
+    loki.write "default" {
+      endpoint {
+        url = "http://10.10.10.161:3100/loki/api/v1/push"
+      }
+    }
+
+    // 7. OTLP dual-write: bridge Loki format → OpenTelemetry format
+    otelcol.receiver.loki "backend" {
+      output {
+        logs = [otelcol.exporter.otlphttp.backend.input]
+      }
+    }
+
+    // 8. OTLP HTTP export to backend log receiver
+    otelcol.exporter.otlphttp "backend" {
+      client {
+        endpoint = "http://10.10.10.161:4319"
+      }
+
+      retry_on_failure {
+          enabled          = true
+          initial_interval = "1s"
+          max_interval     = "30s"
+          max_elapsed_time = "5m"
+      }
+
+      sending_queue {
+          enabled       = true
+          num_consumers = 4
+          queue_size    = 1000
+      }
+    }
+
+    prometheus.remote_write "default" {
+      endpoint {
+        url = "http://10.10.10.161:9090/api/v1/write"
+      }
+    }
+
+---
+# Alloy DaemonSet
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: rcabench-alloy-daemon
+  namespace: exp
+  labels:
+    app: alloy
+    environment: development
+spec:
+  selector:
+    matchLabels:
+      app: alloy
+  template:
+    metadata:
+      labels:
+        app: alloy
+    spec:
+      serviceAccountName: rcabench-alloy
+      tolerations:
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
+      containers:
+        - name: alloy
+          image: 10.10.10.240/library/alloy:v1.13.1
+          args:
+            - run
+            - /etc/alloy/config.alloy
+            - --stability.level=public-preview
+          env:
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          securityContext:
+            runAsUser: 0
+          resources:
+            limits:
+              cpu: "200m"
+              memory: "256Mi"
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+          volumeMounts:
+            - name: varlogcontainers
+              mountPath: /var/log/containers
+              readOnly: true
+            - name: varlogpods
+              mountPath: /var/log/pods
+              readOnly: true
+            - name: varlibdockercontainers
+              mountPath: /var/lib/docker/containers
+              readOnly: true
+            - name: config
+              mountPath: /etc/alloy/config.alloy
+              subPath: config.alloy
+            - name: data
+              mountPath: /var/lib/alloy/data
+      volumes:
+        - name: varlogcontainers
+          hostPath:
+            path: /var/log/containers
+        - name: varlogpods
+          hostPath:
+            path: /var/log/pods
+        - name: varlibdockercontainers
+          hostPath:
+            path: /var/lib/docker/containers
+        - name: config
+          configMap:
+            name: rcabench-alloy-config
+        - name: data
+          hostPath:
+            path: /var/lib/alloy-data
+            type: DirectoryOrCreate

@@ -21,15 +21,6 @@
     "scripts": {
       "install-hooks": [
         "lefthook install"
-      ],
-      "pre-commit": [
-        "make pre-commit"
-      ],
-      "local-debug": [
-        "make local-debug"
-      ],
-      "run": [
-        "make run"
       ]
     }
   }

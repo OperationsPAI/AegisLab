@@ -9,6 +9,31 @@ import (
 	"aegis/database"
 )
 
+// CheckPermissionParams represents permission check parameters
+type CheckPermissionParams struct {
+	UserID       int                  `json:"user_id"`
+	Action       consts.ActionName    `json:"action"`
+	Scope        consts.ResourceScope `json:"scope"`
+	ResourceName consts.ResourceName  `json:"resource_name"`
+	TeamID       *int                 `json:"team_id"`
+	ProjectID    *int                 `json:"project_id"`
+	ContainerID  *int                 `json:"container_id"`
+	DatasetID    *int                 `json:"dataset_id"`
+}
+
+func (req *CheckPermissionParams) Validate() error {
+	if req.UserID <= 0 {
+		return fmt.Errorf("user_id must be positive")
+	}
+	if req.Action == "" {
+		return fmt.Errorf("action cannot be empty")
+	}
+	if req.ResourceName == "" {
+		return fmt.Errorf("resource_name cannot be empty")
+	}
+	return nil
+}
+
 // CreatePermissionReq represents permission creation request
 type CreatePermissionReq struct {
 	DisplayName string            `json:"display_name" binding:"omitempty"`
@@ -30,7 +55,7 @@ func (req *CreatePermissionReq) Validate() error {
 func (req *CreatePermissionReq) ConvertToPermission() *database.Permission {
 	return &database.Permission{
 		Description: req.Description,
-		Action:      string(req.Action),
+		Action:      req.Action,
 		IsSystem:    false,
 		Status:      consts.CommonEnabled,
 	}
@@ -180,69 +205,67 @@ func (req *UpdatePermissionReq) PatchPermissionModel(target *database.Permission
 		target.Description = *req.Description
 	}
 	if req.Action != nil {
-		target.Action = string(*req.Action)
+		target.Action = *req.Action
 	}
 	if req.Status != nil {
 		target.Status = *req.Status
 	}
 }
 
-// PermissionResp represents permission summary information
-type PermissionResp struct {
-	ID          int                 `json:"id"`
-	Name        string              `json:"name"`
-	DisplayName string              `json:"display_name"`
-	Action      string              `json:"action"`
-	Resource    consts.ResourceName `json:"resource_name"`
-	IsSystem    bool                `json:"is_system"`
-	Status      string              `json:"status"`
-	UpdatedAt   time.Time           `json:"updated_at"`
+// PermissionBaseResp contains common fields for permission responses
+type PermissionBaseResp struct {
+	ID          int                  `json:"id"`
+	Name        string               `json:"name"`
+	DisplayName string               `json:"display_name"`
+	Action      consts.ActionName    `json:"action"`
+	Scope       consts.ResourceScope `json:"scope"`
+	IsSystem    bool                 `json:"is_system"`
+	Status      string               `json:"status"`
+	UpdatedAt   time.Time            `json:"updated_at"`
 }
 
-func NewPermissionResp(perm *database.Permission) *PermissionResp {
-	resp := &PermissionResp{
+func NewPermissionBaseResp(perm *database.Permission) *PermissionBaseResp {
+	return &PermissionBaseResp{
 		ID:          perm.ID,
 		Name:        perm.Name,
 		DisplayName: perm.DisplayName,
 		Action:      perm.Action,
+		Scope:       perm.Scope,
 		IsSystem:    perm.IsSystem,
 		Status:      consts.GetStatusTypeName(perm.Status),
 		UpdatedAt:   perm.UpdatedAt,
 	}
+}
 
+// PermissionResp represents permission summary information
+type PermissionResp struct {
+	PermissionBaseResp
+	Resource string `json:"resource_name"` // Simple string for list view
+}
+
+func NewPermissionResp(perm *database.Permission) *PermissionResp {
+	resp := &PermissionResp{
+		PermissionBaseResp: *NewPermissionBaseResp(perm),
+	}
 	if perm.Resource != nil {
-		resp.Resource = perm.Resource.Name
+		resp.Resource = perm.Resource.Name.String()
 	}
 	return resp
 }
 
 type PermissionDetailResp struct {
-	ID          int       `json:"id"`
-	Name        string    `json:"name"`
-	DisplayName string    `json:"display_name"`
-	Description string    `json:"description"`
-	Action      string    `json:"action"`
-	IsSystem    bool      `json:"is_system"`
-	Status      string    `json:"status"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
-
-	Resource *ResourceResp `json:"resource,omitempty"`
+	PermissionBaseResp
+	Description string        `json:"description"`
+	Resource    *ResourceResp `json:"resource,omitempty"` // Detailed object for detail view
+	CreatedAt   time.Time     `json:"created_at"`
 }
 
 func NewPermissionDetailResp(perm *database.Permission) *PermissionDetailResp {
 	resp := &PermissionDetailResp{
-		ID:          perm.ID,
-		Name:        perm.Name,
-		DisplayName: perm.DisplayName,
-		Description: perm.Description,
-		Action:      perm.Action,
-		IsSystem:    perm.IsSystem,
-		Status:      consts.GetStatusTypeName(perm.Status),
-		CreatedAt:   perm.CreatedAt,
-		UpdatedAt:   perm.UpdatedAt,
+		PermissionBaseResp: *NewPermissionBaseResp(perm),
+		Description:        perm.Description,
+		CreatedAt:          perm.CreatedAt,
 	}
-
 	if perm.Resource != nil {
 		resp.Resource = NewResourceResp(perm.Resource)
 	}

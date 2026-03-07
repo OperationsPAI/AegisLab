@@ -28,6 +28,7 @@ import (
 //	@Failure		403		{object}	dto.GenericResponse[any]	"Permission denied"
 //	@Failure		500		{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v2/labels/batch-delete [post]
+//	@x-api-type		{"sdk":"true"}
 func BatchDeleteLabels(c *gin.Context) {
 	var req dto.BatchDeleteLabelReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -65,6 +66,7 @@ func BatchDeleteLabels(c *gin.Context) {
 //	@Failure		409		{object}	dto.GenericResponse[any]			"Label already exists"
 //	@Failure		500		{object}	dto.GenericResponse[any]			"Internal server error"
 //	@Router			/api/v2/labels [post]
+//	@x-api-type		{"sdk":"true"}
 func CreateLabel(c *gin.Context) {
 	var req dto.CreateLabelReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -101,6 +103,7 @@ func CreateLabel(c *gin.Context) {
 //	@Failure		404			{object}	dto.GenericResponse[any]	"Label not found"
 //	@Failure		500			{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v2/labels/{label_id} [delete]
+//	@x-api-type		{"sdk":"true"}
 func DeleteLabel(c *gin.Context) {
 	labelIdStr := c.Param(consts.URLPathLabelID)
 	labelID, err := strconv.Atoi(labelIdStr)
@@ -133,6 +136,7 @@ func DeleteLabel(c *gin.Context) {
 //	@Failure		404			{object}	dto.GenericResponse[any]					"Label not found"
 //	@Failure		500			{object}	dto.GenericResponse[any]					"Internal server error"
 //	@Router			/api/v2/labels/{label_id} [get]
+//	@x-api-type		{"sdk":"true"}
 func GetLabelDetail(c *gin.Context) {
 	labelIdStr := c.Param(consts.URLPathLabelID)
 	labelID, err := strconv.Atoi(labelIdStr)
@@ -170,6 +174,7 @@ func GetLabelDetail(c *gin.Context) {
 //	@Failure		403			{object}	dto.GenericResponse[any]							"Permission denied"
 //	@Failure		500			{object}	dto.GenericResponse[any]							"Internal server error"
 //	@Router			/api/v2/labels [get]
+//	@x-api-type		{"sdk":"true"}
 func ListLabels(c *gin.Context) {
 	var req dto.ListLabelReq
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -208,6 +213,7 @@ func ListLabels(c *gin.Context) {
 //	@Failure		404			{object}	dto.GenericResponse[any]			"Label not found"
 //	@Failure		500			{object}	dto.GenericResponse[any]			"Internal server error"
 //	@Router			/api/v2/labels/{label_id} [patch]
+//	@x-api-type		{"sdk":"true"}
 func UpdateLabel(c *gin.Context) {
 	labelIdStr := c.Param(consts.URLPathLabelID)
 	labelID, err := strconv.Atoi(labelIdStr)

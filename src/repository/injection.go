@@ -45,6 +45,7 @@ func GetInjectionByID(db *gorm.DB, id int) (*database.FaultInjection, error) {
 	var injection database.FaultInjection
 	if err := db.
 		Preload("Task").
+		Preload("Task.Trace").
 		Preload("Benchmark.Container").
 		Preload("Pedestal.Container").
 		Where("id = ?", id).First(&injection).Error; err != nil {
@@ -78,7 +79,7 @@ func ListFaultInjectionsByID(db *gorm.DB, injectionIDs []int) ([]database.FaultI
 	if err := db.
 		Preload("Benchmark.Container").
 		Preload("Pedestal.Container").
-		Preload("Task.Project").
+		Preload("Task.Trace.Project").
 		Preload("Labels").
 		Where("id IN (?) AND status != ?", injectionIDs, consts.CommonDeleted).
 		Find(&injections).Error; err != nil {
@@ -146,7 +147,7 @@ func ListInjections(db *gorm.DB, limit, offset int, filterOptions *dto.ListInjec
 	query := db.Model(&database.FaultInjection{}).
 		Preload("Benchmark.Container").
 		Preload("Pedestal.Container").
-		Preload("Task.Project").
+		Preload("Task.Trace.Project").
 		Preload("Labels")
 	if filterOptions.FaultType != nil {
 		query = query.Where("fault_type = ?", *filterOptions.FaultType)
@@ -158,7 +159,7 @@ func ListInjections(db *gorm.DB, limit, offset int, filterOptions *dto.ListInjec
 		query = query.Where("benchmark = ?", filterOptions.Benchmark)
 	}
 	if filterOptions.State != nil {
-		query = query.Where("event = ?", *filterOptions.State)
+		query = query.Where("state = ?", *filterOptions.State)
 	}
 	if filterOptions.Status != nil {
 		query = query.Where("status = ?", *filterOptions.Status)
@@ -228,13 +229,18 @@ func UpdateInjection(db *gorm.DB, id int, updates map[string]any) error {
 }
 
 // ListInjectionsNoIssues lists fault injections without issues based on label conditions and time range
-func ListInjectionsNoIssues(db *gorm.DB, labelConditions []map[string]string, startTime, endTime *time.Time) ([]database.FaultInjectionNoIssues, error) {
+func ListInjectionsNoIssues(db *gorm.DB, labelConditions []map[string]string, startTime, endTime *time.Time, projectID *int) ([]database.FaultInjectionNoIssues, error) {
 	query := db.Model(&database.FaultInjectionNoIssues{}).Scopes(database.Sort("dataset_id desc"))
 	if startTime != nil {
 		query = query.Where("created_at >= ?", *startTime)
 	}
 	if endTime != nil {
 		query = query.Where("created_at <= ?", *endTime)
+	}
+
+	// Filter by project_id if provided
+	if projectID != nil {
+		query = query.Where("project_id = ?", *projectID)
 	}
 
 	if len(labelConditions) > 0 {
@@ -265,13 +271,18 @@ func ListInjectionsNoIssues(db *gorm.DB, labelConditions []map[string]string, st
 }
 
 // ListInjectionsWithIssues lists fault injections with issues based on label conditions and time range
-func ListInjectionsWithIssues(db *gorm.DB, labelConditions []map[string]string, startTime, endTime *time.Time) ([]database.FaultInjectionWithIssues, error) {
+func ListInjectionsWithIssues(db *gorm.DB, labelConditions []map[string]string, startTime, endTime *time.Time, projectID *int) ([]database.FaultInjectionWithIssues, error) {
 	query := db.Model(&database.FaultInjectionNoIssues{}).Scopes(database.Sort("dataset_id desc"))
 	if startTime != nil {
 		query = query.Where("created_at >= ?", *startTime)
 	}
 	if endTime != nil {
 		query = query.Where("created_at <= ?", *endTime)
+	}
+
+	// Filter by project_id if provided
+	if projectID != nil {
+		query = query.Where("project_id = ?", *projectID)
 	}
 
 	if len(labelConditions) > 0 {
@@ -299,30 +310,6 @@ func ListInjectionsWithIssues(db *gorm.DB, labelConditions []map[string]string, 
 	}
 
 	return records, nil
-}
-
-// GetInjectionCountMapGroupByState gets a map of injection counts grouped by their state
-func GetInjectionCountMapGroupByState(db *gorm.DB) (map[consts.DatapackState]int64, error) {
-	type stateCount struct {
-		state consts.DatapackState
-		count int64
-	}
-
-	var results []stateCount
-	if err := db.Model(&database.FaultInjection{}).
-		Select("state, count(*) as count").
-		Where("status != ?", consts.CommonDeleted).
-		Group("state").
-		Find(&results).Error; err != nil {
-		return nil, fmt.Errorf("failed to get detailed injection stats: %v", err)
-	}
-
-	stats := make(map[consts.DatapackState]int64)
-	for _, res := range results {
-		stats[res.state] = res.count
-	}
-
-	return stats, nil
 }
 
 // =====================================================================
@@ -538,4 +525,34 @@ func ListLabelIDsByKeyAndInjectionID(db *gorm.DB, injectionID int, keys []string
 	}
 
 	return labelIDs, nil
+}
+
+// ListInjectionsByProjectID retrieves fault injections for a specific project with pagination
+func ListInjectionsByProjectID(db *gorm.DB, projectID int, limit, offset int) ([]database.FaultInjection, int64, error) {
+	var injections []database.FaultInjection
+	var total int64
+
+	// Base query with JOIN and WHERE conditions
+	baseQuery := db.Model(&database.FaultInjection{}).
+		Joins("JOIN tasks ON tasks.id = fault_injections.task_id").
+		Joins("JOIN traces on traces.id = tasks.trace_id").
+		Where("traces.project_id = ? AND fault_injections.status != ?", projectID, consts.CommonDeleted)
+
+	// Count without Preload
+	if err := baseQuery.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to count injections for project %d: %w", projectID, err)
+	}
+
+	// Find with Preload
+	if err := baseQuery.
+		Preload("Benchmark.Container").
+		Preload("Pedestal.Container").
+		Limit(limit).
+		Offset(offset).
+		Order("fault_injections.updated_at DESC").
+		Find(&injections).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to list injections for project %d: %w", projectID, err)
+	}
+
+	return injections, total, nil
 }

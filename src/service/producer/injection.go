@@ -2,6 +2,7 @@ package producer
 
 import (
 	"aegis/client"
+	"aegis/config"
 	"aegis/consts"
 	"aegis/database"
 	"aegis/dto"
@@ -10,14 +11,21 @@ import (
 	"aegis/utils"
 	"archive/zip"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
 
-	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
+	chaos "github.com/OperationsPAI/chaos-experiment/handler"
+	"github.com/apache/arrow-go/v18/arrow/ipc"
+	"github.com/duckdb/duckdb-go/v2"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -99,38 +107,93 @@ func CreateInjection(injection *database.FaultInjection, labelItems []dto.LabelI
 
 // GetInjectionDetail retrieves detailed information about a specific fault injection
 func GetInjectionDetail(injectionID int) (*dto.InjectionDetailResp, error) {
-	logrus.WithField("injectionID", injectionID).Info("GetInjectionDetail: starting")
+	logEntry := logrus.WithFields(logrus.Fields{
+		"injectionID": injectionID,
+	})
 
 	injection, err := repository.GetInjectionByID(database.DB, injectionID)
 	if err != nil {
-		logrus.WithFields(logrus.Fields{
-			"injectionID": injectionID,
-		}).Error("failed to get injection from repository: %w", err)
-
+		logEntry.Error("failed to get injection from repository: %w", err)
 		if errors.Is(err, consts.ErrNotFound) {
 			return nil, fmt.Errorf("%w: injection id: %d", consts.ErrNotFound, injectionID)
 		}
 		return nil, fmt.Errorf("failed to get injection: %w", err)
 	}
 
-	logrus.WithFields(logrus.Fields{
-		"injectionID":   injectionID,
-		"injectionName": injection.Name,
-	}).Info("GetInjectionDetail: fetched injection from repository")
-
 	labels, err := repository.ListLabelsByInjectionID(database.DB, injection.ID)
 	if err != nil {
-		logrus.WithFields(logrus.Fields{
-			"injectionID": injectionID,
-		}).Error("GetInjectionDetail: failed to get injection labels: %w", err)
+		logEntry.Error("failed to get injection labels from repository: %w", err)
 		return nil, fmt.Errorf("failed to get injection labels: %w", err)
 	}
 
 	injection.Labels = labels
 	resp := dto.NewInjectionDetailResp(injection)
 
-	logrus.WithField("injectionID", injectionID).Info("GetInjectionDetail: completed successfully")
 	return resp, err
+}
+
+// CloneInjection clones an existing injection with a new name
+func CloneInjection(injectionID int, req *dto.CloneInjectionReq) (*dto.InjectionDetailResp, error) {
+	original, err := repository.GetInjectionByID(database.DB, injectionID)
+	if err != nil {
+		if errors.Is(err, consts.ErrNotFound) {
+			return nil, fmt.Errorf("%w: injection id: %d", consts.ErrNotFound, injectionID)
+		}
+		return nil, fmt.Errorf("failed to get injection: %w", err)
+	}
+
+	cloned := &database.FaultInjection{
+		Name:          req.Name,
+		FaultType:     original.FaultType,
+		Category:      original.Category,
+		Description:   original.Description,
+		DisplayConfig: original.DisplayConfig,
+		EngineConfig:  original.EngineConfig,
+		Groundtruths:  original.Groundtruths,
+		PreDuration:   original.PreDuration,
+		StartTime:     original.StartTime,
+		EndTime:       original.EndTime,
+		BenchmarkID:   original.BenchmarkID,
+		PedestalID:    original.PedestalID,
+		State:         consts.DatapackInitial,
+		Status:        consts.CommonEnabled,
+	}
+
+	if err := CreateInjection(cloned, req.Labels); err != nil {
+		return nil, err
+	}
+
+	labels, err := repository.ListLabelsByInjectionID(database.DB, cloned.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get cloned injection labels: %w", err)
+	}
+
+	cloned.Labels = labels
+	return dto.NewInjectionDetailResp(cloned), nil
+}
+
+// GetInjectionLogs retrieves execution logs for an injection
+func GetInjectionLogs(injectionID int) (*dto.InjectionLogsResp, error) {
+	injection, err := repository.GetInjectionByID(database.DB, injectionID)
+	if err != nil {
+		if errors.Is(err, consts.ErrNotFound) {
+			return nil, fmt.Errorf("%w: injection id: %d", consts.ErrNotFound, injectionID)
+		}
+		return nil, fmt.Errorf("failed to get injection: %w", err)
+	}
+
+	resp := &dto.InjectionLogsResp{
+		InjectionID: injectionID,
+		Logs:        []string{},
+	}
+
+	if injection.TaskID != nil {
+		resp.TaskID = *injection.TaskID
+		// TODO: Implement actual log retrieval from task execution
+		// For now, return empty logs as placeholder
+	}
+
+	return resp, nil
 }
 
 // ListInjections lists fault injections based on the provided filters
@@ -169,12 +232,17 @@ func ListInjections(req *dto.ListInjectionReq) (*dto.ListResp[dto.InjectionResp]
 }
 
 // SearchInjections performs advanced search on fault injections
-func SearchInjections(req *dto.SearchInjectionReq) (*dto.SearchResp[dto.InjectionDetailResp], error) {
+func SearchInjections(req *dto.SearchInjectionReq, projectID *int) (*dto.SearchResp[dto.InjectionDetailResp], error) {
 	if req == nil {
 		return nil, fmt.Errorf("search injection request is nil")
 	}
 
 	searchReq := req.ConvertToSearchReq()
+
+	// Add project filter if projectID is provided
+	if projectID != nil {
+		searchReq.AddFilter("project_id", dto.OpEqual, *projectID)
+	}
 
 	injections, total, err := repository.ExecuteSearch(database.DB, searchReq, database.FaultInjection{})
 	if err != nil {
@@ -262,8 +330,175 @@ func DownloadDatapack(zipWriter *zip.Writer, excludeRules []utils.ExculdeRule, i
 	return nil
 }
 
+// GetDatapackFiles retrieves the file structure of a datapack in tree format
+func GetDatapackFiles(datapackID int, baseURL string) (*dto.DatapackFilesResp, error) {
+	datapack, err := repository.GetInjectionByID(database.DB, datapackID)
+	if err != nil {
+		if errors.Is(err, consts.ErrNotFound) {
+			return nil, fmt.Errorf("%w: datapack id: %d", consts.ErrNotFound, datapackID)
+		}
+		return nil, fmt.Errorf("failed to get datapack: %w", err)
+	}
+
+	if datapack.State < consts.DatapackBuildSuccess {
+		return nil, fmt.Errorf("datapack %d is not ready", datapackID)
+	}
+
+	workDir := filepath.Join(config.GetString("jfs.dataset_path"), datapack.Name)
+	if !utils.IsAllowedPath(workDir) {
+		return nil, fmt.Errorf("invalid path access to %s", workDir)
+	}
+
+	// Check if directory exists
+	if _, err := os.Stat(workDir); os.IsNotExist(err) {
+		return nil, fmt.Errorf("datapack directory not found for datapack id %d", datapackID)
+	}
+
+	resp := &dto.DatapackFilesResp{
+		Files:     []dto.DatapackFileItem{},
+		FileCount: 0,
+		DirCount:  0,
+	}
+
+	// Build tree structure
+	rootItems, err := buildFileTree(workDir, "", baseURL, datapackID, resp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build file tree: %w", err)
+	}
+
+	resp.Files = rootItems
+	return resp, nil
+}
+
+// DownloadDatapackFile downloads a specific file from a datapack
+func DownloadDatapackFile(datapackID int, filePath string) (string, string, int64, io.ReadSeekCloser, error) {
+	fullPath, err := getFileFullPath(datapackID, filePath)
+	if err != nil {
+		return "", "", 0, nil, fmt.Errorf("invalid file path: %w", err)
+	}
+
+	file, err := os.Open(fullPath)
+	if err != nil {
+		return "", "", 0, nil, fmt.Errorf("failed to open file: %w", err)
+	}
+
+	stat, err := file.Stat()
+	if err != nil {
+		file.Close()
+		return "", "", 0, nil, fmt.Errorf("failed to stat file: %w", err)
+	}
+
+	fileName := filepath.Base(fullPath)
+	contentType := "application/octet-stream"
+
+	// Determine content type based on file extension
+	switch filepath.Ext(fileName) {
+	case ".json":
+		contentType = "application/json"
+	case ".yaml", ".yml":
+		contentType = "application/x-yaml"
+	case ".txt", ".log":
+		contentType = "text/plain"
+	case ".csv":
+		contentType = "text/csv"
+	case ".xml":
+		contentType = "application/xml"
+	case ".html", ".htm":
+		contentType = "text/html"
+	case ".pdf":
+		contentType = "application/pdf"
+	case ".zip":
+		contentType = "application/zip"
+	case ".tar", ".gz", ".tgz":
+		contentType = "application/x-tar"
+	}
+
+	return fileName, contentType, stat.Size(), file, nil
+}
+
+// QueryDatapackFileContent reads a parquet file and returns it along with file size
+func QueryDatapackFileContent(ctx context.Context, datapackID int, filePath string) (string, int64, io.ReadCloser, error) {
+	fullPath, err := getFileFullPath(datapackID, filePath)
+	if err != nil {
+		return "", 0, nil, fmt.Errorf("invalid file path: %w", err)
+	}
+	if filepath.Ext(fullPath) != ".parquet" {
+		return "", 0, nil, fmt.Errorf("file is not a parquet file: %s", filePath)
+	}
+
+	connector, err := duckdb.NewConnector("", nil)
+	if err != nil {
+		return "", 0, nil, err
+	}
+
+	countConn, err := connector.Connect(ctx)
+	if err != nil {
+		logrus.Errorf("connect failed: %v", err)
+		return "", 0, nil, err
+	}
+	defer countConn.Close()
+
+	var totalRows int64
+	countQuery := fmt.Sprintf("SELECT count(*) FROM read_parquet('%s')", fullPath)
+
+	db := sql.OpenDB(connector)
+	if err := db.QueryRowContext(ctx, countQuery).Scan(&totalRows); err != nil {
+		return "", 0, nil, err
+	}
+
+	// Inspect schema and build a SELECT that casts unsupported unsigned integer types
+	safeSQL, err := buildSafeParquetSQL(ctx, db, fullPath)
+	if err != nil {
+		return "", 0, nil, fmt.Errorf("failed to build safe parquet SQL: %w", err)
+	}
+
+	pr, pw := io.Pipe()
+	go func() {
+		defer pw.Close()
+
+		conn, err := connector.Connect(ctx)
+		if err != nil {
+			logrus.Errorf("connect failed: %v", err)
+			return
+		}
+		defer conn.Close()
+
+		arrow, err := duckdb.NewArrowFromConn(conn)
+		if err != nil {
+			logrus.Errorf("failed to get arrow interface: %v", err)
+			return
+		}
+
+		rdr, err := arrow.QueryContext(ctx, safeSQL)
+		if err != nil {
+			logrus.Errorf("query context failed: %v", err)
+			return
+		}
+		defer rdr.Release()
+
+		writer := ipc.NewWriter(pw, ipc.WithSchema(rdr.Schema()), ipc.WithZstd())
+		defer writer.Close()
+
+		for rdr.Next() {
+			record := rdr.RecordBatch()
+			if err := writer.Write(record); err != nil {
+				logrus.Errorf("failed to write arrow record: %v", err)
+				record.Release()
+				break
+			}
+			record.Release()
+		}
+
+		if err := rdr.Err(); err != nil {
+			logrus.Errorf("reader error: %v", err)
+		}
+	}()
+
+	return filepath.Base(fullPath), totalRows, pr, nil
+}
+
 // ListInjectionsNoissues handles the request to list fault injections without issues
-func ListInjectionsNoIssues(req *dto.ListInjectionNoIssuesReq) ([]dto.InjectionNoIssuesResp, error) {
+func ListInjectionsNoIssues(req *dto.ListInjectionNoIssuesReq, projectID *int) ([]dto.InjectionNoIssuesResp, error) {
 	if len(req.Labels) == 0 {
 		return nil, nil
 	}
@@ -282,7 +517,7 @@ func ListInjectionsNoIssues(req *dto.ListInjectionNoIssuesReq) ([]dto.InjectionN
 		return nil, fmt.Errorf("invalid time range: %w", err)
 	}
 
-	records, err := repository.ListInjectionsNoIssues(database.DB, labelConditions, &opts.CustomStartTime, &opts.CustomEndTime)
+	records, err := repository.ListInjectionsNoIssues(database.DB, labelConditions, &opts.CustomStartTime, &opts.CustomEndTime, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list fault injections without issues: %w", err)
 	}
@@ -301,7 +536,7 @@ func ListInjectionsNoIssues(req *dto.ListInjectionNoIssuesReq) ([]dto.InjectionN
 }
 
 // ListInjectionsNoissues handles the request to list fault injections without issues
-func ListInjectionsWithIssues(req *dto.ListInjectionWithIssuesReq) ([]dto.InjectionWithIssuesResp, error) {
+func ListInjectionsWithIssues(req *dto.ListInjectionWithIssuesReq, projectID *int) ([]dto.InjectionWithIssuesResp, error) {
 	if len(req.Labels) == 0 {
 		return nil, nil
 	}
@@ -320,7 +555,7 @@ func ListInjectionsWithIssues(req *dto.ListInjectionWithIssuesReq) ([]dto.Inject
 		return nil, fmt.Errorf("invalid time range: %w", err)
 	}
 
-	records, err := repository.ListInjectionsWithIssues(database.DB, labelConditions, &opts.CustomStartTime, &opts.CustomEndTime)
+	records, err := repository.ListInjectionsWithIssues(database.DB, labelConditions, &opts.CustomStartTime, &opts.CustomEndTime, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list fault injections without issues: %w", err)
 	}
@@ -606,13 +841,20 @@ func BatchManageInjectionLabels(req *dto.BatchManageInjectionLabelReq) (*dto.Bat
 }
 
 // ProduceRestartPedestalTasks produces pedestal restart tasks with support for parallel fault injection
-func ProduceRestartPedestalTasks(ctx context.Context, req *dto.SubmitInjectionReq, groupID string, userID int) (*dto.SubmitInjectionResp, error) {
-	project, err := repository.GetProjectByName(database.DB, req.ProjectName)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("%w: project %s not found", consts.ErrNotFound, req.ProjectName)
+func ProduceRestartPedestalTasks(ctx context.Context, req *dto.SubmitInjectionReq, groupID string, userID int, projectID *int) (*dto.SubmitInjectionResp, error) {
+	if req == nil {
+		return nil, fmt.Errorf("submit injection request is nil")
+	}
+
+	if projectID == nil {
+		project, err := repository.GetProjectByName(database.DB, req.ProjectName)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, fmt.Errorf("%w: project %s not found", consts.ErrNotFound, req.ProjectName)
+			}
+			return nil, fmt.Errorf("failed to get project: %w", err)
 		}
-		return nil, fmt.Errorf("failed to get project: %w", err)
+		projectID = &project.ID
 	}
 
 	pedestalVersionResults, err := common.MapRefsToContainerVersions([]*dto.ContainerRef{&req.Pedestal.ContainerRef}, consts.ContainerTypePedestal, userID)
@@ -665,18 +907,34 @@ func ProduceRestartPedestalTasks(ctx context.Context, req *dto.SubmitInjectionRe
 
 	// Parse each batch and collect items
 	processedItems := make([]injectionProcessItem, 0, len(req.Specs))
+	var parseWarnings []string
 	for i := range req.Specs {
-		item, err := parseBatchInjectionSpecs(ctx, pedestalItem.ContainerName, i, req.Specs[i])
+		item, warning, err := parseBatchInjectionSpecs(ctx, pedestalItem.ContainerName, i, req.Specs[i])
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse injection spec batch %d: %w", i, err)
 		}
-		processedItems = append(processedItems, *item)
+
+		if warning != "" {
+			parseWarnings = append(parseWarnings, warning)
+		} else {
+			processedItems = append(processedItems, *item)
+		}
 	}
 
 	// Remove duplicated batches
-	uniqueItems, err := removeDuplicated(processedItems)
+	uniqueItems, duplicatedInRequest, alreadyExisted, err := removeDuplicated(processedItems)
 	if err != nil {
 		return nil, fmt.Errorf("failed to remove duplicated batches: %w", err)
+	}
+
+	// Collect warnings about duplications
+	var warnings *dto.InjectionWarnings
+	if len(parseWarnings) > 0 || len(duplicatedInRequest) > 0 || len(alreadyExisted) > 0 {
+		warnings = &dto.InjectionWarnings{
+			DuplicateServicesInBatch:  parseWarnings,
+			DuplicateBatchesInRequest: duplicatedInRequest,
+			BatchesExistInDatabase:    alreadyExisted,
+		}
 	}
 
 	if len(req.Algorithms) > 0 {
@@ -737,9 +995,12 @@ func ProduceRestartPedestalTasks(ctx context.Context, req *dto.SubmitInjectionRe
 			ExecuteTime: item.executeTime.Unix(),
 			Payload:     payload,
 			GroupID:     groupID,
-			ProjectID:   project.ID,
+			ProjectID:   *projectID,
 			UserID:      userID,
 			State:       consts.TaskPending,
+			Extra: map[consts.TaskExtra]any{
+				consts.TaskExtraInjectionAlgorithms: len(req.Algorithms),
+			},
 		}
 		task.SetGroupCtx(ctx)
 
@@ -755,22 +1016,34 @@ func ProduceRestartPedestalTasks(ctx context.Context, req *dto.SubmitInjectionRe
 		})
 	}
 
+	sort.Slice(injectionItems, func(i, j int) bool {
+		return injectionItems[i].Index < injectionItems[j].Index
+	})
+
 	return &dto.SubmitInjectionResp{
-		GroupID:         groupID,
-		Items:           injectionItems,
-		DuplicatedCount: len(processedItems) - len(uniqueItems),
-		OriginalCount:   len(processedItems),
+		GroupID:       groupID,
+		Items:         injectionItems,
+		OriginalCount: len(processedItems),
+		Warnings:      warnings,
 	}, nil
 }
 
 // ProduceDatapackBuildingTasks produces datapack building tasks into Redis based on the request specifications
-func ProduceDatapackBuildingTasks(ctx context.Context, req *dto.SubmitDatapackBuildingReq, groupID string, userID int) (*dto.SubmitDatapackBuildingResp, error) {
-	project, err := repository.GetProjectByName(database.DB, req.ProjectName)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("%w: project %s not found", consts.ErrNotFound, req.ProjectName)
+func ProduceDatapackBuildingTasks(ctx context.Context, req *dto.SubmitDatapackBuildingReq, groupID string, userID int, projectID *int) (*dto.SubmitDatapackBuildingResp, error) {
+	if req == nil {
+		return nil, fmt.Errorf("submit datapack building request is nil")
+	}
+
+	if projectID == nil {
+		// Use project name from request
+		project, err := repository.GetProjectByName(database.DB, req.ProjectName)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, fmt.Errorf("%w: project %s not found", consts.ErrNotFound, req.ProjectName)
+			}
+			return nil, fmt.Errorf("failed to get project: %w", err)
 		}
-		return nil, fmt.Errorf("failed to get project: %w", err)
+		projectID = &project.ID
 	}
 
 	refs := make([]*dto.ContainerRef, 0, len(req.Specs))
@@ -821,7 +1094,7 @@ func ProduceDatapackBuildingTasks(ctx context.Context, req *dto.SubmitDatapackBu
 				Immediate: true,
 				Payload:   payload,
 				GroupID:   groupID,
-				ProjectID: project.ID,
+				ProjectID: *projectID,
 				UserID:    userID,
 				State:     consts.TaskPending,
 			}
@@ -880,9 +1153,10 @@ func batchDeleteInjectionsCore(db *gorm.DB, injectionIDs []int) error {
 }
 
 // parseBatchInjectionSpecs parses a single batch of fault injection specifications for parallel execution
-func parseBatchInjectionSpecs(ctx context.Context, pedestal string, batchIndex int, specs []chaos.Node) (*injectionProcessItem, error) {
+// Returns the processed item, a warning message (if any), and an error
+func parseBatchInjectionSpecs(ctx context.Context, pedestal string, batchIndex int, specs []chaos.Node) (*injectionProcessItem, string, error) {
 	if len(specs) == 0 {
-		return nil, fmt.Errorf("empty fault injection batch at index %d", batchIndex)
+		return nil, "", fmt.Errorf("empty fault injection batch at index %d", batchIndex)
 	}
 
 	// Extract fault duration - use the maximum duration among all faults in the batch
@@ -892,11 +1166,11 @@ func parseBatchInjectionSpecs(ctx context.Context, pedestal string, batchIndex i
 	for idx, spec := range specs {
 		childNode, exists := spec.Children[strconv.Itoa(spec.Value)]
 		if !exists {
-			return nil, fmt.Errorf("failed to find key %d in the children at index %d", spec.Value, idx)
+			return nil, "", fmt.Errorf("failed to find key %d in the children at index %d", spec.Value, idx)
 		}
 
 		if len(childNode.Children) < 3 {
-			return nil, fmt.Errorf("no child nodes found for fault spec at index %d", idx)
+			return nil, "", fmt.Errorf("no child nodes found for fault spec at index %d", idx)
 		}
 
 		faultDuration := childNode.Children[consts.DurationNodeKey].Value
@@ -907,28 +1181,31 @@ func parseBatchInjectionSpecs(ctx context.Context, pedestal string, batchIndex i
 		systemIdx := childNode.Children[consts.SystemNodeKey].Value
 		system := chaos.GetAllSystemTypes()[systemIdx]
 		if pedestal != system.String() {
-			return nil, fmt.Errorf("mismatched system type %s for pedestal %s at index %d", system.String(), pedestal, idx)
+			return nil, "", fmt.Errorf("mismatched system type %s for pedestal %s at index %d", system.String(), pedestal, idx)
 		}
 
 		nodes = append(nodes, spec)
 	}
 
 	uniqueServices := make(map[string]int, len(nodes))
+	var duplicateServiceWarnings []string
 	for idx, node := range nodes {
 		conf, err := chaos.NodeToStruct[chaos.InjectionConf](ctx, &node)
 		if err != nil {
-			return nil, fmt.Errorf("failed to convert node to InjectionConf at index %d: %w", idx, err)
+			return nil, "", fmt.Errorf("failed to convert node to InjectionConf at index %d: %w", idx, err)
 		}
 
 		groundtruth, err := conf.GetGroundtruth(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get groundtruth from InjectionConf at index %d: %w", idx, err)
+			return nil, "", fmt.Errorf("failed to get groundtruth from InjectionConf at index %d: %w", idx, err)
 		}
 
 		for _, service := range groundtruth.Service {
 			if service != "" {
 				if oldIdx, exists := uniqueServices[service]; exists {
-					return nil, fmt.Errorf("duplicated groundtruth service %s found at indexes %d and %d", service, oldIdx, idx)
+					duplicateServiceWarnings = append(duplicateServiceWarnings,
+						fmt.Sprintf("service '%s' at positions %d and %d", service, oldIdx, idx))
+					continue
 				}
 				uniqueServices[service] = idx
 			}
@@ -938,11 +1215,17 @@ func parseBatchInjectionSpecs(ctx context.Context, pedestal string, batchIndex i
 	// Sort nodes to ensure consistent ordering
 	nodes = sortNodes(nodes)
 
+	var warning string
+	if len(duplicateServiceWarnings) > 0 {
+		warning = fmt.Sprintf("Batch %d contains duplicate service injections: %s",
+			batchIndex, strings.Join(duplicateServiceWarnings, "; "))
+	}
+
 	return &injectionProcessItem{
 		index:         batchIndex,
 		faultDuration: maxDuration,
 		nodes:         nodes,
-	}, nil
+	}, warning, nil
 }
 
 // flattenYAMLToParameters converts nested YAML map to flat parameter specs
@@ -983,7 +1266,7 @@ func flattenYAMLToParameters(data map[string]any, prefix string) []dto.Parameter
 }
 
 // removeDuplicated filters out batches that already exist in DB and removes duplicates within the request
-func removeDuplicated(items []injectionProcessItem) ([]injectionProcessItem, error) {
+func removeDuplicated(items []injectionProcessItem) ([]injectionProcessItem, []int, []int, error) {
 	engineConfigStrs := make([]string, len(items))
 	for i, item := range items {
 		if len(item.nodes) == 0 {
@@ -994,7 +1277,7 @@ func removeDuplicated(items []injectionProcessItem) ([]injectionProcessItem, err
 		// Marshal the entire batch of nodes as the engine config
 		b, err := json.Marshal(item.nodes)
 		if err != nil {
-			return nil, fmt.Errorf("failed to marshal engine config at batch index %d: %w", i, err)
+			return nil, nil, nil, fmt.Errorf("failed to marshal engine config at batch index %d: %w", i, err)
 		}
 
 		engineConfigStrs[i] = string(b)
@@ -1002,12 +1285,14 @@ func removeDuplicated(items []injectionProcessItem) ([]injectionProcessItem, err
 
 	orderedUniqueIdx := make([]int, 0, len(engineConfigStrs))
 	seen := make(map[string]struct{}, len(engineConfigStrs))
+	duplicatedInRequest := make([]int, 0)
 	for i, key := range engineConfigStrs {
 		if key == "" {
 			orderedUniqueIdx = append(orderedUniqueIdx, i)
 			continue
 		}
 		if _, ok := seen[key]; ok {
+			duplicatedInRequest = append(duplicatedInRequest, items[i].index)
 			continue
 		}
 
@@ -1030,7 +1315,7 @@ func removeDuplicated(items []injectionProcessItem) ([]injectionProcessItem, err
 		batch := keys[start:end]
 		existing, err := repository.ListExistingEngineConfigs(database.DB, batch)
 		if err != nil {
-			return nil, err
+			return nil, nil, nil, err
 		}
 
 		for _, v := range existing {
@@ -1039,6 +1324,7 @@ func removeDuplicated(items []injectionProcessItem) ([]injectionProcessItem, err
 	}
 
 	out := make([]injectionProcessItem, 0, len(orderedUniqueIdx))
+	alreadyExisted := make([]int, 0) // Track batch indices that already exist in DB
 	for _, idx := range orderedUniqueIdx {
 		key := engineConfigStrs[idx]
 		if key == "" {
@@ -1046,6 +1332,7 @@ func removeDuplicated(items []injectionProcessItem) ([]injectionProcessItem, err
 			continue
 		}
 		if _, ok := existed[key]; ok {
+			alreadyExisted = append(alreadyExisted, items[idx].index)
 			continue
 		}
 
@@ -1053,7 +1340,7 @@ func removeDuplicated(items []injectionProcessItem) ([]injectionProcessItem, err
 		out = append(out, items[idx])
 	}
 
-	return out, nil
+	return out, duplicatedInRequest, alreadyExisted, nil
 }
 
 // sortNodes sorts chaos nodes by their Value field and then by their JSON representation for consistency
@@ -1088,4 +1375,191 @@ func sortNodes(nodes []chaos.Node) []chaos.Node {
 	}
 
 	return sortedNodes
+}
+
+// buildFileTree recursively builds a tree structure of files and directories
+func buildFileTree(workDir, relPath string, baseURL string, datapackID int, resp *dto.DatapackFilesResp) ([]dto.DatapackFileItem, error) {
+	currentPath := filepath.Join(workDir, relPath)
+	entries, err := os.ReadDir(currentPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var items []dto.DatapackFileItem
+	for _, entry := range entries {
+		itemRelPath := filepath.Join(relPath, entry.Name())
+
+		fileInfo, err := entry.Info()
+		if err != nil {
+			return nil, err
+		}
+
+		item := dto.DatapackFileItem{
+			Name: entry.Name(),
+			Path: filepath.ToSlash(itemRelPath),
+		}
+
+		if entry.IsDir() {
+			children, err := buildFileTree(workDir, itemRelPath, baseURL, datapackID, resp)
+			if err != nil {
+				return nil, err
+			}
+			item.Children = children
+
+			// Count direct subfolders and files
+			subFolderCount := 0
+			fileCount := 0
+			for _, child := range children {
+				if len(child.Children) > 0 {
+					subFolderCount++
+				} else {
+					fileCount++
+				}
+			}
+
+			item.Size = fmt.Sprintf("%d subfolders, %d files", subFolderCount, fileCount)
+			resp.DirCount++
+		} else {
+			fileSize := fileInfo.Size()
+			item.Size = formatFileSize(fileSize)
+			modTime := fileInfo.ModTime()
+			item.ModTime = &modTime
+			resp.FileCount++
+		}
+
+		items = append(items, item)
+	}
+
+	return items, nil
+}
+
+// buildSafeParquetSQL inspects the parquet file schema via DuckDB DESCRIBE and builds
+// a SELECT query that casts unsupported Arrow types (unsigned integers like UBIGINT)
+// to compatible signed types, avoiding "Unsupported type 'uint64'" errors in Arrow IPC.
+func buildSafeParquetSQL(ctx context.Context, db *sql.DB, filePath string) (string, error) {
+	unsupportedCast := map[string]string{
+		"UTINYINT":  "SMALLINT", // uint8  -> int16
+		"USMALLINT": "INTEGER",  // uint16 -> int32
+		"UINTEGER":  "INTEGER",  // uint32 -> int32
+		"UBIGINT":   "INTEGER",  // uint64 -> int32 (values > 2^63-1 will overflow)
+	}
+
+	fallbackSQL := fmt.Sprintf("SELECT * FROM read_parquet('%s')", filePath)
+
+	describeQuery := fmt.Sprintf("DESCRIBE SELECT * FROM read_parquet('%s')", filePath)
+	rows, err := db.QueryContext(ctx, describeQuery)
+	if err != nil {
+		logrus.Warnf("failed to describe parquet file, falling back to SELECT *: %v", err)
+		return fallbackSQL, nil
+	}
+	defer rows.Close()
+
+	colDescs, err := rows.ColumnTypes()
+	if err != nil {
+		logrus.Warnf("failed to get DESCRIBE column types, falling back to SELECT *: %v", err)
+		return fallbackSQL, nil
+	}
+	scanArgs := make([]any, len(colDescs))
+	for i := range scanArgs {
+		scanArgs[i] = new(sql.NullString)
+	}
+
+	var columns []string
+	needsCast := false
+
+	for rows.Next() {
+		if err := rows.Scan(scanArgs...); err != nil {
+			logrus.Warnf("failed to scan DESCRIBE row, falling back to SELECT *: %v", err)
+			return fallbackSQL, nil
+		}
+
+		colName := scanArgs[0].(*sql.NullString).String
+		colType := scanArgs[1].(*sql.NullString).String
+
+		upperColType := strings.ToUpper(colType)
+
+		// Check if it's an array type (ends with [])
+		isArray := strings.HasSuffix(upperColType, "[]")
+		baseType := upperColType
+		if isArray {
+			baseType = strings.TrimSuffix(upperColType, "[]")
+		}
+
+		if castType, ok := unsupportedCast[baseType]; ok {
+			targetType := castType
+			if isArray {
+				targetType = castType + "[]"
+			}
+			columns = append(columns, fmt.Sprintf("CAST(\"%s\" AS %s) AS \"%s\"", colName, targetType, colName))
+			needsCast = true
+			logrus.Infof("parquet column %q: casting %s -> %s", colName, colType, targetType)
+		} else {
+			columns = append(columns, fmt.Sprintf("\"%s\"", colName))
+		}
+	}
+
+	if !needsCast || len(columns) == 0 {
+		return fallbackSQL, nil
+	}
+
+	safeSQL := fmt.Sprintf("SELECT %s FROM read_parquet('%s')", strings.Join(columns, ", "), filePath)
+	logrus.Infof("parquet query uses type casting: %s", safeSQL)
+	return safeSQL, nil
+}
+
+// formatFileSize formats bytes to human readable format (KB or MB) with one decimal place
+func formatFileSize(bytes int64) string {
+	const (
+		KB = 1024
+		MB = 1024 * 1024
+	)
+
+	if bytes < MB {
+		return fmt.Sprintf("%.1fKB", float64(bytes)/float64(KB))
+	}
+	return fmt.Sprintf("%.1fMB", float64(bytes)/float64(MB))
+}
+
+func getFileFullPath(datapackID int, filePath string) (string, error) {
+	datapack, err := repository.GetInjectionByID(database.DB, datapackID)
+	if err != nil {
+		if errors.Is(err, consts.ErrNotFound) {
+			return "", fmt.Errorf("%w: datapack id: %d", consts.ErrNotFound, datapackID)
+		}
+		return "", fmt.Errorf("failed to get datapack: %w", err)
+	}
+
+	if datapack.State < consts.DatapackBuildSuccess {
+		return "", fmt.Errorf("datapack %d is not ready for download", datapackID)
+	}
+
+	workDir := filepath.Join(config.GetString("jfs.dataset_path"), datapack.Name)
+	if !utils.IsAllowedPath(workDir) {
+		return "", fmt.Errorf("invalid path access to %s", workDir)
+	}
+
+	// Clean and validate the file path
+	cleanPath := filepath.Clean(filePath)
+	fullPath := filepath.Join(workDir, cleanPath)
+
+	if !strings.HasPrefix(fullPath, workDir) {
+		return "", fmt.Errorf("invalid file path: path traversal detected")
+	}
+	if !utils.IsAllowedPath(fullPath) {
+		return "", fmt.Errorf("invalid file path access")
+	}
+
+	fileInfo, err := os.Stat(fullPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", fmt.Errorf("%w: file not found: %s", consts.ErrNotFound, cleanPath)
+		}
+		return "", fmt.Errorf("failed to stat file: %w", err)
+	}
+
+	if fileInfo.IsDir() {
+		return "", fmt.Errorf("path is a directory, not a file: %s", cleanPath)
+	}
+
+	return fullPath, nil
 }

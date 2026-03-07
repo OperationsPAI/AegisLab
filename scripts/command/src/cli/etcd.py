@@ -29,7 +29,7 @@ def init(
         help='JSON file with custom values (format: {"config_key": "value"})',
     ),
 ):
-    """Initialize etcd with consumer configurations from data.json"""
+    """Initialize etcd with consumer configurations from data.yaml"""
 
     if env == ENV.PROD:
         console.print(

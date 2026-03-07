@@ -6,8 +6,13 @@ import (
 
 	"aegis/consts"
 	"aegis/database"
+	"aegis/dto"
 
 	"gorm.io/gorm"
+)
+
+const (
+	projectOmitFields = "ActiveName"
 )
 
 // =====================================================================
@@ -16,7 +21,7 @@ import (
 
 // CreateProject creates a new project
 func CreateProject(db *gorm.DB, project *database.Project) error {
-	if err := db.Create(project).Error; err != nil {
+	if err := db.Omit(projectOmitFields).Create(project).Error; err != nil {
 		return fmt.Errorf("failed to create project: %w", err)
 	}
 	return nil
@@ -62,43 +67,16 @@ func GetProjectUserCount(db *gorm.DB, projectID int) (int, error) {
 	return int(count), nil
 }
 
-// GetProjectStatistics returns project statistics
-func GetProjectStatistics() (map[string]int64, error) {
-	stats := make(map[string]int64)
-
-	// Total projects (exclude deleted)
-	var total int64
-	if err := database.DB.Model(&database.Project{}).Where("status != -1").Count(&total).Error; err != nil {
-		return nil, fmt.Errorf("failed to count total projects: %w", err)
+// GetUserProjectRole retrieves a user's role in a specific project
+func GetUserProjectRole(db *gorm.DB, userID, projectID int) (*database.UserProject, error) {
+	var userProject database.UserProject
+	if err := db.
+		Preload("Role").
+		Where("user_id = ? AND project_id = ? AND status = ?", userID, projectID, consts.CommonEnabled).
+		First(&userProject).Error; err != nil {
+		return nil, err
 	}
-	stats["total"] = total
-
-	// Active projects
-	var active int64
-	if err := database.DB.Model(&database.Project{}).Where("status = 1").Count(&active).Error; err != nil {
-		return nil, fmt.Errorf("failed to count active projects: %w", err)
-	}
-	stats["active"] = active
-
-	// Inactive projects
-	var inactive int64
-	if err := database.DB.Model(&database.Project{}).Where("status = 0").Count(&inactive).Error; err != nil {
-		return nil, fmt.Errorf("failed to count inactive projects: %w", err)
-	}
-	stats["inactive"] = inactive
-
-	// New projects today
-	today := time.Now().Truncate(24 * time.Hour)
-	tomorrow := today.Add(24 * time.Hour)
-	var newToday int64
-	if err := database.DB.Model(&database.Project{}).
-		Where("created_at >= ? AND created_at < ?", today, tomorrow).
-		Count(&newToday).Error; err != nil {
-		return nil, fmt.Errorf("failed to count new projects today: %w", err)
-	}
-	stats["new_today"] = newToday
-
-	return stats, nil
+	return &userProject, nil
 }
 
 // ListProjects lists projects based on filter options
@@ -140,25 +118,78 @@ func ListProjectsByID(db *gorm.DB, projectIDs []int) ([]database.Project, error)
 	return projects, nil
 }
 
+// BatchGetProjectStatistics retrieves statistics for multiple projects in one query
+func BatchGetProjectStatistics(db *gorm.DB, projectIDs []int) (map[int]*dto.ProjectStatistics, error) {
+	if len(projectIDs) == 0 {
+		return make(map[int]*dto.ProjectStatistics), nil
+	}
+
+	statsMap := make(map[int]*dto.ProjectStatistics)
+
+	// Initialize map with zero values
+	for _, id := range projectIDs {
+		statsMap[id] = &dto.ProjectStatistics{}
+	}
+
+	// Batch query injection statistics
+	var injStats []struct {
+		ProjectID int
+		Count     int64
+		LastAt    *time.Time
+	}
+
+	err := db.Table("fault_injections fi").
+		Select("tr.project_id, COUNT(*) as count, MAX(fi.updated_at) as last_at").
+		Joins("JOIN tasks t ON fi.task_id = t.id").
+		Joins("JOIN traces tr ON t.trace_id = tr.id").
+		Where("tr.project_id IN (?)", projectIDs).
+		Group("tr.project_id").
+		Scan(&injStats).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to batch get injection statistics: %w", err)
+	}
+
+	for _, stat := range injStats {
+		if s, exists := statsMap[stat.ProjectID]; exists {
+			s.InjectionCount = int(stat.Count)
+			s.LastInjectionAt = stat.LastAt
+		}
+	}
+
+	// Batch query execution statistics
+	var execStats []struct {
+		ProjectID int
+		Count     int64
+		LastAt    *time.Time
+	}
+
+	err = db.Table("executions e").
+		Select("tr.project_id, COUNT(*) as count, MAX(e.updated_at) as last_at").
+		Joins("JOIN tasks t ON e.task_id = t.id").
+		Joins("JOIN traces tr ON t.trace_id = tr.id").
+		Where("tr.project_id IN (?)", projectIDs).
+		Group("tr.project_id").
+		Scan(&execStats).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to batch get execution statistics: %w", err)
+	}
+
+	for _, stat := range execStats {
+		if s, exists := statsMap[stat.ProjectID]; exists {
+			s.ExecutionCount = int(stat.Count)
+			s.LastExecutionAt = stat.LastAt
+		}
+	}
+
+	return statsMap, nil
+}
+
 // UpdateProject updates a project
 func UpdateProject(db *gorm.DB, project *database.Project) error {
-	if err := db.Save(project).Error; err != nil {
+	if err := db.Omit(projectOmitFields).Save(project).Error; err != nil {
 		return fmt.Errorf("failed to update project: %w", err)
 	}
 	return nil
-}
-
-// ListInjectionsByProjectID gets all fault injections for a project
-func ListInjectionsByProjectID(db *gorm.DB, projectID int) ([]database.FaultInjection, error) {
-	var injections []database.FaultInjection
-	if err := db.
-		Joins("JOIN tasks ON fault_injections.task_id = tasks.id").
-		Where("task.type = ? AND tasks.project_id = ?", consts.TaskTypeFaultInjection, projectID).
-		Find(&injections).Error; err != nil {
-		return nil, fmt.Errorf("failed to get fault injections of project id %d: %w", projectID, err)
-	}
-
-	return injections, nil
 }
 
 // =====================================================================
@@ -298,6 +329,21 @@ func ListLabelsByProjectID(db *gorm.DB, projectID int) ([]database.Label, error)
 		return nil, fmt.Errorf("failed to list labels for project %d: %w", projectID, err)
 	}
 	return labels, nil
+}
+
+// GetProjectTeamID retrieves the team ID for a project
+func GetProjectTeamID(db *gorm.DB, projectID int) (int, error) {
+	var teamID *int
+	if err := db.Model(&database.Project{}).
+		Select("team_id").
+		Where("id = ? AND status != ?", projectID, consts.CommonDeleted).
+		Scan(&teamID).Error; err != nil {
+		return 0, fmt.Errorf("failed to get team ID for project %d: %w", projectID, err)
+	}
+	if teamID == nil {
+		return 0, fmt.Errorf("project %d has no associated team", projectID)
+	}
+	return *teamID, nil
 }
 
 // ListLabelIDsByKeyAndProjectID finds label IDs by keys associated with a specific project

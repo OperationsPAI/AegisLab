@@ -7,10 +7,10 @@ Uses etcd gRPC-JSON Gateway (HTTP API) for direct communication.
 """
 
 import base64
-import json
 from typing import Any
 
 import requests
+import yaml
 from rich.table import Table
 
 from src.common.common import ENV, INITIAL_DATA_PATH, console, settings
@@ -183,14 +183,14 @@ def _get_etcd_client(env: ENV) -> EtcdHTTPClient:
 
 
 def _load_dynamic_configs() -> list[dict[str, Any]]:
-    """Load dynamic_configs from data.json.
+    """Load dynamic_configs from data.yaml.
 
     Returns:
         List of consumer configuration dictionaries (scope = 1)
 
     Raises:
-        FileNotFoundError: If data.json not found
-        json.JSONDecodeError: If data.json is invalid
+        FileNotFoundError: If data.yaml not found
+        yaml.YAMLError: If data.yaml is invalid
         Exception: For other errors during loading
     """
     if not INITIAL_DATA_PATH.exists():
@@ -200,7 +200,7 @@ def _load_dynamic_configs() -> list[dict[str, Any]]:
         raise FileNotFoundError(f"Data file not found: {INITIAL_DATA_PATH}")
 
     with open(INITIAL_DATA_PATH, encoding="utf-8") as f:
-        data = json.load(f)
+        data = yaml.safe_load(f)
 
     configs = data.get("dynamic_configs", [])
 
@@ -217,12 +217,12 @@ def _load_dynamic_configs() -> list[dict[str, Any]]:
 def init_etcd_configs(
     env: ENV, force: bool = False, dry_run: bool = False, values_file: str | None = None
 ) -> dict[str, int]:
-    """Initialize etcd with consumer configurations from data.json.
+    """Initialize etcd with consumer configurations from data.yaml.
 
     Args:
         force: Force overwrite existing values in etcd
         dry_run: Show what would be done without making changes
-        values_file: Optional JSON file path with custom values (format: {"config_key": "value"})
+        values_file: Optional YAML file path with custom values (format: {"config_key": "value"})
 
     Returns:
         Dict: {"success": int, "skipped": int, "error": int}
@@ -230,7 +230,6 @@ def init_etcd_configs(
     Raises:
         Exception: If failed to create etcd client or other errors
     """
-    # Load configurations from data.json
     configs = _load_dynamic_configs()
 
     if not configs:
@@ -253,13 +252,13 @@ def init_etcd_configs(
                 raise FileNotFoundError(f"Values file not found: {values_file}")
 
             with open(values_path, encoding="utf-8") as f:
-                custom_values = json.load(f)
+                custom_values = yaml.safe_load(f)
 
             console.print(
                 f"[bold green]✅ Loaded {len(custom_values)} custom values from {values_path.name}[/bold green]"
             )
-        except json.JSONDecodeError as e:
-            console.print(f"[bold red]❌ Invalid JSON in values file: {e}[/bold red]")
+        except yaml.YAMLError as e:
+            console.print(f"[bold red]❌ Invalid YAML in values file: {e}[/bold red]")
             raise
 
     # Create etcd client

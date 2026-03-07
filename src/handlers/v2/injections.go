@@ -6,7 +6,10 @@ import (
 	"archive/zip"
 	"context"
 	"fmt"
+	"io"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"aegis/dto"
 	"aegis/handlers"
@@ -18,7 +21,7 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
-	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
+	chaos "github.com/OperationsPAI/chaos-experiment/handler"
 )
 
 // BatchDeleteInjections
@@ -82,18 +85,12 @@ func BatchDeleteInjections(c *gin.Context) {
 //	@x-api-type		{"sdk":"true"}
 func GetInjection(c *gin.Context) {
 	idStr := c.Param(consts.URLPathID)
-	logrus.WithFields(logrus.Fields{
-		"idStr": idStr,
-		"path":  c.Request.URL.Path,
-	}).Info("GetInjection: received request")
-
 	id, ok := handlers.ParsePositiveID(c, idStr, "injection ID")
 	if !ok {
 		logrus.WithField("idStr", idStr).Warn("GetInjection: invalid ID format or ID <= 0")
 		return
 	}
 
-	logrus.WithField("id", id).Info("GetInjection: calling GetInjectionDetail")
 	resp, err := producer.GetInjectionDetail(id)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
@@ -117,6 +114,7 @@ func GetInjection(c *gin.Context) {
 //	@Tags			Injections
 //	@ID				get_injection_metadata
 //	@Produce		json
+//	@Security		BearerAuth
 //	@Param			system	query		chaos.SystemType								true	"System for config and resources metadata"
 //	@Success		200		{object}	dto.GenericResponse[dto.InjectionMetadataResp]	"Successfully returned metadata"
 //	@Failure		400		{object}	dto.GenericResponse[any]						"Invalid system"
@@ -150,9 +148,9 @@ func GetInjectionMetadata(c *gin.Context) {
 		return
 	}
 
-	resource, exists := resourceMap[system]
-	if !exists {
-		dto.ErrorResponse(c, http.StatusNotFound, "Namespace resources not found")
+	resource, ok := resourceMap[system]
+	if !ok {
+		dto.ErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("System %s not found", systemStr))
 		return
 	}
 
@@ -224,64 +222,7 @@ func ListInjections(c *gin.Context) {
 //	@Router			/api/v2/injections/search [post]
 //	@x-api-type		{"sdk":"true"}
 func SearchInjections(c *gin.Context) {
-	var req dto.SearchInjectionReq
-	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
-		return
-	}
-
-	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
-		return
-	}
-
-	resp, err := producer.SearchInjections(&req)
-	if handlers.HandleServiceError(c, err) {
-		return
-	}
-
-	dto.SuccessResponse(c, resp)
-}
-
-// DownloadDatapack handles datapack file download
-//
-//	@Summary		Download datapack
-//	@Description	Download datapack file by injection ID
-//	@Tags			Injections
-//	@ID				download_datapack
-//	@Produce		application/octet-stream
-//	@Security		BearerAuth
-//	@Param			id	path		int							true	"Injection ID"
-//	@Success		200	{file}		binary						"Datapack file"
-//	@Failure		400	{object}	dto.GenericResponse[any]	"Invalid injection ID"
-//	@Failure		403	{object}	dto.GenericResponse[any]	"Permission denied"
-//	@Failure		404	{object}	dto.GenericResponse[any]	"Injection not found"
-//	@Failure		500	{object}	dto.GenericResponse[any]	"Internal server error"
-//	@Router			/api/v2/injections/{id}/download [get]
-//	@x-api-type		{"sdk":"true"}
-func DownloadDatapack(c *gin.Context) {
-	idStr := c.Param(consts.URLPathID)
-	id, ok := handlers.ParsePositiveID(c, idStr, "injection ID")
-	if !ok {
-		return
-	}
-
-	filename, err := producer.GetDatapackFilename(id)
-	if handlers.HandleServiceError(c, err) {
-		return
-	}
-
-	c.Header("Content-Type", "application/zip")
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s.zip", filename))
-
-	zipWriter := zip.NewWriter(c.Writer)
-	defer zipWriter.Close()
-
-	if err := producer.DownloadDatapack(zipWriter, []utils.ExculdeRule{}, id); err != nil {
-		delete(c.Writer.Header(), "Content-Disposition")
-		c.Header("Content-Type", "application/json; charset=utf-8")
-		handlers.HandleServiceError(c, err)
-	}
+	searchInjectionsCommon(c, nil)
 }
 
 // ListFaultInjectionNoIssues
@@ -301,25 +242,7 @@ func DownloadDatapack(c *gin.Context) {
 //	@Router			/api/v2/injections/analysis/no-issues [get]
 //	@x-api-type		{"sdk":"true"}
 func ListFaultInjectionNoIssues(c *gin.Context) {
-	var req dto.ListInjectionNoIssuesReq
-	if err := c.BindQuery(&req); err != nil {
-		logrus.Errorf("failed to bind query parameters: %v", err)
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters")
-		return
-	}
-
-	if err := req.Validate(); err != nil {
-		logrus.Errorf("invalid query parameters: %v", err)
-		dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	items, err := producer.ListInjectionsNoIssues(&req)
-	if handlers.HandleServiceError(c, err) {
-		return
-	}
-
-	dto.SuccessResponse(c, items)
+	listFaultInjectionNoIssuesCommon(c, nil)
 }
 
 // ListFaultInjectionWithIssues
@@ -339,25 +262,7 @@ func ListFaultInjectionNoIssues(c *gin.Context) {
 //	@Router			/api/v2/injections/analysis/with-issues [get]
 //	@x-api-type		{"sdk":"true"}
 func ListFaultInjectionWithIssues(c *gin.Context) {
-	var req dto.ListInjectionWithIssuesReq
-	if err := c.BindQuery(&req); err != nil {
-		logrus.Errorf("failed to bind query parameters: %v", err)
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters")
-		return
-	}
-
-	if err := req.Validate(); err != nil {
-		logrus.Errorf("invalid query parameters: %v", err)
-		dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	items, err := producer.ListInjectionsWithIssues(&req)
-	if handlers.HandleServiceError(c, err) {
-		return
-	}
-
-	dto.SuccessResponse(c, items)
+	listFaultInjectionWithIssuesCommon(c, nil)
 }
 
 // ManageInjectionCustomLabels manages injection custom labels (key-value pairs)
@@ -461,6 +366,454 @@ func BatchManageInjectionLabels(c *gin.Context) {
 //	@Router			/api/v2/injections/inject [post]
 //	@x-api-type		{"sdk":"true"}
 func SubmitFaultInjection(c *gin.Context) {
+	submitFaultInjectionCommon(c, nil)
+}
+
+// SubmitDatapackBuilding submits batch datapack buildings
+//
+//	@Summary		Submit batch datapack buildings
+//	@Description.	Submit multiple datapack building tasks in batch
+//	@Tags			Injections
+//	@ID				build_datapack
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		dto.SubmitDatapackBuildingReq						true	"Datapack building request body"
+//	@Success		202		{object}	dto.GenericResponse[dto.SubmitDatapackBuildingResp]	"Datapack building submitted successfully"
+//	@Failure		400		{object}	dto.GenericResponse[any]							"Invalid request format or parameters"
+//	@Failure		401		{object}	dto.GenericResponse[any]							"Authentication required"
+//	@Failure		403		{object}	dto.GenericResponse[any]							"Permission denied"
+//	@Failure		404		{object}	dto.GenericResponse[any]							"Resource not found"
+//	@Failure		500		{object}	dto.GenericResponse[any]							"Internal server error"
+//	@Router			/api/v2/injections/build [post]
+//	@x-api-type		{"sdk":"true"}
+func SubmitDatapackBuilding(c *gin.Context) {
+	submitDatapackBuildingCommon(c, nil)
+}
+
+// CloneInjection handles cloning an injection configuration
+//
+//	@Summary		Clone injection
+//	@Description	Clone an existing injection configuration for reuse
+//	@Tags			Injections
+//	@ID				clone_injection
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		int												true	"Injection ID"
+//	@Param			body	body		dto.CloneInjectionReq							true	"Clone request"
+//	@Success		201		{object}	dto.GenericResponse[dto.InjectionDetailResp]	"Injection cloned successfully"
+//	@Failure		400		{object}	dto.GenericResponse[any]						"Invalid request"
+//	@Failure		401		{object}	dto.GenericResponse[any]						"Authentication required"
+//	@Failure		404		{object}	dto.GenericResponse[any]						"Injection not found"
+//	@Failure		500		{object}	dto.GenericResponse[any]						"Internal server error"
+//	@Router			/api/v2/injections/{id}/clone [post]
+//	@x-api-type		{"sdk":"true"}
+func CloneInjection(c *gin.Context) {
+	idStr := c.Param(consts.URLPathID)
+	id, ok := handlers.ParsePositiveID(c, idStr, "injection ID")
+	if !ok {
+		return
+	}
+
+	var req dto.CloneInjectionReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
+		return
+	}
+
+	resp, err := producer.CloneInjection(id, &req)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	dto.JSONResponse(c, http.StatusCreated, "Injection cloned successfully", resp)
+}
+
+// GetInjectionLogs handles getting injection execution logs
+//
+//	@Summary		Get injection logs
+//	@Description	Get execution logs for a specific injection
+//	@Tags			Injections
+//	@ID				get_injection_logs
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path		int											true	"Injection ID"
+//	@Success		200	{object}	dto.GenericResponse[dto.InjectionLogsResp]	"Logs retrieved successfully"
+//	@Failure		400	{object}	dto.GenericResponse[any]					"Invalid injection ID"
+//	@Failure		401	{object}	dto.GenericResponse[any]					"Authentication required"
+//	@Failure		404	{object}	dto.GenericResponse[any]					"Injection not found"
+//	@Failure		500	{object}	dto.GenericResponse[any]					"Internal server error"
+//	@Router			/api/v2/injections/{id}/logs [get]
+//	@x-api-type		{"sdk":"true"}
+func GetInjectionLogs(c *gin.Context) {
+	idStr := c.Param(consts.URLPathID)
+	id, ok := handlers.ParsePositiveID(c, idStr, "injection ID")
+	if !ok {
+		return
+	}
+
+	resp, err := producer.GetInjectionLogs(id)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	dto.JSONResponse(c, http.StatusOK, "Logs retrieved successfully", resp)
+}
+
+// DownloadDatapack handles datapack file download
+//
+//	@Summary		Download datapack
+//	@Description	Download datapack file by injection ID
+//	@Tags			Injections
+//	@ID				download_datapack
+//	@Produce		application/octet-stream
+//	@Security		BearerAuth
+//	@Param			id	path		int							true	"Injection ID"
+//	@Success		200	{file}		binary						"Datapack zip file"
+//	@Failure		400	{object}	dto.GenericResponse[any]	"Invalid injection ID"
+//	@Failure		403	{object}	dto.GenericResponse[any]	"Permission denied"
+//	@Failure		404	{object}	dto.GenericResponse[any]	"Injection not found"
+//	@Failure		500	{object}	dto.GenericResponse[any]	"Internal server error"
+//	@Router			/api/v2/injections/{id}/download [get]
+//	@x-api-type		{"sdk":"true"}
+func DownloadDatapack(c *gin.Context) {
+	idStr := c.Param(consts.URLPathID)
+	id, ok := handlers.ParsePositiveID(c, idStr, "injection ID")
+	if !ok {
+		return
+	}
+
+	filename, err := producer.GetDatapackFilename(id)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	c.Header("Content-Type", "application/zip")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s.zip", filename))
+
+	zipWriter := zip.NewWriter(c.Writer)
+	defer zipWriter.Close()
+
+	if err := producer.DownloadDatapack(zipWriter, []utils.ExculdeRule{}, id); err != nil {
+		delete(c.Writer.Header(), "Content-Disposition")
+		c.Header("Content-Type", "application/json; charset=utf-8")
+		handlers.HandleServiceError(c, err)
+	}
+}
+
+// ListDatapackFiles handles getting the file structure of an injection datapack
+//
+//	@Summary		List datapack files
+//	@Description	Get the file structure of an injection datapack
+//	@Tags			Injections
+//	@ID				list_datapack_files
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path		int											true	"Injection ID"
+//	@Success		200	{object}	dto.GenericResponse[dto.DatapackFilesResp]	"Files retrieved successfully"
+//	@Failure		400	{object}	dto.GenericResponse[any]					"Invalid injection ID"
+//	@Failure		401	{object}	dto.GenericResponse[any]					"Authentication required"
+//	@Failure		404	{object}	dto.GenericResponse[any]					"Datapack not found or not ready"
+//	@Failure		500	{object}	dto.GenericResponse[any]					"Internal server error"
+//	@Router			/api/v2/injections/{id}/files [get]
+func ListDatapackFiles(c *gin.Context) {
+	idStr := c.Param(consts.URLPathID)
+	id, ok := handlers.ParsePositiveID(c, idStr, "datapack ID")
+	if !ok {
+		return
+	}
+
+	// Get base URL from request
+	scheme := "http"
+	if c.Request.TLS != nil {
+		scheme = "https"
+	}
+	baseURL := fmt.Sprintf("%s://%s", scheme, c.Request.Host)
+
+	resp, err := producer.GetDatapackFiles(id, baseURL)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	dto.SuccessResponse(c, resp)
+}
+
+// DownloadDatapackFile handles downloading a specific file from a datapack.
+// Supports HTTP Range requests for resumable downloads.
+//
+//	@Summary		Download datapack file
+//	@Description	Download a specific file from a datapack. Supports Range requests for resumable download.
+//	@Tags			Injections
+//	@ID				download_datapack_file
+//	@Produce		application/octet-stream
+//	@Security		BearerAuth
+//	@Param			id		path		int							true	"Injection ID"
+//	@Param			path	query		string						true	"Relative path to the file"
+//	@Success		200		{file}		binary						"Complete file content"
+//	@Success		206		{file}		binary						"Partial file content (Range request)"
+//	@Failure		400		{object}	dto.GenericResponse[any]	"Invalid injection ID or file path"
+//	@Failure		401		{object}	dto.GenericResponse[any]	"Authentication required"
+//	@Failure		403		{object}	dto.GenericResponse[any]	"Permission denied"
+//	@Failure		404		{object}	dto.GenericResponse[any]	"Datapack or file not found"
+//	@Failure		416		{object}	dto.GenericResponse[any]	"Range not satisfiable"
+//	@Failure		500		{object}	dto.GenericResponse[any]	"Internal server error"
+//	@Router			/api/v2/injections/{id}/files/download [get]
+func DownloadDatapackFile(c *gin.Context) {
+	idStr := c.Param(consts.URLPathID)
+	id, ok := handlers.ParsePositiveID(c, idStr, "datapack ID")
+	if !ok {
+		return
+	}
+
+	filePath := c.Query("path")
+	if filePath == "" {
+		dto.ErrorResponse(c, http.StatusBadRequest, "file path is required")
+		return
+	}
+
+	fileName, contentType, fileSize, fileReader, err := producer.DownloadDatapackFile(id, filePath)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+	defer fileReader.Close()
+
+	c.Header("Content-Type", contentType)
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", fileName))
+	c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
+	c.Header("Accept-Ranges", "bytes")
+
+	// Handle Range request for resumable download
+	rangeHeader := c.GetHeader("Range")
+	if rangeHeader != "" {
+		serveRangeRequest(c, fileReader, fileSize, rangeHeader)
+		return
+	}
+
+	// Full file response
+	c.Header("Content-Length", strconv.FormatInt(fileSize, 10))
+	c.Status(http.StatusOK)
+
+	if _, err := io.Copy(c.Writer, fileReader); err != nil {
+		logrus.WithError(err).Error("failed to stream file content")
+		return
+	}
+}
+
+// QueryDatapackFile handles querying the content of a specific file in the datapack.
+// Returns the complete file with Content-Length for download progress tracking.
+//
+// NOTE: Arrow IPC is a structured stream that must be read sequentially from the
+// beginning — Range requests are intentionally NOT supported here. Use
+// DownloadDatapackFile for resumable downloads of raw files.
+//
+//	@Summary		Query datapack file content
+//	@Description	Query the content of a parquet file in the datapack, returned as a complete stream. Content-Length header is provided for progress tracking.
+//	@Tags			Injections
+//	@ID				query_datapack_file
+//	@Produce		application/vnd.apache.arrow.stream
+//	@Security		BearerAuth
+//	@Param			id		path		int							true	"Injection ID"
+//	@Param			path	query		string						true	"Relative path to the file"
+//	@Success		200		{file}		binary						"Complete Arrow IPC stream"
+//	@Failure		400		{object}	dto.GenericResponse[any]	"Invalid injection ID or file path"
+//	@Failure		401		{object}	dto.GenericResponse[any]	"Authentication required"
+//	@Failure		403		{object}	dto.GenericResponse[any]	"Permission denied"
+//	@Failure		404		{object}	dto.GenericResponse[any]	"Datapack or file not found"
+//	@Failure		500		{object}	dto.GenericResponse[any]	"Internal server error"
+//	@Router			/api/v2/injections/{id}/files/query [get]
+func QueryDatapackFile(c *gin.Context) {
+	idStr := c.Param(consts.URLPathID)
+	id, ok := handlers.ParsePositiveID(c, idStr, "datapack ID")
+	if !ok {
+		return
+	}
+
+	filePath := c.Query("path")
+	if filePath == "" {
+		dto.ErrorResponse(c, http.StatusBadRequest, "file path is required")
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	fileName, totalRows, reader, err := producer.QueryDatapackFileContent(ctx, id, filePath)
+	if err != nil {
+		if handlers.HandleServiceError(c, err) {
+			return
+		}
+	}
+	defer reader.Close()
+
+	// Content-Length enables axios onDownloadProgress to calculate percentage
+	c.Header("Content-Type", "application/vnd.apache.arrow.stream")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s.arrow", fileName))
+	c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
+	c.Header("X-Total-Rows", strconv.FormatInt(totalRows, 10))
+	c.Header("X-Accel-Buffering", "no")
+	c.Status(http.StatusOK)
+
+	if _, err := io.Copy(c.Writer, reader); err != nil {
+		logrus.Errorf("failed to stream file content: %v", err)
+		return
+	}
+}
+
+// ===================== Private Helper Functions =====================
+
+// serveRangeRequest handles HTTP Range requests for partial content delivery.
+// Supports single range requests in the format "bytes=start-end".
+func serveRangeRequest(c *gin.Context, reader io.ReadSeeker, fileSize int64, rangeHeader string) {
+	// Parse "bytes=start-end" format
+	const prefix = "bytes="
+	if !strings.HasPrefix(rangeHeader, prefix) {
+		dto.ErrorResponse(c, http.StatusRequestedRangeNotSatisfiable, "invalid range format")
+		return
+	}
+
+	rangeSpec := strings.TrimPrefix(rangeHeader, prefix)
+	// Only support single range (no multi-range)
+	if strings.Contains(rangeSpec, ",") {
+		dto.ErrorResponse(c, http.StatusRequestedRangeNotSatisfiable, "multi-range not supported")
+		return
+	}
+
+	parts := strings.SplitN(rangeSpec, "-", 2)
+	if len(parts) != 2 {
+		dto.ErrorResponse(c, http.StatusRequestedRangeNotSatisfiable, "invalid range format")
+		return
+	}
+
+	var start, end int64
+	var err error
+
+	if parts[0] == "" {
+		// Suffix range: "bytes=-500" means last 500 bytes
+		suffix, err := strconv.ParseInt(parts[1], 10, 64)
+		if err != nil || suffix <= 0 || suffix > fileSize {
+			c.Header("Content-Range", fmt.Sprintf("bytes */%d", fileSize))
+			dto.ErrorResponse(c, http.StatusRequestedRangeNotSatisfiable, "invalid range")
+			return
+		}
+		start = fileSize - suffix
+		end = fileSize - 1
+	} else {
+		start, err = strconv.ParseInt(parts[0], 10, 64)
+		if err != nil || start < 0 || start >= fileSize {
+			c.Header("Content-Range", fmt.Sprintf("bytes */%d", fileSize))
+			dto.ErrorResponse(c, http.StatusRequestedRangeNotSatisfiable, "invalid range start")
+			return
+		}
+
+		if parts[1] == "" {
+			// Open-ended range: "bytes=100-" means from 100 to end
+			end = fileSize - 1
+		} else {
+			end, err = strconv.ParseInt(parts[1], 10, 64)
+			if err != nil || end < start || end >= fileSize {
+				c.Header("Content-Range", fmt.Sprintf("bytes */%d", fileSize))
+				dto.ErrorResponse(c, http.StatusRequestedRangeNotSatisfiable, "invalid range end")
+				return
+			}
+		}
+	}
+
+	contentLength := end - start + 1
+
+	// Seek to start position
+	if _, err := reader.Seek(start, io.SeekStart); err != nil {
+		logrus.Errorf("failed to seek to range start: %v", err)
+		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to seek to range start")
+		return
+	}
+
+	c.Header("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, fileSize))
+	c.Header("Content-Length", strconv.FormatInt(contentLength, 10))
+	c.Status(http.StatusPartialContent)
+
+	if _, err := io.CopyN(c.Writer, reader, contentLength); err != nil {
+		logrus.Errorf("failed to stream partial content: %v", err)
+		return
+	}
+}
+
+// searchInjectionsCommon is the common logic for searching injections
+func searchInjectionsCommon(c *gin.Context, projectID *int) {
+	var req dto.SearchInjectionReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
+		return
+	}
+
+	// Note: Project filtering should be handled at the service layer
+	// For project-scoped calls, the service layer will filter by project
+
+	resp, err := producer.SearchInjections(&req, projectID)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	dto.SuccessResponse(c, resp)
+}
+
+// listFaultInjectionNoIssuesCommon is the common logic for listing injections without issues
+func listFaultInjectionNoIssuesCommon(c *gin.Context, projectID *int) {
+	var req dto.ListInjectionNoIssuesReq
+	if err := c.BindQuery(&req); err != nil {
+		logrus.Errorf("failed to bind query parameters: %v", err)
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters")
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		logrus.Errorf("invalid query parameters: %v", err)
+		dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// Note: Project filtering should be handled at the service layer
+	// For project-scoped calls, the service layer will filter by project
+
+	items, err := producer.ListInjectionsNoIssues(&req, projectID)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	dto.SuccessResponse(c, items)
+}
+
+// listFaultInjectionWithIssuesCommon is the common logic for listing injections with issues
+func listFaultInjectionWithIssuesCommon(c *gin.Context, projectID *int) {
+	var req dto.ListInjectionWithIssuesReq
+	if err := c.BindQuery(&req); err != nil {
+		logrus.Errorf("failed to bind query parameters: %v", err)
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid query parameters")
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		logrus.Errorf("invalid query parameters: %v", err)
+		dto.ErrorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// Note: Project filtering should be handled at the service layer
+	// For project-scoped calls, the service layer will filter by project
+
+	items, err := producer.ListInjectionsWithIssues(&req, projectID)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	dto.SuccessResponse(c, items)
+}
+
+// submitFaultInjectionCommon is the common logic for submitting fault injections
+func submitFaultInjectionCommon(c *gin.Context, projectID *int) {
 	groupID := c.GetString("groupID")
 	userID, exists := middleware.GetCurrentUserID(c)
 	if !exists {
@@ -491,7 +844,13 @@ func SubmitFaultInjection(c *gin.Context) {
 		return
 	}
 
-	resp, err := producer.ProduceRestartPedestalTasks(spanCtx, &req, groupID, userID)
+	if req.ProjectName == "" && projectID == nil {
+		span.SetStatus(codes.Error, "validation error in SubmitFaultInjection: project name is required")
+		dto.ErrorResponse(c, http.StatusBadRequest, "Project name or ID is required")
+		return
+	}
+
+	resp, err := producer.ProduceRestartPedestalTasks(spanCtx, &req, groupID, userID, projectID)
 	if err != nil {
 		span.SetStatus(codes.Error, "service error in SubmitFaultInjection: "+err.Error())
 		logrus.Errorf("Failed to submit fault injection: %v", err)
@@ -503,24 +862,8 @@ func SubmitFaultInjection(c *gin.Context) {
 	dto.SuccessResponse(c, resp)
 }
 
-// SubmitDatapackBuilding submits batch datapack buildings
-//
-//	@Summary		Submit batch datapack buildings
-//	@Description.	Submit multiple datapack building tasks in batch
-//	@Tags			Injections
-//	@ID				build_datapack
-//	@Accept			json
-//	@Produce		json
-//	@Param			body	body		dto.SubmitDatapackBuildingReq						true	"Datapack building request body"
-//	@Success		202		{object}	dto.GenericResponse[dto.SubmitDatapackBuildingResp]	"Datapack building submitted successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]							"Invalid request format or parameters"
-//	@Failure		401		{object}	dto.GenericResponse[any]							"Authentication required"
-//	@Failure		403		{object}	dto.GenericResponse[any]							"Permission denied"
-//	@Failure		404		{object}	dto.GenericResponse[any]							"Resource not found"
-//	@Failure		500		{object}	dto.GenericResponse[any]							"Internal server error"
-//	@Router			/api/v2/injections/build [post]
-//	@x-api-type		{"sdk":"true"}
-func SubmitDatapackBuilding(c *gin.Context) {
+// submitDatapackBuildingCommon is the common logic for submitting datapack buildings
+func submitDatapackBuildingCommon(c *gin.Context, projectID *int) {
 	groupID := c.GetString("groupID")
 	userID, exists := middleware.GetCurrentUserID(c)
 	if !exists {
@@ -551,7 +894,13 @@ func SubmitDatapackBuilding(c *gin.Context) {
 		return
 	}
 
-	resp, err := producer.ProduceDatapackBuildingTasks(spanCtx, &req, groupID, userID)
+	if req.ProjectName == "" && projectID == nil {
+		span.SetStatus(codes.Error, "validation error in SubmitFaultInjection: project name is required")
+		dto.ErrorResponse(c, http.StatusBadRequest, "Project name or ID is required")
+		return
+	}
+
+	resp, err := producer.ProduceDatapackBuildingTasks(spanCtx, &req, groupID, userID, projectID)
 	if err != nil {
 		span.SetStatus(codes.Error, "service error in SubmitDatapackBuilding: "+err.Error())
 		logrus.Errorf("Failed to submit datapack building: %v", err)

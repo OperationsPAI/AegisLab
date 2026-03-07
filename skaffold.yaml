@@ -12,6 +12,10 @@ profiles:
           context: .
           docker:
             dockerfile: src/Dockerfile
+            buildArgs:
+              GO_BUILD_TAGS: duckdb_arrow
+              INSTALL_CERTS: "true"
+            network: host
       tagPolicy:
         gitCommit:
           variant: AbbrevCommitSha
@@ -30,7 +34,7 @@ profiles:
             setValueTemplates:
               images.rcabench.tag: "{{.IMAGE_TAG}}"
             setFiles:
-              initialDataFiles.data_json: data/initial_data/staging/data.json
+              initialDataFiles.data_yaml: data/initial_data/staging/data.yaml
               initialDataFiles.otel_demo_yaml: data/initial_data/staging/otel-demo.yaml
               initialDataFiles.ts_yaml: data/initial_data/staging/ts.yaml
               
@@ -43,6 +47,10 @@ profiles:
           context: .
           docker:
             dockerfile: src/Dockerfile
+            buildArgs:
+              GO_BUILD_TAGS: duckdb_arrow
+              INSTALL_CERTS: "true"
+            network: host
       local:
         push: false
       tagPolicy:
@@ -63,14 +71,11 @@ profiles:
             setValueTemplates:
               images.rcabench.tag: "{{.IMAGE_DIGEST}}"
             setFiles:
-              initialDataFiles.data_json: data/initial_data/prod/data.json
+              initialDataFiles.data_yaml: data/initial_data/prod/data.yaml
               initialDataFiles.otel_demo_yaml: data/initial_data/prod/otel-demo.yaml
               initialDataFiles.ts_yaml: data/initial_data/prod/ts.yaml
         hooks:
           after:
             - host:
-                command: ["make", "forward-ports", "ENV_MODE=test"]
-                os: [darwin, linux]
-            - host:
-                command: ["make", "regression-test"]
+                command: ["just", "regression-test"]
                 os: [darwin, linux]

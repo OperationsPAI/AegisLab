@@ -254,7 +254,6 @@ func BatchDeleteTasks(db *gorm.DB, taskIDs []string) error {
 func GetTaskByID(db *gorm.DB, taskID string) (*database.Task, error) {
 	var result database.Task
 	if err := db.
-		Preload("Project").
 		Preload("FaultInjection.Benchmark.Container").
 		Preload("FaultInjection.Pedestal.Container").
 		Preload("Execution.AlgorithmVersion.Container").

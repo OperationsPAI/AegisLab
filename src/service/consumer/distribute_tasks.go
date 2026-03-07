@@ -23,7 +23,7 @@ func dispatchTask(ctx context.Context, task *dto.UnifiedTask) error {
 	tracing.SetSpanAttribute(ctx, consts.TaskTypeKey, consts.GetTaskTypeName(task.Type))
 	tracing.SetSpanAttribute(ctx, consts.TaskStateKey, consts.GetTaskStateName(consts.TaskPending))
 
-	publishEvent(ctx, fmt.Sprintf(consts.StreamLogKey, task.TraceID), dto.StreamEvent{
+	publishEvent(ctx, fmt.Sprintf(consts.StreamTraceLogKey, task.TraceID), dto.TraceStreamEvent{
 		TaskID:    task.TaskID,
 		TaskType:  task.Type,
 		EventName: consts.EventTaskStarted,

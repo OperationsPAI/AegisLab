@@ -48,7 +48,7 @@ func GetExecutionByID(db *gorm.DB, id int) (*database.Execution, error) {
 		Preload("Datapack.Benchmark.Container").
 		Preload("Datapack.Pedestal.Container").
 		Preload("DatasetVersion").
-		Preload("Task.Project").
+		Preload("Task.Trace.Project").
 		Where("id = ? AND status != ?", id, consts.CommonDeleted).
 		First(&result).Error; err != nil {
 		return nil, fmt.Errorf("failed to find execution result with id %d: %w", id, err)
@@ -66,7 +66,7 @@ func ListExecutions(db *gorm.DB, limit, offset int, event *consts.ExecutionState
 		Preload("Datapack.Benchmark.Container").
 		Preload("Datapack.Pedestal.Container").
 		Preload("DatasetVersion").
-		Preload("Task.Project")
+		Preload("Task.Trace.Project")
 	if event != nil {
 		query = query.Where("event = ?", *event)
 	}
@@ -81,7 +81,7 @@ func ListExecutions(db *gorm.DB, limit, offset int, event *consts.ExecutionState
 				Joins("JOIN labels ON labels.id = eil.label_id").
 				Where("labels.label_key = ? AND labels.label_value = ?", condition["key"], condition["value"])
 
-			query = query.Where("execution.id IN (?)", subQuery)
+			query = query.Where("executions.id IN (?)", subQuery)
 		}
 	}
 
@@ -108,7 +108,7 @@ func ListExecutionsByDatapackIDs(db *gorm.DB, datapackIDs []int) ([]database.Exe
 		Preload("Datapack.Benchmark.Container").
 		Preload("Datapack.Pedestal.Container").
 		Preload("DatasetVersion").
-		Preload("Task.Project").
+		Preload("Task.Trace.Project").
 		Where("datapack_id IN (?) AND status != ?", datapackIDs, consts.CommonDeleted)
 	if err := query.Find(&results).Error; err != nil {
 		return nil, fmt.Errorf("failed to list executions by datapack IDs: %w", err)
@@ -487,4 +487,36 @@ func GetExecutionStatistics() (map[string]int64, error) {
 	}
 
 	return stats, nil
+}
+
+// ListExecutionsByProjectID retrieves executions for a specific project with pagination
+func ListExecutionsByProjectID(db *gorm.DB, projectID int, limit, offset int) ([]database.Execution, int64, error) {
+	var executions []database.Execution
+	var total int64
+
+	// Base query with JOIN and WHERE conditions
+	baseQuery := db.Model(&database.Execution{}).
+		Joins("JOIN tasks ON tasks.id = executions.task_id").
+		Joins("JOIN traces on traces.id = tasks.trace_id").
+		Where("traces.project_id = ? AND executions.status != ?", projectID, consts.CommonDeleted)
+
+	// Count without Preload
+	if err := baseQuery.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to count executions for project %d: %w", projectID, err)
+	}
+
+	// Find with Preload
+	if err := baseQuery.
+		Preload("AlgorithmVersion.Container").
+		Preload("Datapack.Benchmark.Container").
+		Preload("Datapack.Pedestal.Container").
+		Preload("DatasetVersion").
+		Limit(limit).
+		Offset(offset).
+		Order("executions.updated_at DESC").
+		Find(&executions).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to list executions for project %d: %w", projectID, err)
+	}
+
+	return executions, total, nil
 }

@@ -1,0 +1,39 @@
+name: Setup Build Environment
+description: Sets up Go, uv, and installs build dependencies (swag + go mod tidy)
+
+inputs:
+  install-ruff:
+    description: Whether to install Ruff (needed for Python SDK publishing)
+    required: false
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: "1.24"
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v6
+      with:
+        enable-cache: true
+
+    - name: Install Ruff
+      if: inputs.install-ruff == 'true'
+      shell: bash
+      run: |
+        echo "Installing Ruff..."
+        curl -LsSf https://astral.sh/ruff/install.sh | sh
+        echo "::notice::Ruff installed"
+
+    - name: Install Go dependencies
+      shell: bash
+      run: |
+        echo "Installing Go dependencies..."
+        go install github.com/swaggo/swag/cmd/swag@latest
+        (
+          cd src && go mod tidy
+        )
+        echo "::notice::Dependencies installed"
