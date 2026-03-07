@@ -32,6 +32,7 @@ All notable changes to this project will be documented in this file.
 
 - Merge deployment enhancements and config management features
 - Refactor typescript sdk generation workflow
+- *(.claude)* Remove ui-ux-pro-max skill and vscode configs
 
 ### Refactor
 
