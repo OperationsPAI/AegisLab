@@ -213,11 +213,6 @@ func validate() error {
 		}
 	}
 
-	// BuildKit configuration
-	if !viper.IsSet("buildkit.address") {
-		return fmt.Errorf("required field 'buildkit.address' is missing")
-	}
-
 	logrus.Debug("All required configuration fields are present and valid")
 	return nil
 }

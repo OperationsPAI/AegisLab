@@ -1,6 +1,7 @@
 package system
 
 import (
+	"aegis/config"
 	"aegis/dto"
 	"aegis/handlers"
 	producer "aegis/service/producer"
@@ -59,7 +60,7 @@ func GetMetrics(c *gin.Context) {
 
 	labels := map[string]string{
 		"instance": "rcabench-01",
-		"version":  "1.0.0",
+		"version":  config.GetString("version"),
 	}
 
 	response := dto.MonitoringMetricsResp{

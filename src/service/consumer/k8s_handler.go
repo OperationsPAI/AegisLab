@@ -397,42 +397,12 @@ func (h *k8sHandler) HandleJobFailed(job *batchv1.Job, annotations map[string]st
 
 	var filePath string
 	if len(logMap) > 0 {
-		jobLogBytes, err := json.Marshal(logMap)
-		if err != nil {
-			errCtx.Warn(logrus.WithField("job_name", job.Name), "failed to marshal job logs", err)
-		}
-
-		jobLog := string(jobLogBytes)
 		spanAttrs := []trace.EventOption{
 			trace.WithAttributes(
 				attribute.String("job_name", job.Name),
 				attribute.String("namespace", job.Namespace),
 			),
 		}
-
-		filePath, err = writeJobLogs(job, parsedLabels.traceID, logMap)
-		if err != nil {
-			errCtx.Warn(logrus.WithFields(logrus.Fields{
-				"job_name":  job.Name,
-				"pod_count": len(logMap),
-			}), "job failed - logs available but file writing failed", err)
-
-			for podName, log := range logMap {
-				logrus.WithField("pod_name", podName).Warn("job logs:")
-				logrus.Warn(log)
-			}
-
-			spanAttrs = append(spanAttrs, trace.WithAttributes(
-				attribute.String("logs", jobLog),
-			))
-		}
-
-		if filePath != "" {
-			spanAttrs = append(spanAttrs, trace.WithAttributes(
-				attribute.String("log_file", filePath),
-			))
-		}
-
 		taskSpan.AddEvent("job failed", spanAttrs...)
 	}
 
@@ -929,18 +899,4 @@ func updateInjectionTimestamp(injectionName string, startTime time.Time, endTime
 
 	injectionItem := dto.NewInjectionItem(updatedInjection)
 	return &injectionItem, err
-}
-
-func writeJobLogs(job *batchv1.Job, traceID string, logMap map[string][]string) (string, error) {
-	logWriter, err := utils.NewJobLogWriter()
-	if err != nil {
-		return "", fmt.Errorf("failed to create job log writer: %w", err)
-	}
-
-	filePath, err := logWriter.WriteJobLogs(job.Name, job.Namespace, traceID, logMap)
-	if err != nil {
-		return "", fmt.Errorf("failed to write job logs to file: %w", err)
-	}
-
-	return filePath, nil
 }

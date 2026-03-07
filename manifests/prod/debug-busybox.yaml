@@ -20,10 +20,10 @@ spec:
       echo "========================================"
       echo ""
       echo "📦 Mounted volumes:"
+      echo "  /containers         -> rcabench-containers-data"
       echo "  /data               -> rcabench-juicefs-dataset"
       echo "  /experiment_storage -> rcabench-juicefs-experiment-storage"
-      echo "  /logs               -> rcabench-logs-data"
-      echo "  /containers         -> rcabench-containers-data"
+      echo "  /observability_data -> rcabench-observability-data"
       echo ""
       echo "💡 Access this pod:"
       echo "  kubectl exec -it debug-busybox -n exp -- sh"
@@ -41,30 +41,30 @@ spec:
       echo "Keeping pod alive..."
       sleep infinity
     volumeMounts:
+    - name: containers
+      mountPath: /containers
     - name: dataset
       mountPath: /data
     - name: experiment-storage
       mountPath: /experiment_storage
-    - name: logs
-      mountPath: /logs
-    - name: containers
-      mountPath: /containers
+    - name: observability-data
+      mountPath: /observability_data
     - name: tz-config
       mountPath: /etc/localtime
       readOnly: true
   volumes:
+  - name: containers
+    persistentVolumeClaim:
+      claimName: rcabench-containers-data
   - name: dataset
     persistentVolumeClaim:
       claimName: rcabench-juicefs-dataset
   - name: experiment-storage
     persistentVolumeClaim:
       claimName: rcabench-juicefs-experiment-storage
-  - name: logs
+  - name: observability-data
     persistentVolumeClaim:
-      claimName: rcabench-logs-data
-  - name: containers
-    persistentVolumeClaim:
-      claimName: rcabench-containers-data
+      claimName: rcabench-observability-data
   - name: tz-config
     hostPath:
       path: /etc/localtime

@@ -281,7 +281,7 @@ data:
         regex         = ".+"
       }
 
-      // Extract labels (equivalent to Logstash mutate add_field)
+      // Extract labels
       rule {
         source_labels = ["__meta_kubernetes_pod_label_job_name"]
         target_label  = "job_id"
@@ -307,7 +307,7 @@ data:
         source_labels = ["__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
         target_label  = "__path__"
         separator     = "/"
-        replacement   = "/var/log/pods/*$1/$2/*.log"
+        replacement   = "/var/log/pods/*$1/*.log"
       }
     }
 
@@ -328,7 +328,6 @@ data:
     //    Structured Metadata is queryable via LogQL:
     //      {app="rcabench"} | trace_id="xxx" | task_id="yyy"
     loki.process "pipeline" {
-      // Parse CRI / Docker container log format
       stage.cri {}
 
       // Move high-cardinality labels to Loki Structured Metadata

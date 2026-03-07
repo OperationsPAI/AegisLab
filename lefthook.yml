@@ -8,13 +8,13 @@ pre-commit:
     # Go formatting check
     go-format:
       glob: "*.go"
-      run: just run-command ARGS="git pre-commit-go"
+      run: just run-command git pre-commit-go
       stage_fixed: true
 
     # Python formatting check  
     python-format:
       glob: "*.py"
-      run: just run-command ARGS="git pre-commit-python"
+      run: just run-command git pre-commit-python
       stage_fixed: true
 
 # Commit-msg hook: Lint commit message with git-cliff

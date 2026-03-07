@@ -149,7 +149,7 @@ func (s *TaskLogStreamer) StreamLogs(ctx context.Context, task *database.Task) {
 	s.log.Info("Subscribed to Redis Pub/Sub for real-time logs")
 
 	// Step 2: Query Loki for historical logs
-	lastHistoricalTime := s.sendHistoricalLogs(ctx, task)
+	lastHistoricalTime := s.sendHistoricalLogs(task)
 
 	// Step 3: Check if task is already completed
 	if isTaskTerminal(task.State) {
@@ -220,14 +220,20 @@ func (s *TaskLogStreamer) runPingLoop(ctx context.Context, cancel context.Cancel
 
 // sendHistoricalLogs queries Loki for historical logs and sends them to the client.
 // Returns the timestamp of the last historical entry for deduplication.
-func (s *TaskLogStreamer) sendHistoricalLogs(ctx context.Context, task *database.Task) time.Time {
+func (s *TaskLogStreamer) sendHistoricalLogs(task *database.Task) time.Time {
+	// Use a dedicated context with timeout for the Loki query.
+	// The parent ctx is tied to the WebSocket lifecycle (Hijack'd connection),
+	// which may get cancelled prematurely and abort the HTTP request.
+	lokiCtx, lokiCancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer lokiCancel()
+
 	lokiClient := client.NewLokiClient()
 	queryOpts := client.QueryOpts{
 		Start:     task.CreatedAt,
 		Direction: "forward",
 	}
 
-	historicalLogs, err := lokiClient.QueryJobLogs(ctx, s.taskID, queryOpts)
+	historicalLogs, err := lokiClient.QueryJobLogs(lokiCtx, s.taskID, queryOpts)
 	if err != nil {
 		s.log.Warnf("Failed to query Loki for historical logs: %v", err)
 		return time.Time{}

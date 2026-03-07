@@ -6,6 +6,7 @@ from src.rcabench_ import (
     check_db,
     check_redis,
     local_deploy,
+    update_version,
 )
 
 app = typer.Typer()
@@ -52,3 +53,16 @@ def rcabench_local_deploy(
     console.print(
         f"[gray]cd {PROJECT_ROOT / 'src'} && go run main.go both --port 8082 [/gray]"
     )
+
+
+@app.command(name="update-version")
+def rcabench_update_version(
+    version: str = typer.Option(
+        ...,
+        "--version",
+        "-v",
+        help="The new version to set in project files (e.g., 1.2.3).",
+    ),
+):
+    """Updates the version information in project files."""
+    update_version(version)

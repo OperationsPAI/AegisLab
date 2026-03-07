@@ -171,8 +171,13 @@ spec:
   selector:
     app: {{ .Release.Name }}-producer
   ports:
-  - port: 8080
-    targetPort: 8080
+  - name: grpc
+    port: {{ .Values.configmap.otlp.port }}
+    targetPort: {{ .Values.configmap.otlp.port }}
+    nodePort: 32319
+  - name: http
+    port: {{ .Values.configmap.port}}
+    targetPort: {{ .Values.configmap.port}}
     nodePort: 32080
 {{- else }}
 apiVersion: v1
@@ -184,8 +189,10 @@ spec:
   selector:
     app: {{ .Release.Name }}-producer
   ports:
-  - port: 8080
-    targetPort: 8080
+  - port: {{ .Values.configmap.otlp.port }}
+    targetPort: {{ .Values.configmap.otlp.port }}
+  - port: {{ .Values.configmap.port}}
+    targetPort: {{ .Values.configmap.port}}
 {{- end }}
 
 ---
@@ -200,3 +207,86 @@ spec:
     - port: 1234
       targetPort: 1234
   type: ClusterIP
+
+{{- if .Values.loki.enabled }}
+---
+# Loki Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-loki
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Release.Name }}-loki
+  ports:
+    - name: http
+      port: 3100
+      targetPort: 3100
+{{- end }}
+
+{{- if .Values.prometheus.enabled }}
+---
+# Prometheus Service
+{{- if eq .Values.configmap.system.env_mode "staging" }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-prometheus
+spec:
+  type: NodePort
+  selector:
+    app: {{ .Release.Name }}-prometheus
+  ports:
+    - name: http
+      port: 9090
+      targetPort: 9090
+      nodePort: 32090
+{{- else }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-prometheus
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Release.Name }}-prometheus
+  ports:
+    - name: http
+      port: 9090
+      targetPort: 9090
+{{- end }}
+{{- end }}
+
+{{- if .Values.grafana.enabled }}
+---
+# Grafana Service
+{{- if eq .Values.configmap.system.env_mode "staging" }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-grafana
+spec:
+  type: NodePort
+  selector:
+    app: {{ .Release.Name }}-grafana
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+      nodePort: 32300
+{{- else }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-grafana
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Release.Name }}-grafana
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+{{- end }}
+{{- end }}

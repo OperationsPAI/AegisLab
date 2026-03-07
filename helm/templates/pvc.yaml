@@ -15,21 +15,21 @@ spec:
       storage: {{ .Values.persistence.containers.size }}
 {{- end }}
 
-{{- if .Values.persistence.logs.enabled }}
+{{- if .Values.persistence.observability.enabled }}
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ .Release.Name }}-logs-data
+  name: {{ .Release.Name }}-observability-data
   annotations:
     "helm.sh/resource-policy": keep
 spec:
   accessModes:
-    - {{ .Values.persistence.logs.accessMode }}
+    - {{ .Values.persistence.observability.accessMode }}
   storageClassName: {{ index .Values.persistence.storageClassNames .Values.persistence.storageType | quote }}
   resources:
     requests:
-      storage: {{ .Values.persistence.logs.size }}
+      storage: {{ .Values.persistence.observability.size }}
 {{- end }}
 
 {{- if .Values.persistence.juicefs.enabled }}

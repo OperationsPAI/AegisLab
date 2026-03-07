@@ -4,9 +4,7 @@ import shutil
 import sys
 from pathlib import Path
 
-import tomlkit
 from python_on_whales import docker
-from ruamel.yaml import YAML
 
 from src.common.common import PROJECT_ROOT, ScopeType, console, settings
 from src.formatter import PythonFormatter
@@ -41,28 +39,6 @@ class PythonSDK(Generator):
 
         with open(init_python_path, "w", encoding="utf-8") as f:
             f.write(new_init_content)
-
-        # Update version in src/config.dev.toml
-        dev_config_path = PROJECT_ROOT / "src" / "config.dev.toml"
-        with open(dev_config_path, encoding="utf-8") as f:
-            dev_config = tomlkit.load(f)
-
-        dev_config["version"] = self.version
-        with open(dev_config_path, "w", encoding="utf-8") as f:
-            tomlkit.dump(dev_config, f)
-
-        # Update version in helm/values.yaml
-        yaml = YAML()
-        yaml.preserve_quotes = True
-        yaml.indent(mapping=2, sequence=4, offset=2)
-
-        helm_values_path = PROJECT_ROOT / "helm" / "values.yaml"
-        with open(helm_values_path, encoding="utf-8") as f:
-            helm_values = yaml.load(f)
-
-        helm_values["configmap"]["version"] = self.version
-        with open(helm_values_path, "w", encoding="utf-8") as f:
-            yaml.dump(helm_values, f)
 
     def generate(self) -> None:
         """

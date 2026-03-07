@@ -116,7 +116,6 @@ func GetTask(c *gin.Context) {
 //	@Failure		403			{object}	dto.GenericResponse[any]						"Permission denied"
 //	@Failure		500			{object}	dto.GenericResponse[any]						"Internal server error"
 //	@Router			/api/v2/tasks [get]
-//	@x-api-type		{"sdk":"true"}
 func ListTasks(c *gin.Context) {
 	var req dto.ListTaskReq
 	if err := c.ShouldBindQuery(&req); err != nil {
