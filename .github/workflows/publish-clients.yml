@@ -45,6 +45,11 @@ jobs:
         with:
           install-ruff: 'true'
 
+      - name: Setup Just
+        uses: extractions/setup-just@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build and publish
         run: |
           echo "Starting SDK generation..."
@@ -96,12 +101,18 @@ jobs:
           node-version: '20'
           registry-url: 'https://npm.pkg.github.com'
           scope: '@OperationsPAI'
-          cache: 'pnpm'
-          cache-dependency-path: 'client/typescript/pnpm-lock.yaml'
+
+      - name: Setup Just
+        uses: extractions/setup-just@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and Publish
         run: |
-          just generate-typescript-client ${{ steps.extract_version.outputs.version }}
+          TAG_VERSION="${{ steps.extract_version.outputs.version }}"
+
+          echo "Starting TypeScript client generation..."
+          just generate-typescript-client "$TAG_VERSION"
 
           echo "Installing and Building..."
           cd ${CLIENT_DIR}
@@ -109,7 +120,6 @@ jobs:
           pnpm run build
 
           echo "Publishing to GitHub Packages..."
-          pnpm version {{v}} --no-git-tag-version && \
           pnpm publish --no-git-checks
           
           echo "::notice::Successfully published to NPM!"

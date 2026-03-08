@@ -259,7 +259,8 @@ release version:
     just update-version {{version}}
     just changelog
     git add -A
-    git commit -m "chore: release version {{version}}" --no-verify
+    git commit -m "chore(release): version {{version}}" --no-verify
+    git push -u origin main
     git tag -a "v{{version}}" -m "Release version {{version}}"
     git push origin "v{{version}}"
     printf "{{green}}✅ Version {{version}} released successfully{{reset}}\n"

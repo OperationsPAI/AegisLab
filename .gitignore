@@ -177,7 +177,6 @@ logs/
 .codebuddy
 .github/instructions/tmp/
 .husky/
-client/
 sdk/python-gen/
 sdk/python/src/rcabench/openapi/
 src/docs/converted/
@@ -198,3 +197,5 @@ scripts/command/command.bin
 CLAUDE.md
 
 .vscode/
+
+client/typescript

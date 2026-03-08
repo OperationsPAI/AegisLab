@@ -11,7 +11,9 @@ jobs:
     if: github.ref_type == 'tag' || github.ref == 'refs/heads/main'
     with:
       caller: ${{ github.event.repository.name }}
-      volces-name: pair/rcabench
-      build-args: "GO_BUILD_TAGS=duckdb_arrow"
-      tag-push: ${{ startsWith(github.ref, 'refs/tags/release-docker') }}
+      image: "opspai/rcabench"
+      file: "src/Dockerfile"
+      build-args: |
+        GO_BUILD_TAGS=duckdb_arrow
+      tag-push: ${{ startsWith(github.ref, 'refs/tags/') }}
     secrets: inherit
