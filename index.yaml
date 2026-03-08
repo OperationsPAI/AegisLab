@@ -1,0 +1,19 @@
+apiVersion: v1
+entries:
+  rcabench:
+  - apiVersion: v2
+    appVersion: 1.0.0
+    created: "2026-03-08T11:42:36.436401699Z"
+    dependencies:
+    - condition: rcabench-frontend.enabled
+      name: rcabench-frontend
+      repository: https://operationspai.github.io/AegisLab-frontend/
+      version: 0.1.1
+    description: A Helm chart for Kubernetes
+    digest: 6cfb0733482f58e2caedbb431a5a8f6f9bbb3c3d8c8968c124daf569c69c1395
+    name: rcabench
+    type: application
+    urls:
+    - https://operationspai.github.io/AegisLab/rcabench-0.1.0.tgz
+    version: 0.1.0
+generated: "2026-03-08T11:42:36.434860668Z"
