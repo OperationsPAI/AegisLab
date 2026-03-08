@@ -258,7 +258,8 @@ release version:
     printf "{{blue}}🚀 Releasing version {{version}}...{{reset}}\n"
     just update-version {{version}}
     just changelog
-    git add -A
+    git add {{root}}/CHANGELOG.md {{root}}/helm/Chart.yaml {{root}}/helm/values.yaml \
+        {{root}}/src/config.dev.toml {{root}}/src/main.go
     git commit -m "chore(release): version {{version}}" --no-verify
     git push -u origin main
     git tag -a "v{{version}}" -m "Release version {{version}}"

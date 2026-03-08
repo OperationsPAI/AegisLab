@@ -151,3 +151,12 @@ def update_version(version: str):
     helm_values["configmap"]["version"] = version
     with open(helm_values_path, "w", encoding="utf-8") as f:
         yaml.dump(helm_values, f)
+
+    # Update appVersion in helm/Chart.yaml
+    chart_yaml_path = PROJECT_ROOT / "helm" / "Chart.yaml"
+    with open(chart_yaml_path, encoding="utf-8") as f:
+        chart = yaml.load(f)
+
+    chart["appVersion"] = version
+    with open(chart_yaml_path, "w", encoding="utf-8") as f:
+        yaml.dump(chart, f)
