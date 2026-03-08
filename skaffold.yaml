@@ -14,7 +14,7 @@ profiles:
             dockerfile: src/Dockerfile
             buildArgs:
               GO_BUILD_TAGS: duckdb_arrow
-              GO_PROXY: https://goproxy.cn,direct
+              GOPROXY: https://goproxy.cn,direct
               INSTALL_CERTS: "true"
             network: host
       tagPolicy:

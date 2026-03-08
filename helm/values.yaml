@@ -110,9 +110,9 @@ grafana:
 rcabench-frontend:
   enabled: true
   image:
-    name: docker.io/opspai/rcabench-frontend
+    repository: docker.io/opspai/rcabench-frontend
     tag: latest
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
 
 harbor:
   enabled: true

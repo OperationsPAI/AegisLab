@@ -189,9 +189,11 @@ spec:
   selector:
     app: {{ .Release.Name }}-producer
   ports:
-  - port: {{ .Values.configmap.otlp.port }}
+  - name: grpc
+    port: {{ .Values.configmap.otlp.port }}
     targetPort: {{ .Values.configmap.otlp.port }}
-  - port: {{ .Values.configmap.port}}
+  - name: http 
+    port: {{ .Values.configmap.port}}
     targetPort: {{ .Values.configmap.port}}
 {{- end }}
 

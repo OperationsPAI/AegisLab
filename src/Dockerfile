@@ -13,7 +13,7 @@ ENV GOPROXY=$GOPROXY
 RUN go mod download
 
 COPY src/ .
-RUN CGO_ENABLED=1 go build -v -tags="${GO_BUILD_TAGS}" -ldflags="-s -w" -o /app/exp
+RUN CGO_ENABLED=1 go build -tags="${GO_BUILD_TAGS}" -ldflags="-s -w" -o /app/exp
 FROM debian:bookworm AS runner
 
 ARG INSTALL_CERTS=false

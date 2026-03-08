@@ -4,6 +4,7 @@ global:
 images:
   rcabench:
     name: pair/rcabench
+    tag: "1.0.0"
   jaeger:
     name: pair/jaeger
   redis:
@@ -16,15 +17,24 @@ images:
     name: pair/busybox
   buildkit:
     name: pair/buildkit
+  alloy:
+    name: pair/alloy
+  loki:
+    name: pair/loki
+  prometheus:
+    name: pair/prometheus
+  grafana:
+    name: pair/grafana
   init_data:
     name: pair/init-data
+
+buildkit:
+  enabled: false
 
 rcabench-frontend:
   image:
     repository: pair-diag-cn-guangzhou.cr.volces.com/pair/rcabench-frontend
-
-alloy:
-  enabled: false
+    tag: "0.1.2"
 
 harbor:
   enabled: false

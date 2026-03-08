@@ -8,7 +8,6 @@ set dotenv-filename := ".env"
 
 # Configuration
 env_mode     := env("ENV_MODE", "dev")
-default_repo := env("DEFAULT_REPO", "docker.io/opspai")
 ns           := "exp"
 
 root := justfile_directory()
@@ -62,8 +61,8 @@ check-prerequisites:
     printf "{{green}}✅ All dependency checks passed{{reset}}\n\n"
 
 # 🔗 Start port forwarding to access application
-forward-ports:
-    just run-command port start -e {{env_mode}} -n {{ns}}
+forward-ports env="prod":
+    just run-command port start -e {{env}} -n {{ns}}
 
 # 🛠️ Setup development environment
 setup-dev-env: check-prerequisites
@@ -120,7 +119,7 @@ install-openebs:
     printf "{{green}}✅ OpenEBS installed successfully{{reset}}\n\n"
 
 # 🔧 Deploy RCABench application in prod environment
-install-rcabench: backup-mysql
+install-rcabench:
     #!/usr/bin/env bash
     set -euo pipefail
     printf "{{blue}}🔧 Deploying RCABench application...{{reset}}\n"
@@ -140,17 +139,6 @@ local-deploy:
     just run-command rcabench local-deploy -f
     just init-etcd
 
-# 🔨 Build RCABench application Docker image
-build:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    printf "{{blue}}🔨 Building RCABench application image...{{reset}}\n"
-    docker build --network=host \
-        --build-arg GO_BUILD_TAGS=duckdb_arrow \
-        -t {{default_repo}}/rcabench:latest \
-        -f src/Dockerfile .
-    printf "{{green}}✅ Build completed successfully{{reset}}\n\n"
-
 # 🚀 Build and deploy application (using skaffold)
 run: check-prerequisites
     ENV_MODE=staging devbox run skaffold run
@@ -168,7 +156,7 @@ update-version version:
 
 # 💾 Backup MySQL database
 backup-mysql:
-    just run-command backup mysql backup -f
+    just run-command backup mysql backup
 
 # =============================================================================
 # Test
@@ -211,6 +199,43 @@ clean-finalizers ns_prefix ns_count:
 # 🗑️ Delete chaos resources (usage: just delete-chaos <prefix> <count>)
 delete-chaos ns_prefix ns_count:
     just run-command chaos delete-resources -e {{env_mode}} -p {{ns_prefix}} -c {{ns_count}}
+
+# =============================================================================
+# Image Sync
+# =============================================================================
+
+# 🔄 Sync Docker images from DockerHub to prod repository
+sync-images bv="latest" fv="latest":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    source {{root}}/.secret
+
+    # Application images — use provided version tag
+    app_images=(
+        "opspai/rcabench:{{bv}}"
+        "opspai/rcabench-frontend:{{fv}}"
+    )
+
+    sync_image() {
+        local img="$1"
+        local name="${img%%:*}"
+        local tag="${img##*:}"
+        local base="${name##*/}"
+        local src="docker://docker.io/${img}"
+        local dest="docker://${PROD_REPO}/${base}:${tag}"
+
+        printf "{{gray}}   📤 ${src} → ${dest}{{reset}}\n"
+        skopeo copy \
+            --src-creds  "${DOCKERHUB_USERNAME}:${DOCKERHUB_PASSWORD}" \
+            --dest-creds "${VOLCE_USERNAME}:${VOLCE_PASSWORD}" \
+            --override-arch amd64 \
+            "$src" "$dest"
+    }
+
+    printf "{{blue}}🔄 Syncing application images (backend_version:{{bv}}, frontend_version:{{fv}})...{{reset}}\n"
+    for img in "${app_images[@]}"; do sync_image "$img"; done
+
+    printf "{{green}}✅ Image sync completed successfully{{reset}}\n"
 
 # =============================================================================
 # SDK Generation
