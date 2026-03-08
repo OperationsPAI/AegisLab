@@ -1,5 +1,5 @@
 //	@title			RCABench API
-//	@version		0.0.0
+//	@version		1.0.0
 //	@description	RCABench - A comprehensive root cause analysis benchmarking platform for microservices
 
 //	@contact.name	RCABench Team

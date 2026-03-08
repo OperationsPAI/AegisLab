@@ -6,11 +6,28 @@ All notable changes to this project will be documented in this file.
 
 ### Bug Fixes
 
+- *(release)* Sync appVersion in helm/Chart.yaml on version update
+
+## [release-sdk/v1.2.0] - 2026-03-08
+
+### Bug Fixes
+
+- *(sdk/python)* Add build-system
+- *(sdk/python)* Fix for type hints
+- Recover fault injection label
 - Py dependency
 - Security issue
 
 ### Features
 
+- Add upload algo
+- Add auth, permission, relaton, role, system v2 api
+- *(otel)* Add k8sattributes
+- *(config)* Add dynamic configuration
+- *(config)* Dynamic configuration system with namespace lifecycle
+- *(pedestal)* Add OpenTelemetry Demo support
+- *(core)* Enhance trace processing and optimize infrastructure
+- *(trace)* Add group statistics API and version automation
 - Add design skill
 - Add design skill
 - Update fe
@@ -27,107 +44,35 @@ All notable changes to this project will be documented in this file.
 - *(deployment)* Add Loki/Prometheus monitoring and Alloy log collection
 - *(logging)* Add real-time task log streaming via WebSocket
 - *(groups)* Introduce group SSE stream API
+- *(helm)* Add Loki/Prometheus/Grafana observability stack
+- *(client)* Add Loki HTTP client and fix lint issues
+
+### Metis
+
+- Update result
 
 ### Miscellaneous Tasks
 
+- *(release)* Bump version to 1.1.53
+- *(sdk)* Release Python SDK v1.1.54
+- *(release)* Bump version to 1.1.55
 - Merge deployment enhancements and config management features
 - Refactor typescript sdk generation workflow
 - *(.claude)* Remove ui-ux-pro-max skill and vscode configs
+- *(ci)* Replace Makefile with justfile and refactor release workflows
+- *(ci)* Add openapi-generator templates and refine build infra
 
 ### Refactor
 
+- *(monitor)* Decouple namespace lock query from consumer
 - *(frontend)* Remove entire frontend codebase
 - *(deployment)* Convert initial data format from JSON to YAML
 - *(auth)* Implement role-based access control with JWT claims
 
 ### Testing
 
-- Migrate from Docker Compose to Kubernetes-based testing
-
-## [1.1.55] - 2026-01-06
-
-### Features
-
-- *(trace)* Add group statistics API and version automation
-
-### Miscellaneous Tasks
-
-- *(release)* Bump version to 1.1.55
-
-## [1.1.54] - 2026-01-04
-
-### Features
-
-- *(core)* Enhance trace processing and optimize infrastructure
-
-### Miscellaneous Tasks
-
-- *(sdk)* Release Python SDK v1.1.54
-
-## [1.1.53] - 2026-01-02
-
-### Features
-
-- *(pedestal)* Add OpenTelemetry Demo support
-
-### Miscellaneous Tasks
-
-- *(release)* Bump version to 1.1.53
-
-### Refactor
-
-- *(monitor)* Decouple namespace lock query from consumer
-
-## [1.1.52] - 2025-12-27
-
-### Features
-
-- *(config)* Add dynamic configuration
-- *(config)* Dynamic configuration system with namespace lifecycle
-
-### Deploy
-
-- *(otel)* Remove `service.namespace` metadata
-- *(otel)* Update config
-
-## [1.1.50] - 2025-12-15
-
-### Deploy
-
-- *(otel)* Adapt to v0.12.5
-- *(otel)* Add k8sattributes for daemonsets
-
-## [1.1.49] - 2025-12-08
-
-### Bug Fixes
-
-- Recover fault injection label
-
-### Deploy
-
-- *(cilium)* Update envoy proxy
-- *(otel)* Migrate to otel kube stack
-
-## [1.1.45] - 2025-11-24
-
-### Bug Fixes
-
-- *(sdk/python)* Add build-system
-- *(sdk/python)* Fix for type hints
-
-### Features
-
-- Add upload algo
-- Add auth, permission, relaton, role, system v2 api
-- *(otel)* Add k8sattributes
-
-### Metis
-
-- Update result
-
-### Testing
-
 - *(sdk/python)* Test connection
+- Migrate from Docker Compose to Kubernetes-based testing
 
 ### Algo/metis
 
@@ -150,6 +95,15 @@ All notable changes to this project will be documented in this file.
 - Switch to clickhouse_connect to resolve JSON parsing issue
 - Fix timestamp time zone issue
 - Fix file name
+
+### Deploy
+
+- *(cilium)* Update envoy proxy
+- *(otel)* Migrate to otel kube stack
+- *(otel)* Adapt to v0.12.5
+- *(otel)* Add k8sattributes for daemonsets
+- *(otel)* Remove `service.namespace` metadata
+- *(otel)* Update config
 
 ### Detector
 

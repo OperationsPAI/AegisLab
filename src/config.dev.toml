@@ -1,5 +1,5 @@
 name = "AegisLab"
-version = "0.0.0"
+version = "1.0.0"
 
 port = 8082
 workspace = "/home/nn/workspace/AegisLab"
