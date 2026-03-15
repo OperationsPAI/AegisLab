@@ -7,10 +7,31 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync/atomic"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
+
+// detectorName holds the current detector algorithm name as a global atomic variable.
+var detectorName atomic.Value
+
+// GetDetectorName returns the current detector algorithm name.
+// Falls back to viper if the atomic variable has not been initialized yet.
+func GetDetectorName() string {
+	if v := detectorName.Load(); v != nil {
+		return v.(string)
+	}
+	logrus.Error("Detector name not initialized yet")
+	return ""
+}
+
+// SetDetectorName updates the global detector algorithm name.
+// Called once during initialization and again on every config change.
+func SetDetectorName(name string) {
+	detectorName.Store(name)
+	logrus.Infof("Detector name set to: %s", name)
+}
 
 // Init Initialize configuration
 func Init(configPath string) {

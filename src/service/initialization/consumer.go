@@ -17,7 +17,7 @@ import (
 	"gorm.io/gorm"
 )
 
-var consumerData *ConsumerData
+var consumerData *configData
 
 func InitConcurrencyLock(ctx context.Context) {
 	if err := repository.InitConcurrencyLock(ctx); err != nil {
@@ -26,14 +26,7 @@ func InitConcurrencyLock(ctx context.Context) {
 }
 
 func InitializeConsumer(ctx context.Context) {
-	configs, err := repository.ListExistingConfigs(database.DB)
-	if err != nil {
-		logrus.Fatalf("Failed to check existing dynamic configs: %v", err)
-	}
-
-	consumerData = &ConsumerData{
-		configs: configs,
-	}
+	consumerData = newConfigData(consts.ConfigScopeConsumer)
 
 	if len(consumerData.configs) == 0 {
 		logrus.Info("Seeding initial system data for consumer...")
@@ -45,17 +38,7 @@ func InitializeConsumer(ctx context.Context) {
 		logrus.Info("Initial system data for consumer already seeded, skipping initialization")
 	}
 
-	// Register built-in config handlers
-	consumer.RegisterBuiltinHandlers()
-
-	// Start config update listener
-	listener := consumer.GetConfigUpdateListener(ctx)
-
-	if err := listener.Start(); err != nil {
-		logrus.Fatalf("Failed to start config update listener: %v", err)
-	}
-	logrus.Infof("Config update listener started successfully, watching %d registered handlers",
-		len(consumer.ListRegisteredConfigKeys()))
+	registerHandlers(ctx, consumerData.scope, consumer.RegisterConsumerHandlers)
 
 	// Initialize namespaces on startup - critical after restart to re-initialize CRD informers
 	logrus.Info("Initializing namespaces on startup...")

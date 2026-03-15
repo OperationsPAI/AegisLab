@@ -43,7 +43,7 @@ func (req *ListRoleReq) Validate() error {
 
 // SearchRoleReq represents advanced role search with complex filtering
 type SearchRoleReq struct {
-	AdvancedSearchReq
+	AdvancedSearchReq[string]
 
 	// Role-specific filter shortcuts
 	NamePattern        string       `json:"name_pattern" binding:"omitempty"`         // Role name fuzzy match
@@ -55,7 +55,7 @@ type SearchRoleReq struct {
 }
 
 // ConvertToSearchRequest converts RoleSearchReq to SearchRequest with role-specific filters
-func (rsr *SearchRoleReq) ConvertToSearchRequest() *SearchReq {
+func (rsr *SearchRoleReq) ConvertToSearchRequest() *SearchReq[string] {
 	sr := rsr.ConvertAdvancedToSearch()
 
 	if rsr.NamePattern != "" {

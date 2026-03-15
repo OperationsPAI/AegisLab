@@ -277,7 +277,7 @@ func getAlgoJobEnvVars(taskID string, executionID int, datapackPathPrefix, expPa
 	timestamp := now.Format(customTimeFormat)
 
 	var outputPath string
-	if payload.algorithm.ContainerName == config.GetString(consts.DetectorKey) {
+	if payload.algorithm.ContainerName == config.GetDetectorName() {
 		outputPath = filepath.Join(datapackPathPrefix, payload.datapack.Name)
 	} else {
 		outputPath = filepath.Join(expPathPrefix, payload.algorithm.ContainerName, payload.algorithm.Name, timestamp)

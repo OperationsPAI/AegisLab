@@ -90,17 +90,30 @@ func (req *ListDatasetReq) Validate() error {
 }
 
 type SearchDatasetReq struct {
-	AdvancedSearchReq
+	AdvancedSearchReq[consts.DatasetField]
 
 	NamePattern     string `json:"name_pattern" binding:"omitempty"`
 	IncludeVersions bool   `json:"include_versions" binding:"omitempty"`
 }
 
 func (req *SearchDatasetReq) Validate() error {
-	return req.AdvancedSearchReq.Validate()
+	if err := req.AdvancedSearchReq.Validate(); err != nil {
+		return err
+	}
+	for i, sortField := range req.Sort {
+		if _, valid := consts.DatasetAllowedFields[sortField.Field]; !valid {
+			return fmt.Errorf("invalid sort_by field at index %d: %s", i, sortField.Field)
+		}
+	}
+	for i, field := range req.GroupBy {
+		if _, valid := consts.DatasetAllowedFields[field]; !valid {
+			return fmt.Errorf("invalid group_by field at index %d: %s", i, field)
+		}
+	}
+	return nil
 }
 
-func (req *SearchDatasetReq) ConvertToSearchReq() *SearchReq {
+func (req *SearchDatasetReq) ConvertToSearchReq() *SearchReq[consts.DatasetField] {
 	sr := req.ConvertAdvancedToSearch()
 
 	if req.NamePattern != "" {

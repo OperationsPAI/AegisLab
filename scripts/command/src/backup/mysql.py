@@ -399,6 +399,10 @@ class MysqlBackupManager:
         if not self.target_dir.exists():
             self.target_dir.mkdir(parents=True, exist_ok=True)
 
+        self.dst_dir = BACKUP_DIR / self.dst.value / self.dst_mysql_config.db
+        if not self.dst_dir.exists():
+            self.dst_dir.mkdir(parents=True, exist_ok=True)
+
     @staticmethod
     def install_tools() -> None:
         """
@@ -514,14 +518,31 @@ class MysqlBackupManager:
         )
 
         if backup_file.exists():
-            size_mb = backup_file.stat().st_size / (1024 * 1024)
+            size_bytes = backup_file.stat().st_size
+            size_mb = size_bytes / (1024 * 1024)
             console.print(f"[gray]📊 Backup size: {size_mb:.2f} MB[/gray]")
+
+            # A valid dump with data is typically at least a few hundred KB.
+            # < 50 KB almost certainly means no data rows were captured.
+            MIN_EXPECTED_BYTES = 50 * 1024
+            if size_bytes < MIN_EXPECTED_BYTES:
+                console.print(
+                    f"[bold yellow]⚠️  Backup file is suspiciously small ({size_mb:.3f} MB). "
+                    "The source database may be empty or the dump may have failed. "
+                    "Aborting to avoid overwriting destination with empty data.[/bold yellow]"
+                )
+                backup_file.unlink(missing_ok=True)
+                raise SystemExit(1)
+
             console.print()
 
             console.print("[bold blue]🗜️ Compressing backup file...[/bold blue]")
             run_command(["gzip", backup_file.as_posix()])
             backup_file = backup_file.with_suffix(backup_file.suffix + ".gz")
-            shutil.rmtree(backup_file, ignore_errors=True)
+
+            dst_file = self.dst_dir / backup_file.name
+            shutil.copy2(backup_file, dst_file)
+            console.print(f"[gray]📋 Copied to dst: {dst_file}[/gray]")
 
             console.print(
                 f"[bold green]✅ Database backup completed: {backup_file}[/bold green]"

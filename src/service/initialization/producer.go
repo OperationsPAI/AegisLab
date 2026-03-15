@@ -1,6 +1,7 @@
 package initialization
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -29,25 +30,24 @@ func (r permMeta) String() string {
 	return fmt.Sprintf("%v %v %v", r.action, r.resourceScope, r.resourceName)
 }
 
+var producerData *configData
+
 var resourceIDMap map[consts.ResourceName]int
 
-func InitializeProducer() {
-	user, err := repository.GetUserByUsername(database.DB, AdminUsername)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			logrus.Info("Seeding initial system data for producer...")
-			if err := initializeProducer(); err != nil {
-				logrus.Fatalf("Failed to initialize system data for producer: %v", err)
-			}
-			logrus.Info("Successfully seeded initial system data for producer")
-		} else {
-			logrus.Fatalf("Failed to check for %s: %v", AdminUsername, err)
-		}
-	}
+func InitializeProducer(ctx context.Context) {
+	producerData = newConfigData(consts.ConfigScopeProducer)
 
-	if user != nil {
+	if len(producerData.configs) == 0 {
+		logrus.Info("Seeding initial system data for producer...")
+		if err := initializeProducer(); err != nil {
+			logrus.Fatalf("Failed to initialize system data for producer: %v", err)
+		}
+		logrus.Info("Successfully seeded initial system data for producer")
+	} else {
 		logrus.Info("Initial system data for producer already seeded, skipping initialization")
 	}
+
+	registerHandlers(ctx, producerData.scope, nil)
 }
 
 func initializeProducer() error {
@@ -506,8 +506,6 @@ func initializeUsers(tx *gorm.DB, data *InitialData) error {
 					}
 				}
 
-				logrus.Infof("Bound user %s to team %s with role %s", user.Username, teamBinding.Name, teamBinding.Role)
-
 				// Bind projects to this team and user if specified
 				if len(teamBinding.Projects) > 0 {
 					for _, projectBinding := range teamBinding.Projects {
@@ -547,8 +545,6 @@ func initializeUsers(tx *gorm.DB, data *InitialData) error {
 								return fmt.Errorf("failed to bind user %s to project %s with role %s: %w", user.Username, projectBinding.Name, projectBinding.Role, err)
 							}
 						}
-
-						logrus.Infof("Bound user %s to project %s with role %s", user.Username, projectBinding.Name, projectBinding.Role)
 					}
 				}
 			}
@@ -588,8 +584,6 @@ func initializeUsers(tx *gorm.DB, data *InitialData) error {
 						return fmt.Errorf("failed to bind user %s to project %s with role %s: %w", user.Username, projectBinding.Name, projectBinding.Role, err)
 					}
 				}
-
-				logrus.Infof("Bound user %s to project %s with role %s", user.Username, projectBinding.Name, projectBinding.Role)
 			}
 		}
 	}

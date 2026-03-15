@@ -751,7 +751,6 @@ func searchInjectionsCommon(c *gin.Context, projectID *int) {
 
 	// Note: Project filtering should be handled at the service layer
 	// For project-scoped calls, the service layer will filter by project
-
 	resp, err := producer.SearchInjections(&req, projectID)
 	if handlers.HandleServiceError(c, err) {
 		return

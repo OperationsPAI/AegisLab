@@ -22,12 +22,20 @@ port = "6379"
 [default.etcd]
 host = "localhost"
 port = "2379"
-prefix = "/rcabench/config/consumer/"
+prefix = "/rcabench/config"
 username = ""
 password = ""
 
 [staging]
 default_repo = "10.10.10.240/library"
+
+[staging.database.mysql]
+host = "10.10.10.220"
+port = "32206"
+
+[staging.redis]
+host = "10.10.10.220"
+port = "32279"
 
 [staging.etcd]
 host = "10.10.10.220"

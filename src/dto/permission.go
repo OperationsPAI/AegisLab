@@ -84,7 +84,7 @@ func (req *ListPermissionReq) Validate() error {
 
 // SearchPermissionReq represents advanced permission search with complex filtering
 type SearchPermissionReq struct {
-	AdvancedSearchReq
+	AdvancedSearchReq[string]
 
 	// Permission-specific filter shortcuts
 	NamePattern        string   `json:"name_pattern,omitempty"`         // Fuzzy match for permission name
@@ -98,7 +98,7 @@ type SearchPermissionReq struct {
 }
 
 // ConvertToSearchRequest converts PermissionSearchReq to SearchRequest with permission-specific filters
-func (psr *SearchPermissionReq) ConvertToSearchRequest() *SearchReq {
+func (psr *SearchPermissionReq) ConvertToSearchRequest() *SearchReq[string] {
 	sr := psr.ConvertAdvancedToSearch()
 
 	// Add permission-specific filters

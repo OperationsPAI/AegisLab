@@ -196,6 +196,7 @@ scripts/command/command.bin
 
 CLAUDE.md
 
+.claude/
 .vscode/
 
 client/typescript

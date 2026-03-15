@@ -185,7 +185,7 @@ func SearchDatasets(req *dto.SearchDatasetReq) (*dto.ListResp[dto.DatasetDetailR
 	}
 
 	searchReq := req.ConvertToSearchReq()
-	dataests, total, err := repository.ExecuteSearch(database.DB, searchReq, database.Dataset{})
+	dataests, total, err := repository.ExecuteSearch(database.DB, searchReq, database.Dataset{}, consts.DatasetAllowedFields)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search datasets: %w", err)
 	}

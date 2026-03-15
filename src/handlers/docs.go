@@ -32,7 +32,7 @@ import (
 //	@Success		200	{object}	consts.StatusType			"Status type constants"
 //	@Success		200	{object}	consts.TaskState			"Task state constants"
 //	@Success		200	{object}	consts.TaskType				"Task type constants"
-//	@Success		200	{object}	consts.SSEEventName			"SSE event name constants"
+//	@Success		200	{object}	consts.SSEEventName		"SSE event name constants"
 //	@Router			/api/_docs/models [get]
 //	@x-api-type		{"sdk":"true"}
 func SwaggerModelsDoc(c *gin.Context) {}

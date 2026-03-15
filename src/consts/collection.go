@@ -19,6 +19,7 @@ var configHistoryChangeTypeMap = map[ConfigHistoryChangeType]string{
 var ConfigScopeMap = map[ConfigScope]string{
 	ConfigScopeProducer: "producer",
 	ConfigScopeConsumer: "consumer",
+	ConfigScopeGlobal:   "global",
 }
 
 var dynamicConfigTypeMap = map[ConfigValueType]string{

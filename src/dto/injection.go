@@ -14,15 +14,6 @@ import (
 	chaos "github.com/OperationsPAI/chaos-experiment/handler"
 )
 
-var validInjectionSortFields = map[string]struct{}{
-	"id":         {},
-	"name":       {},
-	"start_time": {},
-	"end_time":   {},
-	"created_at": {},
-	"updated_at": {},
-}
-
 type InjectionItem struct {
 	ID          int       `json:"id"`
 	Name        string    `json:"name"`
@@ -230,7 +221,7 @@ func (req *ListInjectionReq) ToFilterOptions() *ListInjectionFilters {
 
 // SearchInjectionReq represents the request to search fault injections with advanced filters
 type SearchInjectionReq struct {
-	AdvancedSearchReq
+	AdvancedSearchReq[consts.InjectionField]
 	TaskIDs       []string               `json:"task_ids" binding:"omitempty"`
 	Names         []string               `json:"names" binding:"omitempty"`
 	NamePattern   string                 `json:"name_pattern" binding:"omitempty"`
@@ -285,15 +276,21 @@ func (req *SearchInjectionReq) Validate() error {
 	}
 
 	for i, sortField := range req.Sort {
-		if _, valid := validInjectionSortFields[sortField.Field]; !valid {
+		if _, valid := consts.InjectionAllowedFields[sortField.Field]; !valid {
 			return fmt.Errorf("invalid sort_by field at index %d: %s", i, sortField.Field)
+		}
+	}
+
+	for i, field := range req.GroupBy {
+		if _, valid := consts.InjectionAllowedFields[field]; !valid {
+			return fmt.Errorf("invalid group_by field at index %d: %s", i, field)
 		}
 	}
 
 	return nil
 }
 
-func (req *SearchInjectionReq) ConvertToSearchReq() *SearchReq {
+func (req *SearchInjectionReq) ConvertToSearchReq() *SearchReq[consts.InjectionField] {
 	sr := req.ConvertAdvancedToSearch()
 
 	if len(req.TaskIDs) > 0 {
@@ -330,13 +327,6 @@ func (req *SearchInjectionReq) ConvertToSearchReq() *SearchReq {
 			stateValues[i] = fmt.Sprintf("%d", st)
 		}
 		sr.AddFilter("state", OpIn, stateValues)
-	}
-	if len(req.Statuses) > 0 {
-		statusValues := make([]string, len(req.Statuses))
-		for i, st := range req.Statuses {
-			statusValues[i] = fmt.Sprintf("%d", st)
-		}
-		sr.AddFilter("status", OpIn, statusValues)
 	}
 
 	if req.StartTime != nil {
@@ -405,8 +395,8 @@ func (req *SubmitInjectionReq) Validate() error {
 			if err := algorithm.Validate(); err != nil {
 				return fmt.Errorf("invalid algorithm at index %d: %w", idx, err)
 			}
-			if algorithm.Name == config.GetString(consts.DetectorKey) {
-				return fmt.Errorf("algorithm name %s is reserved and cannot be used", config.GetString(consts.DetectorKey))
+			if algorithm.Name == config.GetDetectorName() {
+				return fmt.Errorf("algorithm name %s is reserved and cannot be used", config.GetDetectorName())
 			}
 		}
 	}

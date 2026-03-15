@@ -52,7 +52,7 @@ func (req *ListUserReq) Validate() error {
 }
 
 type UserSearchReq struct {
-	AdvancedSearchReq
+	AdvancedSearchReq[string]
 
 	// User-specific filter shortcuts
 	UsernamePattern string     `json:"username_pattern,omitempty"` // Username fuzzy match
@@ -65,7 +65,7 @@ type UserSearchReq struct {
 }
 
 // ConvertToSearchReq converts UserSearchReq to SearchReq with user-specific filters
-func (usr *UserSearchReq) ConvertToSearchReq() *SearchReq {
+func (usr *UserSearchReq) ConvertToSearchReq() *SearchReq[string] {
 	sr := usr.ConvertAdvancedToSearch()
 
 	// Add user-specific filters

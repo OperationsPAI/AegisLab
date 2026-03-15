@@ -244,7 +244,7 @@ func SearchInjections(req *dto.SearchInjectionReq, projectID *int) (*dto.SearchR
 		searchReq.AddFilter("project_id", dto.OpEqual, *projectID)
 	}
 
-	injections, total, err := repository.ExecuteSearch(database.DB, searchReq, database.FaultInjection{})
+	injections, total, err := repository.ExecuteSearch(database.DB, searchReq, database.FaultInjection{}, consts.InjectionAllowedFields)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search injections: %w", err)
 	}
@@ -285,8 +285,13 @@ func SearchInjections(req *dto.SearchInjectionReq, projectID *int) (*dto.SearchR
 	}
 
 	resp := &dto.SearchResp[dto.InjectionDetailResp]{
-		Items:      injectionResps,
 		Pagination: req.ConvertToPaginationInfo(total),
+	}
+
+	if len(req.GroupBy) > 0 {
+		resp.Groups = dto.BuildGroupTree(injectionResps, req.GroupBy)
+	} else {
+		resp.Items = injectionResps
 	}
 
 	return resp, nil

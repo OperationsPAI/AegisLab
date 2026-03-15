@@ -37,7 +37,7 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 			return err
 		}
 
-		if collectPayload.algorithm.ContainerName == config.GetString(consts.DetectorKey) {
+		if collectPayload.algorithm.ContainerName == config.GetDetectorName() {
 			results, err := repository.ListDetectorResultsByExecutionID(database.DB, collectPayload.executionID)
 			if err != nil {
 				logEntry.Errorf("failed to get detector results by execution ID: %v", err)

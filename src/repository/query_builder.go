@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -11,61 +12,65 @@ import (
 )
 
 // SearchQueryBuilder provides methods to build complex database queries from SearchRequest
-type SearchQueryBuilder struct {
-	db    *gorm.DB
-	query *gorm.DB
+type SearchQueryBuilder[F ~string] struct {
+	db                *gorm.DB
+	query             *gorm.DB
+	allowedSortFields map[F]string // user field name -> DB column name (whitelist for sort/group)
 }
 
-// NewSearchQueryBuilder creates a new search query builder
-func NewSearchQueryBuilder(db *gorm.DB) *SearchQueryBuilder {
-	return &SearchQueryBuilder{
-		db:    db,
-		query: db,
+// NewSearchQueryBuilder creates a new search query builder.
+// allowedSortFields is a whitelist mapping user-facing field names to DB column names
+// for sort and group_by operations. If nil, sorting defaults to "id DESC" only.
+func NewSearchQueryBuilder[F ~string](db *gorm.DB, allowedSortFields map[F]string) *SearchQueryBuilder[F] {
+	return &SearchQueryBuilder[F]{
+		db:                db,
+		query:             db,
+		allowedSortFields: allowedSortFields,
 	}
 }
 
-// ApplySearchReq applies filters, sorting, and pagination from SearchRequest
-func (qb *SearchQueryBuilder) ApplySearchReq(searchReq *dto.SearchReq, modelType interface{}) *gorm.DB {
+// ApplySearchReq applies filters, sorting, and pagination from SearchRequest.
+func (qb *SearchQueryBuilder[F]) ApplySearchReq(filters []dto.SearchFilter, keyword string, sortOptions []dto.TypedSortOption[F], groupBy []F, modelType interface{}) *gorm.DB {
 	// Start with the base query
 	qb.query = qb.db.Model(modelType)
 
 	// Apply filters
-	qb.applyFilters(searchReq.Filters)
+	qb.applyFilters(filters)
 
 	// Apply keyword search if provided
-	if searchReq.Keyword != "" {
-		qb.applyKeywordSearch(searchReq.Keyword, modelType)
+	if keyword != "" {
+		qb.applyKeywordSearch(keyword, modelType)
 	}
 
-	// Apply sorting
-	qb.applySorting(searchReq.Sort)
+	// Apply sorting (group_by fields first, then user sort)
+	qb.applySorting(sortOptions, groupBy)
 
 	return qb.query
 }
 
 // applyFilters applies all filters to the query
-func (qb *SearchQueryBuilder) applyFilters(filters []dto.SearchFilter) {
+func (qb *SearchQueryBuilder[F]) applyFilters(filters []dto.SearchFilter) {
 	for _, filter := range filters {
 		qb.applySingleFilter(filter)
 	}
 }
 
 // applyInclude applies include options to the query
-func (qb *SearchQueryBuilder) applyIncludes(includes []string) {
+func (qb *SearchQueryBuilder[F]) applyIncludes(includes []string) {
 	for _, include := range includes {
 		qb.query = qb.query.Preload(include)
 	}
 }
 
 // applyIncludeFields includes specified fields in the query
-func (qb *SearchQueryBuilder) applyIncludeFields(includeFields []string) {
+func (qb *SearchQueryBuilder[F]) applyIncludeFields(includeFields []string) {
 	for _, field := range includeFields {
 		qb.query = qb.query.Select(field)
 	}
 }
 
 // applyExcludeFields excludes specified fields from the query
-func (qb *SearchQueryBuilder) applyExcludeFields(excludeFields []string, modelType interface{}) {
+func (qb *SearchQueryBuilder[F]) applyExcludeFields(excludeFields []string, modelType interface{}) {
 	// Get all fields from model type
 	t := reflect.TypeOf(modelType)
 	if t.Kind() == reflect.Ptr {
@@ -103,7 +108,7 @@ func (qb *SearchQueryBuilder) applyExcludeFields(excludeFields []string, modelTy
 }
 
 // applyKeywordSearch applies general keyword search across searchable fields
-func (qb *SearchQueryBuilder) applyKeywordSearch(keyword string, modelType interface{}) {
+func (qb *SearchQueryBuilder[F]) applyKeywordSearch(keyword string, modelType interface{}) {
 	// Get searchable fields from model type
 	searchableFields := qb.getSearchableFields(modelType)
 
@@ -125,8 +130,11 @@ func (qb *SearchQueryBuilder) applyKeywordSearch(keyword string, modelType inter
 }
 
 // applySingleFilter applies a single filter to the query
-func (qb *SearchQueryBuilder) applySingleFilter(filter dto.SearchFilter) {
+func (qb *SearchQueryBuilder[F]) applySingleFilter(filter dto.SearchFilter) {
 	field := qb.sanitizeFieldName(filter.Field)
+	if field == "" {
+		return
+	}
 
 	switch filter.Operator {
 	case dto.OpEqual:
@@ -160,13 +168,13 @@ func (qb *SearchQueryBuilder) applySingleFilter(filter dto.SearchFilter) {
 		qb.query = qb.query.Where(fmt.Sprintf("%s NOT LIKE ?", field), "%"+fmt.Sprintf("%v", filter.Value)+"%")
 
 	case dto.OpIn:
-		if len(filter.Values) > 0 {
-			qb.query = qb.query.Where(fmt.Sprintf("%s IN (?)", field), filter.Values)
+		if values := resolveMultiValues(filter); len(values) > 0 {
+			qb.query = qb.query.Where(fmt.Sprintf("%s IN (?)", field), values)
 		}
 
 	case dto.OpNotIn:
-		if len(filter.Values) > 0 {
-			qb.query = qb.query.Where(fmt.Sprintf("%s NOT IN (?)", field), filter.Values)
+		if values := resolveMultiValues(filter); len(values) > 0 {
+			qb.query = qb.query.Where(fmt.Sprintf("%s NOT IN (?)", field), values)
 		}
 
 	case dto.OpIsNull:
@@ -191,41 +199,54 @@ func (qb *SearchQueryBuilder) applySingleFilter(filter dto.SearchFilter) {
 	}
 }
 
-// ApplyPagination applies pagination to the query
-func (qb *SearchQueryBuilder) applyPagination(searchReq *dto.SearchReq) *gorm.DB {
-	offset := searchReq.GetOffset()
-	return qb.query.Offset(offset).Limit(int(searchReq.Size))
+// applyPagination applies pagination to the query
+func (qb *SearchQueryBuilder[F]) applyPagination(pagination *dto.PaginationReq) *gorm.DB {
+	offset := (pagination.Page - 1) * int(pagination.Size)
+	return qb.query.Offset(offset).Limit(int(pagination.Size))
 }
 
-// applySorting applies sorting to the query
-func (qb *SearchQueryBuilder) applySorting(sortOptions []dto.SortOption) {
-	for _, sort := range sortOptions {
-		field := qb.sanitizeFieldName(sort.Field)
-		direction := strings.ToUpper(string(sort.Direction))
+// applySorting applies sorting to the query using a whitelist approach.
+// GroupBy fields are applied first (ASC) to ensure items in the same group are adjacent,
+// then user sort options are applied within each group.
+func (qb *SearchQueryBuilder[F]) applySorting(sortOptions []dto.TypedSortOption[F], groupBy []F) {
+	applied := false
 
-		// Validate direction
-		if direction != "ASC" && direction != "DESC" {
-			direction = "ASC"
+	// Apply group_by fields first for consistent grouping order
+	for _, field := range groupBy {
+		if dbField, ok := qb.allowedSortFields[field]; ok {
+			qb.query = qb.query.Order(dbField + " ASC")
+			applied = true
 		}
-
-		qb.query = qb.query.Order(fmt.Sprintf("%s %s", field, direction))
 	}
 
-	// Add default sorting if no sort options provided
-	if len(sortOptions) == 0 {
+	// Apply user sort options (whitelist validated via typed key lookup)
+	for _, sort := range sortOptions {
+		dbField, ok := qb.allowedSortFields[sort.Field]
+		if !ok {
+			continue // skip fields not in whitelist
+		}
+		direction := "ASC"
+		if strings.ToUpper(string(sort.Direction)) == "DESC" {
+			direction = "DESC"
+		}
+		qb.query = qb.query.Order(dbField + " " + direction)
+		applied = true
+	}
+
+	if !applied {
 		qb.query = qb.query.Order("id DESC")
 	}
 }
 
 // GetCount gets the total count before pagination
-func (qb *SearchQueryBuilder) getCount() (int64, error) {
+func (qb *SearchQueryBuilder[F]) getCount() (int64, error) {
 	var count int64
 	err := qb.query.Count(&count).Error
 	return count, err
 }
 
 // getSearchableFields returns fields that can be searched with keywords
-func (qb *SearchQueryBuilder) getSearchableFields(modelType interface{}) []string {
+func (qb *SearchQueryBuilder[F]) getSearchableFields(modelType interface{}) []string {
 	// This is a simplified implementation
 	// In a real application, you might want to use struct tags or configuration
 	// to mark fields as searchable
@@ -249,7 +270,7 @@ func (qb *SearchQueryBuilder) getSearchableFields(modelType interface{}) []strin
 }
 
 // getTypeName gets the type name from interface
-func (qb *SearchQueryBuilder) getTypeName(modelType interface{}) string {
+func (qb *SearchQueryBuilder[F]) getTypeName(modelType interface{}) string {
 	t := reflect.TypeOf(modelType)
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
@@ -257,49 +278,31 @@ func (qb *SearchQueryBuilder) getTypeName(modelType interface{}) string {
 	return t.Name()
 }
 
-// sanitizeFieldName sanitizes field names to prevent SQL injection
-func (qb *SearchQueryBuilder) sanitizeFieldName(field string) string {
-	// Convert snake_case to database field names
-	// Remove any special characters that could be used for injection
-	field = strings.ReplaceAll(field, ";", "")
-	field = strings.ReplaceAll(field, "--", "")
-	field = strings.ReplaceAll(field, "/*", "")
-	field = strings.ReplaceAll(field, "*/", "")
-
-	// Convert common field names
-	fieldMap := map[string]string{
-		"full_name":     "full_name",
-		"is_active":     "is_active",
-		"is_system":     "is_system",
-		"created_at":    "created_at",
-		"updated_at":    "updated_at",
-		"last_login_at": "last_login_at",
-		"user_id":       "user_id",
-		"role_id":       "role_id",
-		"permission_id": "permission_id",
-		"project_id":    "project_id",
-		"resource_id":   "resource_id",
-		"display_name":  "display_name",
+// sanitizeFieldName validates that a field name contains only safe characters
+// (alphanumeric, underscore, dot for table.column notation).
+// Returns empty string if any unsafe character is detected.
+func (qb *SearchQueryBuilder[F]) sanitizeFieldName(field string) string {
+	if field == "" {
+		return ""
 	}
-
-	if dbField, exists := fieldMap[field]; exists {
-		return dbField
+	for _, c := range field {
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '.') {
+			return ""
+		}
 	}
-
 	return field
 }
 
 // ExecuteSearch executes a complete search operation
-func ExecuteSearch[T any](db *gorm.DB, searchReq *dto.SearchReq, modelType T) ([]T, int64, error) {
-	qb := NewSearchQueryBuilder(db)
+func ExecuteSearch[T any, F ~string](db *gorm.DB, searchReq *dto.SearchReq[F], modelType T, allowedSortFields map[F]string) ([]T, int64, error) {
+	qb := NewSearchQueryBuilder(db, allowedSortFields)
 
 	qb.applyIncludes(searchReq.Includes)
-
 	qb.applyIncludeFields(searchReq.IncludeFields)
 	qb.applyExcludeFields(searchReq.ExcludeFields, modelType)
 
-	// Apply search conditions
-	qb.ApplySearchReq(searchReq, modelType)
+	// Pass typed Sort/GroupBy directly — no string conversion needed, whitelist lookup uses typed key
+	qb.ApplySearchReq(searchReq.Filters, searchReq.Keyword, searchReq.Sort, searchReq.GroupBy, modelType)
 
 	// Get total count
 	total, err := qb.getCount()
@@ -308,7 +311,7 @@ func ExecuteSearch[T any](db *gorm.DB, searchReq *dto.SearchReq, modelType T) ([
 	}
 
 	if searchReq.Size != 0 && searchReq.Page != 0 {
-		qb.applyPagination(searchReq)
+		qb.applyPagination(&searchReq.PaginationReq)
 	}
 
 	// Apply pagination and execute query
@@ -319,4 +322,28 @@ func ExecuteSearch[T any](db *gorm.DB, searchReq *dto.SearchReq, modelType T) ([
 	}
 
 	return items, total, nil
+}
+
+// resolveMultiValues returns the effective []string for IN/NOT IN operators.
+// It prefers filter.Values when populated; otherwise it tries to parse filter.Value
+// as a JSON array (e.g. "[\"a\",\"b\"]" or "[1,2]").
+// A bare non-JSON single value is wrapped in a one-element slice.
+func resolveMultiValues(filter dto.SearchFilter) []string {
+	if len(filter.Values) > 0 {
+		return filter.Values
+	}
+	if filter.Value == "" {
+		return nil
+	}
+	// Try JSON array parse
+	var parsed []any
+	if err := json.Unmarshal([]byte(filter.Value), &parsed); err == nil {
+		result := make([]string, len(parsed))
+		for i, v := range parsed {
+			result[i] = fmt.Sprintf("%v", v)
+		}
+		return result
+	}
+	// Fallback: treat the whole value as a single element
+	return []string{filter.Value}
 }

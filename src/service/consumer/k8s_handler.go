@@ -461,7 +461,7 @@ func (h *k8sHandler) HandleJobFailed(job *batchv1.Job, annotations map[string]st
 			JobName:   job.Name,
 		}
 
-		if parsedAnnotations.algorithm.ContainerName == config.GetString(consts.DetectorKey) {
+		if parsedAnnotations.algorithm.ContainerName == config.GetDetectorName() {
 			if err := updateInjectionState(parsedAnnotations.datapack.Name, consts.DatapackDetectorFailed); err != nil {
 				errCtx.Warn(nil, "update injection state failed", err)
 			}
@@ -552,7 +552,7 @@ func (h *k8sHandler) HandleJobSucceeded(job *batchv1.Job, annotations map[string
 		)
 
 		ref := &dto.ContainerRef{
-			Name: config.GetString(consts.DetectorKey),
+			Name: config.GetDetectorName(),
 		}
 
 		algorithmVersionResults, err := common.MapRefsToContainerVersions([]*dto.ContainerRef{ref}, consts.ContainerTypeAlgorithm, parsedLabels.userID)
@@ -615,7 +615,7 @@ func (h *k8sHandler) HandleJobSucceeded(job *batchv1.Job, annotations map[string
 		logEntry.Info("algorithm execute successfully")
 		taskSpan.AddEvent("algorithm execute successfully")
 
-		if parsedAnnotations.algorithm.ContainerName == config.GetString(consts.DetectorKey) {
+		if parsedAnnotations.algorithm.ContainerName == config.GetDetectorName() {
 			if err := updateInjectionState(parsedAnnotations.datapack.Name, consts.DatapackDetectorSuccess); err != nil {
 				errCtx.Fatal(nil, "update injection state failed", err)
 				return

@@ -237,7 +237,7 @@ func SetupV2Routes(router *gin.Engine) {
 				}
 
 				injectionRead.GET("", v2handlers.ListProjectInjections)
-				injectionRead.POST("", v2handlers.SearchInjections)
+				injectionRead.POST("/search", v2handlers.SearchInjections)
 			}
 
 			injectionExecute := injections.Group("", middleware.RequireProjectInjectionExecute)

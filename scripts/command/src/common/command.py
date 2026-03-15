@@ -68,6 +68,13 @@ def run_pipeline(
             p1.stdout.close()
 
         stdout, stderr = p2.communicate()
+        p1.wait()  # ensure source process has fully exited
+        if p1.returncode != 0:
+            console.print(
+                f"[bold red]❌ Pipeline source command failed (exit {p1.returncode}): "
+                f"{' '.join(cmd1)}[/bold red]"
+            )
+            sys.exit(1)
         if p2.returncode != 0:
             console.print(
                 f"[bold red]❌ Pipeline command failed: {' '.join(cmd2)}[/bold red]"

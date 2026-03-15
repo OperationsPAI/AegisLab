@@ -237,7 +237,7 @@ dynamic_configs:
   - key: algo.detector
     default_value: detector
     value_type: 0
-    scope: 1
+    scope: 2
     category: algo
     description: Default detector algorithm name
     is_secret: false

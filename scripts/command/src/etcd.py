@@ -182,7 +182,7 @@ def _get_etcd_client(env: ENV) -> EtcdHTTPClient:
     )
 
 
-def _load_dynamic_configs() -> list[dict[str, Any]]:
+def _load_dynamic_configs() -> dict[str, list[dict[str, Any]]]:
     """Load dynamic_configs from data.yaml.
 
     Returns:
@@ -204,14 +204,22 @@ def _load_dynamic_configs() -> list[dict[str, Any]]:
 
     configs = data.get("dynamic_configs", [])
 
-    # Filter only consumer configs (scope = 1)
-    consumer_configs = [c for c in configs if c.get("scope") == 1]
-
-    console.print(
-        f"[bold green]✅ Loaded {len(consumer_configs)} consumer configurations "
-        f"from {INITIAL_DATA_PATH.name}[/bold green]"
+    table = Table(
+        header_style="bold cyan",
+        title=f"Loaded from {INITIAL_DATA_PATH.name}",
     )
-    return consumer_configs
+    table.add_column("Scope", style="cyan")
+    table.add_column("Count", style="bold green", justify="right")
+
+    scopes = ["producer", "consumer", "global"]
+    scope_configs: dict[str, list[dict[str, Any]]] = {}
+    for idx, scope in enumerate(scopes):
+        scope_configs[scope] = [c for c in configs if c.get("scope") == idx]
+        count = len(scope_configs[scope])
+        table.add_row(scope.capitalize(), str(count))
+
+    console.print(table)
+    return scope_configs
 
 
 def init_etcd_configs(
@@ -230,11 +238,11 @@ def init_etcd_configs(
     Raises:
         Exception: If failed to create etcd client or other errors
     """
-    configs = _load_dynamic_configs()
+    scope_configs = _load_dynamic_configs()
 
-    if not configs:
+    if not scope_configs:
         console.print(
-            "[bold yellow]⚠️  No consumer configurations to initialize[/bold yellow]"
+            "[bold yellow]⚠️  No scope configurations found to initialize[/bold yellow]"
         )
         return {"success": 0, "skipped": 0, "error": 0}
 
@@ -273,81 +281,88 @@ def init_etcd_configs(
             "[bold yellow]⚠️  Dry-run mode - no actual changes will be made[/bold yellow]"
         )
 
-    console.print()
-
     # Initialize etcd with configurations
     success_count = 0
     skipped_count = 0
     error_count = 0
 
-    etcd_prefix = settings.etcd.prefix
-
-    for config in configs:
-        key = config.get("key", "")
-        default_value = config.get("default_value", "")
-        description = config.get("description", "")
-        is_secret = config.get("is_secret", False)
-
-        if not key:
-            console.print("[red]⚠️  Skipped config with empty key[/red]")
-            error_count += 1
+    for scope, configs in scope_configs.items():
+        if len(configs) == 0:
             continue
 
-        # Use custom value if provided, otherwise use default
-        value_to_set = custom_values.get(key, default_value)
-        is_custom = key in custom_values
+        etcd_prefix = f"{settings.etcd.prefix}/{scope}"
+        console.print(
+            f"[bold blue]\nInitializing {scope} configurations under prefix: {etcd_prefix}[/bold blue]"
+        )
 
-        etcd_key = f"{etcd_prefix}{key}"
+        for config in configs:
+            key = config.get("key", "")
+            default_value = config.get("default_value", "")
+            description = config.get("description", "")
+            is_secret = config.get("is_secret", False)
 
-        # Check if key already exists in etcd
-        existing_value = None
-        try:
-            result, _ = etcd_client.get(etcd_key)
-            if result is not None:
-                existing_value = result
-        except Exception as e:
-            console.print(
-                f"[red]⚠️  Failed to check existing value for {key}: {e}[/red]"
-            )
-            error_count += 1
-            continue
-
-        # Skip if exists and not force mode
-        if existing_value is not None and not force:
-            display_value = "***" if is_secret else existing_value
-            console.print(
-                f"[yellow]⊝[/yellow] [dim]{key}[/dim] (already exists: {display_value})"
-            )
-            skipped_count += 1
-            continue
-
-        # Set value in etcd
-        if not dry_run:
-            try:
-                etcd_client.put(etcd_key, value_to_set)
-                display_value = "***" if is_secret else value_to_set
-                action = "Updated" if existing_value else "Set"
-                source = f" [magenta]({'custom' if is_custom else 'default'})[/magenta]"
-
-                console.print(
-                    f"[green]✓[/green] [cyan]{key}[/cyan] = [bold]{display_value}[/bold]{source}"
-                )
-
-                if description:
-                    console.print(f"  [dim]└─ {description}[/dim]")
-
-                success_count += 1
-            except Exception as e:
-                console.print(f"[red]✗[/red] [red]Failed to set {key}: {e}[/red]")
+            if not key:
+                console.print("[red]⚠️  Skipped config with empty key[/red]")
                 error_count += 1
-        else:
-            display_value = "***" if is_secret else value_to_set
-            action = "Would update" if existing_value else "Would set"
-            source = " [magenta](custom)[/magenta]" if is_custom else ""
-            console.print(
-                f"[blue]•[/blue] [dim][DRY-RUN][/dim] {action} [cyan]{key}[/cyan] = {display_value}{source}"
-            )
-            success_count += 1
+                continue
+
+            # Use custom value if provided, otherwise use default
+            value_to_set = custom_values.get(key, default_value)
+            is_custom = key in custom_values
+
+            etcd_key = f"{etcd_prefix}/{key}"
+
+            # Check if key already exists in etcd
+            existing_value = None
+            try:
+                result, _ = etcd_client.get(etcd_key)
+                if result is not None:
+                    existing_value = result
+            except Exception as e:
+                console.print(
+                    f"[red]⚠️  Failed to check existing value for {key}: {e}[/red]"
+                )
+                error_count += 1
+                continue
+
+            # Skip if exists and not force mode
+            if existing_value is not None and not force:
+                display_value = "***" if is_secret else existing_value
+                console.print(
+                    f"[yellow]⊝[/yellow] [dim]{key}[/dim] (already exists: {display_value})"
+                )
+                skipped_count += 1
+                continue
+
+            # Set value in etcd
+            if not dry_run:
+                try:
+                    etcd_client.put(etcd_key, value_to_set)
+                    display_value = "***" if is_secret else value_to_set
+                    action = "Updated" if existing_value else "Set"
+                    source = (
+                        f" [magenta]({'custom' if is_custom else 'default'})[/magenta]"
+                    )
+
+                    console.print(
+                        f"[green]✓[/green] [cyan]{key}[/cyan] = [bold]{display_value}[/bold]{source}"
+                    )
+
+                    if description:
+                        console.print(f"  [dim]└─ {description}[/dim]")
+
+                    success_count += 1
+                except Exception as e:
+                    console.print(f"[red]✗[/red] [red]Failed to set {key}: {e}[/red]")
+                    error_count += 1
+            else:
+                display_value = "***" if is_secret else value_to_set
+                action = "Would update" if existing_value else "Would set"
+                source = " [magenta](custom)[/magenta]" if is_custom else ""
+                console.print(
+                    f"[blue]•[/blue] [dim][DRY-RUN][/dim] {action} [cyan]{key}[/cyan] = {display_value}{source}"
+                )
+                success_count += 1
 
     # Summary
     console.print()

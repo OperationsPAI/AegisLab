@@ -101,7 +101,7 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			logrus.Println("Running as producer")
 			database.InitDB()
-			initialization.InitializeProducer()
+			initialization.InitializeProducer(ctx)
 
 			utils.InitValidator()
 			client.InitTraceProvider()
@@ -166,7 +166,7 @@ func main() {
 			go k8s.GetK8sController().Initialize(ctx, cancel, consumer.NewHandler())
 
 			database.InitDB()
-			initialization.InitializeProducer()
+			initialization.InitializeProducer(ctx)
 			initialization.InitializeConsumer(ctx)
 			initialization.InitConcurrencyLock(ctx)
 

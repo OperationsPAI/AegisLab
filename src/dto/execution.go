@@ -176,7 +176,7 @@ func (spec *ExecutionSpec) Validate() error {
 	if err := spec.Algorithm.Validate(); err != nil {
 		return fmt.Errorf("invalid algorithm: %w", err)
 	}
-	if spec.Algorithm.Name == config.GetString(consts.DetectorKey) {
+	if spec.Algorithm.Name == config.GetDetectorName() {
 		return fmt.Errorf("detector algorithm cannot be used for execution")
 	}
 

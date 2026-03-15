@@ -203,7 +203,7 @@ func UpdateUser(req *dto.UpdateUserReq, userID int) (*dto.UserResp, error) {
 	return dto.NewUserResp(updatedUser), nil
 }
 
-func SearchUsers(req *dto.SearchReq) (*dto.SearchResp[dto.UserResp], error) {
+func SearchUsers(req *dto.SearchReq[string]) (*dto.SearchResp[dto.UserResp], error) {
 	return nil, nil
 }
 

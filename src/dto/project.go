@@ -55,14 +55,14 @@ func (req *ListProjectReq) Validate() error {
 
 // SearchProjectReq represents advanced project search
 type SearchProjectReq struct {
-	AdvancedSearchReq
+	AdvancedSearchReq[string]
 
 	NamePattern        string `json:"name_pattern,omitempty"`
 	DescriptionPattern string `json:"description_pattern,omitempty"`
 	IsPublic           *bool  `json:"is_public,omitempty"`
 }
 
-func (req *SearchProjectReq) ConvertToSearchRequest() *SearchReq {
+func (req *SearchProjectReq) ConvertToSearchRequest() *SearchReq[string] {
 	sr := req.ConvertAdvancedToSearch()
 
 	if req.NamePattern != "" {

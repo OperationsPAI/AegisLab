@@ -3,6 +3,9 @@ package initialization
 import (
 	"aegis/consts"
 	"aegis/database"
+	"aegis/repository"
+
+	"github.com/sirupsen/logrus"
 )
 
 const AdminUsername = "admin"
@@ -225,6 +228,19 @@ type InitialData struct {
 	Users          []InitialDataUser      `yaml:"users"`
 }
 
-type ConsumerData struct {
+type configData struct {
+	scope   consts.ConfigScope
 	configs []database.DynamicConfig
+}
+
+func newConfigData(scope consts.ConfigScope) *configData {
+	configs, err := repository.ListExistingConfigs(database.DB)
+	if err != nil {
+		logrus.Fatalf("Failed to check existing dynamic configs: %v", err)
+	}
+
+	return &configData{
+		scope:   scope,
+		configs: configs,
+	}
 }

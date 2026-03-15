@@ -108,10 +108,7 @@ class RedisClient:
         console.print("[bold blue]Executing query to get stream names...[/bold blue]")
 
         query = """
-        SELECT DISTINCT t.trace_id
-        FROM fault_injections fis
-        INNER JOIN tasks t ON fis.task_id = t.id
-        WHERE fis.task_id IS NOT NULL;
+        SELECT id FROM traces
         """
 
         try:
@@ -122,6 +119,8 @@ class RedisClient:
             if not results:
                 console.print("[bold yellow]Query returned no results[/bold yellow]")
                 return []
+
+            print(results)
 
             streams = []
             for row in results:

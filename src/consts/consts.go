@@ -29,7 +29,9 @@ const (
 
 // configuration update notification constants
 const (
-	ConfigEtcdPrefix            = "/rcabench/config/consumer/"
+	ConfigEtcdProducerPrefix    = "/rcabench/config/producer/"
+	ConfigEtcdConsumerPrefix    = "/rcabench/config/consumer/"
+	ConfigEtcdGlobalPrefix      = "/rcabench/config/global/"
 	ConfigUpdateResponseChannel = "config:updates:response"
 )
 
@@ -112,6 +114,7 @@ type ConfigScope int
 const (
 	ConfigScopeProducer ConfigScope = iota
 	ConfigScopeConsumer
+	ConfigScopeGlobal
 )
 
 type ConfigValueType int

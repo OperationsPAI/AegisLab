@@ -3,9 +3,6 @@ package database
 import (
 	"time"
 
-	"aegis/config"
-	"aegis/consts"
-
 	chaos "github.com/OperationsPAI/chaos-experiment/handler"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
@@ -64,8 +61,8 @@ func addDetectorJoins(query *gorm.DB) *gorm.DB {
             FROM executions e
             JOIN container_versions cv ON e.algorithm_version_id = cv.id
             JOIN containers c ON c.id = cv.container_id
-            WHERE e.state = 2 AND e.status = 1 AND c.name = ?
-        ) er_ranked ON fi.id = er_ranked.datapack_id AND er_ranked.rn = 1`, config.GetString(consts.DetectorKey)).
+            WHERE e.state = 2 AND e.status = 1 AND c.id = ?
+        ) er_ranked ON fi.id = er_ranked.datapack_id AND er_ranked.rn = 1`, 1).
 		Joins("JOIN detector_results dr ON er_ranked.id = dr.execution_id")
 }
 

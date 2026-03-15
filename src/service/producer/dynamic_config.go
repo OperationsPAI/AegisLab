@@ -48,6 +48,19 @@ type configHistoryParams struct {
 // Configuration Service Layer
 // =====================================================================
 
+// etcdPrefixForScope returns the etcd key prefix for the given config scope.
+func etcdPrefixForScope(scope consts.ConfigScope) string {
+	switch scope {
+	case consts.ConfigScopeProducer:
+		return consts.ConfigEtcdProducerPrefix
+	case consts.ConfigScopeConsumer:
+		return consts.ConfigEtcdConsumerPrefix
+	case consts.ConfigScopeGlobal:
+		return consts.ConfigEtcdGlobalPrefix
+	}
+	return ""
+}
+
 // GetConfigDetail retrieves detailed information about a configuration by its key
 func GetConfigDetail(containerID int) (*dto.ConfigDetailResp, error) {
 	config, err := repository.GetConfigByID(database.DB, containerID, true)
@@ -114,80 +127,34 @@ func RollbackConfigValue(ctx context.Context, req *dto.RollbackConfigReq, config
 		return fmt.Errorf("failed to get config: %w", err)
 	}
 
-	oldValue, err := client.EtcdGet(ctx, fmt.Sprintf("%s%s", consts.ConfigEtcdPrefix, existingConfig.Key))
+	oldValue, err := client.EtcdGet(ctx, fmt.Sprintf("%s%s", etcdPrefixForScope(existingConfig.Scope), existingConfig.Key))
 	if err != nil {
 		return fmt.Errorf("failed to get current config value from etcd: %w", err)
 	}
 
 	newValue := history.OldValue
 
-	// Validate the rolled back config
 	if err := common.ValidateConfig(existingConfig, newValue); err != nil {
 		return fmt.Errorf("invalid config after rollback: %w", err)
 	}
 
-	// Handle based on scope (same logic as UpdateConfigValue)
-	if existingConfig.Scope == consts.ConfigScopeProducer {
-		// Producer scope: update Viper first
-		if err := config.SetViperValue(existingConfig.Key, newValue, existingConfig.ValueType); err != nil {
-			return fmt.Errorf("failed to set config value in viper: %w", err)
-		}
-
-		_, err = createConfigRollback(existingConfig, utils.IntPtr(history.ID), configUpdateContext{
-			ChangeField: consts.ChangeFieldValue,
-			OldValue:    oldValue,
-			NewValue:    newValue,
-			Reason:      req.Reason,
-			OperatorID:  operatorID,
-			IpAddress:   ipAddress,
-			UserAgent:   userAgent,
-		})
-		if err != nil {
-			return err
-		}
-
-		return nil
+	if err := setViperIfNeeded(existingConfig, newValue); err != nil {
+		return fmt.Errorf("failed to set config value in viper: %w", err)
 	}
 
-	if existingConfig.Scope == consts.ConfigScopeConsumer {
-		// Consumer scope: save to DB first, then notify consumer
-		_, err = createConfigRollback(existingConfig, utils.IntPtr(history.ID), configUpdateContext{
-			ChangeField: consts.ChangeFieldValue,
-			OldValue:    oldValue,
-			NewValue:    newValue,
-			Reason:      req.Reason,
-			OperatorID:  operatorID,
-			IpAddress:   ipAddress,
-			UserAgent:   userAgent,
-		})
-		if err != nil {
-			return err
-		}
-
-		// Publish config to etcd with retry mechanism
-		etcdKey := fmt.Sprintf("%s%s", consts.ConfigEtcdPrefix, existingConfig.Key)
-		if err := publishConfigToEtcdWithRetry(etcdKey, newValue, 3); err != nil {
-			logrus.Errorf("Failed to publish config to etcd after retries: %v", err)
-			return fmt.Errorf("config saved to database but failed to notify consumer via etcd: %w", err)
-		}
-
-		// Wait for consumer to acknowledge the rollback
-		logrus.Info("Waiting for consumer config rollback response...")
-		updateResp, err := waitForConfigUpdateResponse(10 * time.Second)
-		if err != nil {
-			logrus.Errorf("Failed to get config rollback response: %v", err)
-			return fmt.Errorf("config rolled back but consumer did not respond: %w", err)
-		}
-
-		if !updateResp.Success {
-			logrus.Errorf("Consumer failed to process config rollback: %s", updateResp.Error)
-			return fmt.Errorf("consumer failed to process config rollback: %s", updateResp.Error)
-		}
-
-		logrus.Infof("Config rollback successfully processed by consumer")
+	if _, err := createConfigRollback(existingConfig, utils.IntPtr(history.ID), configUpdateContext{
+		ChangeField: consts.ChangeFieldValue,
+		OldValue:    oldValue,
+		NewValue:    newValue,
+		Reason:      req.Reason,
+		OperatorID:  operatorID,
+		IpAddress:   ipAddress,
+		UserAgent:   userAgent,
+	}); err != nil {
+		return err
 	}
 
-	return nil
+	return propagateValueChange(ctx, existingConfig, newValue, "rollback")
 }
 
 // RollbackConfigMetadata rolls back a configuration metadata field from history
@@ -252,7 +219,7 @@ func UpdateConfigValue(ctx context.Context, req *dto.UpdateConfigValueReq, confi
 		}
 	}
 
-	oldValue, err := client.EtcdGet(ctx, fmt.Sprintf("%s%s", consts.ConfigEtcdPrefix, existingConfig.Key))
+	oldValue, err := client.EtcdGet(ctx, fmt.Sprintf("%s%s", etcdPrefixForScope(existingConfig.Scope), existingConfig.Key))
 	if err != nil {
 		return fmt.Errorf("failed to get current config value from etcd: %w", err)
 	}
@@ -263,69 +230,27 @@ func UpdateConfigValue(ctx context.Context, req *dto.UpdateConfigValueReq, confi
 		return fmt.Errorf("invalid config value: %w", err)
 	}
 
-	if existingConfig.Scope == consts.ConfigScopeProducer {
-		if err := config.SetViperValue(existingConfig.Key, newValue, existingConfig.ValueType); err != nil {
-			return fmt.Errorf("failed to set config value in viper: %w", err)
-		}
-
-		if err := createConfigHistory(database.DB, configHistoryParams{
-			ConfigID:   existingConfig.ID,
-			ChangeType: consts.ChangeTypeUpdate,
-			ConfigUpdateContext: configUpdateContext{
-				ChangeField: consts.ChangeFieldValue,
-				OldValue:    oldValue,
-				NewValue:    newValue,
-				Reason:      req.Reason,
-				OperatorID:  operatorID,
-				IpAddress:   ipAddress,
-				UserAgent:   userAgent,
-			},
-		}); err != nil {
-			return fmt.Errorf("failed to create config history: %w", err)
-		}
+	if err := setViperIfNeeded(existingConfig, newValue); err != nil {
+		return fmt.Errorf("failed to set config value in viper: %w", err)
 	}
 
-	if existingConfig.Scope == consts.ConfigScopeConsumer {
-		if err := createConfigHistory(database.DB, configHistoryParams{
-			ConfigID:   existingConfig.ID,
-			ChangeType: consts.ChangeTypeUpdate,
-			ConfigUpdateContext: configUpdateContext{
-				ChangeField: consts.ChangeFieldValue,
-				OldValue:    oldValue,
-				NewValue:    newValue,
-				Reason:      req.Reason,
-				OperatorID:  operatorID,
-				IpAddress:   ipAddress,
-				UserAgent:   userAgent,
-			},
-		}); err != nil {
-			return fmt.Errorf("failed to create config history: %w", err)
-		}
-
-		// Publish config to etcd with retry mechanism
-		etcdKey := fmt.Sprintf("%s%s", consts.ConfigEtcdPrefix, existingConfig.Key)
-		if err := publishConfigToEtcdWithRetry(etcdKey, newValue, 3); err != nil {
-			logrus.Errorf("Failed to publish config to etcd after retries: %v", err)
-			return fmt.Errorf("config saved to database but failed to notify consumer via etcd: %w", err)
-		}
-
-		// Wait for consumer to acknowledge the update
-		logrus.Info("Waiting for consumer config update response...")
-		updateResp, err := waitForConfigUpdateResponse(10 * time.Second)
-		if err != nil {
-			logrus.Errorf("Failed to get config update response: %v", err)
-			return fmt.Errorf("config updated but consumer did not respond: %w", err)
-		}
-
-		if !updateResp.Success {
-			logrus.Errorf("Consumer failed to process config update: %s", updateResp.Error)
-			return fmt.Errorf("consumer failed to process config update: %s", updateResp.Error)
-		}
-
-		logrus.Infof("Config update successfully processed by consumer")
+	if err := createConfigHistory(database.DB, configHistoryParams{
+		ConfigID:   existingConfig.ID,
+		ChangeType: consts.ChangeTypeUpdate,
+		ConfigUpdateContext: configUpdateContext{
+			ChangeField: consts.ChangeFieldValue,
+			OldValue:    oldValue,
+			NewValue:    newValue,
+			Reason:      req.Reason,
+			OperatorID:  operatorID,
+			IpAddress:   ipAddress,
+			UserAgent:   userAgent,
+		},
+	}); err != nil {
+		return fmt.Errorf("failed to create config history: %w", err)
 	}
 
-	return nil
+	return propagateValueChange(ctx, existingConfig, newValue, "update")
 }
 
 // UpdateConfigMetadata updates the metadata of a configuration
@@ -510,6 +435,42 @@ func rollbackMetaFieldValue(config *database.DynamicConfig, changeField consts.C
 	}
 
 	return oldValue, newValue, nil
+}
+
+// setViperIfNeeded updates the local Viper cache for scopes that need immediate local reflection
+// (producer and global). Consumer configs live only in etcd and are applied remotely.
+func setViperIfNeeded(cfg *database.DynamicConfig, newValue string) error {
+	if cfg.Scope == consts.ConfigScopeConsumer {
+		return nil
+	}
+	return config.SetViperValue(cfg.Key, newValue, cfg.ValueType)
+}
+
+// propagateValueChange publishes the new value to etcd and, for consumer scope, waits for ack.
+// Producer scope requires no network propagation, so this is a no-op for that scope.
+func propagateValueChange(ctx context.Context, cfg *database.DynamicConfig, newValue, opDesc string) error {
+	if cfg.Scope != consts.ConfigScopeGlobal && cfg.Scope != consts.ConfigScopeConsumer {
+		return nil
+	}
+
+	etcdKey := fmt.Sprintf("%s%s", etcdPrefixForScope(cfg.Scope), cfg.Key)
+	if err := publishConfigToEtcdWithRetry(etcdKey, newValue, 3); err != nil {
+		return fmt.Errorf("config saved to database but failed to publish to etcd: %w", err)
+	}
+
+	if cfg.Scope == consts.ConfigScopeConsumer {
+		logrus.Infof("Waiting for consumer config %s response...", opDesc)
+		resp, err := waitForConfigUpdateResponse(10 * time.Second)
+		if err != nil {
+			return fmt.Errorf("config %s but consumer did not respond: %w", opDesc, err)
+		}
+		if !resp.Success {
+			return fmt.Errorf("consumer failed to process config %s: %s", opDesc, resp.Error)
+		}
+		logrus.Infof("Config %s successfully processed by consumer", opDesc)
+	}
+
+	return nil
 }
 
 // publishConfigToEtcdWithRetry publishes configuration to etcd with exponential backoff retry

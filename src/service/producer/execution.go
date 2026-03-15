@@ -128,7 +128,7 @@ func GetExecutionDetail(executionID int) (*dto.ExecutionDetailResp, error) {
 
 	resp := dto.NewExecutionDetailResp(execution, labels)
 
-	if execution.AlgorithmVersion.Container.Name == config.GetString(consts.DetectorKey) {
+	if execution.AlgorithmVersion.Container.Name == config.GetDetectorName() {
 		detectorResults, err := repository.ListDetectorResultsByExecutionID(database.DB, execution.ID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get detector results: %w", err)

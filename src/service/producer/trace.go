@@ -128,13 +128,15 @@ func (sp *StreamProcessor) ProcessMessageForSSE(msg redis.XMessage) (string, *dt
 			return "", nil, fmt.Errorf("invalid payload type for task status update event: %T", streamEvent.Payload)
 		}
 
-		if payload.Algorithm != config.GetString(consts.DetectorKey) {
+		if payload.Algorithm != config.GetDetectorName() {
 			if _, exists := sp.algorithmMap[payload.Algorithm]; exists {
 				sp.finishedCount++
 				if sp.finishedCount >= len(sp.algorithmMap) {
 					sp.isCompleted = true
 				}
 			}
+		} else {
+			sp.isCompleted = true
 		}
 	}
 
