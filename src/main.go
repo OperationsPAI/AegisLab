@@ -37,7 +37,7 @@ import (
 	"aegis/service/logreceiver"
 	"aegis/utils"
 
-	chaosCli "github.com/OperationsPAI/chaos-experiment/client"
+	chaosCli "github.com/LGU-SE-Internal/chaos-experiment/client"
 	nested "github.com/antonfisher/nested-logrus-formatter"
 	"github.com/go-logr/stdr"
 	"github.com/sirupsen/logrus"
@@ -63,9 +63,7 @@ func init() {
 
 func initChaosExperiment() {
 	k8sConfig := k8s.GetK8sRestConfig()
-	if err := chaosCli.InitWithConfig(k8sConfig); err != nil {
-		logrus.Fatalf("failed to initialize chaos experiment client: %v", err)
-	}
+	chaosCli.InitWithConfig(k8sConfig)
 }
 
 func main() {

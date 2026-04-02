@@ -3,7 +3,7 @@ package database
 import (
 	"time"
 
-	chaos "github.com/OperationsPAI/chaos-experiment/handler"
+	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )

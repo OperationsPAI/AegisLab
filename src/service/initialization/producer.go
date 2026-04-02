@@ -16,7 +16,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 
-	chaos "github.com/OperationsPAI/chaos-experiment/handler"
+	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 )
 
 type permMeta struct {
@@ -46,6 +46,9 @@ func InitializeProducer(ctx context.Context) {
 	} else {
 		logrus.Info("Initial system data for producer already seeded, skipping initialization")
 	}
+
+	// Initialize systems (seed builtins, register with chaos-experiment, set MetadataStore)
+	InitializeSystems()
 
 	registerHandlers(ctx, producerData.scope, nil)
 }

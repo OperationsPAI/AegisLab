@@ -11,7 +11,7 @@ import (
 	"aegis/database"
 	"aegis/utils"
 
-	chaos "github.com/OperationsPAI/chaos-experiment/handler"
+	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 )
 
 type InjectionItem struct {
@@ -408,41 +408,56 @@ func (req *SubmitInjectionReq) Validate() error {
 	return nil
 }
 
+type UpdateGroundtruthReq struct {
+	Groundtruths []database.Groundtruth `json:"ground_truths" binding:"required"`
+}
+
+func (req *UpdateGroundtruthReq) Validate() error {
+	if len(req.Groundtruths) == 0 {
+		return fmt.Errorf("at least one ground truth entry is required")
+	}
+	return nil
+}
+
 type InjectionResp struct {
-	ID            int                  `json:"id"`
-	Name          string               `json:"name"`
-	FaultType     string               `json:"fault_type"`
-	Category      string               `json:"category"`
-	DisplayConfig map[string]any       `json:"display_config,omitempty" swaggertype:"object"`
-	PreDuration   int                  `json:"pre_duration"`
-	StartTime     *time.Time           `json:"start_time,omitempty"`
-	EndTime       *time.Time           `json:"end_time,omitempty"`
-	State         consts.DatapackState `json:"state" swaggertype:"string"`
-	Status        string               `json:"status"`
-	BenchmarkID   int                  `json:"benchmark_id"`
-	BenchmarkName string               `json:"benchmark_name"`
-	PedestalID    int                  `json:"pedestal_id"`
-	PedestalName  string               `json:"pedestal_name"`
-	CreatedAt     time.Time            `json:"created_at"`
-	UpdatedAt     time.Time            `json:"updated_at"`
+	ID                int                  `json:"id"`
+	Name              string               `json:"name"`
+	Source            string               `json:"source"`
+	FaultType         string               `json:"fault_type"`
+	Category          string               `json:"category"`
+	DisplayConfig     map[string]any       `json:"display_config,omitempty" swaggertype:"object"`
+	PreDuration       int                  `json:"pre_duration"`
+	StartTime         *time.Time           `json:"start_time,omitempty"`
+	EndTime           *time.Time           `json:"end_time,omitempty"`
+	State             consts.DatapackState `json:"state" swaggertype:"string"`
+	Status            string               `json:"status"`
+	GroundtruthSource string               `json:"groundtruth_source"`
+	BenchmarkID       *int                 `json:"benchmark_id"`
+	BenchmarkName     string               `json:"benchmark_name"`
+	PedestalID        *int                 `json:"pedestal_id"`
+	PedestalName      string               `json:"pedestal_name"`
+	CreatedAt         time.Time            `json:"created_at"`
+	UpdatedAt         time.Time            `json:"updated_at"`
 
 	Labels []LabelItem `json:"labels,omitempty"`
 }
 
 func NewInjectionResp(injection *database.FaultInjection) *InjectionResp {
 	resp := &InjectionResp{
-		ID:          injection.ID,
-		Name:        injection.Name,
-		Category:    injection.Category.String(),
-		PreDuration: injection.PreDuration,
-		StartTime:   injection.StartTime,
-		EndTime:     injection.EndTime,
-		State:       injection.State,
-		Status:      consts.GetStatusTypeName(injection.Status),
-		BenchmarkID: injection.BenchmarkID,
-		PedestalID:  injection.PedestalID,
-		CreatedAt:   injection.CreatedAt,
-		UpdatedAt:   injection.UpdatedAt,
+		ID:                injection.ID,
+		Name:              injection.Name,
+		Source:            string(injection.Source),
+		Category:          injection.Category.String(),
+		PreDuration:       injection.PreDuration,
+		StartTime:         injection.StartTime,
+		EndTime:           injection.EndTime,
+		State:             injection.State,
+		Status:            consts.GetStatusTypeName(injection.Status),
+		GroundtruthSource: injection.GroundtruthSource,
+		BenchmarkID:       injection.BenchmarkID,
+		PedestalID:        injection.PedestalID,
+		CreatedAt:         injection.CreatedAt,
+		UpdatedAt:         injection.UpdatedAt,
 	}
 
 	if injection.FaultType == consts.Hybrid {
@@ -487,17 +502,21 @@ type InjectionDetailResp struct {
 
 	TaskID  string `json:"task_id"`
 	TraceID string `json:"trace_id"`
+	Source  string `json:"source"`
 
-	Description  string              `json:"description,omitempty"`
-	EngineConfig []map[string]any    `json:"engine_config" swaggertype:"array,object"`
-	Groundtruths []chaos.Groundtruth `json:"ground_truth,omitempty"`
+	Description       string              `json:"description,omitempty"`
+	EngineConfig      []map[string]any    `json:"engine_config" swaggertype:"array,object"`
+	Groundtruths      []chaos.Groundtruth `json:"ground_truth,omitempty"`
+	GroundtruthSource string              `json:"groundtruth_source"`
 }
 
 func NewInjectionDetailResp(injection *database.FaultInjection) *InjectionDetailResp {
 	injectionResp := NewInjectionResp(injection)
 	resp := &InjectionDetailResp{
-		InjectionResp: *injectionResp,
-		Description:   injection.Description,
+		InjectionResp:     *injectionResp,
+		Source:            string(injection.Source),
+		Description:       injection.Description,
+		GroundtruthSource: injection.GroundtruthSource,
 	}
 
 	if injection.Task != nil {
@@ -821,4 +840,48 @@ func validateDatapackState(state *consts.DatapackState) error {
 		}
 	}
 	return nil
+}
+
+// UploadDatapackReq represents the request to upload a manual datapack
+type UploadDatapackReq struct {
+	Name         string `form:"name" binding:"required"`
+	Description  string `form:"description"`
+	Category     string `form:"category"`
+	Labels       string `form:"labels"`        // JSON-encoded []LabelItem
+	Groundtruths string `form:"ground_truths"` // JSON-encoded []Groundtruth
+}
+
+func (req *UploadDatapackReq) Validate() error {
+	if strings.TrimSpace(req.Name) == "" {
+		return fmt.Errorf("name is required")
+	}
+	return nil
+}
+
+func (req *UploadDatapackReq) ParseLabels() ([]LabelItem, error) {
+	if req.Labels == "" {
+		return nil, nil
+	}
+	var labels []LabelItem
+	if err := json.Unmarshal([]byte(req.Labels), &labels); err != nil {
+		return nil, fmt.Errorf("invalid labels JSON: %w", err)
+	}
+	return labels, nil
+}
+
+func (req *UploadDatapackReq) ParseGroundtruths() ([]database.Groundtruth, error) {
+	if req.Groundtruths == "" {
+		return nil, nil
+	}
+	var gts []database.Groundtruth
+	if err := json.Unmarshal([]byte(req.Groundtruths), &gts); err != nil {
+		return nil, fmt.Errorf("invalid ground_truths JSON: %w", err)
+	}
+	return gts, nil
+}
+
+// UploadDatapackResp represents the response for uploading a manual datapack
+type UploadDatapackResp struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
 }

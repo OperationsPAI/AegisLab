@@ -6,9 +6,10 @@ import (
 	"aegis/dto"
 	"aegis/repository"
 	"aegis/service/common"
+	"encoding/json"
 	"fmt"
 
-	chaos "github.com/OperationsPAI/chaos-experiment/handler"
+	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 	"github.com/sirupsen/logrus"
 )
 
@@ -87,6 +88,17 @@ func ListDatapackEvaluationResults(req *dto.BatchEvaluateDatapackReq, userID int
 		}
 		successItems = append(successItems, item)
 	}
+
+	// Persist successful evaluations to the database
+	persistEvaluations("datapack", successItems, func(item *dto.EvaluateDatapackItem) *database.Evaluation {
+		return &database.Evaluation{
+			AlgorithmName:    item.Algorithm,
+			AlgorithmVersion: item.AlgorithmVersion,
+			DatapackName:     item.Datapack,
+			EvalType:         consts.EvalTypeDatapack,
+			Status:           consts.CommonEnabled,
+		}
+	})
 
 	resp := dto.BatchEvaluateDatapackResp{
 		SuccessCount: len(successItems),
@@ -207,6 +219,18 @@ func ListDatasetEvaluationResults(req *dto.BatchEvaluateDatasetReq, userID int) 
 		successItems = append(successItems, item)
 	}
 
+	// Persist successful evaluations to the database
+	persistEvaluations("dataset", successItems, func(item *dto.EvaluateDatasetItem) *database.Evaluation {
+		return &database.Evaluation{
+			AlgorithmName:    item.Algorithm,
+			AlgorithmVersion: item.AlgorithmVersion,
+			DatasetName:      item.Dataset,
+			DatasetVersion:   item.DatasetVersion,
+			EvalType:         consts.EvalTypeDataset,
+			Status:           consts.CommonEnabled,
+		}
+	})
+
 	resp := dto.BatchEvaluateDatasetResp{
 		SuccessCount: len(successItems),
 		SuccessItems: successItems,
@@ -214,6 +238,31 @@ func ListDatasetEvaluationResults(req *dto.BatchEvaluateDatasetReq, userID int) 
 		FailedItems:  failedItems,
 	}
 	return &resp, nil
+}
+
+// persistEvaluations batch-persists evaluation results to the database.
+// The toEval function maps each item to a database.Evaluation (without ResultJSON).
+func persistEvaluations[T any](evalType string, items []T, toEval func(*T) *database.Evaluation) {
+	if len(items) == 0 {
+		return
+	}
+
+	evals := make([]database.Evaluation, 0, len(items))
+	for i := range items {
+		eval := toEval(&items[i])
+		resultJSON, err := json.Marshal(&items[i])
+		if err != nil {
+			logrus.Warnf("failed to marshal %s evaluation result: %v", evalType, err)
+			eval.ResultJSON = "{}"
+		} else {
+			eval.ResultJSON = string(resultJSON)
+		}
+		evals = append(evals, *eval)
+	}
+
+	if err := database.DB.Create(&evals).Error; err != nil {
+		logrus.Warnf("failed to batch persist %d %s evaluations: %v", len(evals), evalType, err)
+	}
 }
 
 // getGroundtruths extracts the ground truth from a datapack's engine configuration

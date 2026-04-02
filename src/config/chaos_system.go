@@ -6,10 +6,25 @@ import (
 	"regexp"
 	"sync"
 
-	chaos "github.com/OperationsPAI/chaos-experiment/handler"
+	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 	"github.com/mitchellh/mapstructure"
 	"github.com/sirupsen/logrus"
+	"gorm.io/gorm"
 )
+
+// chaosConfigDB holds a reference to the DB for System table queries.
+// Set via SetChaosConfigDB to avoid circular imports with the database package.
+var chaosConfigDB *gorm.DB
+
+// SetChaosConfigDB sets the database reference used by the chaos config manager
+// to load system configs from the System table.
+func SetChaosConfigDB(db *gorm.DB) {
+	chaosConfigDB = db
+}
+
+func getDBForChaosConfig() *gorm.DB {
+	return chaosConfigDB
+}
 
 const (
 	ConfigKeyChaosSystem = "injection.system"
@@ -80,9 +95,16 @@ func (m *chaosSystemConfigManager) load() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	cfg := GetMap(ConfigKeyChaosSystem)
-	systemConfigMap := make(map[chaos.SystemType]ChaosSystemConfig, len(cfg))
+	systemConfigMap := make(map[chaos.SystemType]ChaosSystemConfig)
 
+	// Try to load from System table first (new approach)
+	if loaded := m.loadFromSystemTable(systemConfigMap); loaded {
+		m.configs = systemConfigMap
+		return nil
+	}
+
+	// Fall back to DynamicConfig (backward compatibility)
+	cfg := GetMap(ConfigKeyChaosSystem)
 	for sys, c := range cfg {
 		var sysCfg ChaosSystemConfig
 		if err := mapstructure.Decode(c, &sysCfg); err != nil {
@@ -100,6 +122,48 @@ func (m *chaosSystemConfigManager) load() error {
 
 	m.configs = systemConfigMap
 	return nil
+}
+
+// loadFromSystemTable attempts to load configs from the System database table.
+// Returns true if any systems were loaded, false otherwise (fallback to DynamicConfig).
+func (m *chaosSystemConfigManager) loadFromSystemTable(out map[chaos.SystemType]ChaosSystemConfig) bool {
+	// Import database lazily to avoid circular dependency at init time
+	db := getDBForChaosConfig()
+	if db == nil {
+		return false
+	}
+
+	type systemRow struct {
+		Name           string
+		NsPattern      string
+		ExtractPattern string
+		Count          int
+	}
+
+	var rows []systemRow
+	if err := db.Table("systems").
+		Select("name, ns_pattern, extract_pattern, count").
+		Where("status = ?", 1). // CommonEnabled
+		Find(&rows).Error; err != nil {
+		logrus.Warnf("Failed to load systems from table, falling back to DynamicConfig: %v", err)
+		return false
+	}
+
+	if len(rows) == 0 {
+		return false
+	}
+
+	for _, row := range rows {
+		system := chaos.SystemType(row.Name)
+		out[system] = ChaosSystemConfig{
+			System:         system,
+			Count:          row.Count,
+			NsPattern:      row.NsPattern,
+			ExtractPattern: row.ExtractPattern,
+		}
+	}
+
+	return true
 }
 
 // ExtractNsPrefixAndNumber extracts the number from a namespace string

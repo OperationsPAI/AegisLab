@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	chaos "github.com/OperationsPAI/chaos-experiment/handler"
+	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 )
 
 const InitialFilename = "data.yaml"
@@ -36,6 +36,25 @@ const (
 )
 
 const Hybrid chaos.ChaosType = -1
+
+// Evaluation type constants
+const (
+	EvalTypeDatapack = "datapack"
+	EvalTypeDataset  = "dataset"
+)
+
+type DatapackSource string
+
+const (
+	DatapackSourceInjection DatapackSource = "injection"
+	DatapackSourceManual    DatapackSource = "manual"
+)
+
+const (
+	GroundtruthSourceAuto     = "auto"
+	GroundtruthSourceManual   = "manual"
+	GroundtruthSourceImported = "imported"
+)
 
 const (
 	// Execution result label keys

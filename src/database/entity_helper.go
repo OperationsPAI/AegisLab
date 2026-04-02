@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 
-	chaos "github.com/OperationsPAI/chaos-experiment/handler"
+	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 )
 
 // Groundtruth represents the expected impact of a fault injection or execution

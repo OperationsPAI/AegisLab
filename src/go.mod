@@ -6,7 +6,7 @@ toolchain go1.24.12
 
 require (
 	github.com/BurntSushi/toml v1.4.0
-	github.com/OperationsPAI/chaos-experiment v0.0.0-20260211063715-574f42f01f04
+	github.com/LGU-SE-Internal/chaos-experiment v0.0.0-20250601031150-3fad0273d704
 	github.com/antonfisher/nested-logrus-formatter v1.3.1
 	github.com/apache/arrow-go/v18 v18.4.1
 	github.com/distribution/reference v0.6.0
@@ -35,7 +35,6 @@ require (
 	github.com/stretchr/testify v1.11.0
 	github.com/swaggo/files v1.0.1
 	github.com/swaggo/gin-swagger v1.6.0
-	github.com/swaggo/swag v1.16.4
 	github.com/tonistiigi/fsutil v0.0.0-20241121093142-31cf1f437184
 	go.etcd.io/etcd/client/v3 v3.6.7
 	go.opentelemetry.io/otel v1.37.0
@@ -240,6 +239,7 @@ require (
 	github.com/spf13/cast v1.7.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
+	github.com/swaggo/swag v1.16.4 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/tonistiigi/go-csvvalue v0.0.0-20240710180619-ddb21b71c0b4 // indirect
@@ -305,6 +305,8 @@ require (
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.6.0 // indirect
 )
+
+replace github.com/LGU-SE-Internal/chaos-experiment => /home/ddq/AoyangSpace/aegis/chaos-experiment
 
 replace go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc => go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc v0.0.0-20240518090000-14441aefdf88
 

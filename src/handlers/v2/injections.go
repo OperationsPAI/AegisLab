@@ -21,7 +21,7 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
-	chaos "github.com/OperationsPAI/chaos-experiment/handler"
+	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 )
 
 // BatchDeleteInjections
@@ -130,10 +130,10 @@ func GetInjectionMetadata(c *gin.Context) {
 	ctx := context.Background()
 	system := chaos.SystemType(systemStr)
 
-	confNode, err := chaos.StructToNode[chaos.InjectionConf](ctx, system)
+	confNode, err := chaos.StructToNode[chaos.InjectionConf](string(system))
 	if err != nil {
-		handlers.HandleServiceError(c, err)
-		return
+		// K8s namespace/pods may not exist in dev environment — return partial metadata
+		logrus.Warnf("Failed to build injection config node: %v, continuing with nil config", err)
 	}
 
 	faultResourceMap, err := chaos.GetChaosTypeResourceMappings()
@@ -144,15 +144,12 @@ func GetInjectionMetadata(c *gin.Context) {
 
 	resourceMap, err := chaos.GetSystemResourceMap(ctx)
 	if err != nil {
-		handlers.HandleServiceError(c, err)
-		return
+		// Some systems may not be deployed in the current environment
+		logrus.Warnf("Failed to get system resource map: %v, using empty map", err)
+		resourceMap = make(map[chaos.SystemType]chaos.SystemResource)
 	}
 
-	resource, ok := resourceMap[system]
-	if !ok {
-		dto.ErrorResponse(c, http.StatusBadRequest, fmt.Sprintf("System %s not found", systemStr))
-		return
-	}
+	resource := resourceMap[system]
 
 	dto.SuccessResponse(c, &dto.InjectionMetadataResp{
 		Config:           confNode,
@@ -909,4 +906,106 @@ func submitDatapackBuildingCommon(c *gin.Context, projectID *int) {
 
 	span.SetStatus(codes.Ok, fmt.Sprintf("Successfully submitted %d datapack buildings with groupID: %s", len(resp.Items), groupID))
 	dto.SuccessResponse(c, resp)
+}
+
+// UploadDatapack handles manual datapack upload
+//
+//	@Summary		Upload a manual datapack
+//	@Description	Upload a zip archive as a manual datapack data source
+//	@Tags			Injections
+//	@ID				upload_datapack
+//	@Accept			multipart/form-data
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			name			formData	string						true	"Datapack name"
+//	@Param			description		formData	string						false	"Description"
+//	@Param			category		formData	string						false	"Category"
+//	@Param			labels			formData	string						false	"JSON-encoded labels"
+//	@Param			ground_truths	formData	string						false	"JSON-encoded ground truths"
+//	@Param			file			formData	file						true	"Zip archive file"
+//	@Success		201				{object}	dto.GenericResponse[dto.UploadDatapackResp]	"Datapack uploaded successfully"
+//	@Failure		400				{object}	dto.GenericResponse[any]	"Invalid request"
+//	@Failure		401				{object}	dto.GenericResponse[any]	"Authentication required"
+//	@Failure		500				{object}	dto.GenericResponse[any]	"Internal server error"
+//	@Router			/api/v2/injections/upload [post]
+func UploadDatapack(c *gin.Context) {
+	var req dto.UploadDatapackReq
+	if err := c.ShouldBind(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
+		return
+	}
+
+	file, header, err := c.Request.FormFile("file")
+	if err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "File is required: "+err.Error())
+		return
+	}
+	defer func() { _ = file.Close() }()
+
+	// Validate .zip extension
+	if !strings.HasSuffix(strings.ToLower(header.Filename), ".zip") {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Only .zip files are accepted")
+		return
+	}
+
+	// Max 2GB
+	const maxSize = 2 << 30 // 2GB
+	if header.Size > maxSize {
+		dto.ErrorResponse(c, http.StatusBadRequest, "File size exceeds maximum allowed size of 2GB")
+		return
+	}
+
+	resp, err := producer.UploadDatapack(&req, file, header.Size)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	dto.JSONResponse(c, http.StatusCreated, "Datapack uploaded successfully", resp)
+}
+
+// UpdateGroundtruth handles updating ground truth for a datapack
+//
+//	@Summary		Update datapack ground truth
+//	@Description	Update or set ground truth labels for a datapack (fault injection)
+//	@Tags			Injections
+//	@ID				update_groundtruth
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		int								true	"Injection ID"
+//	@Param			request	body		dto.UpdateGroundtruthReq		true	"Ground truth data"
+//	@Success		200		{object}	dto.GenericResponse[any]		"Ground truth updated"
+//	@Failure		400		{object}	dto.GenericResponse[any]		"Invalid request"
+//	@Failure		404		{object}	dto.GenericResponse[any]		"Injection not found"
+//	@Router			/api/v2/injections/{id}/groundtruth [put]
+func UpdateGroundtruth(c *gin.Context) {
+	idStr := c.Param(consts.URLPathID)
+	id, ok := handlers.ParsePositiveID(c, idStr, "injection ID")
+	if !ok {
+		return
+	}
+
+	var req dto.UpdateGroundtruthReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
+		return
+	}
+
+	err := producer.UpdateGroundtruth(id, &req)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	logrus.WithField("id", id).Info("UpdateGroundtruth: successfully updated ground truth")
+	dto.JSONResponse[any](c, http.StatusOK, "Ground truth updated", nil)
 }

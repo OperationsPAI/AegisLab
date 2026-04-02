@@ -23,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	chaos "github.com/OperationsPAI/chaos-experiment/handler"
+	chaos "github.com/LGU-SE-Internal/chaos-experiment/handler"
 	"github.com/apache/arrow-go/v18/arrow/ipc"
 	"github.com/duckdb/duckdb-go/v2"
 	"github.com/sirupsen/logrus"
@@ -103,6 +103,16 @@ func CreateInjection(injection *database.FaultInjection, labelItems []dto.LabelI
 
 		return nil
 	})
+}
+
+// UpdateGroundtruth updates the ground truth for an existing injection
+func UpdateGroundtruth(id int, req *dto.UpdateGroundtruthReq) error {
+	// Verify injection exists
+	_, err := repository.GetInjectionByID(database.DB, id)
+	if err != nil {
+		return err
+	}
+	return repository.UpdateGroundtruth(database.DB, id, req.Groundtruths, consts.GroundtruthSourceManual)
 }
 
 // GetInjectionDetail retrieves detailed information about a specific fault injection
@@ -1195,12 +1205,12 @@ func parseBatchInjectionSpecs(ctx context.Context, pedestal string, batchIndex i
 	uniqueServices := make(map[string]int, len(nodes))
 	var duplicateServiceWarnings []string
 	for idx, node := range nodes {
-		conf, err := chaos.NodeToStruct[chaos.InjectionConf](ctx, &node)
+		conf, err := chaos.NodeToStruct[chaos.InjectionConf](&node)
 		if err != nil {
 			return nil, "", fmt.Errorf("failed to convert node to InjectionConf at index %d: %w", idx, err)
 		}
 
-		groundtruth, err := conf.GetGroundtruth(ctx)
+		groundtruth, err := conf.GetGroundtruth()
 		if err != nil {
 			return nil, "", fmt.Errorf("failed to get groundtruth from InjectionConf at index %d: %w", idx, err)
 		}
