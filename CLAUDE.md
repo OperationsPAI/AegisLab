@@ -386,3 +386,55 @@ For comprehensive factual documentation about existing implementations, data mod
   - Phase 2-4 roadmap
 
 These documents prevent duplicate implementation and provide quick reference for existing functionality.
+
+<!-- auto-harness:begin -->
+## North-Star Targets
+
+1. **Full-Stack Spec Alignment** — 每条 requirement 在后端+前端+文档三处都有实现 (currently: 待测量)
+   Measure: agent audit against `project-index.yaml`
+
+2. **Zero Mock Code** — 前后端均无 mock 替代真实逻辑 (currently: 待测量)
+   Measure: `grep` patterns in both repos (excluding `_test.go`)
+
+3. **End-to-End Acceptance** — UI requirement 必须经用户浏览器验收才能标记 tested (currently: 0%)
+   Measure: `acceptance.status=passed` / total UI requirements in `project-index.yaml`
+
+Secondary: 合约优先于实现细节 — 前后端一致性 > 单端代码整洁
+
+## Unified Spec
+
+- `project-index.yaml` 是跨前后端的统一需求索引
+- 每条 requirement 同时包含 `code`（后端）和 `frontend`（前端）字段
+- 前端仓库通过 symlink 引用此文件
+- **所有变更必须追溯到 spec 中的某条 requirement**
+
+## Active Skills
+
+- dev-loop — 完整开发循环: implement → test → vibe-check → AI-review → measure
+- north-star — 量化优化目标与观测机制
+- long-horizon — 自主决策与升级阶梯 (L1–L5)
+- existing-project — 存量代码库需求恢复
+- aegislab-dev-loop-profile — AegisLab 全栈定制 dev-loop (项目具体命令和门禁)
+- aegislab-north-star — AegisLab 全栈定制 north-star (3 个核心目标和观测优先级)
+
+## Full-Stack Development Rules
+
+- **Spec 是唯一入口**: 改代码前先确认对应的 requirement
+- **后端先行**: 先实现 API，再生成 SDK，再实现前端
+- **零 Mock**: 前端必须调用真实 API，后端非测试代码不允许 mock
+- **SDK 同步**: API 变更后必须 `just swag-init && just generate-typescript-client`
+- **用户验收**: UI requirement 标记 tested 前必须请求用户浏览器验收
+- **编译必带 tag**: `go build -tags duckdb_arrow`
+
+## Observation Gates (P0 — 每次变更必须通过)
+
+```bash
+# Backend
+cd src && go build -tags duckdb_arrow -o /dev/null ./main.go
+cd src && golangci-lint run
+cd src && go test ./utils/... -v
+
+# Frontend
+cd ../AegisLab-frontend && pnpm type-check && pnpm lint && pnpm build
+```
+<!-- auto-harness:end -->

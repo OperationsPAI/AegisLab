@@ -1,0 +1,2535 @@
+project:
+  name: AegisLab
+  languages: [go, python, typescript]
+  description: >
+    Full-stack RCA benchmarking platform. Backend (Go) + Frontend (React/TypeScript).
+    Provides automated fault injection via Chaos Mesh CRDs, RCA algorithm
+    execution and evaluation, dataset/datapack management, project/team
+    management with RBAC, observability stack integration, and a React-based
+    web UI for managing all platform features.
+
+requirements:
+  # ===========================================================================
+  # REQ-0xx: Core Platform (Auth, Users, RBAC, Teams, Projects, Labels, Audit, Config)
+  # ===========================================================================
+
+  - id: REQ-001
+    title: User Authentication (JWT)
+    description: >
+      Users authenticate via username/password login to obtain JWT access tokens.
+      Backend supports user registration, login, and token refresh. Two token types:
+      user tokens (carry user_id, username, email, is_admin, roles) and service
+      tokens (carry task_id, used by K8s jobs). OptionalJWTAuth allows
+      unauthenticated access on select endpoints.
+      Frontend provides login page with username/password form, JWT token storage
+      in localStorage, automatic token refresh on 401 via Axios interceptor,
+      logout with token cleanup, and route guards that redirect unauthenticated
+      users to /login.
+    priority: P0
+    status: implemented
+    confidence: confirmed
+    source: "src/middleware/auth.go, src/handlers/v2/auth.go, AegisLab-frontend/src/store/auth.ts, AegisLab-frontend/src/api/auth.ts"
+
+    code:
+      - path: src/middleware/auth.go
+        description: "JWTAuth, OptionalJWTAuth middlewares; helper functions for extracting user/service context from JWT claims"
+      - path: src/handlers/v2/auth.go
+        description: "Register, Login endpoints with Swagger annotations and SDK marking"
+      - path: src/service/producer/auth.go
+        description: "Business logic for registration and login"
+
+    frontend:
+      - path: AegisLab-frontend/src/store/auth.ts
+        description: "Zustand store managing user, tokens, isAuthenticated state; login/logout/refresh/loadUser actions"
+      - path: AegisLab-frontend/src/api/auth.ts
+        description: "Auth API client with login, register, logout, getProfile, changePassword, refreshToken endpoints"
+      - path: AegisLab-frontend/src/api/client.ts
+        description: "Axios instance with request interceptor (attach Bearer token) and response interceptor (auto-refresh on 401)"
+      - path: AegisLab-frontend/src/pages/auth/Login.tsx
+        description: "Login form page with username/password fields, navigates to /dashboard on success"
+      - path: AegisLab-frontend/src/App.tsx
+        description: "Route guards checking isAuthenticated, redirecting to /login when not authenticated"
+    has_mock: false
+
+    tests:
+      - path: src/utils/password_test.go
+        description: "Tests password hashing utility used by auth"
+
+    docs:
+      - path: CLAUDE.md
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: []
+    conflicts: []
+    notes: >
+      Service tokens enable K8s jobs to call back into the API securely.
+      Login page has Chinese UI strings (localized). Token refresh stores same
+      token for both access and refresh (backend returns single token).
+
+  - id: REQ-002
+    title: User Management (CRUD)
+    description: >
+      Admin-level CRUD for user accounts: create, list, get detail, update,
+      delete. Includes activation/deactivation and password management.
+      Frontend provides an admin users page at /admin/users.
+    priority: P0
+    status: implemented
+    confidence: inferred
+    source: "src/handlers/v2/users.go, src/repository/user.go, AegisLab-frontend/src/pages/admin/AdminUsersPage.tsx"
+
+    code:
+      - path: src/handlers/v2/users.go
+        description: "CreateUser, ListUsers, GetUser, UpdateUser, DeleteUser handlers"
+      - path: src/database/entity.go
+        description: "User entity with username, email, password, full_name, avatar, phone, status, soft delete"
+      - path: src/repository/user.go
+        description: "Data access layer for user operations"
+
+    frontend:
+      - path: AegisLab-frontend/src/pages/admin/AdminUsersPage.tsx
+        description: "Admin user management page"
+      - path: AegisLab-frontend/src/api/users.ts
+        description: "Users API client"
+    has_mock: false
+
+    tests: []
+
+    docs:
+      - path: CLAUDE.md
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-001]
+    conflicts: []
+    notes: "Password is hashed via BeforeCreate GORM hook"
+
+  - id: REQ-003
+    title: Role-Based Access Control (RBAC)
+    description: >
+      Comprehensive RBAC system with roles, permissions, and resources.
+      Permissions are scoped (system, team, project, own) with actions
+      (read, create, update, delete, manage, execute, etc.). Permission
+      inheritance is implemented (manage inherits all lower permissions).
+      System admin, team admin, project admin, and ownership checks are supported.
+      Frontend has API clients for roles, permissions, and resources but no
+      dedicated admin UI page for RBAC management yet.
+    priority: P0
+    status: implemented
+    confidence: inferred
+    source: "src/middleware/permission.go, src/handlers/v2/roles.go, AegisLab-frontend/src/api/roles.ts"
+
+    code:
+      - path: src/middleware/permission.go
+        description: >
+          Decorator-pattern permission middleware: singlePermission, anyPermission,
+          allPermissions, ownershipCheck, adminOrOwnership, teamAccessCheck,
+          projectAccessCheck. Pre-built permission variables for every domain.
+      - path: src/database/entity.go
+        description: "Role, Permission, Resource entities with hierarchical resource categories"
+      - path: src/handlers/v2/roles.go
+        description: "CRUD for roles with permission assignment"
+      - path: src/handlers/v2/permissions.go
+        description: "Permission listing and detail endpoints"
+      - path: src/handlers/v2/resources.go
+        description: "Resource listing and detail endpoints"
+
+    frontend:
+      - path: AegisLab-frontend/src/api/roles.ts
+        description: "Roles API client"
+      - path: AegisLab-frontend/src/api/permissions.ts
+        description: "Permissions API client"
+      - path: AegisLab-frontend/src/api/resources.ts
+        description: "Resources API client"
+    has_mock: false
+
+    tests: []
+
+    docs:
+      - path: CLAUDE.md
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-001, REQ-002]
+    conflicts:
+      - "Backend has full RBAC admin endpoints but frontend lacks a dedicated RBAC management UI page"
+      - "Frontend admin check in MainSidebarContent.tsx uses unsafe cast hack instead of proper role field from UserInfo type"
+    notes: >
+      Permission rules cover: system, audit, configuration, user, role,
+      permission, team, project, container, container_version, dataset,
+      dataset_version, label, task, trace domains.
+
+  - id: REQ-004
+    title: Team Management
+    description: >
+      Teams group users and own projects. Supports CRUD, membership management
+      (join/leave, admin promotion), and public/private visibility. Team access
+      checks verify membership, admin status, or public access.
+      Frontend provides a team detail page with tabs for overview, projects,
+      users, and settings, plus a team creation modal in the sidebar.
+    priority: P1
+    status: implemented
+    confidence: inferred
+    source: "src/handlers/v2/teams.go, AegisLab-frontend/src/pages/teams/TeamDetailPage.tsx"
+
+    code:
+      - path: src/handlers/v2/teams.go
+        description: "CreateTeam, DeleteTeam, ListTeams, GetTeam, UpdateTeam handlers"
+      - path: src/database/entity.go
+        description: "Team entity with name, description, is_public, status, projects relationship"
+      - path: src/middleware/permission.go
+        description: "RequireTeamAccess, RequireTeamAdminAccess, RequireTeamMemberAccess middlewares"
+
+    frontend:
+      - path: AegisLab-frontend/src/pages/teams/TeamDetailPage.tsx
+        description: "Team detail page with tab navigation"
+      - path: AegisLab-frontend/src/pages/teams/tabs/OverviewTab.tsx
+        description: "Team overview tab"
+      - path: AegisLab-frontend/src/pages/teams/tabs/ProjectsTab.tsx
+        description: "Team projects listing tab"
+      - path: AegisLab-frontend/src/pages/teams/tabs/UsersTab.tsx
+        description: "Team members management tab"
+      - path: AegisLab-frontend/src/pages/teams/tabs/SettingsTab.tsx
+        description: "Team settings tab"
+      - path: AegisLab-frontend/src/api/teams.ts
+        description: "Teams API client"
+      - path: AegisLab-frontend/src/hooks/useTeams.ts
+        description: "TanStack Query hook for teams"
+      - path: AegisLab-frontend/src/hooks/useTeamContext.ts
+        description: "Hook for team context from URL params"
+      - path: AegisLab-frontend/src/components/teams/TeamSidebar.tsx
+        description: "Team sidebar component"
+    has_mock: true
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-001, REQ-003]
+    conflicts:
+      - "BUG: teamApi.addMember sends {email, role_id} but backend AddTeamMemberReq expects {username, role_id} — will fail at runtime"
+      - "Type mismatch: frontend Team.member_count vs backend TeamDetailResp.user_count"
+      - "Star toggle in teams/ProjectsTab.tsx is a no-op stub"
+    notes: ""
+
+  - id: REQ-005
+    title: Project Management
+    description: >
+      Projects are the primary organizational unit. They belong to optional teams,
+      have many-to-many relationships with containers and datasets, and support
+      RBAC via project-level permissions. CRUD with public/private visibility.
+      Frontend provides project listing, creation/editing forms, project overview
+      page, and project settings within the workspace layout.
+    priority: P0
+    status: implemented
+    confidence: inferred
+    source: "src/handlers/v2/projects.go, AegisLab-frontend/src/pages/projects/ProjectList.tsx"
+
+    code:
+      - path: src/handlers/v2/projects.go
+        description: "CreateProject, DeleteProject, ListProjects, GetProject, UpdateProject handlers"
+      - path: src/database/entity.go
+        description: "Project entity with team FK, containers and datasets M2M, labels M2M"
+      - path: src/middleware/permission.go
+        description: "RequireProjectAccess, RequireProjectAdminAccess, RequireProjectMemberAccess middlewares"
+
+    frontend:
+      - path: AegisLab-frontend/src/pages/projects/ProjectList.tsx
+        description: "Project listing with table/card view"
+      - path: AegisLab-frontend/src/pages/projects/ProjectEdit.tsx
+        description: "Project creation/edit form"
+      - path: AegisLab-frontend/src/pages/projects/ProjectOverview.tsx
+        description: "Project overview page with summary statistics and recent runs"
+      - path: AegisLab-frontend/src/pages/projects/ProjectSettings.tsx
+        description: "Project settings page"
+      - path: AegisLab-frontend/src/api/projects.ts
+        description: "Project API client (CRUD, injections, executions, labels)"
+      - path: AegisLab-frontend/src/hooks/useProjects.ts
+        description: "TanStack Query hook with automatic name-to-ID cache updates"
+      - path: AegisLab-frontend/src/hooks/useProjectContext.ts
+        description: "Hook for project context from URL params"
+      - path: AegisLab-frontend/src/utils/projectNameMap.ts
+        description: "localStorage-based name-to-ID cache for project URL resolution"
+    has_mock: true
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-001, REQ-003, REQ-004]
+    conflicts:
+      - "Star toggle in ProjectList.tsx is a no-op stub"
+      - "totalExperiments stat hardcoded to 0 (TODO: needs API support)"
+    notes: ""
+
+  - id: REQ-006
+    title: Label System
+    description: >
+      Unified label management supporting key-value pairs with categories
+      (dataset, fault_injection, algorithm, container, etc.), colors, usage
+      counts, and system labels. Labels are attached to containers, datasets,
+      projects, configs, injections, and executions via M2M relationships.
+      Frontend provides label API client and AddLabelDropdown workspace component.
+    priority: P1
+    status: implemented
+    confidence: inferred
+    source: "src/handlers/v2/labels.go, AegisLab-frontend/src/api/labels.ts"
+
+    code:
+      - path: src/handlers/v2/labels.go
+        description: "BatchDeleteLabels, CRUD for labels"
+      - path: src/database/entity.go
+        description: "Label entity with key, value, category, color, usage count; M2M join tables"
+
+    frontend:
+      - path: AegisLab-frontend/src/api/labels.ts
+        description: "Labels API client"
+      - path: AegisLab-frontend/src/components/workspace/AddLabelDropdown.tsx
+        description: "Dropdown component for adding labels to workspace items"
+    has_mock: true
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: []
+    conflicts:
+      - "AddLabelDropdown.tsx uses getMockLabelSuggestions() with hardcoded label key/value suggestions instead of fetching from API"
+    notes: "Labels use ActiveKeyValue virtual column for uniqueness enforcement"
+
+  - id: REQ-007
+    title: Audit Logging
+    description: >
+      Automatic audit logging of all non-GET API requests. Captures HTTP method,
+      path, query, status code, duration, user ID, resource type, and sanitized
+      request body. Sensitive paths (auth/login, password) are excluded from body
+      logging. Async logging to avoid blocking requests.
+      No dedicated frontend UI for viewing audit logs yet.
+    priority: P1
+    status: implemented
+    confidence: confirmed
+    source: "src/middleware/audit.go, src/database/entity.go, src/repository/audit.go"
+
+    code:
+      - path: src/middleware/audit.go
+        description: "AuditMiddleware captures request/response details, determines action and resource, logs asynchronously"
+      - path: src/database/entity.go
+        description: "AuditLog entity with IP, user agent, action, details, error_msg, resource associations"
+      - path: src/service/producer/audit.go
+        description: "LogUserAction, LogFailedAction service methods"
+
+    frontend: []
+    has_mock: false
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-001]
+    conflicts:
+      - "Backend has audit logging but frontend has no UI to view audit logs"
+    notes: "Sensitive fields (password, token, secret) are redacted from logged request bodies"
+
+  - id: REQ-008
+    title: Rate Limiting
+    description: >
+      In-memory sliding-window rate limiting with three tiers: general (1000/min),
+      auth (100/min), strict (20/min). Supports IP-based, user-based, and
+      API-key-based rate limiting with periodic cleanup.
+      Backend-only infrastructure; no frontend representation needed.
+    priority: P1
+    status: implemented
+    confidence: confirmed
+    source: "src/middleware/ratelimit.go"
+
+    code:
+      - path: src/middleware/ratelimit.go
+        description: "RateLimiter struct with sliding window, IP/user/API-key based middleware variants"
+
+    frontend: []
+    has_mock: false
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: []
+    conflicts: []
+    notes: "Comment says '100 requests per minute' for general but code actually sets 1000"
+
+  - id: REQ-009
+    title: Dynamic Configuration
+    description: >
+      Runtime-modifiable configuration system stored in MySQL. Supports typed
+      values (string, bool, int, float64, string array), validation (min/max,
+      regex, allowed options), secret masking, and full change history with
+      rollback support. Scoped to producer or consumer.
+      Frontend provides a system settings admin page.
+    priority: P1
+    status: implemented
+    confidence: inferred
+    source: "src/database/entity.go, src/service/producer/dynamic_config.go, AegisLab-frontend/src/pages/system/SystemSettings.tsx"
+
+    code:
+      - path: src/database/entity.go
+        description: "DynamicConfig and ConfigHistory entities with validation fields"
+      - path: src/service/producer/dynamic_config.go
+        description: "Config update logic with history tracking and context"
+
+    frontend:
+      - path: AegisLab-frontend/src/pages/system/SystemSettings.tsx
+        description: "System settings admin page"
+      - path: AegisLab-frontend/src/api/system.ts
+        description: "System API client with getSystemMetrics and getSystemMetricsHistory"
+    has_mock: false
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-001, REQ-003]
+    conflicts: []
+    notes: ""
+
+  # ===========================================================================
+  # REQ-1xx: Fault Injection & Chaos Engineering
+  # ===========================================================================
+
+  - id: REQ-100
+    title: Fault Injection (Chaos Mesh CRD)
+    description: >
+      Core fault injection via Chaos Mesh Kubernetes CRDs. Supports multiple
+      chaos types (network, pod, stress, etc.) across registered system categories.
+      FaultInjection entity is the same as Datapack (different views of same data).
+      Includes display config (user-facing), engine config (runtime), groundtruths,
+      pre-duration, and time windows.
+      Frontend provides injection listing, detail view (with overview, files,
+      artifacts, config, charts, logs tabs), and a multi-step injection creation
+      form with visual canvas for fault node configuration.
+    priority: P0
+    status: implemented
+    confidence: confirmed
+    source: "src/handlers/v2/injections.go, AegisLab-frontend/src/pages/projects/ProjectInjectionList.tsx"
+
+    code:
+      - path: src/handlers/v2/injections.go
+        description: "CRUD handlers for injections including batch delete, get, list, create"
+      - path: src/service/consumer/fault_injection.go
+        description: "executeFaultInjection task handler with batch manager for parallel injections"
+      - path: src/database/entity.go
+        description: "FaultInjection entity with chaos type, category, groundtruths, engine config, benchmark/pedestal FKs"
+
+    frontend:
+      - path: AegisLab-frontend/src/pages/projects/ProjectInjectionList.tsx
+        description: "Project-scoped injection listing with workspace table"
+      - path: AegisLab-frontend/src/pages/projects/ProjectInjectionDetail.tsx
+        description: "Injection detail page with tabbed view"
+      - path: AegisLab-frontend/src/pages/injections/InjectionCreate.tsx
+        description: "Multi-step injection creation form"
+      - path: AegisLab-frontend/src/pages/injections/components/FaultConfigPanel.tsx
+        description: "Fault configuration panel component"
+      - path: AegisLab-frontend/src/pages/injections/components/FaultTypePanel.tsx
+        description: "Fault type selection panel"
+      - path: AegisLab-frontend/src/pages/injections/components/FaultNode.tsx
+        description: "Visual fault node component"
+      - path: AegisLab-frontend/src/pages/injections/components/VisualCanvas.tsx
+        description: "Visual canvas for fault injection topology"
+      - path: AegisLab-frontend/src/pages/injections/components/AlgorithmSelector.tsx
+        description: "Algorithm selection component for injection pipeline"
+      - path: AegisLab-frontend/src/pages/injections/components/TagManager.tsx
+        description: "Tag/label manager for injections"
+      - path: AegisLab-frontend/src/api/injections.ts
+        description: "Injections API client"
+      - path: AegisLab-frontend/src/components/workspace/DetailView/DetailView.tsx
+        description: "Reusable detail view component with tabs (overview, files, artifacts, config, charts, logs)"
+      - path: AegisLab-frontend/src/components/workspace/DetailView/tabs/OverviewTab.tsx
+        description: "Overview tab showing injection/execution summary"
+      - path: AegisLab-frontend/src/components/workspace/DetailView/tabs/FilesTab.tsx
+        description: "Files tab showing datapack parquet files"
+      - path: AegisLab-frontend/src/components/workspace/DetailView/tabs/ArtifactsTab.tsx
+        description: "Artifacts tab"
+      - path: AegisLab-frontend/src/components/workspace/DetailView/tabs/FaultInjectionPanel.tsx
+        description: "Fault injection config display panel"
+      - path: AegisLab-frontend/src/components/workspace/DetailView/tabs/ConfigTree.tsx
+        description: "Config tree viewer"
+      - path: AegisLab-frontend/src/components/workspace/DetailView/tabs/ChartsTab.tsx
+        description: "Charts tab for data visualization"
+      - path: AegisLab-frontend/src/components/workspace/DetailView/tabs/LogsTab.tsx
+        description: "Logs tab with log viewer"
+      - path: AegisLab-frontend/src/components/workspace/DetailView/tabs/PipelineLogsViewer.tsx
+        description: "Real-time pipeline log streaming viewer"
+    has_mock: false
+
+    tests: []
+
+    docs:
+      - path: CLAUDE.md
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-005, REQ-300, REQ-400]
+    conflicts:
+      - "Backend GetInjectionLogs always returns empty []string{} (TODO in service/producer/injection.go:199)"
+    notes: >
+      FaultInjection = Datapack is a key architectural fact. Source can be
+      'injection' (auto-generated) or 'manual' (uploaded).
+
+  - id: REQ-101
+    title: Batch Fault Injection
+    description: >
+      Support for parallel fault injection of multiple nodes simultaneously.
+      batchManager tracks batch progress and waits for all CRDs to complete
+      before triggering the next pipeline stage (BuildDatapack).
+      No separate frontend UI; batch behavior is part of the injection creation form.
+    priority: P1
+    status: implemented
+    confidence: confirmed
+    source: "src/service/consumer/fault_injection.go, src/service/consumer/k8s_handler.go"
+
+    code:
+      - path: src/service/consumer/fault_injection.go
+        description: "batchManager singleton with mutex-protected batch tracking"
+      - path: src/service/consumer/k8s_handler.go
+        description: "HandleCRDSucceeded checks batch completion before submitting next task"
+
+    frontend: []
+    has_mock: false
+
+    tests: []
+
+    docs:
+      - path: CLAUDE.md
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-100]
+    conflicts: []
+    notes: ""
+
+  - id: REQ-102
+    title: Chaos System Registration
+    description: >
+      Registry of chaos target systems (e.g., train-ticket, sock-shop) with
+      namespace patterns, service extraction patterns, display names, and
+      builtin/custom designation. SystemMetadata stores per-system service
+      endpoints and Java methods.
+      Backend-only; system selection is embedded in the injection creation form.
+    priority: P1
+    status: implemented
+    confidence: inferred
+    source: "src/handlers/v2/systems.go, src/database/entity.go, src/service/producer/chaos_system.go"
+
+    code:
+      - path: src/handlers/v2/systems.go
+        description: "ListChaosSystemsHandler, GetChaosSystemHandler and CRUD for chaos systems"
+      - path: src/database/entity.go
+        description: "System and SystemMetadata entities"
+      - path: src/service/initialization/systems.go
+        description: "System initialization/seeding on startup"
+
+    frontend: []
+    has_mock: false
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: []
+    conflicts: []
+    notes: ""
+
+  - id: REQ-103
+    title: Pedestal Restart
+    description: >
+      Ability to restart the target pedestal system (the microservice system
+      under test) as part of the fault injection pipeline. Uses rate limiting
+      to avoid overloading the cluster.
+      Backend-only task; no dedicated frontend UI.
+    priority: P1
+    status: implemented
+    confidence: inferred
+    source: "src/service/consumer/restart_pedestal.go, src/service/consumer/rate_limiter.go"
+
+    code:
+      - path: src/service/consumer/restart_pedestal.go
+        description: "executeRestartPedestal task handler with rate limiter integration"
+      - path: src/service/consumer/rate_limiter.go
+        description: "TokenBucketRateLimiter for pedestal restart operations"
+
+    frontend: []
+    has_mock: false
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-100, REQ-400]
+    conflicts: []
+    notes: ""
+
+  - id: REQ-104
+    title: Manual Datapack Upload
+    description: >
+      Upload pre-built datapacks (ZIP archives containing parquet files) without
+      going through the fault injection pipeline. Supports labels, groundtruths,
+      and validation of parquet file structure.
+      No dedicated frontend upload UI yet.
+    priority: P1
+    status: implemented
+    confidence: inferred
+    source: "src/service/producer/upload.go, src/handlers/v2/injections.go"
+
+    code:
+      - path: src/service/producer/upload.go
+        description: "UploadDatapack validates ZIP structure (6 recognized parquet files), parses labels/groundtruths"
+      - path: src/handlers/v2/injections.go
+        description: "Upload handler endpoint"
+
+    frontend: []
+    has_mock: false
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-100]
+    conflicts:
+      - "Backend has datapack upload endpoint but frontend has no upload UI"
+    notes: "Valid parquet files: abnormal/normal traces, metrics, logs"
+
+  - id: REQ-105
+    title: JVM Runtime Mutator (Disabled)
+    description: >
+      JVM-level chaos injection targeting specific classes and methods with
+      value mutations. Currently disabled due to dependency issues.
+    priority: P2
+    status: disabled
+    confidence: uncertain
+    source: "src/service/consumer/jvm_runtime_mutator.go"
+
+    code:
+      - path: src/service/consumer/jvm_runtime_mutator.go
+        description: "Commented-out JVM runtime mutator implementation"
+
+    frontend: []
+    has_mock: false
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-100]
+    conflicts: []
+    notes: "Entire file is commented out with a note about dependency issues. Status changed from 'implemented' to 'disabled' per 2026-04-13 audit."
+
+  # ===========================================================================
+  # REQ-2xx: Algorithm Execution & Evaluation
+  # ===========================================================================
+
+  - id: REQ-200
+    title: Algorithm Execution
+    description: >
+      Execute RCA algorithms against datapacks by spawning K8s jobs. Creates
+      Execution records linking algorithm version to datapack, tracks state
+      (pending, running, completed, failed), and stores duration.
+      Frontend provides execution listing, detail view, and creation form
+      within the workspace layout.
+    priority: P0
+    status: implemented
+    confidence: confirmed
+    source: "src/handlers/v2/executions.go, AegisLab-frontend/src/pages/projects/ProjectExecutionList.tsx"
+
+    code:
+      - path: src/handlers/v2/executions.go
+        description: "CRUD handlers for executions: batch delete, get, list, create"
+      - path: src/service/consumer/algo_execution.go
+        description: "executeAlgorithm task handler creating K8s jobs with algorithm container"
+      - path: src/database/entity.go
+        description: "Execution entity with algorithm_version, datapack, dataset_version FKs"
+
+    frontend:
+      - path: AegisLab-frontend/src/pages/projects/ProjectExecutionList.tsx
+        description: "Project-scoped execution listing with workspace table"
+      - path: AegisLab-frontend/src/pages/projects/ProjectExecutionDetail.tsx
+        description: "Execution detail page"
+      - path: AegisLab-frontend/src/pages/executions/ExecutionForm.tsx
+        description: "Execution creation form"
+      - path: AegisLab-frontend/src/api/executions.ts
+        description: "Executions API client"
+    has_mock: false
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-100, REQ-300, REQ-400]
+    conflicts: []
+    notes: ""
+
+  - id: REQ-201
+    title: Result Collection
+    description: >
+      After algorithm execution completes, a CollectResult task gathers output
+      from the K8s job. Handles different result types including detector results
+      and granularity results. Special handling for built-in detector algorithms.
+      Backend-only task processing; results are displayed in the execution detail view.
+    priority: P0
+    status: implemented
+    confidence: inferred
+    source: "src/service/consumer/collect_result.go, src/database/entity.go"
+
+    code:
+      - path: src/service/consumer/collect_result.go
+        description: "executeCollectResult parses algorithm output, distinguishes detector vs general algorithms"
+      - path: src/database/entity.go
+        description: "DetectorResult (span metrics) and GranularityResult (localization at service/pod/span/metric levels)"
+
+    frontend: []
+    has_mock: false
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-200]
+    conflicts: []
+    notes: ""
+
+  - id: REQ-202
+    title: Evaluation (Datapack-level)
+    description: >
+      Evaluate algorithm performance on individual datapacks. Supports batch
+      evaluation of multiple algorithm-datapack pairs with label filtering.
+      Uses the analyzer service for computation.
+      Frontend provides evaluation listing and detail pages within workspace.
+    priority: P0
+    status: implemented
+    confidence: confirmed
+    source: "src/handlers/v2/evaluations.go, AegisLab-frontend/src/pages/evaluations/EvaluationList.tsx"
+
+    code:
+      - path: src/handlers/v2/evaluations.go
+        description: "ListDatapackEvaluationResults endpoint (SDK-enabled)"
+      - path: src/service/analyzer/evaluation.go
+        description: "Batch evaluation logic mapping container refs to versions and computing results"
+
+    frontend:
+      - path: AegisLab-frontend/src/pages/evaluations/EvaluationList.tsx
+        description: "Evaluation listing page"
+      - path: AegisLab-frontend/src/pages/evaluations/EvaluationDetail.tsx
+        description: "Evaluation detail page"
+      - path: AegisLab-frontend/src/pages/evaluations/EvaluationForm.tsx
+        description: "Evaluation creation/configuration form"
+      - path: AegisLab-frontend/src/api/evaluations.ts
+        description: "Evaluations API client"
+    has_mock: false
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-200, REQ-201]
+    conflicts: []
+    notes: ""
+
+  - id: REQ-203
+    title: Evaluation (Dataset-level)
+    description: >
+      Evaluate algorithm performance across entire datasets (collections of
+      datapacks). Supports batch evaluation of multiple algorithm-dataset pairs.
+      Frontend evaluation pages support both datapack and dataset level.
+    priority: P0
+    status: implemented
+    confidence: inferred
+    source: "src/handlers/v2/evaluations.go, src/service/analyzer/evaluation.go"
+
+    code:
+      - path: src/handlers/v2/evaluations.go
+        description: "ListDatasetEvaluationResults endpoint (SDK-enabled)"
+
+    frontend: []
+    has_mock: false
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-202, REQ-301]
+    conflicts: []
+    notes: "Frontend evaluation pages (covered by REQ-202) handle both datapack and dataset level"
+
+  - id: REQ-204
+    title: Datapack Querying (DuckDB Arrow)
+    description: >
+      Query parquet files within datapacks using DuckDB with Apache Arrow IPC
+      streaming. Requires build tag 'duckdb_arrow'. Provides file content
+      streaming for analysis.
+      Frontend has an ArrowViewer component for rendering Arrow IPC data.
+    priority: P1
+    status: implemented
+    confidence: confirmed
+    source: "src/service/producer/query_datapack_arrow.go, AegisLab-frontend/src/components/workspace/DetailView/tabs/ArrowViewer.tsx"
+
+    code:
+      - path: src/service/producer/query_datapack_arrow.go
+        description: "QueryDatapackFileContent using DuckDB Arrow connector (build tag: duckdb_arrow)"
+      - path: src/service/producer/query_datapack_noarrow.go
+        description: "Stub returning error when duckdb_arrow tag is not set"
+
+    frontend:
+      - path: AegisLab-frontend/src/components/workspace/DetailView/tabs/ArrowViewer.tsx
+        description: "Arrow IPC data viewer component for parquet file contents"
+      - path: AegisLab-frontend/src/components/workspace/DetailView/tabs/FilesTab.tsx
+        description: "Files tab listing datapack parquet files with viewer"
+      - path: AegisLab-frontend/src/components/workspace/DetailView/tabs/FilesTable.tsx
+        description: "Table component for file listing"
+    has_mock: false
+
+    tests: []
+
+    docs:
+      - path: CLAUDE.md
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-100]
+    conflicts: []
+    notes: "Build MUST include -tags duckdb_arrow for this feature"
+
+  - id: REQ-205
+    title: SDK Evaluations
+    description: >
+      Read-only access to evaluation data created by the Python SDK. Lists and
+      retrieves SDKEvaluationSample records from a table managed by the SDK
+      (not auto-migrated by AegisLab). Supports filtering by exp_id and stage.
+      No dedicated frontend UI.
+    priority: P1
+    status: implemented
+    confidence: inferred
+    source: "src/handlers/v2/sdk_evaluations.go, src/database/sdk_entities.go"
+
+    code:
+      - path: src/handlers/v2/sdk_evaluations.go
+        description: "ListSDKEvaluations, GetSDKEvaluation handlers"
+      - path: src/database/sdk_entities.go
+        description: "SDKEvaluationSample and SDKDatasetSample entities (read-only, SDK-managed tables)"
+
+    frontend: []
+    has_mock: false
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-600]
+    conflicts: []
+    notes: "Tables created/managed by Python SDK, AegisLab only reads them"
+
+  - id: REQ-206
+    title: Database Views for Evaluation
+    description: >
+      Pre-computed MySQL views for efficient evaluation queries: FaultInjectionNoIssues
+      and FaultInjectionWithIssues, aggregating injection data with detector results.
+      Backend-only infrastructure.
+    priority: P2
+    status: implemented
+    confidence: inferred
+    source: "src/database/view.go"
+
+    code:
+      - path: src/database/view.go
+        description: "View model structs for fault_injection_no_issues and fault_injection_with_issues"
+
+    frontend: []
+    has_mock: false
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-100, REQ-201]
+    conflicts: []
+    notes: ""
+
+  # ===========================================================================
+  # REQ-3xx: Data Management (Datasets, Datapacks, Containers)
+  # ===========================================================================
+
+  - id: REQ-300
+    title: Container Management
+    description: >
+      Containers are versioned registry images (algorithms, benchmarks, pedestals).
+      CRUD with type classification (algorithm, benchmark, pedestal). ContainerVersions
+      track semantic versioning, image references (registry/namespace/repo:tag),
+      GitHub links, and usage counts. Includes HelmConfig for deployment and
+      ParameterConfig for env vars.
+      Frontend provides admin container listing, detail, creation/editing, and
+      version management pages.
+    priority: P0
+    status: implemented
+    confidence: confirmed
+    source: "src/handlers/v2/containers.go, AegisLab-frontend/src/pages/containers/ContainerList.tsx"
+
+    code:
+      - path: src/handlers/v2/containers.go
+        description: "CreateContainer, CRUD for containers and container versions"
+      - path: src/database/entity.go
+        description: >
+          Container (type, public, labels), ContainerVersion (semantic versioning,
+          image ref parsing, Helm config, env vars), HelmConfig (chart, repo, values),
+          ParameterConfig (fixed/dynamic params with validation)
+
+    frontend:
+      - path: AegisLab-frontend/src/pages/containers/ContainerList.tsx
+        description: "Container listing page (admin)"
+      - path: AegisLab-frontend/src/pages/containers/ContainerDetail.tsx
+        description: "Container detail page"
+      - path: AegisLab-frontend/src/pages/containers/ContainerForm.tsx
+        description: "Container creation/editing form"
+      - path: AegisLab-frontend/src/pages/containers/ContainerVersions.tsx
+        description: "Container version management page"
+      - path: AegisLab-frontend/src/api/containers.ts
+        description: "Containers API client"
+    has_mock: false
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-001, REQ-003]
+    conflicts: []
+    notes: "Pedestal names are validated against chaos.SystemType"
+
+  - id: REQ-301
+    title: Dataset Management
+    description: >
+      Datasets are versioned collections of datapacks. CRUD with type classification,
+      semantic versioning, file count tracking, and checksums. DatasetVersions link
+      to FaultInjections (datapacks) via M2M relationship.
+      Frontend provides admin dataset listing, detail, and creation/editing pages.
+    priority: P0
+    status: implemented
+    confidence: inferred
+    source: "src/handlers/v2/datasets.go, AegisLab-frontend/src/pages/datasets/DatasetList.tsx"
+
+    code:
+      - path: src/handlers/v2/datasets.go
+        description: "CreateDataset, CRUD for datasets and dataset versions"
+      - path: src/database/entity.go
+        description: "Dataset and DatasetVersion entities with datapacks M2M relationship"
+
+    frontend:
+      - path: AegisLab-frontend/src/pages/datasets/DatasetList.tsx
+        description: "Dataset listing page (admin)"
+      - path: AegisLab-frontend/src/pages/datasets/DatasetDetail.tsx
+        description: "Dataset detail page"
+      - path: AegisLab-frontend/src/pages/datasets/DatasetForm.tsx
+        description: "Dataset creation/editing form"
+      - path: AegisLab-frontend/src/api/datasets.ts
+        description: "Datasets API client"
+    has_mock: false
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-001, REQ-003, REQ-100]
+    conflicts: []
+    notes: "DatasetVersion.Datapacks links to FaultInjection via dataset_version_injections join table"
+
+  - id: REQ-302
+    title: Container Image Building (BuildKit)
+    description: >
+      Build container images from source code using BuildKit. Supports custom
+      Dockerfile, build context, and registry push. Uses BuildKit client library
+      with Docker auth and progress tracking.
+      Backend-only infrastructure.
+    priority: P1
+    status: implemented
+    confidence: inferred
+    source: "src/service/consumer/build_container.go"
+
+    code:
+      - path: src/service/consumer/build_container.go
+        description: "executeBuildContainer task handler using BuildKit client with Docker registry auth"
+
+    frontend: []
+    has_mock: false
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-300, REQ-400]
+    conflicts: []
+    notes: "Requires BuildKit daemon (buildkitd) running"
+
+  - id: REQ-303
+    title: Datapack Building (K8s Job)
+    description: >
+      After fault injection completes, a K8s job builds the datapack by collecting
+      observability data (traces, metrics, logs) from the time window. Creates
+      parquet files and stores them for algorithm consumption.
+      Backend-only task processing.
+    priority: P0
+    status: implemented
+    confidence: confirmed
+    source: "src/service/consumer/build_datapack.go, src/service/consumer/k8s_handler.go"
+
+    code:
+      - path: src/service/consumer/build_datapack.go
+        description: "executeBuildDatapack creates K8s job to collect and package observability data"
+      - path: src/service/consumer/k8s_handler.go
+        description: "HandleCRDSucceeded triggers BuildDatapack after CRD completion"
+
+    frontend: []
+    has_mock: false
+
+    tests: []
+
+    docs:
+      - path: CLAUDE.md
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-100, REQ-400]
+    conflicts: []
+    notes: ""
+
+  - id: REQ-304
+    title: Harbor Registry Integration
+    description: >
+      Integration with Harbor container registry for image management. Supports
+      artifact listing, tag management, and sorted retrieval.
+      Backend-only infrastructure.
+    priority: P2
+    status: implemented
+    confidence: inferred
+    source: "src/client/harbor_client.go"
+
+    code:
+      - path: src/client/harbor_client.go
+        description: "Singleton HarborClient wrapping go-harbor SDK for artifact operations"
+
+    frontend: []
+    has_mock: false
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-300]
+    conflicts: []
+    notes: ""
+
+  # ===========================================================================
+  # REQ-4xx: Task Processing & Workflow Orchestration
+  # ===========================================================================
+
+  - id: REQ-400
+    title: Redis Task Queue System
+    description: >
+      Sophisticated Redis-based task queue with three queues: Delayed (sorted set
+      by timestamp), Ready (list), and Dead Letter (sorted set). Max 20 concurrent
+      tasks with Prometheus metrics (counter, histogram). Task cancellation
+      registry enables stopping running tasks.
+      Frontend provides task listing and detail pages for monitoring.
+    priority: P0
+    status: implemented
+    confidence: confirmed
+    source: "src/service/consumer/task.go, AegisLab-frontend/src/pages/tasks/TaskList.tsx"
+
+    code:
+      - path: src/service/consumer/task.go
+        description: >
+          Redis queue constants, concurrency control, Prometheus metrics,
+          task cancellation registry, event publishing
+
+    frontend:
+      - path: AegisLab-frontend/src/pages/tasks/TaskList.tsx
+        description: "Task listing page with status filters"
+      - path: AegisLab-frontend/src/pages/tasks/TaskDetail.tsx
+        description: "Task detail page with real-time log streaming"
+      - path: AegisLab-frontend/src/api/tasks.ts
+        description: "Tasks API client"
+      - path: AegisLab-frontend/src/hooks/useTaskLogs.ts
+        description: "Hook for real-time task log streaming"
+    has_mock: false
+
+    tests: []
+
+    docs:
+      - path: CLAUDE.md
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: []
+    conflicts:
+      - "Backend GetTaskDetail always returns empty logs []string{} (TODO in service/producer/task.go:74)"
+      - "Backend executeTaskWithRetry has incomplete backoff (TODO in service/consumer/task.go:319)"
+    notes: "Queue keys: task:delayed, task:ready, task:dead, task:index, task:concurrency_lock"
+
+  - id: REQ-401
+    title: Task Dispatch & Routing
+    description: >
+      Central task dispatcher routes tasks to appropriate handlers based on type:
+      BuildContainer, RestartPedestal, FaultInjection, BuildDatapack, RunAlgorithm,
+      CollectResult. Includes panic recovery.
+      Backend-only infrastructure.
+    priority: P0
+    status: implemented
+    confidence: confirmed
+    source: "src/service/consumer/distribute_tasks.go"
+
+    code:
+      - path: src/service/consumer/distribute_tasks.go
+        description: "dispatchTask switch on task type to route to correct executor"
+
+    frontend: []
+    has_mock: false
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-400]
+    conflicts: []
+    notes: "Six task types handled; unknown types return error"
+
+  - id: REQ-402
+    title: Workflow Orchestration via CRD Callbacks
+    description: >
+      Workflow orchestration is NOT a separate entity but implemented through K8s
+      CRD event callbacks. The chain: FaultInjection CRD completes ->
+      HandleCRDSucceeded -> SubmitTask(BuildDatapack) -> Job completes ->
+      HandleJobSucceeded -> SubmitTask(RunAlgorithm) -> Job completes ->
+      HandleJobSucceeded -> SubmitTask(CollectResult). Context propagation via
+      K8s annotations (OTel trace) and labels (task metadata).
+      Backend-only infrastructure.
+    priority: P0
+    status: implemented
+    confidence: confirmed
+    source: "src/service/consumer/k8s_handler.go, src/client/k8s/controller.go"
+
+    code:
+      - path: src/service/consumer/k8s_handler.go
+        description: "HandleCRDSucceeded, HandleJobSucceeded implement callback-driven workflow chain"
+      - path: src/client/k8s/controller.go
+        description: "Callback interface: HandleCRD{Add,Delete,Failed,Succeeded}, HandleJob{Add,Failed,Succeeded}"
+
+    frontend: []
+    has_mock: false
+
+    tests: []
+
+    docs:
+      - path: CLAUDE.md
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-400, REQ-100, REQ-200]
+    conflicts: []
+    notes: "Critical architectural pattern - documented extensively in CLAUDE.md"
+
+  - id: REQ-403
+    title: Task Management API
+    description: >
+      REST API for task lifecycle management: batch delete, list, get detail,
+      cancel running tasks, and WebSocket-based real-time task monitoring.
+      Frontend task pages consume this API.
+    priority: P1
+    status: implemented
+    confidence: inferred
+    source: "src/handlers/v2/tasks.go, AegisLab-frontend/src/api/tasks.ts"
+
+    code:
+      - path: src/handlers/v2/tasks.go
+        description: "BatchDeleteTasks and other task management handlers; WebSocket upgrader for real-time updates"
+
+    frontend:
+      - path: AegisLab-frontend/src/api/tasks.ts
+        description: "Tasks API client consuming task management endpoints"
+    has_mock: false
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-400, REQ-001]
+    conflicts: []
+    notes: "WebSocket support indicates real-time task status streaming"
+
+  - id: REQ-404
+    title: Trace & Group Management
+    description: >
+      Traces represent execution workflows containing multiple tasks in a DAG.
+      Groups aggregate related traces (batch operations). Supports SSE streaming
+      for real-time trace updates via Redis streams. Trace types: datapack_build,
+      algorithm_run, full_pipeline.
+      Frontend provides traces listing and detail pages within workspace, plus
+      SSE-based real-time updates.
+    priority: P1
+    status: implemented
+    confidence: confirmed
+    source: "src/handlers/v2/traces.go, AegisLab-frontend/src/pages/traces/TracesPage.tsx"
+
+    code:
+      - path: src/handlers/v2/traces.go
+        description: "GetTrace handler with SSE streaming support via Redis"
+      - path: src/handlers/v2/groups.go
+        description: "GetGroupStats with SSE streaming for group-level monitoring"
+      - path: src/database/entity.go
+        description: "Trace (type, state, group_id, leaf_num) and Task (parent-child, level, sequence) entities"
+
+    frontend:
+      - path: AegisLab-frontend/src/pages/traces/TracesPage.tsx
+        description: "Traces listing page within workspace"
+      - path: AegisLab-frontend/src/pages/traces/TraceDetailPage.tsx
+        description: "Trace detail page with task DAG visualization"
+      - path: AegisLab-frontend/src/api/traces.ts
+        description: "Traces API client"
+      - path: AegisLab-frontend/src/api/groups.ts
+        description: "Groups API client"
+      - path: AegisLab-frontend/src/hooks/useTraceSSE.ts
+        description: "Hook for real-time trace updates via SSE"
+      - path: AegisLab-frontend/src/hooks/useSSE.ts
+        description: "Generic SSE hook"
+    has_mock: false
+
+    tests: []
+
+    docs:
+      - path: CLAUDE.md
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-400]
+    conflicts: []
+    notes: "Hierarchical tracing: group (grandfather) -> trace (father) -> task"
+
+  - id: REQ-405
+    title: Namespace Monitoring & Locking
+    description: >
+      Monitor K8s namespaces for active fault injections. Namespace locks prevent
+      concurrent experiments on the same target. Supports refresh, disable, and
+      recovery of namespace states.
+      Backend-only infrastructure.
+    priority: P1
+    status: implemented
+    confidence: inferred
+    source: "src/service/consumer/monitor.go"
+
+    code:
+      - path: src/service/consumer/monitor.go
+        description: "MonitorItem, LockMessage, NamespaceRefreshResult for namespace state management"
+
+    frontend: []
+    has_mock: false
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-100, REQ-400]
+    conflicts: []
+    notes: ""
+
+  - id: REQ-406
+    title: Consumer Rate Limiting (Token Bucket)
+    description: >
+      Redis-based token bucket rate limiter for consumer-side operations
+      (e.g., pedestal restarts). Configurable max tokens and wait timeout
+      with dynamic config support.
+      Backend-only infrastructure.
+    priority: P2
+    status: implemented
+    confidence: inferred
+    source: "src/service/consumer/rate_limiter.go"
+
+    code:
+      - path: src/service/consumer/rate_limiter.go
+        description: "TokenBucketRateLimiter with Redis backing and configurable limits"
+
+    frontend: []
+    has_mock: false
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-400]
+    conflicts: []
+    notes: ""
+
+  # ===========================================================================
+  # REQ-5xx: Observability & Monitoring
+  # ===========================================================================
+
+  - id: REQ-500
+    title: OpenTelemetry Tracing Integration
+    description: >
+      Distributed tracing via OpenTelemetry with OTLP HTTP exporter to Jaeger.
+      TracerMiddleware creates spans for HTTP requests with group_id attributes.
+      Task processing uses hierarchical span contexts propagated through K8s
+      annotations.
+      Backend-only infrastructure.
+    priority: P0
+    status: implemented
+    confidence: confirmed
+    source: "src/middleware/middleware.go, src/client/jaeger.go"
+
+    code:
+      - path: src/middleware/middleware.go
+        description: "TracerMiddleware creates OTel spans; GroupID middleware assigns UUIDs to POST requests"
+      - path: src/client/jaeger.go
+        description: "InitTraceProvider configures OTLP HTTP exporter for Jaeger"
+
+    frontend: []
+    has_mock: false
+
+    tests: []
+
+    docs:
+      - path: CLAUDE.md
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: []
+    conflicts: []
+    notes: ""
+
+  - id: REQ-501
+    title: System Metrics & Health
+    description: >
+      System health monitoring with current and historical (24h) CPU, memory,
+      and disk usage metrics. Prometheus metrics for task processing (counter
+      and histogram).
+      Frontend home dashboard displays system metrics via dashboard components.
+    priority: P1
+    status: implemented
+    confidence: inferred
+    source: "src/handlers/v2/system.go, AegisLab-frontend/src/components/dashboard/SystemMetrics.tsx"
+
+    code:
+      - path: src/handlers/v2/system.go
+        description: "GetSystemMetrics (current) and GetSystemMetricsHistory (24h) endpoints"
+      - path: src/service/consumer/task.go
+        description: "Prometheus task_processed_total counter and task_duration_seconds histogram"
+
+    frontend:
+      - path: AegisLab-frontend/src/components/dashboard/SystemMetrics.tsx
+        description: "System metrics display component"
+      - path: AegisLab-frontend/src/api/system.ts
+        description: "System API client with getSystemMetrics and getSystemMetricsHistory"
+      - path: AegisLab-frontend/src/api/metrics.ts
+        description: "Metrics API client with getInjectionMetrics, getExecutionMetrics, getAlgorithmMetrics"
+    has_mock: true
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-001]
+    conflicts:
+      - "SystemMetrics.tsx component has 100% hardcoded fake data (CPU 68%, Memory 4.2GB/16GB, etc.) — not connected to real API"
+      - "Legacy backend endpoints /system/monitor/metrics and /system/monitor/info return fabricated data (v2 endpoint is real)"
+    notes: "The v2 endpoint GetSystemMetrics uses real gopsutil data. The legacy /system/monitor/* endpoints are mock — should be deprecated."
+
+  - id: REQ-502
+    title: Injection & Execution Metrics
+    description: >
+      Aggregated analytics for injections and executions: success rates, duration
+      stats, state distributions, filtered by time range and fault type.
+      Frontend home dashboard displays these metrics.
+    priority: P1
+    status: implemented
+    confidence: inferred
+    source: "src/handlers/v2/metrics.go, AegisLab-frontend/src/api/metrics.ts"
+
+    code:
+      - path: src/handlers/v2/metrics.go
+        description: "GetInjectionMetrics and GetExecutionMetrics endpoints (SDK-enabled)"
+
+    frontend:
+      - path: AegisLab-frontend/src/api/metrics.ts
+        description: "Metrics API client"
+      - path: AegisLab-frontend/src/pages/home/HomePage.tsx
+        description: "Home dashboard displaying injection/execution metrics"
+    has_mock: false
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-100, REQ-200]
+    conflicts: []
+    notes: ""
+
+  - id: REQ-503
+    title: Real-Time Notifications (SSE)
+    description: >
+      Server-Sent Events streaming for global workflow notifications. Streams
+      events like injection completed, datapack ready, execution completed via
+      Redis pub/sub. Supports last_id for resuming missed events.
+      Frontend provides a notifications page and SSE hooks for real-time updates.
+    priority: P1
+    status: implemented
+    confidence: confirmed
+    source: "src/handlers/v2/notifications.go, AegisLab-frontend/src/pages/notifications/NotificationsPage.tsx"
+
+    code:
+      - path: src/handlers/v2/notifications.go
+        description: "GetNotificationStream SSE endpoint with Redis stream consumption"
+      - path: src/middleware/middleware.go
+        description: "SSEPath middleware sets event-stream headers"
+
+    frontend:
+      - path: AegisLab-frontend/src/pages/notifications/NotificationsPage.tsx
+        description: "Notifications page"
+      - path: AegisLab-frontend/src/api/notifications.ts
+        description: "Notifications API client"
+      - path: AegisLab-frontend/src/hooks/useNotifications.ts
+        description: "Hook for notification management"
+      - path: AegisLab-frontend/src/hooks/useSSE.ts
+        description: "Generic SSE hook for real-time event streaming"
+    has_mock: false
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-400]
+    conflicts:
+      - "Notification read state (markAsRead, markAllAsRead) is client-only in-memory — lost on page reload"
+    notes: ""
+
+  - id: REQ-504
+    title: Loki Log Integration
+    description: >
+      HTTP client for querying historical logs from Loki. Supports time-range
+      queries with configurable limits and direction (forward/backward).
+      Backend-only client; frontend log viewing uses pipeline logs viewer.
+    priority: P1
+    status: implemented
+    confidence: inferred
+    source: "src/client/loki.go"
+
+    code:
+      - path: src/client/loki.go
+        description: "LokiClient wrapping Loki HTTP API for log queries"
+
+    frontend: []
+    has_mock: false
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: []
+    conflicts: []
+    notes: ""
+
+  - id: REQ-505
+    title: OTLP Log Receiver
+    description: >
+      Built-in OTLP log receiver accepting protobuf-encoded log data
+      (gzip-compressed). Parses OpenTelemetry log records from resource logs.
+      Backend-only infrastructure.
+    priority: P1
+    status: implemented
+    confidence: inferred
+    source: "src/service/logreceiver/receiver.go, src/service/logreceiver/parser.go"
+
+    code:
+      - path: src/service/logreceiver/receiver.go
+        description: "HTTP server receiving OTLP log export requests with protobuf/gzip support"
+      - path: src/service/logreceiver/parser.go
+        description: "Parser for OTLP log records"
+
+    frontend: []
+    has_mock: false
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: []
+    conflicts: []
+    notes: "Default port 4319"
+
+  # ===========================================================================
+  # REQ-6xx: SDK & API Generation
+  # ===========================================================================
+
+  - id: REQ-600
+    title: Python SDK (Auto-generated)
+    description: >
+      Python SDK auto-generated from Swagger/OpenAPI specs. Provides REST client
+      and model classes for programmatic access to AegisLab APIs.
+      Backend-only tooling.
+    priority: P1
+    status: implemented
+    confidence: inferred
+    source: "sdk/python/, scripts/command/src/swagger.py"
+
+    code:
+      - path: sdk/python/src/rcabench/client
+        description: "Auto-generated Python REST client"
+
+    frontend: []
+    has_mock: false
+
+    tests: []
+
+    docs:
+      - path: CLAUDE.md
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-602]
+    conflicts: []
+    notes: "Generated via 'make generate-python-sdk'"
+
+  - id: REQ-601
+    title: TypeScript SDK (Auto-generated)
+    description: >
+      TypeScript SDK auto-generated from Swagger/OpenAPI specs for frontend
+      consumption. Not always present in repo (generated on demand).
+      Used by frontend via @rcabench/client package.
+    priority: P1
+    status: implemented
+    confidence: inferred
+    source: "CLAUDE.md"
+
+    code: []
+
+    frontend:
+      - path: AegisLab-frontend/src/api/client.ts
+        description: "Axios client that may use generated SDK types"
+    has_mock: false
+
+    tests: []
+
+    docs:
+      - path: CLAUDE.md
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-602]
+    conflicts: []
+    notes: "Generated via 'make generate-typescript-sdk SDK_VERSION=x.x.x'; sdk/typescript/ directory"
+
+  - id: REQ-602
+    title: Swagger/OpenAPI Documentation
+    description: >
+      API documentation via Swagger annotations on all handler functions.
+      APIs marked with @x-api-type {"sdk":"true"} are included in generated SDKs.
+      Generated via swag init with dependency parsing.
+      Backend-only tooling.
+    priority: P1
+    status: implemented
+    confidence: confirmed
+    source: "src/handlers/v2/*.go"
+
+    code:
+      - path: src/handlers/v2/auth.go
+        description: "Example of Swagger annotations with @x-api-type SDK marking"
+
+    frontend: []
+    has_mock: false
+
+    tests: []
+
+    docs:
+      - path: CLAUDE.md
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: []
+    conflicts: []
+    notes: "scripts/command/src/swagger.py filters APIs by x-api-type.sdk field"
+
+  # ===========================================================================
+  # REQ-7xx: Deployment & Infrastructure (Backend)
+  # ===========================================================================
+
+  - id: REQ-700
+    title: Kubernetes Deployment (Helm)
+    description: >
+      Helm chart for deploying AegisLab to Kubernetes clusters with TLS certs,
+      configurable values, and environment-specific manifests.
+      Backend-only infrastructure.
+    priority: P0
+    status: implemented
+    confidence: inferred
+    source: "helm/"
+
+    code:
+      - path: helm/Chart.yaml
+        description: "Helm chart metadata"
+      - path: helm/values.yaml
+        description: "Default deployment configuration"
+      - path: helm/templates/
+        description: "K8s resource templates"
+
+    frontend: []
+    has_mock: false
+
+    tests: []
+
+    docs:
+      - path: CLAUDE.md
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: []
+    conflicts: []
+    notes: "helm/certs/ for TLS, helm/files/ for additional deployment files"
+
+  - id: REQ-701
+    title: Skaffold Development Workflow
+    description: >
+      Skaffold configuration for iterative development with automatic build
+      and deploy to K8s clusters.
+      Backend-only infrastructure.
+    priority: P2
+    status: implemented
+    confidence: inferred
+    source: "skaffold.yaml"
+
+    code:
+      - path: skaffold.yaml
+        description: "Skaffold development and deployment configuration"
+
+    frontend: []
+    has_mock: false
+
+    tests: []
+
+    docs:
+      - path: CLAUDE.md
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-700]
+    conflicts: []
+    notes: "'make run' uses Skaffold for build+deploy"
+
+  - id: REQ-702
+    title: Cobra CLI (Multi-mode Application)
+    description: >
+      Application runs in three modes via Cobra CLI: producer (HTTP API server),
+      consumer (background workers + K8s controllers), or both (combined for
+      local development). Default local development runs 'both --port 8082'.
+      Backend-only infrastructure.
+    priority: P0
+    status: implemented
+    confidence: confirmed
+    source: "src/main.go, CLAUDE.md"
+
+    code:
+      - path: src/main.go
+        description: "Cobra CLI with producer, consumer, and both commands"
+
+    frontend: []
+    has_mock: false
+
+    tests: []
+
+    docs:
+      - path: CLAUDE.md
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: []
+    conflicts: []
+    notes: ""
+
+  - id: REQ-703
+    title: Kubernetes CRD Controller
+    description: >
+      Controller-runtime based K8s controller watching Chaos Mesh CRDs and
+      batch Jobs. Uses informers with rate-limited work queues. Manages CRD
+      lifecycle (add, delete, failed, succeeded) and job lifecycle.
+      Supports namespace-scoped CRD informers with dynamic registration.
+      Backend-only infrastructure.
+    priority: P0
+    status: implemented
+    confidence: confirmed
+    source: "src/client/k8s/controller.go, src/client/k8s/crd.go, src/client/k8s/job.go"
+
+    code:
+      - path: src/client/k8s/controller.go
+        description: >
+          Controller struct with CRD/job informers, namespace management,
+          work queue with CheckRecovery/DeleteCRD/DeleteJob actions
+      - path: src/client/k8s/crd.go
+        description: "CRD-specific informer setup and event handlers"
+      - path: src/client/k8s/job.go
+        description: "Job informer setup and event handlers"
+
+    frontend: []
+    has_mock: false
+
+    tests:
+      - path: src/client/k8s/k8s_test.go
+        description: "K8s client tests"
+
+    docs:
+      - path: CLAUDE.md
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: []
+    conflicts: []
+    notes: "Watches multiple GVRs from chaos-experiment library"
+
+  - id: REQ-704
+    title: Docker Compose Local Infrastructure
+    description: >
+      Docker Compose setup for local development providing Redis, MySQL, Jaeger,
+      and BuildKit daemon services.
+      Backend-only infrastructure.
+    priority: P1
+    status: implemented
+    confidence: confirmed
+    source: "docker-compose.yaml"
+
+    code:
+      - path: docker-compose.yaml
+        description: "Redis, MySQL, Jaeger, BuildKit service definitions"
+
+    frontend: []
+    has_mock: false
+
+    tests: []
+
+    docs:
+      - path: CLAUDE.md
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: []
+    conflicts: []
+    notes: ""
+
+  - id: REQ-705
+    title: Data Initialization & Seeding
+    description: >
+      System initialization on startup: seeding roles, permissions, resources,
+      default users, and chaos systems. Separate initialization paths for
+      producer and consumer modes.
+      Backend-only infrastructure.
+    priority: P1
+    status: implemented
+    confidence: inferred
+    source: "src/service/initialization/, data/initial_data/"
+
+    code:
+      - path: src/service/initialization/producer.go
+        description: "Producer-mode initialization (DB migration, seed data)"
+      - path: src/service/initialization/consumer.go
+        description: "Consumer-mode initialization (K8s controllers, task queue)"
+      - path: src/service/initialization/systems.go
+        description: "Chaos system seeding"
+
+    frontend: []
+    has_mock: false
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: []
+    conflicts: []
+    notes: "data/initial_data/ contains environment-specific seed data"
+
+  - id: REQ-706
+    title: Devbox & Lefthook Toolchain
+    description: >
+      Nix-based development environment via devbox for reproducible tooling.
+      Lefthook for pre-commit hooks. Justfile for task automation.
+      Backend-only infrastructure.
+    priority: P2
+    status: implemented
+    confidence: confirmed
+    source: "devbox.json, lefthook.yml, justfile"
+
+    code:
+      - path: devbox.json
+        description: "Nix package definitions for development tools"
+      - path: lefthook.yml
+        description: "Pre-commit hook configuration"
+      - path: justfile
+        description: "Task runner recipes"
+
+    frontend: []
+    has_mock: false
+
+    tests: []
+
+    docs:
+      - path: CLAUDE.md
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: []
+    conflicts: []
+    notes: ""
+
+  - id: REQ-707
+    title: Redis Client & etcd Client
+    description: >
+      Redis client for task queues, caching, pub/sub, and stream operations.
+      etcd client for distributed coordination.
+      Backend-only infrastructure.
+    priority: P1
+    status: implemented
+    confidence: inferred
+    source: "src/client/redis_client.go, src/client/etcd_client.go"
+
+    code:
+      - path: src/client/redis_client.go
+        description: "Redis client initialization and connection management"
+      - path: src/client/etcd_client.go
+        description: "etcd client for distributed coordination"
+
+    frontend: []
+    has_mock: false
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: []
+    conflicts: []
+    notes: ""
+
+  # ===========================================================================
+  # REQ-8xx: Frontend-Only (Layout, Routing, Theme, Visualization, Build Tooling)
+  # ===========================================================================
+
+  - id: REQ-800
+    title: Dual Layout System (Main + Workspace)
+    description: >
+      Two mutually exclusive layout modes: MainLayout with global navigation
+      sidebar for top-level pages (home, projects list, teams, admin), and
+      WorkspaceLayout with project-scoped sidebar for workspace pages
+      (injections, executions, evaluations, traces, settings). Layouts share
+      a unified AppHeader component with breadcrumbs.
+    priority: P0
+    status: implemented
+    confidence: confirmed
+    source: "AegisLab-frontend/src/components/layout/MainLayout.tsx, AegisLab-frontend/src/components/layout/WorkspaceLayout.tsx"
+
+    code: []
+
+    frontend:
+      - path: AegisLab-frontend/src/components/layout/MainLayout.tsx
+        description: "Main layout with collapsible sidebar (240px) and content area; renders Outlet for child routes"
+      - path: AegisLab-frontend/src/components/layout/WorkspaceLayout.tsx
+        description: "Workspace layout with project-scoped sidebar (200px); provides ProjectOutletContext to child routes"
+      - path: AegisLab-frontend/src/components/layout/AppHeader.tsx
+        description: "Unified header with hamburger menu, logo, breadcrumbs, notification badge, theme toggle, user dropdown"
+      - path: AegisLab-frontend/src/components/layout/MainSidebarContent.tsx
+        description: "Main sidebar navigation with Home, Projects, Teams, Notifications, Admin sections"
+      - path: AegisLab-frontend/src/components/layout/WorkspaceSidebar.tsx
+        description: "Workspace sidebar with project-internal navigation"
+    has_mock: false
+
+    tests: []
+
+    docs:
+      - path: AegisLab-frontend/workspace.md
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-001]
+    conflicts: []
+    notes: "WorkspaceLayout hides the main sidebar. Hamburger button in header can open main sidebar as drawer in workspace mode."
+
+  - id: REQ-801
+    title: Client-Side Routing
+    description: >
+      React Router v6 route structure with lazy-loaded pages. Top-level routes
+      under MainLayout (/home, /projects, /profile, /settings, /tasks,
+      /notifications, /:teamName, /admin/*). Nested project-scoped routes
+      under WorkspaceLayout (/:teamName/:projectName/*). Fallback redirects
+      to /home or /login.
+    priority: P0
+    status: implemented
+    confidence: confirmed
+    source: "AegisLab-frontend/src/App.tsx, AegisLab-frontend/src/main.tsx"
+
+    code: []
+
+    frontend:
+      - path: AegisLab-frontend/src/App.tsx
+        description: "Complete route definitions with lazy imports, Suspense boundaries, and auth guards"
+      - path: AegisLab-frontend/src/main.tsx
+        description: "BrowserRouter setup with React Router v7 future flags enabled"
+    has_mock: false
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-001, REQ-800]
+    conflicts: []
+    notes: "All pages are lazy-loaded with React.lazy + Suspense. Route structure uses team/project name URL params (not IDs)."
+
+  - id: REQ-802
+    title: Theme System (Light/Dark)
+    description: >
+      Light/dark theme toggle with persisted preference in localStorage via
+      Zustand persist middleware. Sets data-theme attribute on document root.
+      Custom Ant Design theme configuration with sky-blue primary color (#0ea5e9).
+      CSS variables for theming defined in styles directory.
+    priority: P1
+    status: implemented
+    confidence: confirmed
+    source: "AegisLab-frontend/src/store/theme.ts, AegisLab-frontend/src/components/ui/ThemeToggle.tsx"
+
+    code: []
+
+    frontend:
+      - path: AegisLab-frontend/src/store/theme.ts
+        description: "Zustand store with persist middleware; manages theme (light/dark) and sidebarCollapsed"
+      - path: AegisLab-frontend/src/components/ui/ThemeToggle.tsx
+        description: "Toggle button component for switching between light and dark themes"
+      - path: AegisLab-frontend/src/main.tsx
+        description: "Ant Design ConfigProvider with custom theme tokens"
+      - path: AegisLab-frontend/src/styles/theme.css
+        description: "CSS variables for theming"
+      - path: AegisLab-frontend/src/utils/theme.ts
+        description: "Theme utility functions"
+      - path: AegisLab-frontend/src/utils/colors.ts
+        description: "Color utility functions"
+    has_mock: false
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: []
+    conflicts: []
+    notes: "Ant Design locale is set to zh_CN. Primary color is #0ea5e9 in main.tsx but CLAUDE.md says #2563eb -- minor inconsistency."
+
+  - id: REQ-803
+    title: Home Dashboard
+    description: >
+      Personal dashboard page showing welcome banner, recent projects list,
+      injection/execution metrics (success/fail counts), system metrics,
+      and quick action buttons. Fetches data from metrics and projects APIs.
+    priority: P1
+    status: implemented
+    confidence: inferred
+    source: "AegisLab-frontend/src/pages/home/HomePage.tsx"
+
+    code: []
+
+    frontend:
+      - path: AegisLab-frontend/src/pages/home/HomePage.tsx
+        description: "Dashboard with recent projects, injection metrics, execution metrics, and system stats"
+      - path: AegisLab-frontend/src/components/dashboard/ActivityFeed.tsx
+        description: "Activity feed component showing recent events"
+      - path: AegisLab-frontend/src/components/dashboard/QuickActions.tsx
+        description: "Quick action buttons for common operations"
+      - path: AegisLab-frontend/src/components/dashboard/SystemMetrics.tsx
+        description: "System metrics display component — WARNING: contains 100% hardcoded mock data, may be unused by refactored HomePage"
+    has_mock: true
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-001, REQ-800]
+    conflicts:
+      - "SystemMetrics.tsx has hardcoded CPU/Memory/Storage/Queue data — HomePage.tsx may have replaced it with real API calls"
+    notes: "Verify whether SystemMetrics.tsx is still imported by HomePage. If not, it should be removed as dead code."
+
+  - id: REQ-804
+    title: User Profile Page
+    description: >
+      User profile page with tabbed layout showing profile information,
+      user's projects, and starred items. Includes profile sidebar with
+      avatar, activity graph, and recent runs.
+    priority: P1
+    status: implemented
+    confidence: inferred
+    source: "AegisLab-frontend/src/pages/profile/ProfilePage.tsx"
+
+    code: []
+
+    frontend:
+      - path: AegisLab-frontend/src/pages/profile/ProfilePage.tsx
+        description: "Profile page with tab navigation"
+      - path: AegisLab-frontend/src/pages/profile/tabs/ProfileTab.tsx
+        description: "Profile information tab"
+      - path: AegisLab-frontend/src/pages/profile/tabs/ProjectsTab.tsx
+        description: "User's projects tab"
+      - path: AegisLab-frontend/src/pages/profile/tabs/StarsTab.tsx
+        description: "Starred items tab"
+      - path: AegisLab-frontend/src/components/profile/ProfileSidebar.tsx
+        description: "Profile sidebar with avatar and info"
+      - path: AegisLab-frontend/src/components/profile/ActivityGraph.tsx
+        description: "Activity graph component"
+      - path: AegisLab-frontend/src/components/profile/ProjectCard.tsx
+        description: "Project card component for profile"
+      - path: AegisLab-frontend/src/components/profile/RecentRuns.tsx
+        description: "Recent runs component"
+    has_mock: true
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-001]
+    conflicts:
+      - "ProfileSidebar.tsx:34 hardcodes fake team 'Personal Capital' instead of fetching from API"
+      - "ProjectsTab.tsx is fully stubbed — projectsData = {items:[], total:0}, star toggle is no-op"
+      - "StarsTab.tsx is fully stubbed — starredProjects = [], no backend star API exists"
+    notes: "Stars feature has no backend API. Profile ProjectsTab should use useProjects() hook. ProfileSidebar should fetch teams via teamApi."
+
+  - id: REQ-805
+    title: User Settings Page
+    description: >
+      User settings page for personal preferences and account configuration.
+    priority: P2
+    status: implemented
+    confidence: inferred
+    source: "AegisLab-frontend/src/pages/settings/Settings.tsx"
+
+    code: []
+
+    frontend:
+      - path: AegisLab-frontend/src/pages/settings/Settings.tsx
+        description: "User settings page"
+    has_mock: false
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-001]
+    conflicts: []
+    notes: ""
+
+  - id: REQ-806
+    title: Workspace Table & Components
+    description: >
+      Reusable workspace table system for displaying injections, executions,
+      and other workspace-scoped data. Includes column management, sorting,
+      filtering, bulk actions, and run list panels. Supports column resizing,
+      persistence, and customizable toolbar.
+    priority: P1
+    status: implemented
+    confidence: confirmed
+    source: "AegisLab-frontend/src/components/workspace/"
+
+    code: []
+
+    frontend:
+      - path: AegisLab-frontend/src/components/workspace/WorkspaceTable.tsx
+        description: "Core workspace table component with sortable/filterable columns"
+      - path: AegisLab-frontend/src/components/workspace/WorkspacePageHeader.tsx
+        description: "Workspace page header with breadcrumbs and actions"
+      - path: AegisLab-frontend/src/components/workspace/WorkspaceSelector.tsx
+        description: "Workspace selector for switching contexts"
+      - path: AegisLab-frontend/src/components/workspace/TableToolbar.tsx
+        description: "Table toolbar with search, filter, and action buttons"
+      - path: AegisLab-frontend/src/components/workspace/BulkActionBar.tsx
+        description: "Bulk action bar for multi-select operations"
+      - path: AegisLab-frontend/src/components/workspace/ColumnManager.tsx
+        description: "Column visibility and order manager"
+      - path: AegisLab-frontend/src/components/workspace/ColumnsDropdown.tsx
+        description: "Dropdown for column selection"
+      - path: AegisLab-frontend/src/components/workspace/ColumnHeaderDropdown.tsx
+        description: "Column header dropdown with sort/filter options"
+      - path: AegisLab-frontend/src/components/workspace/SortDropdown.tsx
+        description: "Sort configuration dropdown"
+      - path: AegisLab-frontend/src/components/workspace/GroupDropdown.tsx
+        description: "Group configuration dropdown"
+      - path: AegisLab-frontend/src/components/workspace/NameColumnDropdown.tsx
+        description: "Name column configuration"
+      - path: AegisLab-frontend/src/components/workspace/RunsPanel.tsx
+        description: "Runs panel showing execution/injection runs"
+      - path: AegisLab-frontend/src/components/workspace/RunListItem.tsx
+        description: "Individual run list item component"
+      - path: AegisLab-frontend/src/components/workspace/RunListDropdown.tsx
+        description: "Run list dropdown"
+      - path: AegisLab-frontend/src/components/workspace/ChartCard.tsx
+        description: "Chart card component for workspace visualizations"
+      - path: AegisLab-frontend/src/components/workspace/ChartsPanel.tsx
+        description: "Charts panel for workspace data visualization"
+      - path: AegisLab-frontend/src/hooks/useColumnResize.ts
+        description: "Hook for column resize functionality"
+      - path: AegisLab-frontend/src/hooks/useTableColumns.ts
+        description: "Hook for table column management"
+      - path: AegisLab-frontend/src/hooks/useTablePersistence.ts
+        description: "Hook for persisting table configuration"
+      - path: AegisLab-frontend/src/hooks/useRunListSettings.ts
+        description: "Hook for run list display settings"
+    has_mock: false
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-800]
+    conflicts: []
+    notes: ""
+
+  - id: REQ-807
+    title: Charts & Visualization
+    description: >
+      Chart components for data visualization using ECharts. Includes a
+      reusable LabChart component and workspace chart cards/panels.
+    priority: P1
+    status: implemented
+    confidence: inferred
+    source: "AegisLab-frontend/src/components/charts/"
+
+    code: []
+
+    frontend:
+      - path: AegisLab-frontend/src/components/charts/LabChart.tsx
+        description: "Reusable ECharts-based chart component"
+      - path: AegisLab-frontend/src/components/workspace/ChartCard.tsx
+        description: "Chart card wrapper component"
+      - path: AegisLab-frontend/src/components/workspace/ChartsPanel.tsx
+        description: "Charts panel with multiple chart displays"
+    has_mock: false
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: []
+    conflicts: []
+    notes: "ECharts, D3.js, and Cytoscape.js available per CLAUDE.md"
+
+  - id: REQ-808
+    title: Reusable UI Components
+    description: >
+      Shared UI components used across the application: StatCard for metric
+      display, StatusBadge for state indicators, ThemeToggle for dark/light
+      mode switching.
+    priority: P1
+    status: implemented
+    confidence: confirmed
+    source: "AegisLab-frontend/src/components/ui/"
+
+    code: []
+
+    frontend:
+      - path: AegisLab-frontend/src/components/ui/StatCard.tsx
+        description: "Statistics card component for dashboards"
+      - path: AegisLab-frontend/src/components/ui/StatusBadge.tsx
+        description: "Status badge component for state indicators"
+      - path: AegisLab-frontend/src/components/ui/ThemeToggle.tsx
+        description: "Theme toggle button component"
+    has_mock: false
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: []
+    conflicts: []
+    notes: ""
+
+  - id: REQ-809
+    title: Frontend Build Tooling (Vite)
+    description: >
+      Vite 5 build configuration with React plugin, TypeScript strict mode,
+      path aliases (@/ for src/), API proxy to backend, ESLint, and Prettier.
+      Devbox provides pnpm 8 for package management. Private @OperationsPAI/client
+      package requires NPM_TOKEN for GitHub Packages authentication.
+    priority: P1
+    status: implemented
+    confidence: confirmed
+    source: "AegisLab-frontend/vite.config.ts, AegisLab-frontend/package.json"
+
+    code: []
+
+    frontend:
+      - path: AegisLab-frontend/vite.config.ts
+        description: "Vite configuration with React plugin, proxy, and aliases"
+      - path: AegisLab-frontend/package.json
+        description: "Package dependencies and scripts"
+      - path: AegisLab-frontend/tsconfig.json
+        description: "TypeScript configuration with strict mode"
+    has_mock: false
+
+    tests: []
+
+    docs:
+      - path: AegisLab-frontend/CLAUDE.md
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: []
+    conflicts: []
+    notes: "API proxy in dev server points to backend. pnpm dev starts on port 3000."
+
+  - id: REQ-810
+    title: Detail View System
+    description: >
+      Reusable detail view component with tabbed layout for displaying injection
+      and execution details. Tabs include overview, files, artifacts, config tree,
+      charts, logs, fault injection panel, and ground truth table. Features a
+      JSON viewer and pipeline log streaming viewer for real-time log display.
+    priority: P1
+    status: implemented
+    confidence: confirmed
+    source: "AegisLab-frontend/src/components/workspace/DetailView/"
+
+    code: []
+
+    frontend:
+      - path: AegisLab-frontend/src/components/workspace/DetailView/DetailView.tsx
+        description: "Main detail view container with tab navigation"
+      - path: AegisLab-frontend/src/components/workspace/DetailView/DetailViewHeader.tsx
+        description: "Detail view header component"
+      - path: AegisLab-frontend/src/components/workspace/DetailView/tabs/OverviewTab.tsx
+        description: "Overview summary tab"
+      - path: AegisLab-frontend/src/components/workspace/DetailView/tabs/FilesTab.tsx
+        description: "Files listing tab"
+      - path: AegisLab-frontend/src/components/workspace/DetailView/tabs/ArtifactsTab.tsx
+        description: "Artifacts tab"
+      - path: AegisLab-frontend/src/components/workspace/DetailView/tabs/ConfigTree.tsx
+        description: "Configuration tree viewer"
+      - path: AegisLab-frontend/src/components/workspace/DetailView/tabs/ChartsTab.tsx
+        description: "Charts visualization tab"
+      - path: AegisLab-frontend/src/components/workspace/DetailView/tabs/LogsTab.tsx
+        description: "Logs tab"
+      - path: AegisLab-frontend/src/components/workspace/DetailView/tabs/LogViewer/LogViewer.tsx
+        description: "Log viewer component"
+      - path: AegisLab-frontend/src/components/workspace/DetailView/tabs/PipelineLogsViewer.tsx
+        description: "Real-time pipeline log streaming viewer"
+      - path: AegisLab-frontend/src/components/workspace/DetailView/tabs/FaultInjectionPanel.tsx
+        description: "Fault injection configuration display"
+      - path: AegisLab-frontend/src/components/workspace/DetailView/tabs/GroundTruthTable.tsx
+        description: "Ground truth data table"
+      - path: AegisLab-frontend/src/components/workspace/DetailView/tabs/JsonViewer.tsx
+        description: "JSON data viewer component"
+      - path: AegisLab-frontend/src/components/workspace/DetailView/tabs/ArrowViewer.tsx
+        description: "Apache Arrow IPC data viewer"
+    has_mock: false
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-806]
+    conflicts: []
+    notes: ""
+
+  - id: REQ-811
+    title: Frontend Utility Libraries
+    description: >
+      Shared utility functions and type definitions for the frontend application.
+      Includes ID/name resolution utilities, state management helpers, text
+      processing, workspace types, and API type definitions that match
+      backend entities exactly.
+    priority: P2
+    status: implemented
+    confidence: confirmed
+    source: "AegisLab-frontend/src/utils/, AegisLab-frontend/src/types/"
+
+    code: []
+
+    frontend:
+      - path: AegisLab-frontend/src/utils/idUtils.ts
+        description: "ID utility functions"
+      - path: AegisLab-frontend/src/utils/projectNameMap.ts
+        description: "Project name-to-ID mapping cache"
+      - path: AegisLab-frontend/src/utils/teamNameMap.ts
+        description: "Team name-to-ID mapping cache"
+      - path: AegisLab-frontend/src/utils/state.ts
+        description: "State utility functions"
+      - path: AegisLab-frontend/src/utils/textCrop.ts
+        description: "Text truncation utilities"
+      - path: AegisLab-frontend/src/types/api.ts
+        description: "TypeScript type definitions matching backend API exactly"
+      - path: AegisLab-frontend/src/types/workspace.ts
+        description: "Workspace-specific type definitions"
+    has_mock: false
+
+    tests: []
+    docs: []
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: []
+    conflicts:
+      - "types/api.ts has TODO comments about migrating hand-written types (Team, TeamMember, etc.) to SDK-generated types"
+    notes: "API types in api.ts must match backend snake_case field names exactly"
+
+# =============================================================================
+# Cross-Repo Audit Summary (2026-04-13)
+# =============================================================================
+#
+# RUNTIME BUGS:
+#   - teamApi.addMember sends {email} but backend expects {username} (REQ-004)
+#   - traceApi.getTrace calls GET /traces/:id which doesn't exist in backend
+#   - Team.member_count vs TeamDetailResp.user_count field mismatch (REQ-004)
+#
+# MOCK/STUB COUNT:
+#   - Frontend: 8 findings (3 HIGH, 4 MEDIUM, 1 LOW) across REQ-004/005/006/501/803/804
+#   - Backend: 6 findings (2 HIGH, 3 MEDIUM, 1 LOW) across REQ-100/400/501 + legacy monitor
+#   - has_mock: true requirements: REQ-004, REQ-005, REQ-006, REQ-501, REQ-803, REQ-804
+#
+# MISSING FRONTEND COVERAGE (25 backend endpoints):
+#   - /systems/* (7 endpoints) — Chaos Systems management, no frontend
+#   - /sdk/evaluations/* (4 endpoints) — SDK evaluations, no frontend
+#   - /system/audit/* (2 endpoints) — Audit log viewer, no frontend (REQ-007 conflict)
+#   - /system/configs/* (5 endpoints) — Dynamic config admin, no frontend
+#   - /system/health + /system/monitor/* (5 endpoints) — Health/monitor, no frontend
+#   - POST /injections/upload — Manual datapack upload, no frontend (REQ-104 conflict)
+#   - PUT /injections/:id/groundtruth — Ground truth editing, no frontend
+#
+# ORPHAN FRONTEND CALLS:
+#   - traceApi.getTrace(id) → GET /traces/:id (backend has no such endpoint)
+#
+# SDK USAGE:
+#   - @rcabench/client used for TYPE IMPORTS ONLY — all HTTP calls use raw axios
+#   - This means API path changes won't cause compile errors
+#
+# DATA INCONSISTENCIES:
+#   - Theme color: main.tsx uses #0ea5e9, CLAUDE.md says #2563eb (REQ-802)
+#   - Rate limit: comment says 100 req/min, code sets 1000 (REQ-008)
+#   - REQ-105: was marked 'implemented' but code is commented out → changed to 'disabled'
+#
+# TESTING GAP: 61/63 requirements have tests: [] — only REQ-001 and REQ-703 have tests
+# ACCEPTANCE GAP: 0/63 requirements have acceptance passed
