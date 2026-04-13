@@ -10,6 +10,26 @@ AegisLab (RCABench) is a comprehensive Root Cause Analysis (RCA) benchmarking pl
 
 ### Environment Setup
 
+1. **Install Nix** (devbox 的前置依赖):
+   ```bash
+   curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
+   ```
+
+2. **Install devbox**:
+   ```bash
+   curl -fsSL https://get.jetify.com/devbox | bash
+   ```
+
+3. **安装项目依赖**:
+   ```bash
+   devbox install
+   ```
+
+4. **激活 devbox 环境** (每次新开终端都需要):
+   ```bash
+   eval "$(devbox shellenv)"
+   ```
+
 - `make check-prerequisites` - Verify development dependencies (devbox, docker, helm, kubectl, kubectx)
 - `make setup-dev-env` - Bootstrap local development environment (installs uv, applies K8s manifests, installs Lefthook)
 
@@ -17,7 +37,9 @@ AegisLab (RCABench) is a comprehensive Root Cause Analysis (RCA) benchmarking pl
 
 - `docker compose up redis mysql jaeger buildkitd -d` - Start infrastructure services (REQUIRED before testing/building)
 - `make local-debug` - Start the Go application locally (runs `src/main.go both --port 8082`)
-- `cd src && go build -o /tmp/rcabench ./main.go` - Build the application binary
+- `cd src && go build -tags duckdb_arrow -o /tmp/rcabench ./main.go` - Build the application binary
+
+> **重要**: 编译必须加 `-tags duckdb_arrow`，因为 `duckdb-go/v2` 的 Arrow 接口使用了 `//go:build duckdb_arrow` 构建标签。不加此 tag 会报 `undefined: duckdb.NewArrowFromConn`。
 
 ### Testing
 

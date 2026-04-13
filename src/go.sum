@@ -34,8 +34,8 @@ github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERo
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
 github.com/Microsoft/hcsshim v0.12.8 h1:BtDWYlFMcWhorrvSSo2M7z0csPdw6t7no/C3FsSvqiI=
 github.com/Microsoft/hcsshim v0.12.8/go.mod h1:cibQ4BqhJ32FXDwPdQhKhwrwophnh3FuT4nwQZF907w=
-github.com/OperationsPAI/chaos-experiment v0.0.0-20260211063715-574f42f01f04 h1:vqjk+pE1B7Ht178rHAXPDHaR8ZJC5EQ326w8DEZSsjg=
-github.com/OperationsPAI/chaos-experiment v0.0.0-20260211063715-574f42f01f04/go.mod h1:ZoV7kF598u4qcqZ9r1a5A39jIOPDHfYaIRFBg/tFlnE=
+github.com/OperationsPAI/chaos-experiment v0.1.0 h1:3kcUPs65KK1kj7eA1RV5to6fQmToc1t/XzchPZobB6s=
+github.com/OperationsPAI/chaos-experiment v0.1.0/go.mod h1:VT6VOHM1GoOGNCz6coOltWsKbocJVheY7/fcvuheRxg=
 github.com/PuerkitoBio/purell v1.1.0/go.mod h1:c11w/QuzBsJSee3cPx9rAFu61PvFxuPbtSwDGJws/X0=
 github.com/PuerkitoBio/purell v1.1.1/go.mod h1:c11w/QuzBsJSee3cPx9rAFu61PvFxuPbtSwDGJws/X0=
 github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578/go.mod h1:uGdkoq3SwY9Y+13GIhn11/XLaGBb4BfwItxLd5jeuXE=

@@ -295,7 +295,7 @@ func ListTasks(db *gorm.DB, limit, offset int, filterOptions *dto.ListTaskFilter
 	var tasks []database.Task
 	var total int64
 
-	query := db.Model(&database.Task{}).Preload("Project")
+	query := db.Model(&database.Task{})
 	if filterOptions.Immediate != nil {
 		query = query.Where("immediate = ?", *filterOptions.Immediate)
 	}

@@ -103,6 +103,13 @@ func InitDB() {
 		// Dynamic configuration entities
 		&DynamicConfig{},
 		&ConfigHistory{},
+
+		// Evaluation entities
+		&Evaluation{},
+
+		// System registration entities
+		&System{},
+		&SystemMetadata{},
 	); err != nil {
 		logrus.Fatalf("Failed to migrate database: %v", err)
 	}

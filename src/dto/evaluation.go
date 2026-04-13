@@ -2,10 +2,61 @@ package dto
 
 import (
 	"aegis/config"
+	"aegis/database"
 	"fmt"
+	"time"
 
 	chaos "github.com/OperationsPAI/chaos-experiment/handler"
 )
+
+// =====================================================================
+// Evaluation CRUD DTOs
+// =====================================================================
+
+// ListEvaluationReq represents the request for listing evaluations
+type ListEvaluationReq struct {
+	PaginationReq
+}
+
+// EvaluationResp represents an evaluation in API responses
+type EvaluationResp struct {
+	ID               int       `json:"id"`
+	ProjectID        *int      `json:"project_id,omitempty"`
+	AlgorithmName    string    `json:"algorithm_name"`
+	AlgorithmVersion string    `json:"algorithm_version"`
+	DatapackName     string    `json:"datapack_name,omitempty"`
+	DatasetName      string    `json:"dataset_name,omitempty"`
+	DatasetVersion   string    `json:"dataset_version,omitempty"`
+	EvalType         string    `json:"eval_type"`
+	Precision        float64   `json:"precision"`
+	Recall           float64   `json:"recall"`
+	F1Score          float64   `json:"f1_score"`
+	Accuracy         float64   `json:"accuracy"`
+	ResultJSON       string    `json:"result_json,omitempty"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
+}
+
+// NewEvaluationResp creates an EvaluationResp from a database Evaluation
+func NewEvaluationResp(eval *database.Evaluation) *EvaluationResp {
+	return &EvaluationResp{
+		ID:               eval.ID,
+		ProjectID:        eval.ProjectID,
+		AlgorithmName:    eval.AlgorithmName,
+		AlgorithmVersion: eval.AlgorithmVersion,
+		DatapackName:     eval.DatapackName,
+		DatasetName:      eval.DatasetName,
+		DatasetVersion:   eval.DatasetVersion,
+		EvalType:         eval.EvalType,
+		Precision:        eval.Precision,
+		Recall:           eval.Recall,
+		F1Score:          eval.F1Score,
+		Accuracy:         eval.Accuracy,
+		ResultJSON:       eval.ResultJSON,
+		CreatedAt:        eval.CreatedAt,
+		UpdatedAt:        eval.UpdatedAt,
+	}
+}
 
 // Execution represents execution data for evaluation
 type Execution struct {

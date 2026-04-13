@@ -11,7 +11,8 @@
     "git-cliff@2.11.0",
     "lefthook@2.0.12",
     "kind@0.31.0",
-    "uv@0.9.24"
+    "uv@0.9.24",
+    "just@latest"
   ],
   "shell": {
     "init_hook": [

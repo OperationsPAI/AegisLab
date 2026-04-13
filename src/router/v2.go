@@ -488,6 +488,9 @@ func SetupV2Routes(router *gin.Engine) {
 			injectionSystemAdmin.POST("/search", v2handlers.SearchInjections) // Advanced search
 		}
 
+		// Manual upload (must be before /:id routes)
+		injections.POST("/upload", v2handlers.UploadDatapack) // Upload manual datapack
+
 		// Injection Read operations
 		injections.GET("/:id", v2handlers.GetInjection)                        // Get injection by ID
 		injections.GET("/:id/download", v2handlers.DownloadDatapack)           // Download injection datapack
@@ -499,7 +502,8 @@ func SetupV2Routes(router *gin.Engine) {
 		// Injection Clone operations
 		injections.POST("/:id/clone", v2handlers.CloneInjection) // Clone injection
 
-		// Injection Update operations (label management)
+		// Injection Update operations (label management, ground truth)
+		injections.PUT("/:id/groundtruth", v2handlers.UpdateGroundtruth)         // Update ground truth
 		injections.PATCH("/:id/labels", v2handlers.ManageInjectionCustomLabels)  // Manage injection custom labels
 		injections.PATCH("/labels/batch", v2handlers.BatchManageInjectionLabels) // Batch manage injection labels
 
@@ -568,11 +572,36 @@ func SetupV2Routes(router *gin.Engine) {
 	// Evaluation API Group
 	evaluations := v2.Group("/evaluations", middleware.JWTAuth())
 	{
+		// GET /api/v2/evaluations - List persisted evaluations with pagination
+		evaluations.GET("", v2handlers.ListEvaluations)
+
+		// GET /api/v2/evaluations/:id - Get a single evaluation by ID
+		evaluations.GET("/:id", v2handlers.GetEvaluation)
+
+		// DELETE /api/v2/evaluations/:id - Delete an evaluation by ID
+		evaluations.DELETE("/:id", v2handlers.DeleteEvaluation)
+
 		// POST /api/v2/evaluations/datasets - Get algorithm evaluations on multiple datasets (requires dataset read permission)
 		evaluations.POST("/datasets", middleware.RequireDatasetRead, v2handlers.ListDatasetEvaluationResults)
 
 		// POST /api/v2/evaluations/datapacks - Get algorithm evaluations on multiple datapacks (requires dataset read permission)
 		evaluations.POST("/datapacks", middleware.RequireDatasetRead, v2handlers.ListDatapackEvaluationResults)
+	}
+
+	// =====================================================================
+	// SDK Evaluation API Group (read-only access to Python SDK tables)
+	// =====================================================================
+
+	sdkEval := v2.Group("/sdk/evaluations", middleware.JWTAuth())
+	{
+		sdkEval.GET("", v2handlers.ListSDKEvaluations)
+		sdkEval.GET("/experiments", v2handlers.ListSDKExperiments)
+		sdkEval.GET("/:id", v2handlers.GetSDKEvaluation)
+	}
+
+	sdkData := v2.Group("/sdk/datasets", middleware.JWTAuth())
+	{
+		sdkData.GET("", v2handlers.ListSDKDatasetSamples)
 	}
 
 	// =====================================================================
@@ -585,6 +614,22 @@ func SetupV2Routes(router *gin.Engine) {
 		metrics.GET("/injections", v2handlers.GetInjectionMetrics) // Get injection metrics
 		metrics.GET("/executions", v2handlers.GetExecutionMetrics) // Get execution metrics
 		metrics.GET("/algorithms", v2handlers.GetAlgorithmMetrics) // Get algorithm comparison metrics
+	}
+
+	// =====================================================================
+	// Chaos Systems API Group
+	// =====================================================================
+
+	// Chaos System Management - System Entity
+	systems := v2.Group("/systems", middleware.JWTAuth())
+	{
+		systems.GET("", v2handlers.ListChaosSystemsHandler)
+		systems.POST("", v2handlers.CreateChaosSystemHandler)
+		systems.GET("/:id", v2handlers.GetChaosSystemHandler)
+		systems.PUT("/:id", v2handlers.UpdateChaosSystemHandler)
+		systems.DELETE("/:id", v2handlers.DeleteChaosSystemHandler)
+		systems.POST("/:id/metadata", v2handlers.UpsertChaosSystemMetadataHandler)
+		systems.GET("/:id/metadata", v2handlers.ListChaosSystemMetadataHandler)
 	}
 
 	// =====================================================================

@@ -548,20 +548,22 @@ type Task struct {
 
 // FaultInjectionSchedule model
 type FaultInjection struct {
-	ID            int              `gorm:"primaryKey;autoIncrement"`                                              // Unique identifier
-	Name          string           `gorm:"size:128;not null"`                                                     // Schedule name, add unique index
-	FaultType     chaos.ChaosType  `gorm:"not null;index:idx_fault_type_state"`                                   // Fault type, add composite index
-	Category      chaos.SystemType `gorm:"not null"`                                                              // System category
-	Description   string           `gorm:"type:text"`                                                             // Description
-	DisplayConfig *string          `gorm:"type:longtext"`                                                         // User-facing display configuration
-	EngineConfig  string           `gorm:"type:longtext;not null"`                                                // System-facing runtime configuration
-	Groundtruths  []Groundtruth    `gorm:"type:json;serializer:json"`                                             // Expected impact groundtruth (service, pod, container, metric, function, span)
-	PreDuration   int              `gorm:"not null"`                                                              // Normal data duration
-	StartTime     *time.Time       `gorm:"check:start_time IS NULL OR end_time IS NULL OR start_time < end_time"` // Expected fault start time, nullable with validation
-	EndTime       *time.Time       // Expected fault end time, nullable
-	BenchmarkID   int              `gorm:"not null;index:idx_fault_bench_ped"` // Associated benchmark ID, add index
-	PedestalID    int              `gorm:"not null;index:idx_fault_bench_ped"` // Associated pedestal ID, add index
-	TaskID        *string          `gorm:"index;size:64"`                      // Associated task ID, add composite index
+	ID                int                   `gorm:"primaryKey;autoIncrement"`                                              // Unique identifier
+	Name              string                `gorm:"size:128;not null"`                                                     // Schedule name, add unique index
+	Source            consts.DatapackSource `gorm:"size:32;not null;default:'injection'"`                                  // Data source: injection or manual
+	FaultType         chaos.ChaosType       `gorm:"not null;index:idx_fault_type_state"`                                   // Fault type, add composite index
+	Category          chaos.SystemType      `gorm:"not null"`                                                              // System category
+	Description       string                `gorm:"type:text"`                                                             // Description
+	DisplayConfig     *string               `gorm:"type:longtext"`                                                         // User-facing display configuration
+	EngineConfig      string                `gorm:"type:longtext;not null"`                                                // System-facing runtime configuration
+	Groundtruths      []Groundtruth         `gorm:"type:json;serializer:json"`                                             // Expected impact groundtruth (service, pod, container, metric, function, span)
+	GroundtruthSource string                `gorm:"size:32;not null;default:'auto'" json:"groundtruth_source"`             // Ground truth source: auto, manual, imported
+	PreDuration       int                   `gorm:"not null"`                                                              // Normal data duration
+	StartTime         *time.Time            `gorm:"check:start_time IS NULL OR end_time IS NULL OR start_time < end_time"` // Expected fault start time, nullable with validation
+	EndTime           *time.Time            // Expected fault end time, nullable
+	BenchmarkID       *int                  `gorm:"index:idx_fault_bench_ped"` // Associated benchmark ID, nullable for manual uploads
+	PedestalID        *int                  `gorm:"index:idx_fault_bench_ped"` // Associated pedestal ID, nullable for manual uploads
+	TaskID            *string               `gorm:"index;size:64"`             // Associated task ID, add composite index
 
 	State     consts.DatapackState `gorm:"not null;default:0;index:idx_fault_type_state"` // Datapack state
 	Status    consts.StatusType    `gorm:"not null;default:1;index"`                      // Status: -1:deleted 0:disabled 1:enabled
@@ -569,8 +571,8 @@ type FaultInjection struct {
 	UpdatedAt time.Time            `gorm:"autoUpdateTime"`                                // Update time (removed index - rarely queried)
 
 	// Foreign key association with cascade
-	Benchmark *ContainerVersion `gorm:"foreignKey:BenchmarkID;constraint:OnDelete:RESTRICT"`
-	Pedestal  *ContainerVersion `gorm:"foreignKey:PedestalID;constraint:OnDelete:RESTRICT"`
+	Benchmark *ContainerVersion `gorm:"foreignKey:BenchmarkID;constraint:OnDelete:SET NULL"`
+	Pedestal  *ContainerVersion `gorm:"foreignKey:PedestalID;constraint:OnDelete:SET NULL"`
 	Task      *Task             `gorm:"foreignKey:TaskID;constraint:OnDelete:CASCADE"`
 
 	// Many-to-many relationship with labels
@@ -633,6 +635,36 @@ type GranularityResult struct {
 
 	// Foreign key association
 	Execution *Execution `gorm:"foreignKey:ExecutionID;constraint:OnDelete:CASCADE"`
+}
+
+// =====================================================================
+// System Registration Entities
+// =====================================================================
+
+// System represents a registered chaos system (e.g., train-ticket, sock-shop)
+type System struct {
+	ID             int               `gorm:"primaryKey;autoIncrement"`
+	Name           string            `gorm:"not null;size:64;uniqueIndex"`
+	DisplayName    string            `gorm:"not null;size:128"`
+	NsPattern      string            `gorm:"not null;size:256"`
+	ExtractPattern string            `gorm:"not null;size:256"`
+	Count          int               `gorm:"not null;default:1"`
+	Description    string            `gorm:"type:text"`
+	IsBuiltin      bool              `gorm:"not null;default:false"`
+	Status         consts.StatusType `gorm:"not null;default:1;index"`
+	CreatedAt      time.Time         `gorm:"autoCreateTime"`
+	UpdatedAt      time.Time         `gorm:"autoUpdateTime"`
+}
+
+// SystemMetadata stores per-system metadata (service endpoints, java methods, etc.)
+type SystemMetadata struct {
+	ID           int       `gorm:"primaryKey;autoIncrement"`
+	SystemName   string    `gorm:"not null;size:64;index:idx_system_meta,priority:1"`
+	MetadataType string    `gorm:"not null;size:64;index:idx_system_meta,priority:2"`
+	ServiceName  string    `gorm:"not null;size:256;index:idx_system_meta,priority:3"`
+	Data         string    `gorm:"type:json;not null"`
+	CreatedAt    time.Time `gorm:"autoCreateTime"`
+	UpdatedAt    time.Time `gorm:"autoUpdateTime"`
 }
 
 // =====================================================================
@@ -818,6 +850,26 @@ type RolePermission struct {
 	// Foreign key association
 	Role       *Role       `gorm:"foreignKey:RoleID"`
 	Permission *Permission `gorm:"foreignKey:PermissionID"`
+}
+
+// Evaluation represents a persisted evaluation result
+type Evaluation struct {
+	ID               int               `gorm:"primaryKey;autoIncrement"`
+	ProjectID        *int              `gorm:"index"`
+	AlgorithmName    string            `gorm:"not null;size:128"`
+	AlgorithmVersion string            `gorm:"not null;size:32"`
+	DatapackName     string            `gorm:"size:128"`
+	DatasetName      string            `gorm:"size:128"`
+	DatasetVersion   string            `gorm:"size:32"`
+	EvalType         string            `gorm:"not null;size:16"`
+	Precision        float64           `gorm:"not null;default:0"`
+	Recall           float64           `gorm:"not null;default:0"`
+	F1Score          float64           `gorm:"not null;default:0"`
+	Accuracy         float64           `gorm:"not null;default:0"`
+	ResultJSON       string            `gorm:"type:text"`
+	Status           consts.StatusType `gorm:"not null;default:1;index"`
+	CreatedAt        time.Time         `gorm:"autoCreateTime"`
+	UpdatedAt        time.Time         `gorm:"autoUpdateTime"`
 }
 
 // UserPermission User direct permission table (supplements role permissions, supports special permission assignment)

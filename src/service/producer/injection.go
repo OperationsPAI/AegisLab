@@ -11,7 +11,6 @@ import (
 	"aegis/utils"
 	"archive/zip"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -24,8 +23,6 @@ import (
 	"time"
 
 	chaos "github.com/OperationsPAI/chaos-experiment/handler"
-	"github.com/apache/arrow-go/v18/arrow/ipc"
-	"github.com/duckdb/duckdb-go/v2"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -103,6 +100,16 @@ func CreateInjection(injection *database.FaultInjection, labelItems []dto.LabelI
 
 		return nil
 	})
+}
+
+// UpdateGroundtruth updates the ground truth for an existing injection
+func UpdateGroundtruth(id int, req *dto.UpdateGroundtruthReq) error {
+	// Verify injection exists
+	_, err := repository.GetInjectionByID(database.DB, id)
+	if err != nil {
+		return err
+	}
+	return repository.UpdateGroundtruth(database.DB, id, req.Groundtruths, consts.GroundtruthSourceManual)
 }
 
 // GetInjectionDetail retrieves detailed information about a specific fault injection
@@ -419,87 +426,6 @@ func DownloadDatapackFile(datapackID int, filePath string) (string, string, int6
 	}
 
 	return fileName, contentType, stat.Size(), file, nil
-}
-
-// QueryDatapackFileContent reads a parquet file and returns it along with file size
-func QueryDatapackFileContent(ctx context.Context, datapackID int, filePath string) (string, int64, io.ReadCloser, error) {
-	fullPath, err := getFileFullPath(datapackID, filePath)
-	if err != nil {
-		return "", 0, nil, fmt.Errorf("invalid file path: %w", err)
-	}
-	if filepath.Ext(fullPath) != ".parquet" {
-		return "", 0, nil, fmt.Errorf("file is not a parquet file: %s", filePath)
-	}
-
-	connector, err := duckdb.NewConnector("", nil)
-	if err != nil {
-		return "", 0, nil, err
-	}
-
-	countConn, err := connector.Connect(ctx)
-	if err != nil {
-		logrus.Errorf("connect failed: %v", err)
-		return "", 0, nil, err
-	}
-	defer func() { _ = countConn.Close() }()
-
-	var totalRows int64
-	countQuery := fmt.Sprintf("SELECT count(*) FROM read_parquet('%s')", fullPath)
-
-	db := sql.OpenDB(connector)
-	if err := db.QueryRowContext(ctx, countQuery).Scan(&totalRows); err != nil {
-		return "", 0, nil, err
-	}
-
-	// Inspect schema and build a SELECT that casts unsupported unsigned integer types
-	safeSQL, err := buildSafeParquetSQL(ctx, db, fullPath)
-	if err != nil {
-		return "", 0, nil, fmt.Errorf("failed to build safe parquet SQL: %w", err)
-	}
-
-	pr, pw := io.Pipe()
-	go func() {
-		defer func() { _ = pw.Close() }()
-
-		conn, err := connector.Connect(ctx)
-		if err != nil {
-			logrus.Errorf("connect failed: %v", err)
-			return
-		}
-		defer func() { _ = conn.Close() }()
-
-		arrow, err := duckdb.NewArrowFromConn(conn)
-		if err != nil {
-			logrus.Errorf("failed to get arrow interface: %v", err)
-			return
-		}
-
-		rdr, err := arrow.QueryContext(ctx, safeSQL)
-		if err != nil {
-			logrus.Errorf("query context failed: %v", err)
-			return
-		}
-		defer rdr.Release()
-
-		writer := ipc.NewWriter(pw, ipc.WithSchema(rdr.Schema()), ipc.WithZstd())
-		defer func() { _ = writer.Close() }()
-
-		for rdr.Next() {
-			record := rdr.RecordBatch()
-			if err := writer.Write(record); err != nil {
-				logrus.Errorf("failed to write arrow record: %v", err)
-				record.Release()
-				break
-			}
-			record.Release()
-		}
-
-		if err := rdr.Err(); err != nil {
-			logrus.Errorf("reader error: %v", err)
-		}
-	}()
-
-	return filepath.Base(fullPath), totalRows, pr, nil
 }
 
 // ListInjectionsNoissues handles the request to list fault injections without issues
@@ -1195,12 +1121,12 @@ func parseBatchInjectionSpecs(ctx context.Context, pedestal string, batchIndex i
 	uniqueServices := make(map[string]int, len(nodes))
 	var duplicateServiceWarnings []string
 	for idx, node := range nodes {
-		conf, err := chaos.NodeToStruct[chaos.InjectionConf](ctx, &node)
+		conf, err := chaos.NodeToStruct[chaos.InjectionConf](&node)
 		if err != nil {
 			return nil, "", fmt.Errorf("failed to convert node to InjectionConf at index %d: %w", idx, err)
 		}
 
-		groundtruth, err := conf.GetGroundtruth(ctx)
+		groundtruth, err := conf.GetGroundtruth()
 		if err != nil {
 			return nil, "", fmt.Errorf("failed to get groundtruth from InjectionConf at index %d: %w", idx, err)
 		}
@@ -1438,81 +1364,7 @@ func buildFileTree(workDir, relPath string, baseURL string, datapackID int, resp
 	return items, nil
 }
 
-// buildSafeParquetSQL inspects the parquet file schema via DuckDB DESCRIBE and builds
-// a SELECT query that casts unsupported Arrow types (unsigned integers like UBIGINT)
-// to compatible signed types, avoiding "Unsupported type 'uint64'" errors in Arrow IPC.
-func buildSafeParquetSQL(ctx context.Context, db *sql.DB, filePath string) (string, error) {
-	unsupportedCast := map[string]string{
-		"UTINYINT":  "SMALLINT", // uint8  -> int16
-		"USMALLINT": "INTEGER",  // uint16 -> int32
-		"UINTEGER":  "INTEGER",  // uint32 -> int32
-		"UBIGINT":   "INTEGER",  // uint64 -> int32 (values > 2^63-1 will overflow)
-	}
-
-	fallbackSQL := fmt.Sprintf("SELECT * FROM read_parquet('%s')", filePath)
-
-	describeQuery := fmt.Sprintf("DESCRIBE SELECT * FROM read_parquet('%s')", filePath)
-	rows, err := db.QueryContext(ctx, describeQuery)
-	if err != nil {
-		logrus.Warnf("failed to describe parquet file, falling back to SELECT *: %v", err)
-		return fallbackSQL, nil
-	}
-	defer func() { _ = rows.Close() }()
-
-	colDescs, err := rows.ColumnTypes()
-	if err != nil {
-		logrus.Warnf("failed to get DESCRIBE column types, falling back to SELECT *: %v", err)
-		return fallbackSQL, nil
-	}
-	scanArgs := make([]any, len(colDescs))
-	for i := range scanArgs {
-		scanArgs[i] = new(sql.NullString)
-	}
-
-	var columns []string
-	needsCast := false
-
-	for rows.Next() {
-		if err := rows.Scan(scanArgs...); err != nil {
-			logrus.Warnf("failed to scan DESCRIBE row, falling back to SELECT *: %v", err)
-			return fallbackSQL, nil
-		}
-
-		colName := scanArgs[0].(*sql.NullString).String
-		colType := scanArgs[1].(*sql.NullString).String
-
-		upperColType := strings.ToUpper(colType)
-
-		// Check if it's an array type (ends with [])
-		isArray := strings.HasSuffix(upperColType, "[]")
-		baseType := upperColType
-		if isArray {
-			baseType = strings.TrimSuffix(upperColType, "[]")
-		}
-
-		if castType, ok := unsupportedCast[baseType]; ok {
-			targetType := castType
-			if isArray {
-				targetType = castType + "[]"
-			}
-			columns = append(columns, fmt.Sprintf("CAST(\"%s\" AS %s) AS \"%s\"", colName, targetType, colName))
-			needsCast = true
-			logrus.Infof("parquet column %q: casting %s -> %s", colName, colType, targetType)
-		} else {
-			columns = append(columns, fmt.Sprintf("\"%s\"", colName))
-		}
-	}
-
-	if !needsCast || len(columns) == 0 {
-		return fallbackSQL, nil
-	}
-
-	safeSQL := fmt.Sprintf("SELECT %s FROM read_parquet('%s')", strings.Join(columns, ", "), filePath)
-	logrus.Infof("parquet query uses type casting: %s", safeSQL)
-	return safeSQL, nil
-}
-
-// formatFileSize formats bytes to human readable format (KB or MB) with one decimal place
+// formatFileSize formats bytes to human readable format (KB or MB) with one decimal place.
 func formatFileSize(bytes int64) string {
 	const (
 		KB = 1024
@@ -1543,7 +1395,6 @@ func getFileFullPath(datapackID int, filePath string) (string, error) {
 		return "", fmt.Errorf("invalid path access to %s", workDir)
 	}
 
-	// Clean and validate the file path
 	cleanPath := filepath.Clean(filePath)
 	fullPath := filepath.Join(workDir, cleanPath)
 

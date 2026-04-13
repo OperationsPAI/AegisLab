@@ -286,7 +286,7 @@ func (qb *SearchQueryBuilder[F]) sanitizeFieldName(field string) string {
 		return ""
 	}
 	for _, c := range field {
-		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '.') {
+		if (c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && (c < '0' || c > '9') && c != '_' && c != '.' {
 			return ""
 		}
 	}

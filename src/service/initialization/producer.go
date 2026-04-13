@@ -47,6 +47,9 @@ func InitializeProducer(ctx context.Context) {
 		logrus.Info("Initial system data for producer already seeded, skipping initialization")
 	}
 
+	// Initialize systems (seed builtins, register with chaos-experiment, set MetadataStore)
+	InitializeSystems()
+
 	registerHandlers(ctx, producerData.scope, nil)
 }
 

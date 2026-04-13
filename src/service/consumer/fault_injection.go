@@ -140,17 +140,17 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 		groundtruths := make([]database.Groundtruth, 0, len(payload.nodes))
 
 		for i, node := range payload.nodes {
-			injectionConf, err := chaos.NodeToStruct[chaos.InjectionConf](childCtx, &node)
+			injectionConf, err := chaos.NodeToStruct[chaos.InjectionConf](&node)
 			if err != nil {
 				return handleExecutionError(span, logEntry, fmt.Sprintf("failed to convert node %d to injection conf", i), err)
 			}
 
-			displayMap, err := injectionConf.GetDisplayConfig(childCtx)
+			displayMap, err := injectionConf.GetDisplayConfig()
 			if err != nil {
 				return handleExecutionError(span, logEntry, fmt.Sprintf("failed to get display config for node %d", i), err)
 			}
 
-			chaosGroundtruth, err := injectionConf.GetGroundtruth(childCtx)
+			chaosGroundtruth, err := injectionConf.GetGroundtruth()
 			if err != nil {
 				return handleExecutionError(span, logEntry, fmt.Sprintf("failed to get groundtruth for node %d", i), err)
 			}
@@ -213,19 +213,20 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 
 		return database.DB.Transaction(func(tx *gorm.DB) error {
 			injection := &database.FaultInjection{
-				Name:          name,
-				FaultType:     faultType,
-				Category:      payload.pedestal,
-				Description:   fmt.Sprintf("Fault batch for task %s (%d faults)", task.TaskID, len(payload.nodes)),
-				DisplayConfig: utils.StringPtr(string(displayData)),
-				EngineConfig:  string(engineData),
-				Groundtruths:  groundtruths,
-				PreDuration:   payload.preDuration,
-				State:         consts.DatapackInitial,
-				Status:        consts.CommonEnabled,
-				TaskID:        &task.TaskID,
-				BenchmarkID:   payload.benchmark.ID,
-				PedestalID:    payload.pedestalID,
+				Name:              name,
+				FaultType:         faultType,
+				Category:          payload.pedestal,
+				Description:       fmt.Sprintf("Fault batch for task %s (%d faults)", task.TaskID, len(payload.nodes)),
+				DisplayConfig:     utils.StringPtr(string(displayData)),
+				EngineConfig:      string(engineData),
+				Groundtruths:      groundtruths,
+				GroundtruthSource: consts.GroundtruthSourceAuto,
+				PreDuration:       payload.preDuration,
+				State:             consts.DatapackInitial,
+				Status:            consts.CommonEnabled,
+				TaskID:            &task.TaskID,
+				BenchmarkID:       utils.IntPtr(payload.benchmark.ID),
+				PedestalID:        utils.IntPtr(payload.pedestalID),
 			}
 
 			if err = repository.CreateInjection(database.DB, injection); err != nil {

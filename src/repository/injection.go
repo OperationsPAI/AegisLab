@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -212,6 +213,27 @@ func ListInjectionIDsByNames(db *gorm.DB, names []string) (map[string]int, error
 	}
 
 	return result, nil
+}
+
+// UpdateGroundtruth updates ground truth and its source for an injection
+func UpdateGroundtruth(db *gorm.DB, id int, groundtruths []database.Groundtruth, source string) error {
+	gtJSON, err := json.Marshal(groundtruths)
+	if err != nil {
+		return fmt.Errorf("failed to marshal groundtruths: %w", err)
+	}
+	result := db.Model(&database.FaultInjection{}).
+		Where("id = ? AND status != ?", id, consts.CommonDeleted).
+		Updates(map[string]interface{}{
+			"groundtruths":      string(gtJSON),
+			"groundtruth_source": source,
+		})
+	if result.Error != nil {
+		return fmt.Errorf("failed to update groundtruth for injection %d: %w", id, result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("injection with id %d: %w", id, consts.ErrNotFound)
+	}
+	return nil
 }
 
 // UpdateInjection updates fields of a fault injection record
