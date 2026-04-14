@@ -15,7 +15,8 @@ import (
 // GetMetrics handles monitoring metrics query
 //
 //	@Summary		Get monitoring metrics
-//	@Description	Query monitoring metrics for system performance
+//	@Description	Deprecated: This endpoint returns hardcoded/fabricated data. Use the v2 equivalent GET /api/v2/system/metrics which provides real system metrics via gopsutil.
+//	@Deprecated
 //	@Tags			System
 //	@Accept			json
 //	@Produce		json
@@ -34,7 +35,10 @@ func GetMetrics(c *gin.Context) {
 		return
 	}
 
-	// TODO: Implement real metrics querying from monitoring system
+	// Deprecated: returns hardcoded data. Use GET /api/v2/system/metrics instead.
+	c.Header("Deprecation", "true")
+	c.Header("Link", `</api/v2/system/metrics>; rel="successor-version"`)
+
 	metrics := map[string]dto.MetricValue{
 		"cpu_usage": {
 			Value:     25.5,
@@ -75,7 +79,8 @@ func GetMetrics(c *gin.Context) {
 // GetSystemInfo handles basic system information
 //
 //	@Summary		Get system information
-//	@Description	Get basic system information and status
+//	@Description	Deprecated: This endpoint returns partially hardcoded data. Use the v2 equivalent GET /api/v2/system/metrics which provides real system metrics via gopsutil.
+//	@Deprecated
 //	@Tags			System
 //	@Produce		json
 //	@Security		BearerAuth
@@ -88,7 +93,10 @@ func GetSystemInfo(c *gin.Context) {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
 
-	// TODO : Implement real system info retrieval
+	// Deprecated: returns partially hardcoded data. Use GET /api/v2/system/metrics instead.
+	c.Header("Deprecation", "true")
+	c.Header("Link", `</api/v2/system/metrics>; rel="successor-version"`)
+
 	info := dto.SystemInfo{
 		CPUUsage:    25.5,
 		MemoryUsage: float64(memStats.Alloc) / float64(memStats.Sys) * 100,

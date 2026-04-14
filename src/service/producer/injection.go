@@ -179,7 +179,7 @@ func CloneInjection(injectionID int, req *dto.CloneInjectionReq) (*dto.Injection
 	return dto.NewInjectionDetailResp(cloned), nil
 }
 
-// GetInjectionLogs retrieves execution logs for an injection
+// GetInjectionLogs retrieves execution logs for an injection from Loki
 func GetInjectionLogs(injectionID int) (*dto.InjectionLogsResp, error) {
 	injection, err := repository.GetInjectionByID(database.DB, injectionID)
 	if err != nil {
@@ -196,8 +196,34 @@ func GetInjectionLogs(injectionID int) (*dto.InjectionLogsResp, error) {
 
 	if injection.TaskID != nil {
 		resp.TaskID = *injection.TaskID
-		// TODO: Implement actual log retrieval from task execution
-		// For now, return empty logs as placeholder
+
+		// Query historical logs from Loki
+		lokiCtx, lokiCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer lokiCancel()
+
+		task, taskErr := repository.GetTaskByID(database.DB, *injection.TaskID)
+		if taskErr != nil {
+			logrus.Warnf("Failed to get task %s for log retrieval: %v", *injection.TaskID, taskErr)
+			return resp, nil
+		}
+
+		lokiClient := client.NewLokiClient()
+		queryOpts := client.QueryOpts{
+			Start:     task.CreatedAt,
+			Direction: "forward",
+		}
+
+		logEntries, lokiErr := lokiClient.QueryJobLogs(lokiCtx, *injection.TaskID, queryOpts)
+		if lokiErr != nil {
+			logrus.Warnf("Failed to query Loki for injection %d logs: %v", injectionID, lokiErr)
+			return resp, nil
+		}
+
+		logs := make([]string, 0, len(logEntries))
+		for _, entry := range logEntries {
+			logs = append(logs, entry.Line)
+		}
+		resp.Logs = logs
 	}
 
 	return resp, nil

@@ -61,7 +61,7 @@ func BatchDeleteTasks(taskIDs []string) error {
 	return nil
 }
 
-// GetTaskDetail retrieves detailed information about a specific task
+// GetTaskDetail retrieves detailed information about a specific task, including historical logs from Loki
 func GetTaskDetail(taskID string) (*dto.TaskDetailResp, error) {
 	task, err := repository.GetTaskByID(database.DB, taskID)
 	if err != nil {
@@ -71,8 +71,32 @@ func GetTaskDetail(taskID string) (*dto.TaskDetailResp, error) {
 		return nil, fmt.Errorf("failed to get task: %w", err)
 	}
 
-	// TODO logs retrieval can be added later
-	resp := dto.NewTaskDetailResp(task, []string{})
+	// Query historical logs from Loki
+	var logs []string
+	lokiCtx, lokiCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer lokiCancel()
+
+	lokiClient := client.NewLokiClient()
+	queryOpts := client.QueryOpts{
+		Start:     task.CreatedAt,
+		Direction: "forward",
+	}
+
+	logEntries, lokiErr := lokiClient.QueryJobLogs(lokiCtx, taskID, queryOpts)
+	if lokiErr != nil {
+		logrus.Warnf("Failed to query Loki for task %s logs: %v", taskID, lokiErr)
+	} else {
+		logs = make([]string, 0, len(logEntries))
+		for _, entry := range logEntries {
+			logs = append(logs, entry.Line)
+		}
+	}
+
+	if logs == nil {
+		logs = []string{}
+	}
+
+	resp := dto.NewTaskDetailResp(task, logs)
 	return resp, nil
 }
 

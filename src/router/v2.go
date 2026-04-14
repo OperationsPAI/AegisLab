@@ -494,6 +494,7 @@ func SetupV2Routes(router *gin.Engine) {
 		// Injection Read operations
 		injections.GET("/:id", v2handlers.GetInjection)                        // Get injection by ID
 		injections.GET("/:id/download", v2handlers.DownloadDatapack)           // Download injection datapack
+		injections.GET("/:id/logs", v2handlers.GetInjectionLogs)                // Get injection execution logs
 		injections.GET("/:id/files", v2handlers.ListDatapackFiles)             // Get injection file structure
 		injections.GET("/:id/files/download", v2handlers.DownloadDatapackFile) // Download specific injection file
 		injections.GET("/:id/files/query", v2handlers.QueryDatapackFile)       // Query parquet file content
@@ -537,6 +538,7 @@ func SetupV2Routes(router *gin.Engine) {
 	traces := v2.Group("/traces", middleware.JWTAuth())
 	{
 		traces.GET("", v2handlers.ListTraces)                      // List traces
+		traces.GET("/:trace_id", v2handlers.GetTrace)              // Get trace by ID
 		traces.GET("/:trace_id/stream", v2handlers.GetTraceStream) // Get trace stream (SSE)
 	}
 

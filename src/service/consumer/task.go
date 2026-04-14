@@ -316,7 +316,7 @@ func executeTaskWithRetry(ctx context.Context, task *dto.UnifiedTask) {
 	span := trace.SpanFromContext(ctx)
 
 	errs := make([]error, 0)
-	// TODO Task backoff
+	// Fixed-interval backoff using RetryPolicy.BackoffSec between attempts
 	for attempt := 0; attempt <= task.RetryPolicy.MaxAttempts; attempt++ {
 		if attempt > 0 {
 			select {
