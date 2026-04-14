@@ -209,13 +209,17 @@ func validateColor(color *string) error {
 	return nil
 }
 
-// validateKeyAndValue checks if the label key and value are not empty
+// validateKeyAndValue checks label key and value consistency.
+// Both empty is allowed (list all labels). If one is provided, the other must also be provided.
 func validateKeyAndValue(key, value string) error {
+	if key == "" && value == "" {
+		return nil
+	}
 	if key == "" {
-		return fmt.Errorf("label key cannot be empty")
+		return fmt.Errorf("label key cannot be empty when value is provided")
 	}
 	if value == "" {
-		return fmt.Errorf("label value cannot be empty")
+		return fmt.Errorf("label value cannot be empty when key is provided")
 	}
 	return nil
 }

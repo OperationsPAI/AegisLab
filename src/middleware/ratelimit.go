@@ -87,10 +87,10 @@ func (rl *RateLimiter) Cleanup() {
 
 // Global rate limiters
 var (
-	// General API rate limiter: 100 requests per minute
+	// General API rate limiter: 1000 requests per minute
 	generalLimiter = NewRateLimiter(1000, time.Minute)
 
-	// Authentication rate limiter: 10 login attempts per minute
+	// Authentication rate limiter: 100 login attempts per minute
 	authLimiter = NewRateLimiter(100, time.Minute)
 
 	// Strict rate limiter: 20 requests per minute for sensitive operations

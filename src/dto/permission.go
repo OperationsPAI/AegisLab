@@ -73,8 +73,10 @@ func (req *ListPermissionReq) Validate() error {
 	if err := req.PaginationReq.Validate(); err != nil {
 		return err
 	}
-	if _, exists := consts.ValidActions[req.Action]; !exists {
-		return fmt.Errorf("invalid action: %s", req.Action)
+	if req.Action != "" {
+		if _, exists := consts.ValidActions[req.Action]; !exists {
+			return fmt.Errorf("invalid action: %s", req.Action)
+		}
 	}
 	if req.Status != nil {
 		return validateStatusField(req.Status, false)

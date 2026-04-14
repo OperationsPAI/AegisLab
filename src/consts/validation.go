@@ -125,9 +125,11 @@ var ValidLabelCategories = map[LabelCategory]struct{}{
 }
 
 var ValidPageSizes = map[PageSize]struct{}{
+	PageSizeTiny:   {},
 	PageSizeSmall:  {},
 	PageSizeMedium: {},
 	PageSizeLarge:  {},
+	PageSizeXLarge: {},
 }
 
 var ValidParameterTypes = map[ParameterType]struct{}{

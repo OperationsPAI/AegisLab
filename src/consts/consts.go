@@ -228,6 +228,7 @@ const (
 	PageSizeSmall  PageSize = 10
 	PageSizeMedium PageSize = 20
 	PageSizeLarge  PageSize = 50
+	PageSizeXLarge PageSize = 100
 )
 
 type TaskExtra string
