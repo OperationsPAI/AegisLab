@@ -2,13 +2,13 @@ name = "AegisLab"
 version = "1.0.0"
 
 port = 8082
-workspace = "/home/ddq/AoyangSpace/aegis/AegisLab"
+workspace = "/home/ddq/.openase/workspace/ca4888d9-24f5-4106-8bdd-1fc2a87492fc/rcabench/conv-0acb4ced-e008-4518-b244-498e9f78ec5c/AegisLab"
 
 [system]
 timezone = "Asia/Shanghai"
 
 [initialization]
-data_path = "/home/ddq/AoyangSpace/aegis/AegisLab/data/initial_data/staging"
+data_path = "/home/ddq/.openase/workspace/ca4888d9-24f5-4106-8bdd-1fc2a87492fc/rcabench/conv-0acb4ced-e008-4518-b244-498e9f78ec5c/AegisLab/data/initial_data/staging"
 
 [database.mysql]
 host = "localhost"
@@ -53,7 +53,7 @@ source_type = "pvc"
 claim_name = "rcabench-juicefs-experiment-storage"
 
 [jfs]
-container_path = "/home/ddq/AoyangSpace/aegis/AegisLab/containers"
+container_path = "/home/ddq/.openase/workspace/ca4888d9-24f5-4106-8bdd-1fc2a87492fc/rcabench/conv-0acb4ced-e008-4518-b244-498e9f78ec5c/AegisLab/containers"
 dataset_path = "/tmp/aegislab/dataset"
 experiment_storage_path = "/tmp/aegislab/experiment_storage"
 

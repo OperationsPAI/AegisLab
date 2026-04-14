@@ -208,7 +208,7 @@ requirements:
         description: "Hook for team context from URL params"
       - path: AegisLab-frontend/src/components/teams/TeamSidebar.tsx
         description: "Team sidebar component"
-    has_mock: true
+    has_mock: false
 
     tests: []
     docs: []
@@ -219,11 +219,10 @@ requirements:
       notes: ""
 
     depends_on: [REQ-001, REQ-003]
-    conflicts:
-      - "BUG: teamApi.addMember sends {email, role_id} but backend AddTeamMemberReq expects {username, role_id} — will fail at runtime"
-      - "Type mismatch: frontend Team.member_count vs backend TeamDetailResp.user_count"
-      - "Star toggle in teams/ProjectsTab.tsx is a no-op stub"
-    notes: ""
+    conflicts: []
+    notes: >
+      FIXED (2026-04-13): addMember now sends {username, role_id}. Star toggle removed.
+      member_count maps from backend user_count via useTeamContext hook.
 
   - id: REQ-005
     title: Project Management
@@ -263,7 +262,7 @@ requirements:
         description: "Hook for project context from URL params"
       - path: AegisLab-frontend/src/utils/projectNameMap.ts
         description: "localStorage-based name-to-ID cache for project URL resolution"
-    has_mock: true
+    has_mock: false
 
     tests: []
     docs: []
@@ -275,9 +274,8 @@ requirements:
 
     depends_on: [REQ-001, REQ-003, REQ-004]
     conflicts:
-      - "Star toggle in ProjectList.tsx is a no-op stub"
       - "totalExperiments stat hardcoded to 0 (TODO: needs API support)"
-    notes: ""
+    notes: "FIXED (2026-04-13): Star toggle removed from ProjectList."
 
   - id: REQ-006
     title: Label System
@@ -303,7 +301,7 @@ requirements:
         description: "Labels API client"
       - path: AegisLab-frontend/src/components/workspace/AddLabelDropdown.tsx
         description: "Dropdown component for adding labels to workspace items"
-    has_mock: true
+    has_mock: false
 
     tests: []
     docs: []
@@ -314,9 +312,10 @@ requirements:
       notes: ""
 
     depends_on: []
-    conflicts:
-      - "AddLabelDropdown.tsx uses getMockLabelSuggestions() with hardcoded label key/value suggestions instead of fetching from API"
-    notes: "Labels use ActiveKeyValue virtual column for uniqueness enforcement"
+    conflicts: []
+    notes: >
+      Labels use ActiveKeyValue virtual column for uniqueness enforcement.
+      FIXED (2026-04-13): AddLabelDropdown now fetches real labels via GET /api/v2/labels.
 
   - id: REQ-007
     title: Audit Logging
@@ -384,7 +383,7 @@ requirements:
 
     depends_on: []
     conflicts: []
-    notes: "Comment says '100 requests per minute' for general but code actually sets 1000"
+    notes: "Most comment/code mismatches fixed (2026-04-13). Remaining: GeneralRateLimit var comment still says '100 requests per minute per IP' but code sets 1000."
 
   - id: REQ-009
     title: Dynamic Configuration
@@ -504,11 +503,11 @@ requirements:
       notes: ""
 
     depends_on: [REQ-005, REQ-300, REQ-400]
-    conflicts:
-      - "Backend GetInjectionLogs always returns empty []string{} (TODO in service/producer/injection.go:199)"
+    conflicts: []
     notes: >
       FaultInjection = Datapack is a key architectural fact. Source can be
       'injection' (auto-generated) or 'manual' (uploaded).
+      FIXED (2026-04-13): GetInjectionLogs now queries Loki for real historical logs.
 
   - id: REQ-101
     title: Batch Fault Injection
@@ -1168,10 +1167,11 @@ requirements:
       notes: ""
 
     depends_on: []
-    conflicts:
-      - "Backend GetTaskDetail always returns empty logs []string{} (TODO in service/producer/task.go:74)"
-      - "Backend executeTaskWithRetry has incomplete backoff (TODO in service/consumer/task.go:319)"
-    notes: "Queue keys: task:delayed, task:ready, task:dead, task:index, task:concurrency_lock"
+    conflicts: []
+    notes: >
+      Queue keys: task:delayed, task:ready, task:dead, task:index, task:concurrency_lock.
+      FIXED (2026-04-13): GetTaskDetail now queries Loki for real logs; executeTaskWithRetry
+      implements fixed-interval backoff via RetryPolicy.BackoffSec.
 
   - id: REQ-401
     title: Task Dispatch & Routing
@@ -1433,11 +1433,11 @@ requirements:
       System health monitoring with current and historical (24h) CPU, memory,
       and disk usage metrics. Prometheus metrics for task processing (counter
       and histogram).
-      Frontend home dashboard displays system metrics via dashboard components.
+      Frontend home dashboard displays system status via real API calls.
     priority: P1
     status: implemented
-    confidence: inferred
-    source: "src/handlers/v2/system.go, AegisLab-frontend/src/components/dashboard/SystemMetrics.tsx"
+    confidence: confirmed
+    source: "src/handlers/v2/system.go, AegisLab-frontend/src/pages/home/HomePage.tsx"
 
     code:
       - path: src/handlers/v2/system.go
@@ -1446,13 +1446,13 @@ requirements:
         description: "Prometheus task_processed_total counter and task_duration_seconds histogram"
 
     frontend:
-      - path: AegisLab-frontend/src/components/dashboard/SystemMetrics.tsx
-        description: "System metrics display component"
       - path: AegisLab-frontend/src/api/system.ts
         description: "System API client with getSystemMetrics and getSystemMetricsHistory"
       - path: AegisLab-frontend/src/api/metrics.ts
         description: "Metrics API client with getInjectionMetrics, getExecutionMetrics, getAlgorithmMetrics"
-    has_mock: true
+      - path: AegisLab-frontend/src/pages/home/HomePage.tsx
+        description: "Home dashboard displaying real system metrics"
+    has_mock: false
 
     tests: []
     docs: []
@@ -1464,9 +1464,10 @@ requirements:
 
     depends_on: [REQ-001]
     conflicts:
-      - "SystemMetrics.tsx component has 100% hardcoded fake data (CPU 68%, Memory 4.2GB/16GB, etc.) — not connected to real API"
       - "Legacy backend endpoints /system/monitor/metrics and /system/monitor/info return fabricated data (v2 endpoint is real)"
-    notes: "The v2 endpoint GetSystemMetrics uses real gopsutil data. The legacy /system/monitor/* endpoints are mock — should be deprecated."
+    notes: >
+      FIXED (2026-04-13): Deleted SystemMetrics.tsx (100% mock). HomePage uses real v2 API.
+      The legacy /system/monitor/* endpoints are mock — should be deprecated.
 
   - id: REQ-502
     title: Injection & Execution Metrics
@@ -1508,41 +1509,35 @@ requirements:
       Server-Sent Events streaming for global workflow notifications. Streams
       events like injection completed, datapack ready, execution completed via
       Redis pub/sub. Supports last_id for resuming missed events.
-      Frontend provides a notifications page and SSE hooks for real-time updates.
-    priority: P1
-    status: implemented
+      REMOVED (2026-04-13): Frontend notification feature removed as non-core.
+      Backend SSE endpoint remains for SDK/API consumers.
+    priority: P2
+    status: removed-frontend
     confidence: confirmed
-    source: "src/handlers/v2/notifications.go, AegisLab-frontend/src/pages/notifications/NotificationsPage.tsx"
+    source: "src/handlers/v2/notifications.go"
 
     code:
       - path: src/handlers/v2/notifications.go
-        description: "GetNotificationStream SSE endpoint with Redis stream consumption"
+        description: "GetNotificationStream SSE endpoint with Redis stream consumption (backend retained)"
       - path: src/middleware/middleware.go
         description: "SSEPath middleware sets event-stream headers"
 
-    frontend:
-      - path: AegisLab-frontend/src/pages/notifications/NotificationsPage.tsx
-        description: "Notifications page"
-      - path: AegisLab-frontend/src/api/notifications.ts
-        description: "Notifications API client"
-      - path: AegisLab-frontend/src/hooks/useNotifications.ts
-        description: "Hook for notification management"
-      - path: AegisLab-frontend/src/hooks/useSSE.ts
-        description: "Generic SSE hook for real-time event streaming"
+    frontend: []
     has_mock: false
 
     tests: []
     docs: []
 
     acceptance:
-      status: pending
-      date: ""
-      notes: ""
+      status: not-applicable
+      date: "2026-04-13"
+      notes: "Frontend notification feature intentionally removed — not core to researcher workflow"
 
     depends_on: [REQ-400]
-    conflicts:
-      - "Notification read state (markAsRead, markAllAsRead) is client-only in-memory — lost on page reload"
-    notes: ""
+    conflicts: []
+    notes: >
+      REMOVED (2026-04-13): Deleted NotificationsPage.tsx, notifications.ts API, useNotifications.ts hook.
+      Removed notification bell from AppHeader and sidebar. SSE hook (useSSE.ts) retained for trace/group streaming.
 
   - id: REQ-504
     title: Loki Log Integration
@@ -2014,11 +2009,11 @@ requirements:
       - path: AegisLab-frontend/src/components/layout/WorkspaceLayout.tsx
         description: "Workspace layout with project-scoped sidebar (200px); provides ProjectOutletContext to child routes"
       - path: AegisLab-frontend/src/components/layout/AppHeader.tsx
-        description: "Unified header with hamburger menu, logo, breadcrumbs, notification badge, theme toggle, user dropdown"
+        description: "Unified header with hamburger menu, logo, breadcrumbs, theme toggle, user dropdown"
       - path: AegisLab-frontend/src/components/layout/MainSidebarContent.tsx
-        description: "Main sidebar navigation with Home, Projects, Teams, Notifications, Admin sections"
+        description: "Main sidebar navigation with Home, Projects, Teams, Admin sections"
       - path: AegisLab-frontend/src/components/layout/WorkspaceSidebar.tsx
-        description: "Workspace sidebar with project-internal navigation"
+        description: "Workspace sidebar: Overview, Datapacks, Executions, Evaluations, Algorithms, Traces, Settings"
     has_mock: false
 
     tests: []
@@ -2033,15 +2028,18 @@ requirements:
 
     depends_on: [REQ-001]
     conflicts: []
-    notes: "WorkspaceLayout hides the main sidebar. Hamburger button in header can open main sidebar as drawer in workspace mode."
+    notes: >
+      UPDATED (2026-04-13): Notification badge removed from AppHeader. Notifications removed from sidebar.
+      WorkspaceSidebar: "Injections" renamed to "Datapacks", "Algorithms" entry added.
+      Hamburger button in header can open main sidebar as drawer in workspace mode.
 
   - id: REQ-801
     title: Client-Side Routing
     description: >
       React Router v6 route structure with lazy-loaded pages. Top-level routes
       under MainLayout (/home, /projects, /profile, /settings, /tasks,
-      /notifications, /:teamName, /admin/*). Nested project-scoped routes
-      under WorkspaceLayout (/:teamName/:projectName/*). Fallback redirects
+      /:teamName, /admin/*). Nested project-scoped routes under WorkspaceLayout
+      (/:teamName/:projectName/* including algorithms). Fallback redirects
       to /home or /login.
     priority: P0
     status: implemented
@@ -2067,7 +2065,9 @@ requirements:
 
     depends_on: [REQ-001, REQ-800]
     conflicts: []
-    notes: "All pages are lazy-loaded with React.lazy + Suspense. Route structure uses team/project name URL params (not IDs)."
+    notes: >
+      UPDATED (2026-04-13): /notifications route removed. /algorithms route added under workspace.
+      All pages are lazy-loaded with React.lazy + Suspense. Route structure uses team/project name URL params (not IDs).
 
   - id: REQ-802
     title: Theme System (Light/Dark)
@@ -2114,25 +2114,20 @@ requirements:
     title: Home Dashboard
     description: >
       Personal dashboard page showing welcome banner, recent projects list,
-      injection/execution metrics (success/fail counts), system metrics,
-      and quick action buttons. Fetches data from metrics and projects APIs.
+      injection/execution metrics, system status, and quick action buttons.
+      Fetches all data from real metrics and projects APIs. Getting Started
+      card shown conditionally only when user has no projects.
     priority: P1
     status: implemented
-    confidence: inferred
+    confidence: confirmed
     source: "AegisLab-frontend/src/pages/home/HomePage.tsx"
 
     code: []
 
     frontend:
       - path: AegisLab-frontend/src/pages/home/HomePage.tsx
-        description: "Dashboard with recent projects, injection metrics, execution metrics, and system stats"
-      - path: AegisLab-frontend/src/components/dashboard/ActivityFeed.tsx
-        description: "Activity feed component showing recent events"
-      - path: AegisLab-frontend/src/components/dashboard/QuickActions.tsx
-        description: "Quick action buttons for common operations"
-      - path: AegisLab-frontend/src/components/dashboard/SystemMetrics.tsx
-        description: "System metrics display component — WARNING: contains 100% hardcoded mock data, may be unused by refactored HomePage"
-    has_mock: true
+        description: "Dashboard with welcome, quick actions, 3 metric cards (Injections, Executions, System Status), recent projects, conditional Getting Started"
+    has_mock: false
 
     tests: []
     docs: []
@@ -2143,41 +2138,30 @@ requirements:
       notes: ""
 
     depends_on: [REQ-001, REQ-800]
-    conflicts:
-      - "SystemMetrics.tsx has hardcoded CPU/Memory/Storage/Queue data — HomePage.tsx may have replaced it with real API calls"
-    notes: "Verify whether SystemMetrics.tsx is still imported by HomePage. If not, it should be removed as dead code."
+    conflicts: []
+    notes: >
+      CLEANED (2026-04-13): Deleted ActivityFeed.tsx, QuickActions.tsx, SystemMetrics.tsx (all mock/unused).
+      Removed Algorithms metric card and Execution Metrics Summary row (redundant).
+      Getting Started card now conditional on empty project list.
 
   - id: REQ-804
     title: User Profile Page
     description: >
-      User profile page with tabbed layout showing profile information,
-      user's projects, and starred items. Includes profile sidebar with
-      avatar, activity graph, and recent runs.
-    priority: P1
+      Simplified user profile page showing basic user information: avatar,
+      username, full name, email, phone, role, member since, last login.
+      All data fetched from GET /api/v2/auth/profile. Single Card layout
+      with Descriptions component, no tabs or sidebar.
+    priority: P2
     status: implemented
-    confidence: inferred
+    confidence: confirmed
     source: "AegisLab-frontend/src/pages/profile/ProfilePage.tsx"
 
     code: []
 
     frontend:
       - path: AegisLab-frontend/src/pages/profile/ProfilePage.tsx
-        description: "Profile page with tab navigation"
-      - path: AegisLab-frontend/src/pages/profile/tabs/ProfileTab.tsx
-        description: "Profile information tab"
-      - path: AegisLab-frontend/src/pages/profile/tabs/ProjectsTab.tsx
-        description: "User's projects tab"
-      - path: AegisLab-frontend/src/pages/profile/tabs/StarsTab.tsx
-        description: "Starred items tab"
-      - path: AegisLab-frontend/src/components/profile/ProfileSidebar.tsx
-        description: "Profile sidebar with avatar and info"
-      - path: AegisLab-frontend/src/components/profile/ActivityGraph.tsx
-        description: "Activity graph component"
-      - path: AegisLab-frontend/src/components/profile/ProjectCard.tsx
-        description: "Project card component for profile"
-      - path: AegisLab-frontend/src/components/profile/RecentRuns.tsx
-        description: "Recent runs component"
-    has_mock: true
+        description: "Simplified profile page with Card + Descriptions showing user info from real API"
+    has_mock: false
 
     tests: []
     docs: []
@@ -2188,11 +2172,11 @@ requirements:
       notes: ""
 
     depends_on: [REQ-001]
-    conflicts:
-      - "ProfileSidebar.tsx:34 hardcodes fake team 'Personal Capital' instead of fetching from API"
-      - "ProjectsTab.tsx is fully stubbed — projectsData = {items:[], total:0}, star toggle is no-op"
-      - "StarsTab.tsx is fully stubbed — starredProjects = [], no backend star API exists"
-    notes: "Stars feature has no backend API. Profile ProjectsTab should use useProjects() hook. ProfileSidebar should fetch teams via teamApi."
+    conflicts: []
+    notes: >
+      SIMPLIFIED (2026-04-13): Deleted ProfileTab, ProjectsTab, StarsTab, ProfileSidebar,
+      ActivityGraph, ProjectCard, RecentRuns (7 files + CSS). All were mock/stub code.
+      Profile is now a single page with real API data, no tabs.
 
   - id: REQ-805
     title: User Settings Page
@@ -2288,7 +2272,8 @@ requirements:
       notes: ""
 
     depends_on: [REQ-800]
-    conflicts: []
+    conflicts:
+      - "WorkspaceSelector.tsx:35-44 uses hardcoded mock workspace list instead of API call (HIGH priority)"
     notes: ""
 
   - id: REQ-807
@@ -2496,40 +2481,279 @@ requirements:
       - "types/api.ts has TODO comments about migrating hand-written types (Team, TeamMember, etc.) to SDK-generated types"
     notes: "API types in api.ts must match backend snake_case field names exactly"
 
+  # ===========================================================================
+  # REQ-8xx (continued): New Requirements from Frontend Redesign (2026-04-13)
+  # ===========================================================================
+
+  - id: REQ-812
+    title: Pipeline Progress Component
+    description: >
+      New PipelineProgress component displaying injection pipeline stages
+      (Inject Fault → Build Datapack → Run Algorithm → Collect Result) with
+      real-time state updates via SSE. Shown at top of Injection Detail page.
+      Maps FaultInjection.state + associated Execution states to pipeline stages.
+      Data source: GET /api/v2/traces/:trace_id/stream (SSE).
+    priority: P0
+    status: implemented
+    confidence: confirmed
+    source: "docs/frontend-redesign.md section 5.6"
+
+    code: []
+
+    frontend:
+      - path: AegisLab-frontend/src/components/workspace/PipelineProgress.tsx
+        description: "Pipeline progress bar component with SSE-driven Steps display"
+    has_mock: false
+
+    tests: []
+    docs:
+      - path: docs/frontend-redesign.md
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-100, REQ-402, REQ-404]
+    conflicts: []
+    notes: "Core UX component for Workflow A. Uses Ant Design Steps or custom progress bar."
+
+  - id: REQ-813
+    title: Algorithm Management (Researcher)
+    description: >
+      Workspace-scoped page for researchers to manage RCA algorithm containers.
+      Lists containers filtered by type=algorithm, supports registration of new
+      algorithms and version management. Reuses Container CRUD API with type filter.
+      Route: /:teamName/:projectName/algorithms
+    priority: P1
+    status: implemented
+    confidence: confirmed
+    source: "docs/frontend-redesign.md sections 4.3, 5.11"
+
+    code: []
+
+    frontend:
+      - path: AegisLab-frontend/src/pages/projects/algorithms/AlgorithmListPage.tsx
+        description: "Algorithm listing page with register/version modals and expandable version rows"
+    has_mock: false
+
+    tests: []
+    docs:
+      - path: docs/frontend-redesign.md
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-300, REQ-800]
+    conflicts: []
+    notes: "Filters GET /api/v2/containers by type=algorithm. Separate from admin /admin/containers which manages all types."
+
+  - id: REQ-814
+    title: Algorithm Benchmark Page (Workflow B)
+    description: >
+      Page for researchers to batch-test RCA algorithms against existing datapacks
+      or datasets. Two modes via tab switch: Datapack mode (select individual
+      datapacks) and Dataset mode (select entire dataset). Builds SubmitExecutionReq
+      with multiple ExecutionSpecs. Returns group_id for batch progress tracking.
+      Route: /:teamName/:projectName/executions/new
+    priority: P0
+    status: implemented
+    confidence: confirmed
+    source: "docs/frontend-redesign.md section 5.9"
+
+    code: []
+
+    frontend:
+      - path: AegisLab-frontend/src/pages/executions/ExecutionCreatePage.tsx
+        description: "Algorithm benchmark page with Datapack/Dataset mode tabs, multi-select, label support"
+    has_mock: false
+
+    tests: []
+    docs:
+      - path: docs/frontend-redesign.md
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-200, REQ-300, REQ-301]
+    conflicts: []
+    notes: >
+      Core page for Workflow B. Uses POST /api/v2/projects/:id/executions/execute.
+      Datapack mode: one spec per selected datapack. Dataset mode: one spec with dataset ref.
+
+  - id: REQ-815
+    title: Batch Execution Progress Banner
+    description: >
+      Progress banner shown at top of Execution List page when a batch execution
+      (group) is active. Shows real-time progress via SSE from
+      GET /api/v2/groups/:group_id/stream. Displays completed/total count and
+      failure count. Collapsible/dismissible.
+    priority: P1
+    status: implemented
+    confidence: confirmed
+    source: "docs/frontend-redesign.md section 5.7"
+
+    code: []
+
+    frontend:
+      - path: AegisLab-frontend/src/components/workspace/BatchProgressBanner.tsx
+        description: "SSE-driven batch execution progress banner with collapse/dismiss"
+      - path: AegisLab-frontend/src/pages/projects/ProjectExecutionList.tsx
+        description: "Execution list page with batch progress banner integration"
+    has_mock: false
+
+    tests: []
+    docs:
+      - path: docs/frontend-redesign.md
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-200, REQ-404]
+    conflicts: []
+    notes: "Uses existing group SSE infrastructure from REQ-404."
+
+  - id: REQ-816
+    title: Manual Datapack Upload UI
+    description: >
+      Frontend UI for uploading pre-built datapacks (ZIP archives containing
+      parquet files) without going through fault injection pipeline.
+      Uses POST /api/v2/injections/upload endpoint (already implemented in backend).
+    priority: P2
+    status: implemented
+    confidence: confirmed
+    source: "docs/frontend-redesign.md section 10 (API Coverage)"
+
+    code: []
+
+    frontend: []
+    has_mock: false
+
+    tests: []
+    docs:
+      - path: docs/frontend-redesign.md
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    frontend:
+      - path: AegisLab-frontend/src/pages/projects/ProjectInjectionList.tsx
+        description: "Upload Datapack button and modal added to injection list page"
+
+    depends_on: [REQ-104]
+    conflicts: []
+    notes: "Backend upload endpoint at POST /api/v2/injections/upload. Frontend uploads via Ant Design Dragger."
+
+  - id: REQ-817
+    title: Execution Detail Results Display
+    description: >
+      Enhanced Execution Detail page showing DetectorResults and GranularityResults
+      from algorithm execution. DetectorResults: table of span-level normal vs
+      abnormal metrics. GranularityResults: hierarchical display by level
+      (service/pod/span/metric) of localization results.
+    priority: P1
+    status: implemented
+    confidence: confirmed
+    source: "docs/frontend-redesign.md section 5.8"
+
+    code: []
+
+    frontend:
+      - path: AegisLab-frontend/src/components/workspace/DetailView/tabs/ArtifactsTab.tsx
+        description: "ArtifactsTab aligned with SDK DetectorResultItem/GranularityResultItem types, p90/p95/p99 columns"
+      - path: AegisLab-frontend/src/pages/projects/ProjectExecutionDetail.tsx
+        description: "Execution detail page with SDK-aligned artifacts display"
+    has_mock: false
+
+    tests: []
+    docs:
+      - path: docs/frontend-redesign.md
+
+    acceptance:
+      status: pending
+      date: ""
+      notes: ""
+
+    depends_on: [REQ-200, REQ-201]
+    conflicts: []
+    notes: "Backend already returns DetectorResult and GranularityResult in ExecutionDetailResp."
+
 # =============================================================================
-# Cross-Repo Audit Summary (2026-04-13)
+# Cross-Repo Audit Summary (2026-04-13, updated after full frontend implementation)
 # =============================================================================
 #
-# RUNTIME BUGS:
-#   - teamApi.addMember sends {email} but backend expects {username} (REQ-004)
-#   - traceApi.getTrace calls GET /traces/:id which doesn't exist in backend
-#   - Team.member_count vs TeamDetailResp.user_count field mismatch (REQ-004)
+# FRONTEND REDESIGN (2026-04-13 — Phase 1: Cleanup & Design):
+#   - 18 files deleted (notifications, stars, mock components, profile stubs)
+#   - 8 files edited (App.tsx, AppHeader, MainSidebar, WorkspaceSidebar, etc.)
+#   - 4 bugs fixed (team addMember, label mock, star toggles)
+#   - 6 new requirements added (REQ-812 through REQ-817)
+#   - 1 requirement removed (REQ-503 notifications frontend)
+#   - 7 requirements simplified/cleaned (REQ-004/005/006/501/800/803/804)
+#   - Design docs: docs/frontend-redesign.md, docs/frontend-ui-guidelines.md
 #
-# MOCK/STUB COUNT:
-#   - Frontend: 8 findings (3 HIGH, 4 MEDIUM, 1 LOW) across REQ-004/005/006/501/803/804
-#   - Backend: 6 findings (2 HIGH, 3 MEDIUM, 1 LOW) across REQ-100/400/501 + legacy monitor
-#   - has_mock: true requirements: REQ-004, REQ-005, REQ-006, REQ-501, REQ-803, REQ-804
+# FRONTEND IMPLEMENTATION (2026-04-13 — Phase 2: All REQ-812~817 implemented):
+#   - REQ-812: PipelineProgress.tsx — SSE-driven pipeline stages in Injection Detail ✓
+#   - REQ-813: AlgorithmListPage.tsx — Register/version/delete modals ✓
+#   - REQ-814: ExecutionCreatePage.tsx — Datapack/Dataset dual-mode benchmark page ✓
+#   - REQ-815: BatchProgressBanner.tsx — SSE group progress in Execution List ✓
+#   - REQ-816: Upload modal in ProjectInjectionList.tsx — POST /injections/upload ✓
+#   - REQ-817: ArtifactsTab.tsx aligned with SDK DetectorResultItem/GranularityResultItem ✓
+#   - ExecutionCreatePage passes group_id via URL params to Execution List ✓
+#   - Orphaned ExecutionForm.tsx deleted ✓
+#   - Build verification: pnpm type-check && pnpm build — 0 errors ✓
 #
-# MISSING FRONTEND COVERAGE (25 backend endpoints):
+# RUNTIME BUGS (REMAINING):
+#   - totalExperiments stat hardcoded to 0 in ProjectList (REQ-005)
+#   - WorkspaceSelector.tsx:35-44 has hardcoded mock workspace list (no API call)
+#
+# RUNTIME BUGS (FIXED 2026-04-13):
+#   - teamApi.addMember now sends {username} (was {email}) (REQ-004) ✓
+#   - AddLabelDropdown now uses real API (was mock) (REQ-006) ✓
+#   - Star toggles removed from ProjectList and teams/ProjectsTab ✓
+#   - GetInjectionLogs now queries Loki for real logs (REQ-100) ✓
+#   - GetTaskDetail now queries Loki for real logs (REQ-400) ✓
+#   - executeTaskWithRetry backoff implemented via RetryPolicy.BackoffSec (REQ-400) ✓
+#   - traceApi.getTrace → GET /traces/:trace_id confirmed working (was false alarm) ✓
+#
+# MOCK/STUB COUNT (AFTER 2026-04-13 AUDIT):
+#   - Frontend: 0 has_mock: true requirements (was 6)
+#   - Backend: 1 finding (LOW) — deprecated monitor.go hardcoded data (REQ-100/400 fixed)
+#   - Frontend remaining mocks: WorkspaceSelector.tsx (HIGH), ProjectList totalExperiments (MEDIUM)
+#
+# MISSING FRONTEND COVERAGE (24 backend endpoints):
 #   - /systems/* (7 endpoints) — Chaos Systems management, no frontend
 #   - /sdk/evaluations/* (4 endpoints) — SDK evaluations, no frontend
 #   - /system/audit/* (2 endpoints) — Audit log viewer, no frontend (REQ-007 conflict)
 #   - /system/configs/* (5 endpoints) — Dynamic config admin, no frontend
 #   - /system/health + /system/monitor/* (5 endpoints) — Health/monitor, no frontend
-#   - POST /injections/upload — Manual datapack upload, no frontend (REQ-104 conflict)
 #   - PUT /injections/:id/groundtruth — Ground truth editing, no frontend
 #
 # ORPHAN FRONTEND CALLS:
-#   - traceApi.getTrace(id) → GET /traces/:id (backend has no such endpoint)
+#   - (none — traceApi.getTrace confirmed working as of 2026-04-13 audit)
 #
 # SDK USAGE:
-#   - @rcabench/client used for TYPE IMPORTS ONLY — all HTTP calls use raw axios
-#   - This means API path changes won't cause compile errors
+#   - @rcabench/client used for TYPE IMPORTS and direct types (DetectorResultItem, GranularityResultItem)
+#   - All HTTP calls use raw axios via src/api/client.ts
 #
 # DATA INCONSISTENCIES:
 #   - Theme color: main.tsx uses #0ea5e9, CLAUDE.md says #2563eb (REQ-802)
-#   - Rate limit: comment says 100 req/min, code sets 1000 (REQ-008)
+#   - Rate limit: GeneralRateLimit var comment still says 100, code sets 1000 (REQ-008, partially fixed)
 #   - REQ-105: was marked 'implemented' but code is commented out → changed to 'disabled'
 #
-# TESTING GAP: 61/63 requirements have tests: [] — only REQ-001 and REQ-703 have tests
-# ACCEPTANCE GAP: 0/63 requirements have acceptance passed
+# REQUIREMENT STATUS SUMMARY:
+#   - implemented: 67 (was 61)
+#   - planned: 0 (was 6)
+#   - disabled: 1
+#   - removed-frontend: 1
+#   - not-applicable: 1
+#
+# TESTING GAP: 61/69 requirements have tests: [] — only REQ-001 and REQ-703 have tests
+# ACCEPTANCE GAP: 0/69 requirements have acceptance passed (1 not-applicable: REQ-503)
