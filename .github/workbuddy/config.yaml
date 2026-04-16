@@ -1,0 +1,9 @@
+# Workbuddy environment configuration for AegisLab
+
+environment: dev
+repo: OperationsPAI/AegisLab
+poll_interval: 30s
+port: 8092
+
+notifications:
+  enabled: false
