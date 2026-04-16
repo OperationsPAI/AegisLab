@@ -1,4 +1,4 @@
-package repository
+package queue
 
 import (
 	"context"
@@ -14,23 +14,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type mockTaskRedisClient struct {
+type mockRedisClient struct {
 	mock.Mock
 }
 
-func (m *mockTaskRedisClient) LPush(ctx context.Context, key string, values ...interface{}) *redis.IntCmd {
+func (m *mockRedisClient) LPush(ctx context.Context, key string, values ...interface{}) *redis.IntCmd {
 	args := []interface{}{ctx, key}
 	args = append(args, values...)
 	return m.Called(args...).Get(0).(*redis.IntCmd)
 }
 
-func (m *mockTaskRedisClient) HSet(ctx context.Context, key string, values ...interface{}) *redis.IntCmd {
+func (m *mockRedisClient) HSet(ctx context.Context, key string, values ...interface{}) *redis.IntCmd {
 	args := []interface{}{ctx, key}
 	args = append(args, values...)
 	return m.Called(args...).Get(0).(*redis.IntCmd)
 }
 
-func (m *mockTaskRedisClient) BRPop(ctx context.Context, timeout time.Duration, keys ...string) *redis.StringSliceCmd {
+func (m *mockRedisClient) BRPop(ctx context.Context, timeout time.Duration, keys ...string) *redis.StringSliceCmd {
 	args := []interface{}{ctx, timeout}
 	for _, key := range keys {
 		args = append(args, key)
@@ -38,7 +38,7 @@ func (m *mockTaskRedisClient) BRPop(ctx context.Context, timeout time.Duration, 
 	return m.Called(args...).Get(0).(*redis.StringSliceCmd)
 }
 
-func (m *mockTaskRedisClient) ZAdd(ctx context.Context, key string, members ...redis.Z) *redis.IntCmd {
+func (m *mockRedisClient) ZAdd(ctx context.Context, key string, members ...redis.Z) *redis.IntCmd {
 	args := []interface{}{ctx, key}
 	for _, member := range members {
 		args = append(args, member)
@@ -46,37 +46,37 @@ func (m *mockTaskRedisClient) ZAdd(ctx context.Context, key string, members ...r
 	return m.Called(args...).Get(0).(*redis.IntCmd)
 }
 
-func (m *mockTaskRedisClient) Get(ctx context.Context, key string) *redis.StringCmd {
+func (m *mockRedisClient) Get(ctx context.Context, key string) *redis.StringCmd {
 	return m.Called(ctx, key).Get(0).(*redis.StringCmd)
 }
 
-func (m *mockTaskRedisClient) Incr(ctx context.Context, key string) *redis.IntCmd {
+func (m *mockRedisClient) Incr(ctx context.Context, key string) *redis.IntCmd {
 	return m.Called(ctx, key).Get(0).(*redis.IntCmd)
 }
 
-func (m *mockTaskRedisClient) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd {
+func (m *mockRedisClient) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd {
 	return m.Called(ctx, key, value, expiration).Get(0).(*redis.StatusCmd)
 }
 
-func (m *mockTaskRedisClient) Decr(ctx context.Context, key string) *redis.IntCmd {
+func (m *mockRedisClient) Decr(ctx context.Context, key string) *redis.IntCmd {
 	return m.Called(ctx, key).Get(0).(*redis.IntCmd)
 }
 
-func (m *mockTaskRedisClient) HGet(ctx context.Context, key, field string) *redis.StringCmd {
+func (m *mockRedisClient) HGet(ctx context.Context, key, field string) *redis.StringCmd {
 	return m.Called(ctx, key, field).Get(0).(*redis.StringCmd)
 }
 
-func (m *mockTaskRedisClient) ZRangeByScore(ctx context.Context, key string, opt *redis.ZRangeBy) *redis.StringSliceCmd {
+func (m *mockRedisClient) ZRangeByScore(ctx context.Context, key string, opt *redis.ZRangeBy) *redis.StringSliceCmd {
 	return m.Called(ctx, key, opt).Get(0).(*redis.StringSliceCmd)
 }
 
-func (m *mockTaskRedisClient) ZRem(ctx context.Context, key string, members ...interface{}) *redis.IntCmd {
+func (m *mockRedisClient) ZRem(ctx context.Context, key string, members ...interface{}) *redis.IntCmd {
 	args := []interface{}{ctx, key}
 	args = append(args, members...)
 	return m.Called(args...).Get(0).(*redis.IntCmd)
 }
 
-func (m *mockTaskRedisClient) HDel(ctx context.Context, key string, fields ...string) *redis.IntCmd {
+func (m *mockRedisClient) HDel(ctx context.Context, key string, fields ...string) *redis.IntCmd {
 	args := []interface{}{ctx, key}
 	for _, field := range fields {
 		args = append(args, field)
@@ -84,31 +84,31 @@ func (m *mockTaskRedisClient) HDel(ctx context.Context, key string, fields ...st
 	return m.Called(args...).Get(0).(*redis.IntCmd)
 }
 
-func useMockTaskRedis(t *testing.T, cli *mockTaskRedisClient) {
+func useMockRedis(t *testing.T, cli *mockRedisClient) {
 	t.Helper()
 
-	origGetClient := getTaskRedisClient
-	origGetScriptClient := getTaskRedisScriptClient
+	origGetClient := getRedisClient
+	origGetScriptClient := getRedisScriptClient
 	origListRange := getRedisListRange
 	origZRange := getRedisZRangeByScoreWithScores
-	origNow := currentTaskTime
+	origNow := currentTime
 	origProcessDelayed := runProcessDelayedTasksScript
 	origRemoveFromList := runRemoveFromListScript
 
-	getTaskRedisClient = func() taskRedisClient { return cli }
-	getTaskRedisScriptClient = func() *redis.Client { return nil }
+	getRedisClient = func() RedisClient { return cli }
+	getRedisScriptClient = func() *redis.Client { return nil }
 	getRedisListRange = origListRange
 	getRedisZRangeByScoreWithScores = origZRange
-	currentTaskTime = origNow
+	currentTime = origNow
 	runProcessDelayedTasksScript = origProcessDelayed
 	runRemoveFromListScript = origRemoveFromList
 
 	t.Cleanup(func() {
-		getTaskRedisClient = origGetClient
-		getTaskRedisScriptClient = origGetScriptClient
+		getRedisClient = origGetClient
+		getRedisScriptClient = origGetScriptClient
 		getRedisListRange = origListRange
 		getRedisZRangeByScoreWithScores = origZRange
-		currentTaskTime = origNow
+		currentTime = origNow
 		runProcessDelayedTasksScript = origProcessDelayed
 		runRemoveFromListScript = origRemoveFromList
 		cli.AssertExpectations(t)
@@ -117,8 +117,8 @@ func useMockTaskRedis(t *testing.T, cli *mockTaskRedisClient) {
 
 func TestSubmitImmediateTask(t *testing.T) {
 	ctx := context.Background()
-	cli := &mockTaskRedisClient{}
-	useMockTaskRedis(t, cli)
+	cli := &mockRedisClient{}
+	useMockRedis(t, cli)
 
 	taskData := []byte(`{"task_id":"task-1"}`)
 	cli.On("LPush", ctx, ReadyQueueKey, taskData).Return(redis.NewIntResult(1, nil)).Once()
@@ -130,8 +130,8 @@ func TestSubmitImmediateTask(t *testing.T) {
 
 func TestSubmitImmediateTaskReturnsPushError(t *testing.T) {
 	ctx := context.Background()
-	cli := &mockTaskRedisClient{}
-	useMockTaskRedis(t, cli)
+	cli := &mockRedisClient{}
+	useMockRedis(t, cli)
 
 	pushErr := errors.New("push failed")
 	taskData := []byte(`{"task_id":"task-1"}`)
@@ -143,8 +143,8 @@ func TestSubmitImmediateTaskReturnsPushError(t *testing.T) {
 
 func TestSubmitImmediateTaskReturnsIndexError(t *testing.T) {
 	ctx := context.Background()
-	cli := &mockTaskRedisClient{}
-	useMockTaskRedis(t, cli)
+	cli := &mockRedisClient{}
+	useMockRedis(t, cli)
 
 	indexErr := errors.New("index failed")
 	taskData := []byte(`{"task_id":"task-1"}`)
@@ -157,8 +157,8 @@ func TestSubmitImmediateTaskReturnsIndexError(t *testing.T) {
 
 func TestGetTask(t *testing.T) {
 	ctx := context.Background()
-	cli := &mockTaskRedisClient{}
-	useMockTaskRedis(t, cli)
+	cli := &mockRedisClient{}
+	useMockRedis(t, cli)
 
 	cli.On("BRPop", ctx, 5*time.Second, ReadyQueueKey).
 		Return(redis.NewStringSliceResult([]string{ReadyQueueKey, `{"task_id":"task-1"}`}, nil)).
@@ -171,8 +171,8 @@ func TestGetTask(t *testing.T) {
 
 func TestGetTaskReturnsRedisError(t *testing.T) {
 	ctx := context.Background()
-	cli := &mockTaskRedisClient{}
-	useMockTaskRedis(t, cli)
+	cli := &mockRedisClient{}
+	useMockRedis(t, cli)
 
 	popErr := errors.New("pop failed")
 	cli.On("BRPop", ctx, 5*time.Second, ReadyQueueKey).
@@ -185,8 +185,8 @@ func TestGetTaskReturnsRedisError(t *testing.T) {
 
 func TestGetTaskRejectsMalformedResult(t *testing.T) {
 	ctx := context.Background()
-	cli := &mockTaskRedisClient{}
-	useMockTaskRedis(t, cli)
+	cli := &mockRedisClient{}
+	useMockRedis(t, cli)
 
 	cli.On("BRPop", ctx, 5*time.Second, ReadyQueueKey).
 		Return(redis.NewStringSliceResult([]string{ReadyQueueKey}, nil)).
@@ -198,8 +198,8 @@ func TestGetTaskRejectsMalformedResult(t *testing.T) {
 
 func TestSubmitDelayedTask(t *testing.T) {
 	ctx := context.Background()
-	cli := &mockTaskRedisClient{}
-	useMockTaskRedis(t, cli)
+	cli := &mockRedisClient{}
+	useMockRedis(t, cli)
 
 	taskData := []byte(`{"task_id":"task-2"}`)
 	executeTime := int64(1700000000)
@@ -215,8 +215,8 @@ func TestSubmitDelayedTask(t *testing.T) {
 
 func TestSubmitDelayedTaskReturnsIndexError(t *testing.T) {
 	ctx := context.Background()
-	cli := &mockTaskRedisClient{}
-	useMockTaskRedis(t, cli)
+	cli := &mockRedisClient{}
+	useMockRedis(t, cli)
 
 	indexErr := errors.New("index failed")
 	taskData := []byte(`{"task_id":"task-2"}`)
@@ -231,8 +231,8 @@ func TestSubmitDelayedTaskReturnsIndexError(t *testing.T) {
 
 func TestSubmitDelayedTaskReturnsAddError(t *testing.T) {
 	ctx := context.Background()
-	cli := &mockTaskRedisClient{}
-	useMockTaskRedis(t, cli)
+	cli := &mockRedisClient{}
+	useMockRedis(t, cli)
 
 	addErr := errors.New("zadd failed")
 	taskData := []byte(`{"task_id":"task-2"}`)
@@ -245,11 +245,11 @@ func TestSubmitDelayedTaskReturnsAddError(t *testing.T) {
 
 func TestProcessDelayedTasks(t *testing.T) {
 	ctx := context.Background()
-	cli := &mockTaskRedisClient{}
-	useMockTaskRedis(t, cli)
+	cli := &mockRedisClient{}
+	useMockRedis(t, cli)
 
 	frozen := time.Unix(1700000000, 0)
-	currentTaskTime = func() time.Time { return frozen }
+	currentTime = func() time.Time { return frozen }
 
 	runProcessDelayedTasksScript = func(callCtx context.Context, redisCli *redis.Client, now int64) ([]string, error) {
 		assert.Equal(t, ctx, callCtx)
@@ -265,8 +265,8 @@ func TestProcessDelayedTasks(t *testing.T) {
 
 func TestProcessDelayedTasksIgnoresRedisNil(t *testing.T) {
 	ctx := context.Background()
-	cli := &mockTaskRedisClient{}
-	useMockTaskRedis(t, cli)
+	cli := &mockRedisClient{}
+	useMockRedis(t, cli)
 
 	runProcessDelayedTasksScript = func(context.Context, *redis.Client, int64) ([]string, error) {
 		return nil, redis.Nil
@@ -279,8 +279,8 @@ func TestProcessDelayedTasksIgnoresRedisNil(t *testing.T) {
 
 func TestProcessDelayedTasksReturnsScriptError(t *testing.T) {
 	ctx := context.Background()
-	cli := &mockTaskRedisClient{}
-	useMockTaskRedis(t, cli)
+	cli := &mockRedisClient{}
+	useMockRedis(t, cli)
 
 	scriptErr := errors.New("script failed")
 	runProcessDelayedTasksScript = func(context.Context, *redis.Client, int64) ([]string, error) {
@@ -293,11 +293,11 @@ func TestProcessDelayedTasksReturnsScriptError(t *testing.T) {
 
 func TestHandleFailedTask(t *testing.T) {
 	ctx := context.Background()
-	cli := &mockTaskRedisClient{}
-	useMockTaskRedis(t, cli)
+	cli := &mockRedisClient{}
+	useMockRedis(t, cli)
 
 	frozen := time.Unix(1700000000, 0)
-	currentTaskTime = func() time.Time { return frozen }
+	currentTime = func() time.Time { return frozen }
 	taskData := []byte(`{"task_id":"task-4"}`)
 
 	cli.On("ZAdd", ctx, DeadLetterKey, mock.MatchedBy(func(member redis.Z) bool {
@@ -311,11 +311,11 @@ func TestHandleFailedTask(t *testing.T) {
 
 func TestHandleCronRescheduleFailure(t *testing.T) {
 	ctx := context.Background()
-	cli := &mockTaskRedisClient{}
-	useMockTaskRedis(t, cli)
+	cli := &mockRedisClient{}
+	useMockRedis(t, cli)
 
 	frozen := time.Unix(1700000000, 0)
-	currentTaskTime = func() time.Time { return frozen }
+	currentTime = func() time.Time { return frozen }
 	taskData := []byte(`{"task_id":"task-5"}`)
 
 	cli.On("ZAdd", ctx, DeadLetterKey, mock.MatchedBy(func(member redis.Z) bool {
@@ -331,8 +331,8 @@ func TestAcquireConcurrencyLock(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("acquires when below limit", func(t *testing.T) {
-		cli := &mockTaskRedisClient{}
-		useMockTaskRedis(t, cli)
+		cli := &mockRedisClient{}
+		useMockRedis(t, cli)
 
 		cli.On("Get", ctx, ConcurrencyLockKey).Return(redis.NewStringResult("3", nil)).Once()
 		cli.On("Incr", ctx, ConcurrencyLockKey).Return(redis.NewIntResult(4, nil)).Once()
@@ -341,8 +341,8 @@ func TestAcquireConcurrencyLock(t *testing.T) {
 	})
 
 	t.Run("refuses when at limit", func(t *testing.T) {
-		cli := &mockTaskRedisClient{}
-		useMockTaskRedis(t, cli)
+		cli := &mockRedisClient{}
+		useMockRedis(t, cli)
 
 		cli.On("Get", ctx, ConcurrencyLockKey).Return(redis.NewStringResult("20", nil)).Once()
 
@@ -350,8 +350,8 @@ func TestAcquireConcurrencyLock(t *testing.T) {
 	})
 
 	t.Run("returns false when increment fails", func(t *testing.T) {
-		cli := &mockTaskRedisClient{}
-		useMockTaskRedis(t, cli)
+		cli := &mockRedisClient{}
+		useMockRedis(t, cli)
 
 		cli.On("Get", ctx, ConcurrencyLockKey).Return(redis.NewStringResult("3", nil)).Once()
 		cli.On("Incr", ctx, ConcurrencyLockKey).Return(redis.NewIntResult(0, errors.New("incr failed"))).Once()
@@ -362,8 +362,8 @@ func TestAcquireConcurrencyLock(t *testing.T) {
 
 func TestInitReleaseAndQueueLookupHelpers(t *testing.T) {
 	ctx := context.Background()
-	cli := &mockTaskRedisClient{}
-	useMockTaskRedis(t, cli)
+	cli := &mockRedisClient{}
+	useMockRedis(t, cli)
 
 	cli.On("Set", ctx, ConcurrencyLockKey, 0, time.Duration(0)).Return(redis.NewStatusResult("OK", nil)).Once()
 	cli.On("Decr", ctx, ConcurrencyLockKey).Return(redis.NewIntResult(0, nil)).Once()
@@ -373,17 +373,17 @@ func TestInitReleaseAndQueueLookupHelpers(t *testing.T) {
 	require.NoError(t, InitConcurrencyLock(ctx))
 	ReleaseConcurrencyLock(ctx)
 
-	queue, err := GetTaskQueue(ctx, "task-6")
+	queueName, err := GetTaskQueue(ctx, "task-6")
 	require.NoError(t, err)
-	assert.Equal(t, ReadyQueueKey, queue)
+	assert.Equal(t, ReadyQueueKey, queueName)
 
 	require.NoError(t, DeleteTaskIndex(ctx, "task-6"))
 }
 
 func TestReleaseConcurrencyLockSwallowsRedisError(t *testing.T) {
 	ctx := context.Background()
-	cli := &mockTaskRedisClient{}
-	useMockTaskRedis(t, cli)
+	cli := &mockRedisClient{}
+	useMockRedis(t, cli)
 
 	cli.On("Decr", ctx, ConcurrencyLockKey).Return(redis.NewIntResult(0, errors.New("decr failed"))).Once()
 
@@ -392,8 +392,8 @@ func TestReleaseConcurrencyLockSwallowsRedisError(t *testing.T) {
 
 func TestListDelayedTasks(t *testing.T) {
 	ctx := context.Background()
-	cli := &mockTaskRedisClient{}
-	useMockTaskRedis(t, cli)
+	cli := &mockRedisClient{}
+	useMockRedis(t, cli)
 
 	getRedisZRangeByScoreWithScores = func(callCtx context.Context, key string, limit int64) ([]redis.Z, error) {
 		assert.Equal(t, ctx, callCtx)
@@ -412,8 +412,8 @@ func TestListDelayedTasks(t *testing.T) {
 
 func TestListDelayedTasksRejectsNonStringMembers(t *testing.T) {
 	ctx := context.Background()
-	cli := &mockTaskRedisClient{}
-	useMockTaskRedis(t, cli)
+	cli := &mockRedisClient{}
+	useMockRedis(t, cli)
 
 	getRedisZRangeByScoreWithScores = func(context.Context, string, int64) ([]redis.Z, error) {
 		return []redis.Z{{Member: []byte("bad")}}, nil
@@ -425,8 +425,8 @@ func TestListDelayedTasksRejectsNonStringMembers(t *testing.T) {
 
 func TestListDelayedTasksReturnsRangeError(t *testing.T) {
 	ctx := context.Background()
-	cli := &mockTaskRedisClient{}
-	useMockTaskRedis(t, cli)
+	cli := &mockRedisClient{}
+	useMockRedis(t, cli)
 
 	rangeErr := errors.New("zrange failed")
 	getRedisZRangeByScoreWithScores = func(context.Context, string, int64) ([]redis.Z, error) {
@@ -439,8 +439,8 @@ func TestListDelayedTasksReturnsRangeError(t *testing.T) {
 
 func TestListReadyTasks(t *testing.T) {
 	ctx := context.Background()
-	cli := &mockTaskRedisClient{}
-	useMockTaskRedis(t, cli)
+	cli := &mockRedisClient{}
+	useMockRedis(t, cli)
 
 	getRedisListRange = func(callCtx context.Context, key string) ([]string, error) {
 		assert.Equal(t, ctx, callCtx)
@@ -455,8 +455,8 @@ func TestListReadyTasks(t *testing.T) {
 
 func TestRemoveFromList(t *testing.T) {
 	ctx := context.Background()
-	cli := &mockTaskRedisClient{}
-	useMockTaskRedis(t, cli)
+	cli := &mockRedisClient{}
+	useMockRedis(t, cli)
 
 	runRemoveFromListScript = func(callCtx context.Context, redisCli *redis.Client, key, taskID string) (int, error) {
 		assert.Equal(t, ctx, callCtx)
@@ -473,8 +473,8 @@ func TestRemoveFromList(t *testing.T) {
 
 func TestRemoveFromListReturnsScriptError(t *testing.T) {
 	ctx := context.Background()
-	cli := &mockTaskRedisClient{}
-	useMockTaskRedis(t, cli)
+	cli := &mockRedisClient{}
+	useMockRedis(t, cli)
 
 	runRemoveFromListScript = func(context.Context, *redis.Client, string, string) (int, error) {
 		return 0, errors.New("script failed")
@@ -487,8 +487,8 @@ func TestRemoveFromListReturnsScriptError(t *testing.T) {
 
 func TestRemoveFromZSet(t *testing.T) {
 	ctx := context.Background()
-	cli := &mockTaskRedisClient{}
-	useMockTaskRedis(t, cli)
+	cli := &mockRedisClient{}
+	useMockRedis(t, cli)
 
 	taskJSON := `{"task_id":"task-10"}`
 	cli.On("ZRangeByScore", ctx, DelayedQueueKey, mock.MatchedBy(func(opt *redis.ZRangeBy) bool {
@@ -501,8 +501,8 @@ func TestRemoveFromZSet(t *testing.T) {
 
 func TestRemoveFromZSetReturnsFalseForNoMatch(t *testing.T) {
 	ctx := context.Background()
-	cli := &mockTaskRedisClient{}
-	useMockTaskRedis(t, cli)
+	cli := &mockRedisClient{}
+	useMockRedis(t, cli)
 
 	taskJSON := `{"task_id":"other-task"}`
 	cli.On("ZRangeByScore", ctx, DelayedQueueKey, mock.AnythingOfType("*redis.ZRangeBy")).
@@ -514,8 +514,8 @@ func TestRemoveFromZSetReturnsFalseForNoMatch(t *testing.T) {
 
 func TestRemoveFromZSetReturnsFalseOnRemoveError(t *testing.T) {
 	ctx := context.Background()
-	cli := &mockTaskRedisClient{}
-	useMockTaskRedis(t, cli)
+	cli := &mockRedisClient{}
+	useMockRedis(t, cli)
 
 	taskJSON := `{"task_id":"task-10"}`
 	cli.On("ZRangeByScore", ctx, DelayedQueueKey, mock.AnythingOfType("*redis.ZRangeBy")).
@@ -528,8 +528,8 @@ func TestRemoveFromZSetReturnsFalseOnRemoveError(t *testing.T) {
 
 func TestRemoveFromZSetReturnsFalseOnRangeError(t *testing.T) {
 	ctx := context.Background()
-	cli := &mockTaskRedisClient{}
-	useMockTaskRedis(t, cli)
+	cli := &mockRedisClient{}
+	useMockRedis(t, cli)
 
 	cli.On("ZRangeByScore", ctx, DelayedQueueKey, mock.AnythingOfType("*redis.ZRangeBy")).
 		Return(redis.NewStringSliceResult(nil, errors.New("range failed"))).
@@ -540,8 +540,8 @@ func TestRemoveFromZSetReturnsFalseOnRangeError(t *testing.T) {
 
 func TestRemoveFromZSetSkipsInvalidPayloads(t *testing.T) {
 	ctx := context.Background()
-	cli := &mockTaskRedisClient{}
-	useMockTaskRedis(t, cli)
+	cli := &mockRedisClient{}
+	useMockRedis(t, cli)
 
 	cli.On("ZRangeByScore", ctx, DelayedQueueKey, mock.AnythingOfType("*redis.ZRangeBy")).
 		Return(redis.NewStringSliceResult([]string{"not-json", `{"task_id":"other-task"}`}, nil)).
@@ -552,8 +552,8 @@ func TestRemoveFromZSetSkipsInvalidPayloads(t *testing.T) {
 
 func TestQueueHelpersOperateOnSerializedTaskPayloads(t *testing.T) {
 	ctx := context.Background()
-	cli := &mockTaskRedisClient{}
-	useMockTaskRedis(t, cli)
+	cli := &mockRedisClient{}
+	useMockRedis(t, cli)
 
 	task := dto.UnifiedTask{TaskID: "task-11"}
 	taskJSON := `{"task_id":"task-11"}`
