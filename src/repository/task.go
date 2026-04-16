@@ -122,6 +122,9 @@ func GetTask(ctx context.Context, timeout time.Duration) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if len(result) < 2 {
+		return "", fmt.Errorf("invalid BRPOP result")
+	}
 
 	return result[1], nil
 }
