@@ -423,6 +423,20 @@ func TestListDelayedTasksRejectsNonStringMembers(t *testing.T) {
 	require.EqualError(t, err, "invalid delayed task data")
 }
 
+func TestListDelayedTasksReturnsRangeError(t *testing.T) {
+	ctx := context.Background()
+	cli := &mockTaskRedisClient{}
+	useMockTaskRedis(t, cli)
+
+	rangeErr := errors.New("zrange failed")
+	getRedisZRangeByScoreWithScores = func(context.Context, string, int64) ([]redis.Z, error) {
+		return nil, rangeErr
+	}
+
+	_, err := ListDelayedTasks(ctx, 1)
+	require.ErrorIs(t, err, rangeErr)
+}
+
 func TestListReadyTasks(t *testing.T) {
 	ctx := context.Background()
 	cli := &mockTaskRedisClient{}
@@ -508,6 +522,30 @@ func TestRemoveFromZSetReturnsFalseOnRemoveError(t *testing.T) {
 		Return(redis.NewStringSliceResult([]string{taskJSON}, nil)).
 		Once()
 	cli.On("ZRem", ctx, DelayedQueueKey, taskJSON).Return(redis.NewIntResult(0, errors.New("remove failed"))).Once()
+
+	assert.False(t, RemoveFromZSet(ctx, DelayedQueueKey, "task-10"))
+}
+
+func TestRemoveFromZSetReturnsFalseOnRangeError(t *testing.T) {
+	ctx := context.Background()
+	cli := &mockTaskRedisClient{}
+	useMockTaskRedis(t, cli)
+
+	cli.On("ZRangeByScore", ctx, DelayedQueueKey, mock.AnythingOfType("*redis.ZRangeBy")).
+		Return(redis.NewStringSliceResult(nil, errors.New("range failed"))).
+		Once()
+
+	assert.False(t, RemoveFromZSet(ctx, DelayedQueueKey, "task-10"))
+}
+
+func TestRemoveFromZSetSkipsInvalidPayloads(t *testing.T) {
+	ctx := context.Background()
+	cli := &mockTaskRedisClient{}
+	useMockTaskRedis(t, cli)
+
+	cli.On("ZRangeByScore", ctx, DelayedQueueKey, mock.AnythingOfType("*redis.ZRangeBy")).
+		Return(redis.NewStringSliceResult([]string{"not-json", `{"task_id":"other-task"}`}, nil)).
+		Once()
 
 	assert.False(t, RemoveFromZSet(ctx, DelayedQueueKey, "task-10"))
 }
