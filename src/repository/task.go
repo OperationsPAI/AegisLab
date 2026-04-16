@@ -30,60 +30,33 @@ const (
 	MaxConcurrency     = 20                      // Maximum concurrent tasks
 )
 
-// ImmediateTask
+type taskRedisClient interface {
+	LPush(ctx context.Context, key string, values ...interface{}) *redis.IntCmd
+	HSet(ctx context.Context, key string, values ...interface{}) *redis.IntCmd
+	BRPop(ctx context.Context, timeout time.Duration, keys ...string) *redis.StringSliceCmd
+	ZAdd(ctx context.Context, key string, members ...redis.Z) *redis.IntCmd
+	Get(ctx context.Context, key string) *redis.StringCmd
+	Incr(ctx context.Context, key string) *redis.IntCmd
+	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd
+	Decr(ctx context.Context, key string) *redis.IntCmd
+	HGet(ctx context.Context, key, field string) *redis.StringCmd
+	ZRangeByScore(ctx context.Context, key string, opt *redis.ZRangeBy) *redis.StringSliceCmd
+	ZRem(ctx context.Context, key string, members ...interface{}) *redis.IntCmd
+	HDel(ctx context.Context, key string, fields ...string) *redis.IntCmd
+}
 
-// SubmitImmediateTask sends a task to the ready queue for immediate execution
-func SubmitImmediateTask(ctx context.Context, taskData []byte, taskID string) error {
-	redisCli := client.GetRedisClient()
-	if err := redisCli.LPush(ctx, ReadyQueueKey, taskData).Err(); err != nil {
-		return err
+var (
+	getTaskRedisClient = func() taskRedisClient {
+		return client.GetRedisClient()
 	}
-
-	return redisCli.HSet(ctx, TaskIndexKey, taskID, ReadyQueueKey).Err()
-}
-
-// GetTask retrieves a task from the ready queue with blocking
-func GetTask(ctx context.Context, timeout time.Duration) (string, error) {
-	redisCli := client.GetRedisClient()
-	result, err := redisCli.BRPop(ctx, timeout, ReadyQueueKey).Result()
-	if err != nil {
-		return "", err
+	getTaskRedisScriptClient = func() *redis.Client {
+		return client.GetRedisClient()
 	}
-
-	return result[1], nil
-}
-
-// HandleFailedTask moves a failed task to the dead letter queue
-func HandleFailedTask(ctx context.Context, taskData []byte, backoffSec int) error {
-	deadLetterTime := time.Now().Add(time.Duration(backoffSec) * time.Second).Unix()
-	redisCli := client.GetRedisClient()
-	return redisCli.ZAdd(ctx, DeadLetterKey, redis.Z{
-		Score:  float64(deadLetterTime),
-		Member: taskData,
-	}).Err()
-}
-
-// Delayed Task
-
-// SubmitDelayedTask sends a task to the delayed queue for future execution
-func SubmitDelayedTask(ctx context.Context, taskData []byte, taskID string, executeTime int64) error {
-	redisCli := client.GetRedisClient()
-	if err := redisCli.ZAdd(ctx, DelayedQueueKey, redis.Z{
-		Score:  float64(executeTime),
-		Member: taskData,
-	}).Err(); err != nil {
-		return err
-	}
-
-	return redisCli.HSet(ctx, TaskIndexKey, taskID, DelayedQueueKey).Err()
-}
-
-// ProcessDelayedTasks moves tasks from delayed queue to ready queue when their time arrives
-func ProcessDelayedTasks(ctx context.Context) ([]string, error) {
-	redisCli := client.GetRedisClient()
-	now := time.Now().Unix()
-
-	delayedTaskScript := redis.NewScript(`
+	getRedisListRange               = client.GetRedisListRange
+	getRedisZRangeByScoreWithScores = client.GetRedisZRangeByScoreWithScores
+	currentTaskTime                 = time.Now
+	runProcessDelayedTasksScript    = func(ctx context.Context, redisCli *redis.Client, now int64) ([]string, error) {
+		delayedTaskScript := redis.NewScript(`
 		local tasks = redis.call('ZRANGEBYSCORE', KEYS[1], 0, ARGV[1])
 		if #tasks > 0 then
 			redis.call('ZREMRANGEBYSCORE', KEYS[1], 0, ARGV[1])
@@ -97,84 +70,13 @@ func ProcessDelayedTasks(ctx context.Context) ([]string, error) {
 		return tasks
 	`)
 
-	result, err := delayedTaskScript.Run(ctx, redisCli,
-		[]string{DelayedQueueKey, ReadyQueueKey, TaskIndexKey},
-		now,
-	).StringSlice()
-
-	if err != nil && err != redis.Nil {
-		return nil, err
+		return delayedTaskScript.Run(ctx, redisCli,
+			[]string{DelayedQueueKey, ReadyQueueKey, TaskIndexKey},
+			now,
+		).StringSlice()
 	}
-
-	return result, nil
-}
-
-// HandleCronRescheduleFailure moves a failed cron task to the dead letter queue
-func HandleCronRescheduleFailure(ctx context.Context, taskData []byte) error {
-	return client.GetRedisClient().ZAdd(ctx, DeadLetterKey, redis.Z{
-		Score:  float64(time.Now().Unix()),
-		Member: taskData,
-	}).Err()
-}
-
-// AcquireConcurrencyLock attempts to acquire a lock for task execution
-func AcquireConcurrencyLock(ctx context.Context) bool {
-	redisCli := client.GetRedisClient()
-	currentCount, _ := redisCli.Get(ctx, ConcurrencyLockKey).Int64()
-	if currentCount >= MaxConcurrency {
-		return false
-	}
-	return redisCli.Incr(ctx, ConcurrencyLockKey).Err() == nil
-}
-
-// InitConcurrencyLock initializes the concurrency lock counter
-func InitConcurrencyLock(ctx context.Context) error {
-	redisCli := client.GetRedisClient()
-	return redisCli.Set(ctx, ConcurrencyLockKey, 0, 0).Err()
-}
-
-// ReleaseConcurrencyLock releases a lock after task execution
-func ReleaseConcurrencyLock(ctx context.Context) {
-	redisCli := client.GetRedisClient()
-	if err := redisCli.Decr(ctx, ConcurrencyLockKey).Err(); err != nil {
-		logrus.Warnf("error releasing concurrency lock: %v", err)
-	}
-}
-
-// GetTaskQueue retrieves the queue a task is in
-func GetTaskQueue(ctx context.Context, taskID string) (string, error) {
-	return client.GetRedisClient().HGet(ctx, TaskIndexKey, taskID).Result()
-}
-
-// ListDelayedTasks lists all tasks in the delayed queue
-func ListDelayedTasks(ctx context.Context, limit int64) ([]string, error) {
-	delayedTasksWithScore, err := client.GetRedisZRangeByScoreWithScores(ctx, DelayedQueueKey, limit)
-	if err != nil {
-		return nil, err
-	}
-
-	taskDatas := make([]string, 0, len(delayedTasksWithScore))
-	for _, z := range delayedTasksWithScore {
-		taskData, ok := z.Member.(string)
-		if !ok {
-			return nil, fmt.Errorf("invalid delayed task data")
-		}
-		taskDatas = append(taskDatas, taskData)
-	}
-
-	return taskDatas, nil
-}
-
-// ListReadyTasks lists all tasks in the ready queue
-func ListReadyTasks(ctx context.Context) ([]string, error) {
-	return client.GetRedisListRange(ctx, ReadyQueueKey)
-}
-
-// RemoveFromList removes a task from a Redis list using Lua script
-func RemoveFromList(ctx context.Context, key, taskID string) (bool, error) {
-	cli := client.GetRedisClient()
-	// Efficient list removal Lua script
-	removeFromListScript := redis.NewScript(`
+	runRemoveFromListScript = func(ctx context.Context, redisCli *redis.Client, key, taskID string) (int, error) {
+		removeFromListScript := redis.NewScript(`
 		local key = KEYS[1]
 		local taskID = ARGV[1]
 		local count = 0
@@ -193,10 +95,136 @@ func RemoveFromList(ctx context.Context, key, taskID string) (bool, error) {
 		if count > 0 then
 			redis.call('LREM', key, count, "__DELETED__")
 		end
-		
+
 		return count
 	`)
-	result, err := removeFromListScript.Run(ctx, cli, []string{key}, taskID).Int()
+
+		return removeFromListScript.Run(ctx, redisCli, []string{key}, taskID).Int()
+	}
+)
+
+// ImmediateTask
+
+// SubmitImmediateTask sends a task to the ready queue for immediate execution
+func SubmitImmediateTask(ctx context.Context, taskData []byte, taskID string) error {
+	redisCli := getTaskRedisClient()
+	if err := redisCli.LPush(ctx, ReadyQueueKey, taskData).Err(); err != nil {
+		return err
+	}
+
+	return redisCli.HSet(ctx, TaskIndexKey, taskID, ReadyQueueKey).Err()
+}
+
+// GetTask retrieves a task from the ready queue with blocking
+func GetTask(ctx context.Context, timeout time.Duration) (string, error) {
+	redisCli := getTaskRedisClient()
+	result, err := redisCli.BRPop(ctx, timeout, ReadyQueueKey).Result()
+	if err != nil {
+		return "", err
+	}
+
+	return result[1], nil
+}
+
+// HandleFailedTask moves a failed task to the dead letter queue
+func HandleFailedTask(ctx context.Context, taskData []byte, backoffSec int) error {
+	deadLetterTime := currentTaskTime().Add(time.Duration(backoffSec) * time.Second).Unix()
+	redisCli := getTaskRedisClient()
+	return redisCli.ZAdd(ctx, DeadLetterKey, redis.Z{
+		Score:  float64(deadLetterTime),
+		Member: taskData,
+	}).Err()
+}
+
+// Delayed Task
+
+// SubmitDelayedTask sends a task to the delayed queue for future execution
+func SubmitDelayedTask(ctx context.Context, taskData []byte, taskID string, executeTime int64) error {
+	redisCli := getTaskRedisClient()
+	if err := redisCli.ZAdd(ctx, DelayedQueueKey, redis.Z{
+		Score:  float64(executeTime),
+		Member: taskData,
+	}).Err(); err != nil {
+		return err
+	}
+
+	return redisCli.HSet(ctx, TaskIndexKey, taskID, DelayedQueueKey).Err()
+}
+
+// ProcessDelayedTasks moves tasks from delayed queue to ready queue when their time arrives
+func ProcessDelayedTasks(ctx context.Context) ([]string, error) {
+	result, err := runProcessDelayedTasksScript(ctx, getTaskRedisScriptClient(), currentTaskTime().Unix())
+	if err != nil && err != redis.Nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+// HandleCronRescheduleFailure moves a failed cron task to the dead letter queue
+func HandleCronRescheduleFailure(ctx context.Context, taskData []byte) error {
+	return getTaskRedisClient().ZAdd(ctx, DeadLetterKey, redis.Z{
+		Score:  float64(currentTaskTime().Unix()),
+		Member: taskData,
+	}).Err()
+}
+
+// AcquireConcurrencyLock attempts to acquire a lock for task execution
+func AcquireConcurrencyLock(ctx context.Context) bool {
+	redisCli := getTaskRedisClient()
+	currentCount, _ := redisCli.Get(ctx, ConcurrencyLockKey).Int64()
+	if currentCount >= MaxConcurrency {
+		return false
+	}
+	return redisCli.Incr(ctx, ConcurrencyLockKey).Err() == nil
+}
+
+// InitConcurrencyLock initializes the concurrency lock counter
+func InitConcurrencyLock(ctx context.Context) error {
+	redisCli := getTaskRedisClient()
+	return redisCli.Set(ctx, ConcurrencyLockKey, 0, 0).Err()
+}
+
+// ReleaseConcurrencyLock releases a lock after task execution
+func ReleaseConcurrencyLock(ctx context.Context) {
+	redisCli := getTaskRedisClient()
+	if err := redisCli.Decr(ctx, ConcurrencyLockKey).Err(); err != nil {
+		logrus.Warnf("error releasing concurrency lock: %v", err)
+	}
+}
+
+// GetTaskQueue retrieves the queue a task is in
+func GetTaskQueue(ctx context.Context, taskID string) (string, error) {
+	return getTaskRedisClient().HGet(ctx, TaskIndexKey, taskID).Result()
+}
+
+// ListDelayedTasks lists all tasks in the delayed queue
+func ListDelayedTasks(ctx context.Context, limit int64) ([]string, error) {
+	delayedTasksWithScore, err := getRedisZRangeByScoreWithScores(ctx, DelayedQueueKey, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	taskDatas := make([]string, 0, len(delayedTasksWithScore))
+	for _, z := range delayedTasksWithScore {
+		taskData, ok := z.Member.(string)
+		if !ok {
+			return nil, fmt.Errorf("invalid delayed task data")
+		}
+		taskDatas = append(taskDatas, taskData)
+	}
+
+	return taskDatas, nil
+}
+
+// ListReadyTasks lists all tasks in the ready queue
+func ListReadyTasks(ctx context.Context) ([]string, error) {
+	return getRedisListRange(ctx, ReadyQueueKey)
+}
+
+// RemoveFromList removes a task from a Redis list using Lua script
+func RemoveFromList(ctx context.Context, key, taskID string) (bool, error) {
+	result, err := runRemoveFromListScript(ctx, getTaskRedisScriptClient(), key, taskID)
 	if err != nil {
 		return false, fmt.Errorf("failed to remove from list: %w", err)
 	}
@@ -206,7 +234,7 @@ func RemoveFromList(ctx context.Context, key, taskID string) (bool, error) {
 
 // RemoveFromZSet removes a task from a Redis sorted set
 func RemoveFromZSet(ctx context.Context, key, taskID string) bool {
-	cli := client.GetRedisClient()
+	cli := getTaskRedisClient()
 	members, err := cli.ZRangeByScore(ctx, key, &redis.ZRangeBy{
 		Min: "-inf",
 		Max: "+inf",
@@ -231,7 +259,7 @@ func RemoveFromZSet(ctx context.Context, key, taskID string) bool {
 
 // DeleteTaskIndex removes a task from the task index
 func DeleteTaskIndex(ctx context.Context, taskID string) error {
-	return client.GetRedisClient().HDel(ctx, TaskIndexKey, taskID).Err()
+	return getTaskRedisClient().HDel(ctx, TaskIndexKey, taskID).Err()
 }
 
 // ===================== Task Database =====================
