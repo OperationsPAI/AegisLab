@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -195,14 +196,15 @@ func mapParamsToFieldIndices(params map[string]any, specType any, children map[s
 			idx, ok = nameToIdx[strings.ToLower(key)]
 		}
 		if !ok {
-			available := make([]string, 0, len(nameToIdx))
-			seen := make(map[int]bool)
-			for name, fieldIdx := range nameToIdx {
-				if !seen[fieldIdx] {
-					seen[fieldIdx] = true
-					available = append(available, name)
+			available := make([]string, 0, rt.NumField()-3)
+			for i := 3; i < rt.NumField(); i++ {
+				field := rt.Field(i)
+				if field.Name == "NamespaceTarget" {
+					continue
 				}
+				available = append(available, toSnakeCase(field.Name))
 			}
+			sort.Strings(available)
 			return fmt.Errorf("unknown param %q, available fields: %v", key, available)
 		}
 

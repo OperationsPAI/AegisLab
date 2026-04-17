@@ -122,7 +122,7 @@ SPEC FILE FORMAT (injection.yaml):
   specs:
     - - type: CPUStress
         namespace: exp
-        target: frontend
+        target: "0"
         duration: "5m"
         params:
           cpu_load: 80
