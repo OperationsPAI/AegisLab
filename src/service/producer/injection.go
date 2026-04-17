@@ -1153,12 +1153,12 @@ func parseBatchInjectionSpecs(ctx context.Context, pedestal string, batchIndex i
 	uniqueServices := make(map[string]int, len(nodes))
 	var duplicateServiceWarnings []string
 	for idx, node := range nodes {
-		conf, err := chaos.NodeToStruct[chaos.InjectionConf](&node)
+		conf, err := chaos.NodeToStruct[chaos.InjectionConf](ctx, &node)
 		if err != nil {
 			return nil, "", fmt.Errorf("failed to convert node to InjectionConf at index %d: %w", idx, err)
 		}
 
-		groundtruth, err := conf.GetGroundtruth()
+		groundtruth, err := conf.GetGroundtruth(ctx)
 		if err != nil {
 			return nil, "", fmt.Errorf("failed to get groundtruth from InjectionConf at index %d: %w", idx, err)
 		}

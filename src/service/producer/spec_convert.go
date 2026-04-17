@@ -125,27 +125,30 @@ func parseDurationToMinutes(duration string) (int, error) {
 	return 0, fmt.Errorf("cannot parse duration %q: expected Go duration (e.g., \"60s\", \"5m\") or integer minutes", duration)
 }
 
-// resolveNamespaceIndex maps a namespace prefix string to its index in chaos.NamespacePrefixs.
+// resolveNamespaceIndex maps a namespace prefix string to its index in the registered system list.
 func resolveNamespaceIndex(namespace string) (int, error) {
 	if namespace == "" {
 		return 0, nil
 	}
 
+	systems := chaos.GetAllSystemTypes()
+
 	// Exact match
-	for idx, prefix := range chaos.NamespacePrefixs {
-		if prefix == namespace {
+	for idx, system := range systems {
+		if system.String() == namespace {
 			return idx, nil
 		}
 	}
 
-	// Prefix-based match (e.g., "exp" matches "exp" prefix)
-	for idx, prefix := range chaos.NamespacePrefixs {
+	// Prefix-based match (e.g., "ts0" matches "ts")
+	for idx, system := range systems {
+		prefix := system.String()
 		if strings.HasPrefix(prefix, namespace) || strings.HasPrefix(namespace, prefix) {
 			return idx, nil
 		}
 	}
 
-	return 0, fmt.Errorf("namespace %q not found in registered prefixes: %v", namespace, chaos.NamespacePrefixs)
+	return 0, fmt.Errorf("namespace %q not found in registered systems: %v", namespace, systems)
 }
 
 // resolveTargetIndex resolves the target field to a numeric index.

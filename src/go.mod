@@ -30,7 +30,7 @@ require (
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/shirou/gopsutil/v3 v3.24.5
 	github.com/sirupsen/logrus v1.9.3
-	github.com/spf13/cobra v1.8.1
+	github.com/spf13/cobra v1.10.1
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.11.0
 	github.com/swaggo/files v1.0.1
@@ -45,6 +45,7 @@ require (
 	golang.org/x/crypto v0.42.0
 	golang.org/x/sync v0.17.0
 	google.golang.org/protobuf v1.36.8
+	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/driver/mysql v1.5.7
 	gorm.io/gorm v1.25.12
 	gorm.io/plugin/opentelemetry v0.1.13
@@ -56,6 +57,10 @@ require (
 	sigs.k8s.io/controller-runtime v0.21.0
 	sigs.k8s.io/yaml v1.4.0
 )
+
+replace github.com/OperationsPAI/chaos-experiment => ../../chaos-experiment
+
+replace github.com/chaos-mesh/chaos-mesh/api => github.com/OperationsPAI/chaos-mesh/api v0.0.0-20260124102507-517f3df45e54
 
 require (
 	dario.cat/mergo v1.0.1 // indirect
@@ -237,7 +242,7 @@ require (
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.11.0 // indirect
 	github.com/spf13/cast v1.7.1 // indirect
-	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/spf13/pflag v1.0.9 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/swaggo/swag v1.16.4 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
@@ -287,7 +292,6 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gorm.io/driver/clickhouse v0.6.1 // indirect
 	gorm.io/driver/postgres v1.5.11 // indirect
 	gotest.tools/v3 v3.5.1 // indirect
