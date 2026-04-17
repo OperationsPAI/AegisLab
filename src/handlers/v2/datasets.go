@@ -89,7 +89,7 @@ func DeleteDataset(c *gin.Context) {
 		return
 	}
 
-	dto.JSONResponse[any](c, http.StatusCreated, "Dataset deleted successfully", nil)
+	dto.JSONResponse[any](c, http.StatusNoContent, "Dataset deleted successfully", nil)
 }
 
 // GetDataset handles getting a single dataset by ID

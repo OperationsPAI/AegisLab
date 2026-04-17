@@ -43,7 +43,7 @@ import (
 func BatchDeleteInjections(c *gin.Context) {
 	var req dto.BatchDeleteInjectionReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
 		return
 	}
 
@@ -327,7 +327,7 @@ func ManageInjectionCustomLabels(c *gin.Context) {
 func BatchManageInjectionLabels(c *gin.Context) {
 	var req dto.BatchManageInjectionLabelReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
 		return
 	}
 
@@ -564,7 +564,7 @@ func DownloadDatapackFile(c *gin.Context) {
 
 	filePath := c.Query("path")
 	if filePath == "" {
-		dto.ErrorResponse(c, http.StatusBadRequest, "file path is required")
+		dto.ErrorResponse(c, http.StatusBadRequest, "File path is required")
 		return
 	}
 
@@ -627,7 +627,7 @@ func QueryDatapackFile(c *gin.Context) {
 
 	filePath := c.Query("path")
 	if filePath == "" {
-		dto.ErrorResponse(c, http.StatusBadRequest, "file path is required")
+		dto.ErrorResponse(c, http.StatusBadRequest, "File path is required")
 		return
 	}
 
@@ -663,20 +663,20 @@ func serveRangeRequest(c *gin.Context, reader io.ReadSeeker, fileSize int64, ran
 	// Parse "bytes=start-end" format
 	const prefix = "bytes="
 	if !strings.HasPrefix(rangeHeader, prefix) {
-		dto.ErrorResponse(c, http.StatusRequestedRangeNotSatisfiable, "invalid range format")
+		dto.ErrorResponse(c, http.StatusRequestedRangeNotSatisfiable, "Invalid range format")
 		return
 	}
 
 	rangeSpec := strings.TrimPrefix(rangeHeader, prefix)
 	// Only support single range (no multi-range)
 	if strings.Contains(rangeSpec, ",") {
-		dto.ErrorResponse(c, http.StatusRequestedRangeNotSatisfiable, "multi-range not supported")
+		dto.ErrorResponse(c, http.StatusRequestedRangeNotSatisfiable, "Multi-range not supported")
 		return
 	}
 
 	parts := strings.SplitN(rangeSpec, "-", 2)
 	if len(parts) != 2 {
-		dto.ErrorResponse(c, http.StatusRequestedRangeNotSatisfiable, "invalid range format")
+		dto.ErrorResponse(c, http.StatusRequestedRangeNotSatisfiable, "Invalid range format")
 		return
 	}
 
@@ -688,7 +688,7 @@ func serveRangeRequest(c *gin.Context, reader io.ReadSeeker, fileSize int64, ran
 		suffix, err := strconv.ParseInt(parts[1], 10, 64)
 		if err != nil || suffix <= 0 || suffix > fileSize {
 			c.Header("Content-Range", fmt.Sprintf("bytes */%d", fileSize))
-			dto.ErrorResponse(c, http.StatusRequestedRangeNotSatisfiable, "invalid range")
+			dto.ErrorResponse(c, http.StatusRequestedRangeNotSatisfiable, "Invalid range")
 			return
 		}
 		start = fileSize - suffix
@@ -697,7 +697,7 @@ func serveRangeRequest(c *gin.Context, reader io.ReadSeeker, fileSize int64, ran
 		start, err = strconv.ParseInt(parts[0], 10, 64)
 		if err != nil || start < 0 || start >= fileSize {
 			c.Header("Content-Range", fmt.Sprintf("bytes */%d", fileSize))
-			dto.ErrorResponse(c, http.StatusRequestedRangeNotSatisfiable, "invalid range start")
+			dto.ErrorResponse(c, http.StatusRequestedRangeNotSatisfiable, "Invalid range start")
 			return
 		}
 
@@ -708,7 +708,7 @@ func serveRangeRequest(c *gin.Context, reader io.ReadSeeker, fileSize int64, ran
 			end, err = strconv.ParseInt(parts[1], 10, 64)
 			if err != nil || end < start || end >= fileSize {
 				c.Header("Content-Range", fmt.Sprintf("bytes */%d", fileSize))
-				dto.ErrorResponse(c, http.StatusRequestedRangeNotSatisfiable, "invalid range end")
+				dto.ErrorResponse(c, http.StatusRequestedRangeNotSatisfiable, "Invalid range end")
 				return
 			}
 		}
@@ -719,7 +719,7 @@ func serveRangeRequest(c *gin.Context, reader io.ReadSeeker, fileSize int64, ran
 	// Seek to start position
 	if _, err := reader.Seek(start, io.SeekStart); err != nil {
 		logrus.Errorf("failed to seek to range start: %v", err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to seek to range start")
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to seek to range start")
 		return
 	}
 
@@ -737,7 +737,7 @@ func serveRangeRequest(c *gin.Context, reader io.ReadSeeker, fileSize int64, ran
 func searchInjectionsCommon(c *gin.Context, projectID *int) {
 	var req dto.SearchInjectionReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
 		return
 	}
 
@@ -820,7 +820,7 @@ func submitFaultInjectionCommon(c *gin.Context, projectID *int) {
 	ctx, ok := c.Get(middleware.SpanContextKey)
 	if !ok {
 		logrus.Error("Failed to get span context from gin.Context in SubmitFaultInjection")
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get span context")
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Internal server error")
 		return
 	}
 
@@ -870,7 +870,7 @@ func submitDatapackBuildingCommon(c *gin.Context, projectID *int) {
 	ctx, ok := c.Get(middleware.SpanContextKey)
 	if !ok {
 		logrus.Error("Failed to get span context from gin.Context in SubmitDatapackBuilding")
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get span context")
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Internal server error")
 		return
 	}
 

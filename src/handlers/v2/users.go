@@ -399,7 +399,7 @@ func RemoveUserPermission(c *gin.Context) {
 		return
 	}
 
-	dto.JSONResponse[any](c, http.StatusOK, "Permissions assigned successfully", nil)
+	dto.JSONResponse[any](c, http.StatusOK, "Permissions removed successfully", nil)
 }
 
 // ===================== User-Container API =====================

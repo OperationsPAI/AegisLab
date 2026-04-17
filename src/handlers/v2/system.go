@@ -7,6 +7,7 @@ import (
 	producer "aegis/service/producer"
 
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 )
 
 // GetSystemMetrics retrieves current system metrics
@@ -25,7 +26,8 @@ import (
 func GetSystemMetrics(c *gin.Context) {
 	resp, err := producer.GetSystemMetrics(c.Request.Context())
 	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get system metrics: "+err.Error())
+		logrus.WithError(err).Error("Failed to get system metrics")
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Internal server error")
 		return
 	}
 
@@ -48,7 +50,8 @@ func GetSystemMetrics(c *gin.Context) {
 func GetSystemMetricsHistory(c *gin.Context) {
 	resp, err := producer.GetSystemMetricsHistory(c.Request.Context())
 	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get system metrics history: "+err.Error())
+		logrus.WithError(err).Error("Failed to get system metrics history")
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Internal server error")
 		return
 	}
 

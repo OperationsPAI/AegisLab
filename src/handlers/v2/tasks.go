@@ -49,7 +49,7 @@ func BatchDeleteTasks(c *gin.Context) {
 	}
 
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters"+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 
@@ -119,7 +119,7 @@ func GetTask(c *gin.Context) {
 func ListTasks(c *gin.Context) {
 	var req dto.ListTaskReq
 	if err := c.ShouldBindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format : "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
 		return
 	}
 
@@ -153,14 +153,14 @@ func ListTasks(c *gin.Context) {
 func GetTaskLogsWS(c *gin.Context) {
 	taskID := c.Param(consts.URLPathTaskID)
 	if taskID == "" {
-		dto.ErrorResponse(c, http.StatusBadRequest, "task_id is required")
+		dto.ErrorResponse(c, http.StatusBadRequest, "Task ID is required")
 		return
 	}
 
 	// Authenticate via query parameter (WebSocket doesn't support custom headers)
 	token := c.Query("token")
 	if token == "" {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "token query parameter is required")
+		dto.ErrorResponse(c, http.StatusUnauthorized, "Token query parameter is required")
 		return
 	}
 
@@ -173,11 +173,11 @@ func GetTaskLogsWS(c *gin.Context) {
 	task, err := repository.GetTaskByID(database.DB, taskID)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			dto.ErrorResponse(c, http.StatusNotFound, "task not found")
+			dto.ErrorResponse(c, http.StatusNotFound, "Task not found")
 			return
 		}
 
-		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to retrieve task: "+err.Error())
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to retrieve task: "+err.Error())
 		return
 	}
 

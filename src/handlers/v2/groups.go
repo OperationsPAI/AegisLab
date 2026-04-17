@@ -37,7 +37,7 @@ import (
 func GetGroupStats(c *gin.Context) {
 	var req dto.GetGroupStatsReq
 	if err := c.ShouldBindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format")
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
 		return
 	}
 
@@ -82,7 +82,7 @@ func GetGroupStream(c *gin.Context) {
 
 	var req dto.GetGroupStreamReq
 	if err := c.ShouldBindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format")
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
 		return
 	}
 

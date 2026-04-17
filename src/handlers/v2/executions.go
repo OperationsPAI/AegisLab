@@ -228,7 +228,7 @@ func SubmitAlgorithmExecution(c *gin.Context) {
 	ctx, ok := c.Get(middleware.SpanContextKey)
 	if !ok {
 		logrus.Error("failed to get span context from gin.Context")
-		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get span context")
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Internal server error")
 		return
 	}
 

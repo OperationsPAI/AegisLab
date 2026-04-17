@@ -152,7 +152,7 @@ func GetTraceStream(c *gin.Context) {
 	historicalMessages, err := producer.ReadTraceStreamMessages(ctx, streamKey, req.LastID, 100, 0)
 	if err != nil {
 		logEntry.Errorf("failed to read historical events from redis: %v", err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to read event history")
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to read event history")
 		return
 	}
 
@@ -160,7 +160,7 @@ func GetTraceStream(c *gin.Context) {
 		lastID, completed, err := sendSSEEvents(c, processor, historicalMessages)
 		if err != nil {
 			logEntry.Errorf("failed to send historical stream events of ID %s: %v", req.LastID, err)
-			dto.ErrorResponse(c, http.StatusInternalServerError, "failed to send stream events")
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to send stream events")
 			return
 		}
 
@@ -188,7 +188,7 @@ func GetTraceStream(c *gin.Context) {
 				}
 
 				logEntry.Errorf("Error reading stream: %v", err)
-				dto.ErrorResponse(c, http.StatusInternalServerError, "failed to read stream events")
+				dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to read stream events")
 				return
 			}
 
