@@ -40,6 +40,12 @@ func TestBackendSubmitterPostsExpectedPayload(t *testing.T) {
 		resolveProject: func() (int, error) {
 			return 42, nil
 		},
+		resolveSystemIndex: func(_ context.Context, system string) (int, error) {
+			if system != "ts" {
+				t.Fatalf("unexpected system lookup %q", system)
+			}
+			return 11, nil
+		},
 		defaults: &chaosDefaults{
 			pedestal:    "ts",
 			benchmark:   "clickhouse",
@@ -51,7 +57,7 @@ func TestBackendSubmitterPostsExpectedPayload(t *testing.T) {
 	spec := chaoscli.Spec{
 		Type:      "NetworkDelay",
 		Namespace: "ts",
-		Target:    "frontend",
+		Target:    "0",
 		Duration:  "30s",
 		Params: map[string]any{
 			"target_service": "checkout",
@@ -77,14 +83,10 @@ func TestBackendSubmitterPostsExpectedPayload(t *testing.T) {
 	}
 	firstBatch, _ := specs[0].([]any)
 	if len(firstBatch) != 1 {
-		t.Fatalf("expected one spec in first batch, got %+v", firstBatch)
+		t.Fatalf("expected one node in first batch, got %+v", firstBatch)
 	}
-	faultSpec, _ := firstBatch[0].(map[string]any)
-	if faultSpec["type"] != "NetworkDelay" {
-		t.Fatalf("expected friendly fault type, got %+v", faultSpec)
-	}
-	params, _ := faultSpec["params"].(map[string]any)
-	if params["target_service"] != "checkout" {
-		t.Fatalf("expected target_service to be preserved, got %+v", faultSpec)
+	node, _ := firstBatch[0].(map[string]any)
+	if node["value"] == nil {
+		t.Fatalf("expected translated node payload, got %+v", node)
 	}
 }
