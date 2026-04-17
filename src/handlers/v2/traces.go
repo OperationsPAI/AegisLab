@@ -80,7 +80,7 @@ func ListTraces(c *gin.Context) {
 	}
 
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 
@@ -124,7 +124,7 @@ func GetTraceStream(c *gin.Context) {
 	}
 
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 
@@ -144,7 +144,7 @@ func GetTraceStream(c *gin.Context) {
 	processor, err := producer.GetTraceStreamProcessor(ctx, traceID)
 	if err != nil {
 		logEntry.Errorf("Failed to initialize stream processor: %v", err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to initialize trace stream: %v", err))
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Internal server error")
 		return
 	}
 

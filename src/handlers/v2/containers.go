@@ -13,6 +13,7 @@ import (
 	producer "aegis/service/producer"
 
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 )
 
 // ===================== Container =====================
@@ -49,7 +50,7 @@ func CreateContainer(c *gin.Context) {
 	}
 
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 
@@ -154,7 +155,7 @@ func ListContainers(c *gin.Context) {
 	}
 
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 
@@ -248,7 +249,7 @@ func CreateContainerVersion(c *gin.Context) {
 	}
 
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 
@@ -368,7 +369,7 @@ func ListContainerVersions(c *gin.Context) {
 	}
 
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 
@@ -461,7 +462,7 @@ func ManageContainerCustomLabels(c *gin.Context) {
 	}
 
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 
@@ -501,7 +502,8 @@ func SubmitContainerBuilding(c *gin.Context) {
 
 	ctx, ok := c.Get(middleware.SpanContextKey)
 	if !ok {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get span context")
+		logrus.Error("Failed to get span context from gin.Context in SubmitBuildContainer")
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Internal server error")
 		return
 	}
 	spanCtx := ctx.(context.Context)
@@ -513,7 +515,7 @@ func SubmitContainerBuilding(c *gin.Context) {
 	}
 
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 

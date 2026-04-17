@@ -1,9 +1,12 @@
 package v2
 
 import (
+	"fmt"
 	"net/http"
 
+	"aegis/consts"
 	"aegis/dto"
+	"aegis/handlers"
 	producer "aegis/service/producer"
 
 	"github.com/gin-gonic/gin"
@@ -27,7 +30,7 @@ func GetSystemMetrics(c *gin.Context) {
 	resp, err := producer.GetSystemMetrics(c.Request.Context())
 	if err != nil {
 		logrus.WithError(err).Error("Failed to get system metrics")
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Internal server error")
+		handlers.HandleServiceError(c, fmt.Errorf("%w: %v", consts.ErrInternal, err))
 		return
 	}
 
@@ -51,7 +54,7 @@ func GetSystemMetricsHistory(c *gin.Context) {
 	resp, err := producer.GetSystemMetricsHistory(c.Request.Context())
 	if err != nil {
 		logrus.WithError(err).Error("Failed to get system metrics history")
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Internal server error")
+		handlers.HandleServiceError(c, fmt.Errorf("%w: %v", consts.ErrInternal, err))
 		return
 	}
 

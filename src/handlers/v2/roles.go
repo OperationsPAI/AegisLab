@@ -124,7 +124,7 @@ func GetRole(c *gin.Context) {
 //	@Param			is_system	query		bool									false	"Filter by system role"
 //	@Param			status		query		consts.StatusType						false	"Filter by status"
 //	@Success		200			{object}	dto.GenericResponse[dto.ListRoleResp]	"Roles retrieved successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]				"Invalid request parameters"
+//	@Failure		400			{object}	dto.GenericResponse[any]				"Validation failed"
 //	@Failure		401			{object}	dto.GenericResponse[any]				"Authentication required"
 //	@Failure		403			{object}	dto.GenericResponse[any]				"Permission denied"
 //	@Failure		500			{object}	dto.GenericResponse[any]				"Internal server error"
@@ -133,7 +133,7 @@ func GetRole(c *gin.Context) {
 func ListRoles(c *gin.Context) {
 	var req dto.ListRoleReq
 	if err := c.ShouldBindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 
@@ -179,7 +179,7 @@ func UpdateRole(c *gin.Context) {
 	}
 
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 

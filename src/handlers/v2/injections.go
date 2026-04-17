@@ -203,7 +203,7 @@ func ListInjections(c *gin.Context) {
 	}
 
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 
@@ -309,7 +309,7 @@ func ManageInjectionCustomLabels(c *gin.Context) {
 	}
 
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 
@@ -945,7 +945,7 @@ func submitFaultInjectionCommon(c *gin.Context, projectID *int) {
 
 	if err := req.Validate(); err != nil {
 		span.SetStatus(codes.Error, "validation error in SubmitFaultInjection: "+err.Error())
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 
@@ -1002,7 +1002,7 @@ func submitDatapackBuildingCommon(c *gin.Context, projectID *int) {
 
 	if err := req.Validate(); err != nil {
 		span.SetStatus(codes.Error, "validation error in SubmitDatapackBuilding: "+err.Error())
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 
