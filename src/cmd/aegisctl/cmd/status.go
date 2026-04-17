@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"sort"
 
 	"aegis/cmd/aegisctl/client"
 	"aegis/cmd/aegisctl/output"
@@ -29,9 +30,22 @@ type traceItem struct {
 	ProjectID int    `json:"project_id"`
 }
 
+type healthServiceInfo struct {
+	Status       string `json:"status"`
+	ResponseTime string `json:"response_time"`
+	Error        string `json:"error,omitempty"`
+}
+
+type healthCheckResp struct {
+	Status   string                       `json:"status"`
+	Version  string                       `json:"version"`
+	Uptime   string                       `json:"uptime"`
+	Services map[string]healthServiceInfo `json:"services"`
+}
+
 var statusCmd = &cobra.Command{
 	Use:   "status",
-	Short: "Show cluster and connection status",
+	Short: "Show cluster status and infrastructure health",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		c := newClient()
 
@@ -75,6 +89,14 @@ var statusCmd = &cobra.Command{
 				result["recent_traces"] = traceResp.Data.Items
 			}
 
+			// Health
+			var healthResp client.APIResponse[healthCheckResp]
+			if err := c.Get("/system/health", &healthResp); err == nil {
+				result["health"] = healthResp.Data
+			} else {
+				result["health"] = map[string]any{"status": "unreachable", "error": err.Error()}
+			}
+
 			output.PrintJSON(result)
 			return nil
 		}
@@ -115,6 +137,32 @@ var statusCmd = &cobra.Command{
 				rows = append(rows, []string{t.TraceID, t.State, t.Type, project})
 			}
 			output.PrintTable([]string{"Trace-ID", "State", "Type", "Project"}, rows)
+		}
+		fmt.Println()
+
+		// --- Infrastructure Health ---
+		fmt.Println("Infrastructure Health:")
+		var healthResp client.APIResponse[healthCheckResp]
+		if err := c.Get("/system/health", &healthResp); err != nil {
+			fmt.Printf("  \033[31m\u2717\033[0m Could not reach health endpoint: %v\n", err)
+		} else {
+			names := make([]string, 0, len(healthResp.Data.Services))
+			for name := range healthResp.Data.Services {
+				names = append(names, name)
+			}
+			sort.Strings(names)
+			for _, name := range names {
+				svc := healthResp.Data.Services[name]
+				if svc.Status == "healthy" {
+					fmt.Printf("  \033[32m\u2713\033[0m %-12s %s\n", name, svc.ResponseTime)
+				} else {
+					errMsg := svc.Error
+					if errMsg == "" {
+						errMsg = "unhealthy"
+					}
+					fmt.Printf("  \033[31m\u2717\033[0m %-12s %s (%s)\n", name, svc.ResponseTime, errMsg)
+				}
+			}
 		}
 
 		return nil
