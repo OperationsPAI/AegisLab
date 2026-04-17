@@ -120,13 +120,23 @@ SPEC FILE FORMAT (injection.yaml):
     - - type: CPUStress
         namespace: exp
         target: frontend
-        duration: "60s"
+        duration: "5m"
+        params:
+          cpu_load: 80
+          cpu_worker: 2
   labels:
     - key: experiment
       value: cpu-stress-test
 
+SUPPORTED FAULT TYPES:
+  Run 'aegisctl inject metadata' to see all available fault types and their parameters.
+  Common types: CPUStress, MemoryStress, PodKill, PodFailure, ContainerKill,
+  HTTPRequestAbort, HTTPResponseDelay, NetworkDelay, NetworkLoss, DNSError, etc.
+
 NOTE: --project is required for submit, list, and search commands.
-      It accepts project names (resolved to IDs automatically).`,
+      It accepts project names (resolved to IDs automatically).
+      The 'target' field accepts container names (resolved to indices automatically).
+      Duration accepts Go time strings: "60s", "5m", "1h", etc.`,
 }
 
 // ---------- inject submit ----------
