@@ -739,8 +739,11 @@ Waiting for trace-abc123... [Completed] 5/5 tasks in 5m30s
 
 ### `aegisctl status` — Global Overview
 
+Show cluster status, task summary, recent traces, and infrastructure health.
+
 ```bash
 aegisctl status
+aegisctl status -o json
 ```
 
 **Output**:
@@ -751,19 +754,41 @@ User:      admin
 Connected: yes
 
 Active Tasks:     3
-  Running:        2 (FaultInjection, BuildDatapack)
-  Pending:        1 (RunAlgorithm)
-
-Recent Injections (last 24h):
-  NAME                           STATE           FAULT-TYPE   TIME
-  pod-kill-ts-order-20260413     build_success   pod-kill     3h ago
-  cpu-stress-ts-payment-20260413 inject_success  cpu-stress   5h ago
+  Running:        2
+  Pending:        1
 
 Recent Traces:
-  TRACE-ID       STATE       TYPE            DURATION
-  trace-abc123   Running     FullPipeline    2m (in progress)
-  trace-def456   Completed   AlgorithmRun    8m30s
+Trace-ID       State       Type            Project
+trace-abc123   Running     FullPipeline    train-ticket
+trace-def456   Completed   AlgorithmRun    train-ticket
+
+Infrastructure Health:
+  ✓ buildkit     2ms
+  ✓ database     3.5ms
+  ✓ jaeger       1ms
+  ✓ kubernetes   5ms
+  ✓ redis        1.2ms
 ```
+
+**Unhealthy service output**:
+
+```
+Infrastructure Health:
+  ✓ buildkit     2ms
+  ✗ database     N/A (connection refused)
+  ✓ jaeger       1ms
+  ✓ kubernetes   5ms
+  ✓ redis        1.2ms
+```
+
+**API**: Aggregates `GET /api/v2/auth/profile`, `GET /api/v2/tasks`, `GET /api/v2/traces`, and `GET /system/health`.
+
+**Behavior**:
+- Calls `/system/health` to check Redis, MySQL/database, Kubernetes, Jaeger, and BuildKit connectivity.
+- Displays green (`✓`) for healthy services and red (`✗`) for unhealthy services with ANSI color codes.
+- Services are listed in alphabetical order.
+- If the health endpoint is unreachable, a single `✗` line indicates the failure.
+- `--output json` returns a combined JSON object with `server`, `context`, `connected`, `username`, `tasks`, `recent_traces`, and `health` fields.
 
 ---
 
