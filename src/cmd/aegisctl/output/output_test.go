@@ -69,15 +69,29 @@ func TestPrintInfo_Quiet(t *testing.T) {
 }
 
 func TestPrintError(t *testing.T) {
-	got := captureStderr(func() {
-		PrintError(fmt.Errorf("something went wrong"))
+	t.Run("error", func(t *testing.T) {
+		got := captureStderr(func() {
+			PrintError(fmt.Errorf("something went wrong"))
+		})
+		if !strings.Contains(got, "ERROR:") {
+			t.Errorf("PrintError output = %q, want prefix containing ERROR:", got)
+		}
+		if !strings.Contains(got, "something went wrong") {
+			t.Errorf("PrintError output = %q, want it to contain %q", got, "something went wrong")
+		}
 	})
-	if !strings.Contains(got, "ERROR:") {
-		t.Errorf("PrintError output = %q, want prefix containing ERROR:", got)
-	}
-	if !strings.Contains(got, "something went wrong") {
-		t.Errorf("PrintError output = %q, want it to contain %q", got, "something went wrong")
-	}
+
+	t.Run("string", func(t *testing.T) {
+		got := captureStderr(func() {
+			PrintError("plain string error")
+		})
+		if !strings.Contains(got, "ERROR:") {
+			t.Errorf("PrintError output = %q, want prefix containing ERROR:", got)
+		}
+		if !strings.Contains(got, "plain string error") {
+			t.Errorf("PrintError output = %q, want it to contain %q", got, "plain string error")
+		}
+	})
 }
 
 func TestPrintJSON(t *testing.T) {

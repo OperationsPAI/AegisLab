@@ -59,6 +59,6 @@ func PrintInfo(msg string) {
 }
 
 // PrintError writes an error message to stderr.
-func PrintError(err error) {
-	fmt.Fprintf(os.Stderr, "ERROR: %s\n", err)
+func PrintError(msg any) {
+	fmt.Fprintf(os.Stderr, "ERROR: %v\n", msg)
 }
