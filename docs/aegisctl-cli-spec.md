@@ -311,10 +311,16 @@ specs:
       namespace: ts
       target: ts-payment-service
       duration: 120s
+      cpu_load: 80      # Optional extra fields map to DSL parameters by snake_case name
+      cpu_worker: 1
     - type: network-delay
       namespace: ts
       target: ts-order-service
       duration: 120s
+      latency: 200
+      correlation: 0
+      jitter: 0
+      direction: 1
 algorithms:             # Optional: RCA algorithms to execute after injection
   - name: rca-algo-1
     version: v1.0.0
@@ -327,6 +333,12 @@ labels:                 # Optional: labels to attach
   - key: scenario
     value: cascade-failure
 ```
+
+Notes:
+- `type` accepts either the backend name (`CPUStress`) or kebab-case (`cpu-stress`).
+- `namespace` keeps the human-readable file shape, but the CLI translates it to the pedestal's internal system index via `/api/v2/injections/metadata`.
+- Additional numeric DSL fields can be provided in snake_case, for example `cpu_load`, `cpu_worker`, `latency`, `direction`.
+- Raw `chaos.Node` DSL is still accepted by supplying `value` and `children` directly.
 
 **JSON Output** (on success):
 

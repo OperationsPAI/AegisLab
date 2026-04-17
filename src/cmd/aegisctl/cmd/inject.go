@@ -11,21 +11,33 @@ import (
 	"aegis/cmd/aegisctl/client"
 	"aegis/cmd/aegisctl/output"
 
+	chaos "github.com/OperationsPAI/chaos-experiment/handler"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
 
 // ---------- spec types ----------
 
-// InjectSpec is the YAML structure for injection submission.
+// InjectSpec is the API payload structure for injection submission.
 type InjectSpec struct {
 	Pedestal    ContainerRef   `yaml:"pedestal"    json:"pedestal"`
 	Benchmark   ContainerRef   `yaml:"benchmark"   json:"benchmark"`
 	Interval    int            `yaml:"interval"     json:"interval"`
 	PreDuration int            `yaml:"pre_duration" json:"pre_duration"`
-	Specs       [][]FaultSpec  `yaml:"specs"        json:"specs"`
+	Specs       [][]chaos.Node `yaml:"specs"        json:"specs"`
 	Algorithms  []ContainerRef `yaml:"algorithms,omitempty" json:"algorithms,omitempty"`
 	Labels      []LabelItem    `yaml:"labels,omitempty"     json:"labels,omitempty"`
+}
+
+// InjectSpecFile is the YAML structure accepted from users before translation.
+type InjectSpecFile struct {
+	Pedestal    ContainerRef   `yaml:"pedestal"`
+	Benchmark   ContainerRef   `yaml:"benchmark"`
+	Interval    int            `yaml:"interval"`
+	PreDuration int            `yaml:"pre_duration"`
+	Specs       [][]FaultSpec  `yaml:"specs"`
+	Algorithms  []ContainerRef `yaml:"algorithms,omitempty"`
+	Labels      []LabelItem    `yaml:"labels,omitempty"`
 }
 
 // ContainerRef references a container image with optional overrides.
@@ -38,11 +50,13 @@ type ContainerRef struct {
 
 // FaultSpec describes a single fault to inject.
 type FaultSpec struct {
-	Type      string         `yaml:"type"      json:"type"`
-	Namespace string         `yaml:"namespace" json:"namespace"`
-	Target    string         `yaml:"target"    json:"target"`
-	Duration  string         `yaml:"duration"  json:"duration"`
-	Extra     map[string]any `yaml:",inline"   json:"-"` // catch-all for flexibility
+	Type      string                 `yaml:"type"      json:"type"`
+	Namespace string                 `yaml:"namespace" json:"namespace"`
+	Target    string                 `yaml:"target"    json:"target"`
+	Duration  string                 `yaml:"duration"  json:"duration"`
+	Value     *int                   `yaml:"value"     json:"value,omitempty"`
+	Children  map[string]*chaos.Node `yaml:"children"  json:"children,omitempty"`
+	Extra     map[string]any         `yaml:",inline"   json:"-"` // catch-all for flexibility
 }
 
 // LabelItem is a key-value label.
@@ -121,9 +135,14 @@ SPEC FILE FORMAT (injection.yaml):
         namespace: exp
         target: frontend
         duration: "60s"
+        cpu_load: 80
+        cpu_worker: 1
   labels:
     - key: experiment
       value: cpu-stress-test
+
+The documented human-readable format is translated to the internal chaos.Node DSL
+before submission. You can also submit the raw DSL directly with value/children.
 
 NOTE: --project is required for submit, list, and search commands.
       It accepts project names (resolved to IDs automatically).`,
@@ -146,9 +165,14 @@ var injectSubmitCmd = &cobra.Command{
 			return fmt.Errorf("read spec file: %w", err)
 		}
 
-		var spec InjectSpec
-		if err := yaml.Unmarshal(data, &spec); err != nil {
+		var fileSpec InjectSpecFile
+		if err := yaml.Unmarshal(data, &fileSpec); err != nil {
 			return fmt.Errorf("parse spec YAML: %w", err)
+		}
+
+		spec, err := translateInjectSpecFile(fileSpec, fetchInjectionMetadata)
+		if err != nil {
+			return err
 		}
 
 		pid, err := resolveProjectIDByName()
