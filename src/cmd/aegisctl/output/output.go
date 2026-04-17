@@ -23,7 +23,7 @@ const (
 func PrintJSON(v any) {
 	data, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error marshalling JSON: %v\n", err)
+		PrintError(err.Error())
 		return
 	}
 	fmt.Fprintln(os.Stdout, string(data))
@@ -47,6 +47,6 @@ func PrintInfo(msg string) {
 }
 
 // PrintError writes an error message to stderr.
-func PrintError(err error) {
-	fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+func PrintError(msg string) {
+	fmt.Fprintf(os.Stderr, "Error: %s\n", msg)
 }
