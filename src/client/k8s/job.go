@@ -116,12 +116,29 @@ func (v *VolumeMountConfig) GetVolume() corev1.Volume {
 func CreateJob(ctx context.Context, jobConfig *JobConfig) error {
 	return tracing.WithSpan(ctx, func(ctx context.Context) error {
 		span := trace.SpanFromContext(ctx)
+		client := GetK8sClient()
 
-		jobConfig.Namespace = config.GetString("k8s.namespace")
-		jobConfig.BackoffLimit = int32(0)
-		jobConfig.Parallelism = int32(1)
-		jobConfig.Completions = int32(1)
-		jobConfig.RestartPolicy = corev1.RestartPolicyNever
+		if jobConfig.Namespace == "" {
+			jobConfig.Namespace = config.GetString("k8s.namespace")
+		}
+		if jobConfig.BackoffLimit == 0 {
+			jobConfig.BackoffLimit = int32(0)
+		}
+		if jobConfig.Parallelism == 0 {
+			jobConfig.Parallelism = int32(1)
+		}
+		if jobConfig.Completions == 0 {
+			jobConfig.Completions = int32(1)
+		}
+		if jobConfig.RestartPolicy == "" {
+			jobConfig.RestartPolicy = corev1.RestartPolicyNever
+		}
+		if jobConfig.Annotations == nil {
+			jobConfig.Annotations = make(map[string]string)
+		}
+		if jobConfig.Labels == nil {
+			jobConfig.Labels = make(map[string]string)
+		}
 
 		volumeMounts := []corev1.VolumeMount{}
 		volumes := []corev1.Volume{}
@@ -174,7 +191,7 @@ func CreateJob(ctx context.Context, jobConfig *JobConfig) error {
 			},
 		}
 
-		_, err := k8sClient.BatchV1().Jobs(jobConfig.Namespace).Create(ctx, job, metav1.CreateOptions{})
+		_, err := client.BatchV1().Jobs(jobConfig.Namespace).Create(ctx, job, metav1.CreateOptions{})
 		if err != nil {
 			span.RecordError(err)
 			span.AddEvent("failed to create job")
@@ -218,6 +235,7 @@ func GetVolumeMountConfigMap() (map[consts.VolumeMountName]VolumeMountConfig, er
 }
 
 func deleteJob(ctx context.Context, namespace, name string) error {
+	client := GetK8sClient()
 	deletePolicy := metav1.DeletePropagationBackground
 	deleteOptions := metav1.DeleteOptions{
 		PropagationPolicy: &deletePolicy,
@@ -226,7 +244,7 @@ func deleteJob(ctx context.Context, namespace, name string) error {
 	logEntry := logrus.WithField("namespace", namespace).WithField("name", name)
 
 	// 1. First check if Job exists and its status
-	job, err := k8sClient.BatchV1().Jobs(namespace).Get(ctx, name, metav1.GetOptions{})
+	job, err := client.BatchV1().Jobs(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil
@@ -241,7 +259,7 @@ func deleteJob(ctx context.Context, namespace, name string) error {
 	}
 
 	// 3. Execute deletion (idempotent operation)
-	err = k8sClient.BatchV1().Jobs(namespace).Delete(ctx, name, deleteOptions)
+	err = client.BatchV1().Jobs(namespace).Delete(ctx, name, deleteOptions)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil
@@ -254,7 +272,7 @@ func deleteJob(ctx context.Context, namespace, name string) error {
 }
 
 func GetJob(ctx context.Context, namespace, jobName string) (*batchv1.Job, error) {
-	job, err := k8sClient.BatchV1().Jobs(namespace).Get(ctx, jobName, metav1.GetOptions{})
+	job, err := GetK8sClient().BatchV1().Jobs(namespace).Get(ctx, jobName, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get job: %v", err)
 	}
@@ -262,7 +280,8 @@ func GetJob(ctx context.Context, namespace, jobName string) (*batchv1.Job, error
 }
 
 func GetJobPodLogs(ctx context.Context, namespace, jobName string) (map[string][]string, error) {
-	podList, err := k8sClient.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
+	client := GetK8sClient()
+	podList, err := client.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", consts.JobLabelName, jobName),
 	})
 	if err != nil {
@@ -279,7 +298,7 @@ func GetJobPodLogs(ctx context.Context, namespace, jobName string) (map[string][
 			continue
 		}
 
-		req := k8sClient.CoreV1().Pods(namespace).GetLogs(pod.Name, &corev1.PodLogOptions{})
+		req := client.CoreV1().Pods(namespace).GetLogs(pod.Name, &corev1.PodLogOptions{})
 		logStream, err := req.Stream(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get logs for pod %s: %v", pod.Name, err)
@@ -323,8 +342,9 @@ func isPodReadyForLogs(pod corev1.Pod) bool {
 }
 
 func WaitForJobCompletion(ctx context.Context, namespace, jobName string) error {
+	client := GetK8sClient()
 	for {
-		job, err := k8sClient.BatchV1().Jobs(namespace).Get(ctx, jobName, metav1.GetOptions{})
+		job, err := client.BatchV1().Jobs(namespace).Get(ctx, jobName, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to get job: %v", err)
 		}
