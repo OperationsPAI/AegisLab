@@ -87,7 +87,7 @@ EXAMPLES:
 			}
 
 			if time.Now().After(deadline) {
-				output.PrintError(fmt.Errorf("timeout after %ds waiting for %s %s (last state: %s)", waitTimeout, resourceType, id, state))
+				output.PrintError(newWaitTimeoutError(waitTimeout, resourceType, id, state))
 				os.Exit(3)
 			}
 
@@ -157,6 +157,13 @@ func isTerminal(resourceType, state string) bool {
 		return state == "Completed" || state == "Error" || state == "Cancelled"
 	}
 	return false
+}
+
+func newWaitTimeoutError(waitTimeout int, resourceType, id, state string) error {
+	return fmt.Errorf(
+		"timeout after %ds waiting for %s %s (last state: %s)",
+		waitTimeout, resourceType, id, state,
+	)
 }
 
 func init() {
