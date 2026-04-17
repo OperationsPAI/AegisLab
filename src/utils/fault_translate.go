@@ -39,8 +39,6 @@ func BuildReverseTypeMap(typeMap map[chaos.ChaosType]string) map[string]chaos.Ch
 	result := make(map[string]chaos.ChaosType, len(typeMap))
 	for k, v := range typeMap {
 		result[v] = k
-		// Also add lowercase variant for case-insensitive lookup.
-		result[strings.ToLower(v)] = k
 	}
 	return result
 }
@@ -120,11 +118,17 @@ func TranslateFaultSpec(spec FaultSpecInput, reverseTypeMap map[string]chaos.Cha
 	// Resolve fault type name to ChaosType
 	ct, ok := reverseTypeMap[spec.Type]
 	if !ok {
-		ct, ok = reverseTypeMap[strings.ToLower(spec.Type)]
+		for name, ctype := range reverseTypeMap {
+			if strings.EqualFold(name, spec.Type) {
+				ct = ctype
+				ok = true
+				warnings = append(warnings, fmt.Sprintf("fault type %q matched case-insensitively as %q", spec.Type, name))
+				break
+			}
+		}
 		if !ok {
 			return nil, warnings, fmt.Errorf("unknown fault type: %q", spec.Type)
 		}
-		warnings = append(warnings, fmt.Sprintf("fault type %q matched case-insensitively", spec.Type))
 	}
 
 	// Get the spec struct for this fault type to know the fields
