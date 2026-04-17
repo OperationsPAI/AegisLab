@@ -115,6 +115,21 @@ func TestHandleServiceError_Internal_SanitizesMessage(t *testing.T) {
 	assert.NotContains(t, resp.Message, "db connection pool", "internal details must not leak")
 }
 
+func TestHandleServiceError_WrappedInternal_SanitizesMessage(t *testing.T) {
+	c, w := setupTestContext()
+	innerErr := errors.New("redis connection refused")
+	wrapped := fmt.Errorf("%w: %v", consts.ErrInternal, innerErr)
+
+	handled := HandleServiceError(c, wrapped)
+
+	assert.True(t, handled)
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	resp := parseErrorResp(t, w)
+	assert.Equal(t, http.StatusInternalServerError, resp.Code)
+	assert.Equal(t, "Internal server error", resp.Message, "wrapped internal errors must be sanitized")
+	assert.NotContains(t, resp.Message, "redis", "internal details must not leak through wrapped errors")
+}
+
 func TestHandleServiceError_NilError_ReturnsFalse(t *testing.T) {
 	c, w := setupTestContext()
 
