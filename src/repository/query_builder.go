@@ -62,11 +62,19 @@ func (qb *SearchQueryBuilder[F]) applyIncludes(includes []string) {
 	}
 }
 
+func (qb *SearchQueryBuilder[F]) ApplyIncludes(includes []string) {
+	qb.applyIncludes(includes)
+}
+
 // applyIncludeFields includes specified fields in the query
 func (qb *SearchQueryBuilder[F]) applyIncludeFields(includeFields []string) {
 	for _, field := range includeFields {
 		qb.query = qb.query.Select(field)
 	}
+}
+
+func (qb *SearchQueryBuilder[F]) ApplyIncludeFields(includeFields []string) {
+	qb.applyIncludeFields(includeFields)
 }
 
 // applyExcludeFields excludes specified fields from the query
@@ -105,6 +113,10 @@ func (qb *SearchQueryBuilder[F]) applyExcludeFields(excludeFields []string, mode
 	if len(fieldsToSelect) > 0 {
 		qb.query = qb.query.Select(strings.Join(fieldsToSelect, ", "))
 	}
+}
+
+func (qb *SearchQueryBuilder[F]) ApplyExcludeFields(excludeFields []string, modelType interface{}) {
+	qb.applyExcludeFields(excludeFields, modelType)
 }
 
 // applyKeywordSearch applies general keyword search across searchable fields
@@ -245,6 +257,14 @@ func (qb *SearchQueryBuilder[F]) getCount() (int64, error) {
 	return count, err
 }
 
+func (qb *SearchQueryBuilder[F]) GetCount() (int64, error) {
+	return qb.getCount()
+}
+
+func (qb *SearchQueryBuilder[F]) Query() *gorm.DB {
+	return qb.query
+}
+
 // getSearchableFields returns fields that can be searched with keywords
 func (qb *SearchQueryBuilder[F]) getSearchableFields(modelType interface{}) []string {
 	// This is a simplified implementation
@@ -291,37 +311,6 @@ func (qb *SearchQueryBuilder[F]) sanitizeFieldName(field string) string {
 		}
 	}
 	return field
-}
-
-// ExecuteSearch executes a complete search operation
-func ExecuteSearch[T any, F ~string](db *gorm.DB, searchReq *dto.SearchReq[F], modelType T, allowedSortFields map[F]string) ([]T, int64, error) {
-	qb := NewSearchQueryBuilder(db, allowedSortFields)
-
-	qb.applyIncludes(searchReq.Includes)
-	qb.applyIncludeFields(searchReq.IncludeFields)
-	qb.applyExcludeFields(searchReq.ExcludeFields, modelType)
-
-	// Pass typed Sort/GroupBy directly — no string conversion needed, whitelist lookup uses typed key
-	qb.ApplySearchReq(searchReq.Filters, searchReq.Keyword, searchReq.Sort, searchReq.GroupBy, modelType)
-
-	// Get total count
-	total, err := qb.getCount()
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to get count: %w", err)
-	}
-
-	if searchReq.Size != 0 && searchReq.Page != 0 {
-		qb.applyPagination(&searchReq.PaginationReq)
-	}
-
-	// Apply pagination and execute query
-	var items []T
-	err = qb.query.Find(&items).Error
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to execute search query: %w", err)
-	}
-
-	return items, total, nil
 }
 
 // resolveMultiValues returns the effective []string for IN/NOT IN operators.

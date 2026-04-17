@@ -2,8 +2,8 @@ package common
 
 import (
 	"aegis/consts"
-	"aegis/database"
 	"aegis/dto"
+	"aegis/model"
 	"aegis/repository"
 	"aegis/utils"
 	"fmt"
@@ -31,9 +31,9 @@ func ConvertLabelFiltersToConditions(labelItems []dto.LabelItem) []map[string]st
 
 // CreateOrUpdateLabelsFromItems creates or updates labels based on the provided label items
 // Returns labels with correct IDs and updates usage_count for existing labels
-func CreateOrUpdateLabelsFromItems(db *gorm.DB, labelItems []dto.LabelItem, category consts.LabelCategory) ([]database.Label, error) {
+func CreateOrUpdateLabelsFromItems(db *gorm.DB, labelItems []dto.LabelItem, category consts.LabelCategory) ([]model.Label, error) {
 	if len(labelItems) == 0 {
-		return []database.Label{}, nil
+		return []model.Label{}, nil
 	}
 
 	// Build key -> value map for quick lookup
@@ -50,7 +50,7 @@ func CreateOrUpdateLabelsFromItems(db *gorm.DB, labelItems []dto.LabelItem, cate
 	}
 
 	// Separate existing and new labels
-	result := make([]database.Label, 0, len(labelItems))
+	result := make([]model.Label, 0, len(labelItems))
 	existingIDs := make([]int, 0, len(existingLabels))
 	for _, existing := range existingLabels {
 		if item, ok := kvMap[existing.Key]; ok && item.Value == existing.Value {
@@ -69,10 +69,10 @@ func CreateOrUpdateLabelsFromItems(db *gorm.DB, labelItems []dto.LabelItem, cate
 
 	// Create new labels (only those not found in existing)
 	if len(kvMap) > 0 {
-		newLabels := make([]database.Label, 0, len(kvMap))
+		newLabels := make([]model.Label, 0, len(kvMap))
 
 		for key, item := range kvMap {
-			newLabels = append(newLabels, database.Label{
+			newLabels = append(newLabels, model.Label{
 				Key:         key,
 				Value:       item.Value,
 				Category:    category,

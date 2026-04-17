@@ -3,9 +3,9 @@ package initialization
 import (
 	"aegis/config"
 	"aegis/consts"
-	"aegis/database"
-	"aegis/repository"
+	"aegis/model"
 	"aegis/service/common"
+	"fmt"
 
 	chaos "github.com/OperationsPAI/chaos-experiment/handler"
 	"github.com/sirupsen/logrus"
@@ -13,7 +13,7 @@ import (
 )
 
 // builtinSystems defines the 6 built-in systems that are seeded on startup.
-var builtinSystems = []database.System{
+var builtinSystems = []model.System{
 	{Name: "train-ticket", DisplayName: "Train Ticket", NsPattern: `^ts\d+$`, ExtractPattern: `^(ts)(\d+)$`, Count: 1, IsBuiltin: true, Status: consts.CommonEnabled},
 	{Name: "sock-shop", DisplayName: "Sock Shop", NsPattern: `^ss\d+$`, ExtractPattern: `^(ss)(\d+)$`, Count: 1, IsBuiltin: true, Status: consts.CommonEnabled},
 	{Name: "social-network", DisplayName: "Social Network", NsPattern: `^sn\d+$`, ExtractPattern: `^(sn)(\d+)$`, Count: 1, IsBuiltin: true, Status: consts.CommonEnabled},
@@ -24,16 +24,16 @@ var builtinSystems = []database.System{
 
 // InitializeSystems seeds built-in systems, registers all enabled systems with
 // chaos-experiment, and sets the global MetadataStore.
-func InitializeSystems() {
+func InitializeSystems(db *gorm.DB) error {
 	// Set DB reference for ChaosSystemConfig to query System table
-	config.SetChaosConfigDB(database.DB)
+	config.SetChaosConfigDB(db)
 
 	// Seed built-in systems using FirstOrCreate
 	for _, sys := range builtinSystems {
-		var existing database.System
-		result := database.DB.Where("name = ?", sys.Name).First(&existing)
+		var existing model.System
+		result := db.Where("name = ?", sys.Name).First(&existing)
 		if result.Error == gorm.ErrRecordNotFound {
-			if err := database.DB.Create(&sys).Error; err != nil {
+			if err := db.Create(&sys).Error; err != nil {
 				logrus.Warnf("Failed to seed builtin system %s: %v", sys.Name, err)
 			} else {
 				logrus.Infof("Seeded builtin system: %s", sys.Name)
@@ -42,10 +42,9 @@ func InitializeSystems() {
 	}
 
 	// Load all enabled systems from DB and register with chaos-experiment
-	systems, err := repository.ListEnabledSystems(database.DB)
+	systems, err := newBootstrapStore(db).listEnabledSystems()
 	if err != nil {
-		logrus.Errorf("Failed to load enabled systems: %v", err)
-		return
+		return fmt.Errorf("failed to load enabled systems: %w", err)
 	}
 
 	for _, sys := range systems {
@@ -61,7 +60,8 @@ func InitializeSystems() {
 	}
 
 	// Create and set the global MetadataStore
-	store := common.NewDBMetadataStore()
+	store := common.NewDBMetadataStore(db)
 	chaos.SetMetadataStore(store)
 	logrus.Info("Set global DBMetadataStore for chaos-experiment")
+	return nil
 }

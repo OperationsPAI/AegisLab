@@ -20,6 +20,8 @@ type Config struct {
 type Context struct {
 	Server         string    `yaml:"server"`
 	Token          string    `yaml:"token,omitempty"`
+	AuthType       string    `yaml:"auth-type,omitempty"`
+	AccessKey      string    `yaml:"access-key,omitempty"`
 	DefaultProject string    `yaml:"default-project,omitempty"`
 	TokenExpiry    time.Time `yaml:"token-expiry,omitempty"`
 }

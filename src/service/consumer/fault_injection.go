@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"aegis/consts"
-	"aegis/database"
 	"aegis/dto"
+	"aegis/model"
 	"aegis/repository"
 	"aegis/service/common"
 	"aegis/tracing"
@@ -34,41 +34,33 @@ type injectionPayload struct {
 	system      chaos.SystemType
 }
 
-type batchManager struct {
+type FaultBatchManager struct {
 	mu              sync.RWMutex
 	batchCounts     map[string]int
 	batchInjections map[string][]string
 }
 
-var (
-	batchManagerInstance *batchManager
-	batchManagerOnce     sync.Once
-)
-
-func getBatchManager() *batchManager {
-	batchManagerOnce.Do(func() {
-		batchManagerInstance = &batchManager{
-			batchCounts:     make(map[string]int),
-			batchInjections: make(map[string][]string),
-		}
-	})
-	return batchManagerInstance
+func NewFaultBatchManager() *FaultBatchManager {
+	return &FaultBatchManager{
+		batchCounts:     make(map[string]int),
+		batchInjections: make(map[string][]string),
+	}
 }
 
-func (bm *batchManager) deleteBatch(batchID string) {
+func (bm *FaultBatchManager) deleteBatch(batchID string) {
 	bm.mu.Lock()
 	defer bm.mu.Unlock()
 	delete(bm.batchCounts, batchID)
 	delete(bm.batchInjections, batchID)
 }
 
-func (bm *batchManager) incrementBatchCount(batchID string) {
+func (bm *FaultBatchManager) incrementBatchCount(batchID string) {
 	bm.mu.Lock()
 	defer bm.mu.Unlock()
 	bm.batchCounts[batchID]++
 }
 
-func (bm *batchManager) isFinished(batchID string) bool {
+func (bm *FaultBatchManager) isFinished(batchID string) bool {
 	bm.mu.RLock()
 	defer bm.mu.RUnlock()
 
@@ -84,7 +76,7 @@ func (bm *batchManager) isFinished(batchID string) bool {
 	return count >= len(injectionNames)
 }
 
-func (bm *batchManager) setBatchInjections(batchID string, injectionNames []string) {
+func (bm *FaultBatchManager) setBatchInjections(batchID string, injectionNames []string) {
 	bm.mu.Lock()
 	defer bm.mu.Unlock()
 	bm.batchCounts[batchID] = 0
@@ -103,8 +95,17 @@ func (bm *batchManager) setBatchInjections(batchID string, injectionNames []stri
 // Storage format:
 //   - engine_config: JSON array of all chaos.Node objects
 //   - display_config: JSON array of display maps for each fault
-func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
+func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask, deps RuntimeDeps) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
+		db := deps.DB
+		if db == nil {
+			return fmt.Errorf("consumer runtime db is nil")
+		}
+		batchManager := deps.FaultBatchManager
+		if batchManager == nil {
+			return fmt.Errorf("fault batch manager is nil")
+		}
+
 		span := trace.SpanFromContext(childCtx)
 		logEntry := logrus.WithFields(logrus.Fields{
 			"task_id":  task.TaskID,
@@ -116,7 +117,10 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 			return handleExecutionError(span, logEntry, "failed to parse injection payload", err)
 		}
 
-		monitor := GetMonitor()
+		monitor := deps.Monitor
+		if monitor == nil {
+			return handleExecutionError(span, logEntry, "monitor not initialized", fmt.Errorf("monitor not initialized"))
+		}
 		toReleased := false
 		if err := monitor.CheckNamespaceToInject(payload.namespace, time.Now(), task.TraceID); err != nil {
 			toReleased = true
@@ -137,7 +141,7 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 		// Process all fault nodes in the batch
 		injectionConfs := make([]chaos.InjectionConf, 0, len(payload.nodes))
 		displayMaps := make([]map[string]any, 0, len(payload.nodes))
-		groundtruths := make([]database.Groundtruth, 0, len(payload.nodes))
+		groundtruths := make([]model.Groundtruth, 0, len(payload.nodes))
 
 		for i, node := range payload.nodes {
 			injectionConf, err := chaos.NodeToStruct[chaos.InjectionConf](&node)
@@ -157,7 +161,7 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 
 			injectionConfs = append(injectionConfs, *injectionConf)
 			displayMaps = append(displayMaps, displayMap)
-			groundtruths = append(groundtruths, *database.NewDBGroundtruth(&chaosGroundtruth))
+			groundtruths = append(groundtruths, *model.NewDBGroundtruth(&chaosGroundtruth))
 		}
 
 		// Marshal display config as array
@@ -205,14 +209,14 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 		if len(names) > 1 {
 			name = batchID
 			faultType = consts.Hybrid
-			getBatchManager().setBatchInjections(batchID, names)
+			batchManager.setBatchInjections(batchID, names)
 		} else {
 			name = names[0]
 			faultType = chaos.ChaosType(payload.nodes[0].Value)
 		}
 
-		return database.DB.Transaction(func(tx *gorm.DB) error {
-			injection := &database.FaultInjection{
+		return db.Transaction(func(tx *gorm.DB) error {
+			injection := &model.FaultInjection{
 				Name:              name,
 				FaultType:         faultType,
 				Category:          payload.pedestal,
@@ -229,7 +233,7 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 				PedestalID:        utils.IntPtr(payload.pedestalID),
 			}
 
-			if err = repository.CreateInjection(database.DB, injection); err != nil {
+			if err = repository.CreateInjection(tx, injection); err != nil {
 				return handleExecutionError(span, logEntry, "failed to write fault injection schedule to database", err)
 			}
 

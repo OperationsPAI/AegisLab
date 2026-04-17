@@ -21,12 +21,14 @@ const (
 
 // Claims represents JWT claims structure
 type Claims struct {
-	UserID   int      `json:"user_id"`
-	Username string   `json:"username"`
-	Email    string   `json:"email"`
-	IsActive bool     `json:"is_active"`
-	IsAdmin  bool     `json:"is_admin"` // System admin flag (super_admin or admin)
-	Roles    []string `json:"roles"`    // Global role names
+	UserID      int      `json:"user_id"`
+	Username    string   `json:"username"`
+	Email       string   `json:"email"`
+	IsActive    bool     `json:"is_active"`
+	IsAdmin     bool     `json:"is_admin"` // System admin flag (super_admin or admin)
+	Roles       []string `json:"roles"`    // Global role names
+	AuthType    string   `json:"auth_type,omitempty"`
+	AccessKeyID int      `json:"access_key_id,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -45,17 +47,27 @@ type ServiceClaims struct {
 
 // GenerateToken generates a new JWT token for the given user
 func GenerateToken(userID int, username, email string, isActive, isAdmin bool, roles []string) (string, time.Time, error) {
+	return generateUserToken(userID, username, email, isActive, isAdmin, roles, "user", 0)
+}
+
+func GenerateAccessKeyToken(userID int, username, email string, isActive, isAdmin bool, roles []string, accessKeyID int) (string, time.Time, error) {
+	return generateUserToken(userID, username, email, isActive, isAdmin, roles, "access_key", accessKeyID)
+}
+
+func generateUserToken(userID int, username, email string, isActive, isAdmin bool, roles []string, authType string, accessKeyID int) (string, time.Time, error) {
 	expirationTime := time.Now().Add(TokenExpiration)
 
 	claims := &Claims{
-		UserID:   userID,
-		Username: username,
-		Email:    email,
-		IsActive: isActive,
-		IsAdmin:  isAdmin,
-		Roles:    roles,
+		UserID:      userID,
+		Username:    username,
+		Email:       email,
+		IsActive:    isActive,
+		IsAdmin:     isAdmin,
+		Roles:       roles,
+		AuthType:    authType,
+		AccessKeyID: accessKeyID,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ID:        fmt.Sprintf("jwt_%d_%d", userID, time.Now().Unix()), // JWT ID (jti)
+			ID:        fmt.Sprintf("jwt_%s_%d_%d", authType, userID, time.Now().Unix()),
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),

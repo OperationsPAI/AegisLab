@@ -4,27 +4,28 @@ import (
 	"fmt"
 
 	"aegis/consts"
-	"aegis/database"
+	"aegis/model"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
 const (
-	containerOmitFields        = "Versions"
-	containerVersionOmitFields = "active_version_key,HelmConfig,EnvVars"
-	helmConfigOmitFields       = "Values"
+	containerActiveNameOmitFields = "active_name"
+	containerOmitFields           = "Versions"
+	containerVersionOmitFields    = "active_version_key,HelmConfig,EnvVars"
+	helmConfigOmitFields          = "Values"
 )
 
-type ParameterConfigFetcher func(db *gorm.DB, keys []string, resourceID int) ([]database.ParameterConfig, error)
+type ParameterConfigFetcher func(db *gorm.DB, keys []string, resourceID int) ([]model.ParameterConfig, error)
 
 // =====================================================================
 // Container Repository Functions
 // =====================================================================
 
 // CreateContainer creates a new container record
-func CreateContainer(db *gorm.DB, container *database.Container) error {
-	if err := db.Omit(commonOmitFields, containerOmitFields).Create(container).Error; err != nil {
+func CreateContainer(db *gorm.DB, container *model.Container) error {
+	if err := db.Omit(containerActiveNameOmitFields, containerOmitFields).Create(container).Error; err != nil {
 		return fmt.Errorf("failed to create container: %w", err)
 	}
 	return nil
@@ -32,7 +33,7 @@ func CreateContainer(db *gorm.DB, container *database.Container) error {
 
 // DeleteContainer soft deletes a container by setting its status to deleted
 func DeleteContainer(db *gorm.DB, containerID int) (int64, error) {
-	result := db.Model(&database.Container{}).
+	result := db.Model(&model.Container{}).
 		Where("id = ? AND status != ?", containerID, consts.CommonDeleted).
 		Update("status", consts.CommonDeleted)
 	if err := result.Error; err != nil {
@@ -42,8 +43,8 @@ func DeleteContainer(db *gorm.DB, containerID int) (int64, error) {
 }
 
 // GetContainerByID retrieves a container by its ID
-func GetContainerByID(db *gorm.DB, id int) (*database.Container, error) {
-	var container database.Container
+func GetContainerByID(db *gorm.DB, id int) (*model.Container, error) {
+	var container model.Container
 	if err := db.Where("id = ? AND status != ?", id, consts.CommonDeleted).First(&container).Error; err != nil {
 		return nil, fmt.Errorf("failed to find container with id %d: %w", id, err)
 	}
@@ -51,33 +52,33 @@ func GetContainerByID(db *gorm.DB, id int) (*database.Container, error) {
 }
 
 // GetContainerStatistics returns statistics about containers
-func GetContainerStatistics() (map[string]int64, error) {
+func GetContainerStatistics(db *gorm.DB) (map[string]int64, error) {
 	stats := make(map[string]int64)
 
 	// Total containers
 	var total int64
-	if err := database.DB.Model(&database.Container{}).Count(&total).Error; err != nil {
+	if err := db.Model(&model.Container{}).Count(&total).Error; err != nil {
 		return nil, fmt.Errorf("failed to count total containers: %v", err)
 	}
 	stats["total"] = total
 
 	// Active containers
 	var active int64
-	if err := database.DB.Model(&database.Container{}).Where("status = 1").Count(&active).Error; err != nil {
+	if err := db.Model(&model.Container{}).Where("status = 1").Count(&active).Error; err != nil {
 		return nil, fmt.Errorf("failed to count active containers: %v", err)
 	}
 	stats["active"] = active
 
 	// Disabled containers
 	var disabled int64
-	if err := database.DB.Model(&database.Container{}).Where("status = 0").Count(&disabled).Error; err != nil {
+	if err := db.Model(&model.Container{}).Where("status = 0").Count(&disabled).Error; err != nil {
 		return nil, fmt.Errorf("failed to count disabled containers: %v", err)
 	}
 	stats["disabled"] = disabled
 
 	// Deleted containers
 	var deleted int64
-	if err := database.DB.Model(&database.Container{}).Where("status = -1").Count(&deleted).Error; err != nil {
+	if err := db.Model(&model.Container{}).Where("status = -1").Count(&deleted).Error; err != nil {
 		return nil, fmt.Errorf("failed to count deleted containers: %v", err)
 	}
 	stats["deleted"] = deleted
@@ -86,13 +87,13 @@ func GetContainerStatistics() (map[string]int64, error) {
 }
 
 // ListContainers lists containers based on filter options
-func ListContainers(db *gorm.DB, limit, offset int, contaierType *consts.ContainerType, isPublic *bool, status *consts.StatusType) ([]database.Container, int64, error) {
-	var containers []database.Container
+func ListContainers(db *gorm.DB, limit, offset int, containerType *consts.ContainerType, isPublic *bool, status *consts.StatusType) ([]model.Container, int64, error) {
+	var containers []model.Container
 	var total int64
 
-	query := db.Model(&database.Container{})
-	if contaierType != nil {
-		query = query.Where("type = ?", *contaierType)
+	query := db.Model(&model.Container{})
+	if containerType != nil {
+		query = query.Where("type = ?", *containerType)
 	}
 	if isPublic != nil {
 		query = query.Where("is_public = ?", *isPublic)
@@ -113,12 +114,12 @@ func ListContainers(db *gorm.DB, limit, offset int, contaierType *consts.Contain
 }
 
 // ListContainersByID retrieves multiple containers by their IDs
-func ListContainersByID(tx *gorm.DB, containerIDs []int) ([]database.Container, error) {
+func ListContainersByID(tx *gorm.DB, containerIDs []int) ([]model.Container, error) {
 	if len(containerIDs) == 0 {
-		return []database.Container{}, nil
+		return []model.Container{}, nil
 	}
 
-	var containers []database.Container
+	var containers []model.Container
 	if err := tx.
 		Where("id IN (?) AND status != ?", containerIDs, consts.CommonDeleted).
 		Find(&containers).Error; err != nil {
@@ -128,8 +129,8 @@ func ListContainersByID(tx *gorm.DB, containerIDs []int) ([]database.Container, 
 }
 
 // UpdateContainer updates a container
-func UpdateContainer(db *gorm.DB, container *database.Container) error {
-	if err := db.Omit(commonOmitFields).Save(container).Error; err != nil {
+func UpdateContainer(db *gorm.DB, container *model.Container) error {
+	if err := db.Omit(containerActiveNameOmitFields).Save(container).Error; err != nil {
 		return fmt.Errorf("failed to update container: %w", err)
 	}
 	return nil
@@ -140,7 +141,7 @@ func UpdateContainer(db *gorm.DB, container *database.Container) error {
 // =====================================================================
 
 // BatchCreateContainerVersions creates multiple container versions
-func BatchCreateContainerVersions(db *gorm.DB, versions []database.ContainerVersion) error {
+func BatchCreateContainerVersions(db *gorm.DB, versions []model.ContainerVersion) error {
 	if len(versions) == 0 {
 		return fmt.Errorf("no container versions to create")
 	}
@@ -154,7 +155,7 @@ func BatchCreateContainerVersions(db *gorm.DB, versions []database.ContainerVers
 
 // BatchDeleteContainerVersions soft deletes all versions of a specific container
 func BatchDeleteContainerVersions(db *gorm.DB, containerID int) (int64, error) {
-	result := db.Model(&database.ContainerVersion{}).
+	result := db.Model(&model.ContainerVersion{}).
 		Where("container_id = ? AND status != ?", containerID, consts.CommonDeleted).
 		Update("status", consts.CommonDeleted)
 	if result.Error != nil {
@@ -164,12 +165,12 @@ func BatchDeleteContainerVersions(db *gorm.DB, containerID int) (int64, error) {
 }
 
 // BatchGetContainerVersions retrieves container versions for multiple container names
-func BatchGetContainerVersions(db *gorm.DB, containerType consts.ContainerType, containerNames []string, userID int) ([]database.ContainerVersion, error) {
+func BatchGetContainerVersions(db *gorm.DB, containerType consts.ContainerType, containerNames []string, userID int) ([]model.ContainerVersion, error) {
 	if len(containerNames) == 0 {
-		return []database.ContainerVersion{}, nil
+		return []model.ContainerVersion{}, nil
 	}
 
-	var versions []database.ContainerVersion
+	var versions []model.ContainerVersion
 
 	query := db.Table("container_versions cv").
 		Preload("Container").
@@ -198,7 +199,7 @@ func BatchGetContainerVersions(db *gorm.DB, containerType consts.ContainerType, 
 
 // CheckContainerExistsWithDifferentType checks if a container exists with a different type
 func CheckContainerExistsWithDifferentType(db *gorm.DB, containerName string, requestedType consts.ContainerType, userID int) (bool, consts.ContainerType, error) {
-	var container database.Container
+	var container model.Container
 
 	query := db.Table("containers").
 		Where("name = ? AND type != ? AND status = ?", containerName, requestedType, consts.CommonEnabled)
@@ -225,7 +226,7 @@ func CheckContainerExistsWithDifferentType(db *gorm.DB, containerName string, re
 
 // DeleteContainerVersion soft deletes a container version
 func DeleteContainerVersion(db *gorm.DB, versionID int) (int64, error) {
-	result := db.Model(&database.ContainerVersion{}).
+	result := db.Model(&model.ContainerVersion{}).
 		Where("id = ? AND status != ?", versionID, consts.CommonDeleted).
 		Update("status", consts.CommonDeleted)
 	if result.Error != nil {
@@ -235,8 +236,8 @@ func DeleteContainerVersion(db *gorm.DB, versionID int) (int64, error) {
 }
 
 // GetContainerVersionByID retrieves a ContainerVersion by its ID
-func GetContainerVersionByID(db *gorm.DB, versionID int) (*database.ContainerVersion, error) {
-	var version database.ContainerVersion
+func GetContainerVersionByID(db *gorm.DB, versionID int) (*model.ContainerVersion, error) {
+	var version model.ContainerVersion
 	if err := db.
 		Preload("Container").
 		Preload("HelmConfig").
@@ -247,11 +248,11 @@ func GetContainerVersionByID(db *gorm.DB, versionID int) (*database.ContainerVer
 }
 
 // ListContainerVersions lists container versions with pagination and optional status filtering
-func ListContainerVersions(db *gorm.DB, limit, offset int, containerID int, status *consts.StatusType) ([]database.ContainerVersion, int64, error) {
-	var versions []database.ContainerVersion
+func ListContainerVersions(db *gorm.DB, limit, offset int, containerID int, status *consts.StatusType) ([]model.ContainerVersion, int64, error) {
+	var versions []model.ContainerVersion
 	var total int64
 
-	query := db.Model(&database.ContainerVersion{}).Where("container_id = ?", containerID)
+	query := db.Model(&model.ContainerVersion{}).Where("container_id = ?", containerID)
 	if status != nil {
 		query = query.Where("status = ?", *status)
 	}
@@ -268,8 +269,8 @@ func ListContainerVersions(db *gorm.DB, limit, offset int, containerID int, stat
 }
 
 // ListContainerVersions lists all versions of a specific container
-func ListContainerVersionsByContainerID(db *gorm.DB, containerID int) ([]database.ContainerVersion, error) {
-	var versions []database.ContainerVersion
+func ListContainerVersionsByContainerID(db *gorm.DB, containerID int) ([]model.ContainerVersion, error) {
+	var versions []model.ContainerVersion
 	if err := db.
 		Preload("Container").
 		Preload("HelmConfig").
@@ -281,7 +282,7 @@ func ListContainerVersionsByContainerID(db *gorm.DB, containerID int) ([]databas
 }
 
 // UpdateContainerVersion updates a container version
-func UpdateContainerVersion(db *gorm.DB, version *database.ContainerVersion) error {
+func UpdateContainerVersion(db *gorm.DB, version *model.ContainerVersion) error {
 	if err := db.Omit(containerVersionOmitFields).Save(version).Error; err != nil {
 		return fmt.Errorf("failed to update container version: %w", err)
 	}
@@ -293,7 +294,7 @@ func UpdateContainerVersion(db *gorm.DB, version *database.ContainerVersion) err
 // =====================================================================
 
 // BatchCreateHelmConfigs creates multiple helm configs
-func BatchCreateHelmConfigs(db *gorm.DB, helmConfigs []*database.HelmConfig) error {
+func BatchCreateHelmConfigs(db *gorm.DB, helmConfigs []*model.HelmConfig) error {
 	if len(helmConfigs) == 0 {
 		return fmt.Errorf("no helm configs to create")
 	}
@@ -306,8 +307,8 @@ func BatchCreateHelmConfigs(db *gorm.DB, helmConfigs []*database.HelmConfig) err
 }
 
 // GetHelmConfigByContainerVersionID retrieves the HelmConfig associated with a specific ContainerVersion ID
-func GetHelmConfigByContainerVersionID(db *gorm.DB, versionID int) (*database.HelmConfig, error) {
-	var helmConfig database.HelmConfig
+func GetHelmConfigByContainerVersionID(db *gorm.DB, versionID int) (*model.HelmConfig, error) {
+	var helmConfig model.HelmConfig
 	if err := db.Preload("ContainerVersion").
 		Where("container_version_id = ?", versionID).
 		First(&helmConfig).Error; err != nil {
@@ -317,7 +318,7 @@ func GetHelmConfigByContainerVersionID(db *gorm.DB, versionID int) (*database.He
 }
 
 // UpdateHelmConfig updates a helm config
-func UpdateHelmConfig(db *gorm.DB, helmConfig *database.HelmConfig) error {
+func UpdateHelmConfig(db *gorm.DB, helmConfig *model.HelmConfig) error {
 	if err := db.Save(helmConfig).Error; err != nil {
 		return fmt.Errorf("failed to update helm config: %w", err)
 	}
@@ -329,7 +330,7 @@ func UpdateHelmConfig(db *gorm.DB, helmConfig *database.HelmConfig) error {
 // =====================================================================
 
 // BatchCreateOrFindParameterConfigs creates multiple parameter configs or finds existing ones using upsert
-func BatchCreateOrFindParameterConfigs(db *gorm.DB, params []database.ParameterConfig) error {
+func BatchCreateOrFindParameterConfigs(db *gorm.DB, params []model.ParameterConfig) error {
 	if len(params) == 0 {
 		return nil
 	}
@@ -344,14 +345,14 @@ func BatchCreateOrFindParameterConfigs(db *gorm.DB, params []database.ParameterC
 }
 
 // ListParameterConfigsByKeys retrieves ParameterConfigs by their keys, type and category
-func ListParameterConfigsByKeys(db *gorm.DB, configs []database.ParameterConfig) ([]database.ParameterConfig, error) {
+func ListParameterConfigsByKeys(db *gorm.DB, configs []model.ParameterConfig) ([]model.ParameterConfig, error) {
 	if len(configs) == 0 {
-		return []database.ParameterConfig{}, nil
+		return []model.ParameterConfig{}, nil
 	}
 
 	// Build query conditions for batch lookup
-	var results []database.ParameterConfig
-	query := db.Model(&database.ParameterConfig{})
+	var results []model.ParameterConfig
+	query := db.Model(&model.ParameterConfig{})
 
 	// Build OR conditions for each config
 	conditions := db.Where("1 = 0") // Start with false condition
@@ -373,7 +374,7 @@ func ListParameterConfigsByKeys(db *gorm.DB, configs []database.ParameterConfig)
 // =====================================================================
 
 // AddContainerLabels adds multiple container-label associations in a batch
-func AddContainerLabels(db *gorm.DB, containerLabels []database.ContainerLabel) error {
+func AddContainerLabels(db *gorm.DB, containerLabels []model.ContainerLabel) error {
 	if len(containerLabels) == 0 {
 		return nil
 	}
@@ -404,7 +405,7 @@ func ClearContainerLabels(db *gorm.DB, containerIDs []int, labelIDs []int) error
 // RemoveContainersFromLabel removes all container associations from a specific label
 func RemoveContainersFromLabel(db *gorm.DB, labelID int) (int64, error) {
 	result := db.Where("label_id = ?", labelID).
-		Delete(&database.ContainerLabel{})
+		Delete(&model.ContainerLabel{})
 	if err := result.Error; err != nil {
 		return 0, fmt.Errorf("failed to remove all containers from label %d: %w", labelID, err)
 	}
@@ -418,7 +419,7 @@ func RemoveContainersFromLabels(db *gorm.DB, labelIDs []int) (int64, error) {
 	}
 
 	result := db.Where("label_id IN (?)", labelIDs).
-		Delete(&database.ContainerLabel{})
+		Delete(&model.ContainerLabel{})
 	if err := result.Error; err != nil {
 		return 0, fmt.Errorf("failed to remove all containers from labels %v: %w", labelIDs, err)
 	}
@@ -426,18 +427,18 @@ func RemoveContainersFromLabels(db *gorm.DB, labelIDs []int) (int64, error) {
 }
 
 // ListContainerLabels gets labels for multiple containers in batch
-func ListContainerLabels(db *gorm.DB, containerIDs []int) (map[int][]database.Label, error) {
+func ListContainerLabels(db *gorm.DB, containerIDs []int) (map[int][]model.Label, error) {
 	if len(containerIDs) == 0 {
 		return nil, nil
 	}
 
 	type containerLabelResult struct {
-		database.Label
+		model.Label
 		containerID int `gorm:"column:container_id"`
 	}
 
 	var flatResults []containerLabelResult
-	if err := db.Model(&database.Label{}).
+	if err := db.Model(&model.Label{}).
 		Joins("JOIN container_labels cl ON cl.label_id = labels.id").
 		Where("cl.container_id IN (?)", containerIDs).
 		Select("labels.*, cl.container_id").
@@ -445,9 +446,9 @@ func ListContainerLabels(db *gorm.DB, containerIDs []int) (map[int][]database.La
 		return nil, fmt.Errorf("failed to batch query container labels: %w", err)
 	}
 
-	labelsMap := make(map[int][]database.Label)
+	labelsMap := make(map[int][]model.Label)
 	for _, id := range containerIDs {
-		labelsMap[id] = []database.Label{}
+		labelsMap[id] = []model.Label{}
 	}
 
 	for _, res := range flatResults {
@@ -470,7 +471,7 @@ func ListContainerLabelCounts(db *gorm.DB, labelIDs []int) (map[int]int64, error
 	}
 
 	var results []containerLabelResult
-	if err := db.Model(&database.ContainerLabel{}).
+	if err := db.Model(&model.ContainerLabel{}).
 		Select("label_id, count(label_id) as count").
 		Where("label_id IN (?)", labelIDs).
 		Group("label_id").
@@ -487,9 +488,9 @@ func ListContainerLabelCounts(db *gorm.DB, labelIDs []int) (map[int]int64, error
 }
 
 // ListLabelsByContainerID lists all labels associated with a specific container
-func ListLabelsByContainerID(db *gorm.DB, containerID int) ([]database.Label, error) {
-	var labels []database.Label
-	if err := db.Model(&database.Label{}).
+func ListLabelsByContainerID(db *gorm.DB, containerID int) ([]model.Label, error) {
+	var labels []model.Label
+	if err := db.Model(&model.Label{}).
 		Joins("JOIN container_labels cl ON cl.label_id = labels.id").
 		Where("cl.container_id = ?", containerID).
 		Find(&labels).Error; err != nil {
@@ -519,7 +520,7 @@ func ListLabelIDsByKeyAndContainerID(db *gorm.DB, containerID int, keys []string
 // =====================================================================
 
 // AddContainerVersionEnvVars adds multiple environment variable parameters for a specific container version
-func AddContainerVersionEnvVars(db *gorm.DB, envVars []database.ContainerVersionEnvVar) error {
+func AddContainerVersionEnvVars(db *gorm.DB, envVars []model.ContainerVersionEnvVar) error {
 	if len(envVars) == 0 {
 		return nil
 	}
@@ -530,8 +531,8 @@ func AddContainerVersionEnvVars(db *gorm.DB, envVars []database.ContainerVersion
 }
 
 // ListContainerEnvVars lists environment variable parameters for a specific container version
-func ListContainerVersionEnvVars(db *gorm.DB, keys []string, containerVersionID int) ([]database.ParameterConfig, error) {
-	query := db.Model(&database.ParameterConfig{}).
+func ListContainerVersionEnvVars(db *gorm.DB, keys []string, containerVersionID int) ([]model.ParameterConfig, error) {
+	query := db.Model(&model.ParameterConfig{}).
 		Joins("JOIN container_version_env_vars cvev ON cvev.parameter_config_id = parameter_configs.id").
 		Where("cvev.container_version_id = ?", containerVersionID).
 		Where("parameter_configs.category = ?", consts.ParameterCategoryEnvVars)
@@ -540,7 +541,7 @@ func ListContainerVersionEnvVars(db *gorm.DB, keys []string, containerVersionID 
 		query = query.Where("parameter_configs.config_key IN (?)", keys)
 	}
 
-	var params []database.ParameterConfig
+	var params []model.ParameterConfig
 	if err := query.Find(&params).Error; err != nil {
 		return nil, fmt.Errorf("failed to list container env vars: %w", err)
 	}
@@ -552,7 +553,7 @@ func ListContainerVersionEnvVars(db *gorm.DB, keys []string, containerVersionID 
 // =====================================================================
 
 // AddHelmConfigValues adds multiple helm value parameters for a specific helm config
-func AddHelmConfigValues(db *gorm.DB, helmValues []database.HelmConfigValue) error {
+func AddHelmConfigValues(db *gorm.DB, helmValues []model.HelmConfigValue) error {
 	if len(helmValues) == 0 {
 		return nil
 	}
@@ -563,8 +564,8 @@ func AddHelmConfigValues(db *gorm.DB, helmValues []database.HelmConfigValue) err
 }
 
 // ListHelmConfigValues lists helm value parameters for a specific helm config
-func ListHelmConfigValues(db *gorm.DB, keys []string, helmConfigID int) ([]database.ParameterConfig, error) {
-	query := db.Model(&database.ParameterConfig{}).
+func ListHelmConfigValues(db *gorm.DB, keys []string, helmConfigID int) ([]model.ParameterConfig, error) {
+	query := db.Model(&model.ParameterConfig{}).
 		Joins("JOIN helm_config_values hcv ON hcv.parameter_config_id = parameter_configs.id").
 		Where("hcv.helm_config_id = ?", helmConfigID)
 
@@ -572,7 +573,7 @@ func ListHelmConfigValues(db *gorm.DB, keys []string, helmConfigID int) ([]datab
 		query = query.Where("parameter_configs.config_key IN (?)", keys)
 	}
 
-	var params []database.ParameterConfig
+	var params []model.ParameterConfig
 	if err := query.Find(&params).Error; err != nil {
 		return nil, fmt.Errorf("failed to list helm values: %w", err)
 	}

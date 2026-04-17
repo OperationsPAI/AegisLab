@@ -168,7 +168,9 @@ class PythonSDK(Generator):
         console.print(
             "[bold blue]Step 3: Formatting post-processed Python SDK...[/bold blue]"
         )
-        formatter = PythonFormatter(scope=ScopeType.SDK)
+        formatter = PythonFormatter(
+            scope=ScopeType.SDK, sdk_dir=self.PYTHON_SDK_DIR.as_posix()
+        )
         formatter.run()
 
         # 5. Update version information in project files

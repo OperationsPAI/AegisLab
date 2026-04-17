@@ -509,8 +509,8 @@ FaultInjection CRD → HandleCRDSucceeded → BuildDatapack Job → HandleJobSuc
 `types/api.ts` 中手写的 `Team`, `TeamMember` 等类型需迁移到 SDK 生成类型 (`@rcabench/client`)。
 
 步骤：
-1. 确保所有相关 API 在后端标注了 `@x-api-type {"sdk":"true"}`
-2. `just swag-init && just generate-typescript-client`
+1. 确保 OpenAPI3 中相关接口带有正确的 `x-api-type` audience 标记（如 `portal` / `admin`）
+2. `just swag-init && just generate-typescript-sdk`
 3. 前端 `import type { ... } from '@rcabench/client'` 替换手写类型
 
 ## 8. UI/UX Guidelines

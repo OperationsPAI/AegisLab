@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"aegis/consts"
-	"aegis/database"
-	"aegis/dto"
+	"aegis/model"
+	labelmodule "aegis/module/label"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -21,7 +21,7 @@ const (
 // =====================================================================
 
 // BatchCreateLabels inserts multiple labels
-func BatchCreateLabels(db *gorm.DB, labels []database.Label) error {
+func BatchCreateLabels(db *gorm.DB, labels []model.Label) error {
 	if len(labels) == 0 {
 		return nil
 	}
@@ -39,7 +39,7 @@ func BatchDeleteLabels(db *gorm.DB, labelIDs []int) error {
 		return nil
 	}
 
-	if err := db.Model(&database.Label{}).
+	if err := db.Model(&model.Label{}).
 		Where("id IN (?) AND status != ?", labelIDs, consts.CommonDeleted).
 		Update("status", consts.CommonDeleted).Error; err != nil {
 		return fmt.Errorf("failed to batch delete labels: %w", err)
@@ -54,7 +54,7 @@ func BatchIncreaseLabelUsages(db *gorm.DB, labelIDs []int, increament int) error
 	}
 
 	expr := gorm.Expr("usage_count + ?", increament)
-	if err := db.Model(&database.Label{}).
+	if err := db.Model(&model.Label{}).
 		Where("id IN (?)", labelIDs).
 		UpdateColumn("usage_count", expr).Error; err != nil {
 		return fmt.Errorf("failed to batch increase label usages: %w", err)
@@ -70,7 +70,7 @@ func BatchDecreaseLabelUsages(db *gorm.DB, labelIDs []int, decrement int) error 
 	}
 
 	expr := gorm.Expr("GREATEST(0, usage_count - ?)", decrement)
-	if err := db.Model(&database.Label{}).
+	if err := db.Model(&model.Label{}).
 		Where("id IN (?)", labelIDs).
 		Clauses(clause.Returning{}).
 		UpdateColumn("usage_count", expr).Error; err != nil {
@@ -80,7 +80,7 @@ func BatchDecreaseLabelUsages(db *gorm.DB, labelIDs []int, decrement int) error 
 }
 
 // BatchUpdateLabels updates multiple labels
-func BatchUpdateLabels(db *gorm.DB, labels []database.Label) error {
+func BatchUpdateLabels(db *gorm.DB, labels []model.Label) error {
 	if len(labels) == 0 {
 		return fmt.Errorf("no labels to update")
 	}
@@ -93,7 +93,7 @@ func BatchUpdateLabels(db *gorm.DB, labels []database.Label) error {
 }
 
 // CreateLabel creates a label
-func CreateLabel(db *gorm.DB, label *database.Label) error {
+func CreateLabel(db *gorm.DB, label *model.Label) error {
 	if err := db.Omit(labelKeyOmitFields).Create(label).Error; err != nil {
 		return fmt.Errorf("failed to create label: %w", err)
 	}
@@ -102,7 +102,7 @@ func CreateLabel(db *gorm.DB, label *database.Label) error {
 
 // DeleteLabel soft deletes a label by setting its status to deleted
 func DeleteLabel(db *gorm.DB, labelID int) (int64, error) {
-	result := db.Model(&database.Label{}).
+	result := db.Model(&model.Label{}).
 		Where("id = ? AND status != ?", labelID, consts.CommonDeleted).
 		Update("status", consts.CommonDeleted)
 	if result.Error != nil {
@@ -112,8 +112,8 @@ func DeleteLabel(db *gorm.DB, labelID int) (int64, error) {
 }
 
 // GetLabelByID gets label by ID
-func GetLabelByID(db *gorm.DB, id int) (*database.Label, error) {
-	var label database.Label
+func GetLabelByID(db *gorm.DB, id int) (*model.Label, error) {
+	var label model.Label
 	if err := db.First(&label, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("label with id %d not found", id)
@@ -124,7 +124,7 @@ func GetLabelByID(db *gorm.DB, id int) (*database.Label, error) {
 }
 
 // GetLabelByKeyAndValue gets label by key and value
-func GetLabelByKeyAndValue(db *gorm.DB, key, value string, status ...consts.StatusType) (*database.Label, error) {
+func GetLabelByKeyAndValue(db *gorm.DB, key, value string, status ...consts.StatusType) (*model.Label, error) {
 	query := db.Where("label_key = ? AND label_value = ?", key, value)
 
 	if len(status) == 0 {
@@ -135,7 +135,7 @@ func GetLabelByKeyAndValue(db *gorm.DB, key, value string, status ...consts.Stat
 		query = query.Where("status IN (?)", status)
 	}
 
-	var label database.Label
+	var label model.Label
 	if err := query.First(&label).Error; err != nil {
 		return nil, fmt.Errorf("failed to get label: %w", err)
 	}
@@ -144,11 +144,11 @@ func GetLabelByKeyAndValue(db *gorm.DB, key, value string, status ...consts.Stat
 }
 
 // ListLabels gets the label list
-func ListLabels(db *gorm.DB, limit, offset int, filterOptions *dto.ListLabelFilters) ([]database.Label, int64, error) {
-	var labels []database.Label
+func ListLabels(db *gorm.DB, limit, offset int, filterOptions *labelmodule.ListLabelFilters) ([]model.Label, int64, error) {
+	var labels []model.Label
 	var total int64
 
-	query := db.Model(&database.Label{})
+	query := db.Model(&model.Label{})
 	if filterOptions.Key != "" {
 		query = query.Where("label_key = ?", filterOptions.Key)
 	}
@@ -177,12 +177,12 @@ func ListLabels(db *gorm.DB, limit, offset int, filterOptions *dto.ListLabelFilt
 }
 
 // ListLabelsByConditions lists labels based on key-value conditions
-func ListLabelsByConditions(db *gorm.DB, conditions []map[string]string) ([]database.Label, error) {
+func ListLabelsByConditions(db *gorm.DB, conditions []map[string]string) ([]model.Label, error) {
 	if len(conditions) == 0 {
-		return []database.Label{}, nil
+		return []model.Label{}, nil
 	}
 
-	query := db.Model(&database.Label{}).Where("status != ?", consts.CommonDeleted)
+	query := db.Model(&model.Label{}).Where("status != ?", consts.CommonDeleted)
 	orBuilder := db.Where("1 = 0")
 
 	for _, condition := range conditions {
@@ -198,7 +198,7 @@ func ListLabelsByConditions(db *gorm.DB, conditions []map[string]string) ([]data
 		orBuilder = orBuilder.Or(andBuilder)
 	}
 
-	var labels []database.Label
+	var labels []model.Label
 	if err := query.Where(orBuilder).Find(&labels).Error; err != nil {
 		return nil, fmt.Errorf("failed to list labels by conditions: %w", err)
 	}
@@ -211,7 +211,7 @@ func ListLabelIDsByConditions(db *gorm.DB, conditions []map[string]string, categ
 		return []int{}, nil
 	}
 
-	query := db.Model(&database.Label{}).
+	query := db.Model(&model.Label{}).
 		Where("status != ? AND category = ?", consts.CommonDeleted, category)
 
 	orBuilder := db.Where("1 = 0")
@@ -237,12 +237,12 @@ func ListLabelIDsByConditions(db *gorm.DB, conditions []map[string]string, categ
 }
 
 // ListLabelsByID lists labels by their IDs
-func ListLabelsByID(db *gorm.DB, labelIDs []int) ([]database.Label, error) {
+func ListLabelsByID(db *gorm.DB, labelIDs []int) ([]model.Label, error) {
 	if len(labelIDs) == 0 {
-		return []database.Label{}, nil
+		return []model.Label{}, nil
 	}
 
-	var labels []database.Label
+	var labels []model.Label
 	if err := db.
 		Where("id IN (?) AND status != ?", labelIDs, consts.CommonDeleted).
 		Find(&labels).Error; err != nil {
@@ -252,8 +252,8 @@ func ListLabelsByID(db *gorm.DB, labelIDs []int) ([]database.Label, error) {
 }
 
 // ListLabelsGroupByCategory lists labels grouped by their categories
-func ListLabelsGroupByCategory(db *gorm.DB) (map[consts.LabelCategory][]database.Label, error) {
-	var labels []database.Label
+func ListLabelsGroupByCategory(db *gorm.DB) (map[consts.LabelCategory][]model.Label, error) {
+	var labels []model.Label
 	if err := db.
 		Where("status != ?", consts.CommonDeleted).
 		Order("usage_count DESC, created_at DESC").
@@ -261,7 +261,7 @@ func ListLabelsGroupByCategory(db *gorm.DB) (map[consts.LabelCategory][]database
 		return nil, fmt.Errorf("failed to list labels: %w", err)
 	}
 
-	groupedLabels := make(map[consts.LabelCategory][]database.Label)
+	groupedLabels := make(map[consts.LabelCategory][]model.Label)
 	for _, label := range labels {
 		groupedLabels[label.Category] = append(groupedLabels[label.Category], label)
 	}
@@ -270,10 +270,10 @@ func ListLabelsGroupByCategory(db *gorm.DB) (map[consts.LabelCategory][]database
 }
 
 // SearchLabels searches for labels
-func SearchLabels(keyword string, category string, limit int) ([]database.Label, error) {
-	var labels []database.Label
+func SearchLabels(db *gorm.DB, keyword string, category string, limit int) ([]model.Label, error) {
+	var labels []model.Label
 
-	query := database.DB.Model(&database.Label{})
+	query := db.Model(&model.Label{})
 
 	if keyword != "" {
 		query = query.Where("key ILIKE ? OR value ILIKE ? OR description ILIKE ?",
@@ -295,7 +295,7 @@ func SearchLabels(keyword string, category string, limit int) ([]database.Label,
 	return labels, nil
 }
 
-func UpdateLabel(db *gorm.DB, label *database.Label) error {
+func UpdateLabel(db *gorm.DB, label *model.Label) error {
 	if err := db.Omit(labelKeyOmitFields).Save(label).Error; err != nil {
 		return fmt.Errorf("failed to update label: %w", err)
 	}

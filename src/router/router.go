@@ -1,6 +1,7 @@
 package router
 
 import (
+	_ "aegis/docs/openapi2"
 	"aegis/middleware"
 
 	"github.com/gin-contrib/cors"
@@ -9,8 +10,12 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
-func New() *gin.Engine {
+func New(handlers *Handlers, services ...middleware.Service) *gin.Engine {
 	router := gin.Default()
+	var middlewareService middleware.Service
+	if len(services) > 0 {
+		middlewareService = services[0]
+	}
 
 	// CORS configuration
 	config := cors.DefaultConfig()
@@ -22,6 +27,7 @@ func New() *gin.Engine {
 
 	// Middleware setup
 	router.Use(
+		middleware.InjectService(middlewareService),
 		middleware.GroupID(),
 		middleware.SSEPath(),
 		cors.New(config),
@@ -29,10 +35,10 @@ func New() *gin.Engine {
 	)
 
 	// Set up system routes
-	SetupSystemRoutes(router)
+	SetupSystemRoutes(router, handlers)
 
 	// Set up API routes
-	SetupV2Routes(router)
+	SetupV2Routes(router, handlers)
 
 	// Swagger documentation
 	router.GET("/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

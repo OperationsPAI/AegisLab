@@ -115,30 +115,30 @@ Available on all commands:
 Authenticate and persist token.
 
 ```bash
-# Interactive (prompts for password)
-aegisctl auth login --server http://localhost:8082 --username admin
-
-# Non-interactive (for scripts/agents)
-aegisctl auth login --server http://localhost:8082 --username admin --password admin
+# Exchange AK/SK for a bearer token
+aegisctl auth login --server http://localhost:8082 --access-key ak_demo --secret-key sk_demo
 
 # With context name
-aegisctl auth login --server http://localhost:8082 --username admin --password admin --context dev
+aegisctl auth login --server http://localhost:8082 --access-key ak_demo --secret-key sk_demo --context dev
 ```
 
 **Behavior**:
-- Calls `POST /api/v2/auth/login`
+- Computes the canonical string `METHOD\nPATH\nACCESS_KEY\nTIMESTAMP\nNONCE`
+- Signs it with lowercase hex `HMAC-SHA256(secret_key, canonical_string)`
+- Calls `POST /api/v2/auth/access-key/token` with `X-Access-Key`, `X-Timestamp`, `X-Nonce`, `X-Signature`
 - Saves token + server + expiry to `~/.aegisctl/config.yaml`
 - Sets as `current-context` if no context exists yet
 - Prints authentication status to stdout
+- Does not persist `secret_key`
 
 **Flags**:
 
 | Flag | Required | Description |
 |------|----------|-------------|
 | `--server` | Yes | API server URL |
-| `--username` | Yes | Username |
-| `--password` | No | Password (prompts if omitted) |
-| `--context` | No | Context name to save as (default: hostname-derived) |
+| `--access-key` | Yes | Access key |
+| `--secret-key` | Yes | Secret key |
+| `--context` | No | Context name to save as (default: `default`) |
 
 #### `aegisctl auth status`
 
@@ -156,6 +156,37 @@ aegisctl auth status
 
 **Behavior**: Calls `GET /api/v2/auth/profile` to verify token validity.
 
+#### `aegisctl auth inspect`
+
+Inspect the current local auth context without sending credentials anywhere.
+
+```bash
+aegisctl auth inspect
+aegisctl auth inspect -o json
+```
+
+**Behavior**:
+- Reads the active context from `~/.aegisctl/config.yaml`
+- Prints `server`, `auth_type`, `access_key`, token preview, and expiry state
+
+#### `aegisctl auth sign-debug`
+
+Print the canonical string and signed headers for `AK/SK -> token` debugging.
+
+```bash
+aegisctl auth sign-debug --access-key ak_demo --secret-key sk_demo
+aegisctl auth sign-debug --access-key ak_demo --secret-key sk_demo --timestamp 1713333333 --nonce abc123
+aegisctl auth sign-debug --server http://localhost:8082 --access-key ak_demo --secret-key sk_demo --execute
+aegisctl auth sign-debug --server http://localhost:8082 --access-key ak_demo --secret-key sk_demo --execute --save-context
+```
+
+**Behavior**:
+- Rebuilds the canonical string `METHOD\nPATH\nACCESS_KEY\nTIMESTAMP\nNONCE`
+- Prints the computed `X-Access-Key`, `X-Timestamp`, `X-Nonce`, `X-Signature`
+- Prints a ready-to-run curl example for `POST /api/v2/auth/access-key/token`
+- Optionally executes the request with `--execute` and prints the live response
+- Optionally persists the returned bearer token into the active context with `--save-context`
+
 #### `aegisctl auth token`
 
 Directly set an API token without login flow.
@@ -165,6 +196,15 @@ aegisctl auth token --set eyJhbGci...
 ```
 
 **Use case**: CI/CD pipelines or agents that receive tokens from external secret managers.
+
+#### Portal Access Key Workflow
+
+Recommended usage:
+
+1. Create or rotate the access key in Portal.
+2. Store `access_key` and one-time `secret_key` in a secret manager.
+3. Use `aegisctl auth login --access-key ... --secret-key ...` or direct curl signing to get a bearer token.
+4. Use the bearer token for normal API calls.
 
 ---
 
@@ -906,7 +946,7 @@ func (r *WSReader) Stream(ctx context.Context) (<-chan string, error)
 set -e
 
 # Setup
-aegisctl auth login --server http://aegislab:8082 --username agent --password secret
+aegisctl auth login --server http://aegislab:8082 --access-key ak_agent --secret-key sk_agent
 
 # Discover resources
 ALGORITHMS=$(aegisctl container list --type algorithm -o json)
@@ -1025,7 +1065,7 @@ Core capabilities needed for an agent to run a complete experiment cycle.
 
 | # | Command | API Endpoint | Description |
 |---|---------|-------------|-------------|
-| 1 | `auth login` | `POST /api/v2/auth/login` | Authenticate and persist token |
+| 1 | `auth login` | `POST /api/v2/auth/access-key/token` | Exchange AK/SK and persist token |
 | 2 | `auth token --set` | (local) | Set token directly |
 | 3 | Config file read/write | (local) | `~/.aegisctl/config.yaml` management |
 | 4 | `project list` | `GET /api/v2/projects` | List projects |

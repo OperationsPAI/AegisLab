@@ -4,14 +4,15 @@ import (
 	"fmt"
 
 	"aegis/consts"
-	"aegis/database"
+	"aegis/model"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
 const (
-	datasetVersionOmitFields = "active_version_key"
+	datasetActiveNameOmitFields = "active_name"
+	datasetVersionOmitFields    = "active_version_key"
 )
 
 // =====================================================================
@@ -19,8 +20,8 @@ const (
 // =====================================================================
 
 // CreateDataset creates a new dataset record
-func CreateDataset(db *gorm.DB, dataset *database.Dataset) error {
-	if err := db.Omit(commonOmitFields).Create(dataset).Error; err != nil {
+func CreateDataset(db *gorm.DB, dataset *model.Dataset) error {
+	if err := db.Omit(datasetActiveNameOmitFields).Create(dataset).Error; err != nil {
 		return fmt.Errorf("failed to create dataset: %v", err)
 	}
 	return nil
@@ -28,7 +29,7 @@ func CreateDataset(db *gorm.DB, dataset *database.Dataset) error {
 
 // DeleteDataset soft deletes a dataset by setting its status to deleted
 func DeleteDataset(db *gorm.DB, id int) (int64, error) {
-	result := db.Model(&database.Dataset{}).
+	result := db.Model(&model.Dataset{}).
 		Where("id = ? AND status != ?", id, consts.CommonDeleted).
 		Update("status", consts.CommonDeleted)
 	if err := result.Error; err != nil {
@@ -38,8 +39,8 @@ func DeleteDataset(db *gorm.DB, id int) (int64, error) {
 }
 
 // GetDatasetByID gets dataset by ID
-func GetDatasetByID(db *gorm.DB, id int) (*database.Dataset, error) {
-	var dataset database.Dataset
+func GetDatasetByID(db *gorm.DB, id int) (*model.Dataset, error) {
+	var dataset model.Dataset
 	if err := db.Where("id = ? AND status != ?", id, consts.CommonDeleted).First(&dataset).Error; err != nil {
 		return nil, fmt.Errorf("failed to get dataset: %v", err)
 	}
@@ -47,11 +48,11 @@ func GetDatasetByID(db *gorm.DB, id int) (*database.Dataset, error) {
 }
 
 // ListDatasets gets dataset list
-func ListDatasets(db *gorm.DB, limit, offset int, datasetType string, isPublic *bool, status *consts.StatusType) ([]database.Dataset, int64, error) {
-	var datasets []database.Dataset
+func ListDatasets(db *gorm.DB, limit, offset int, datasetType string, isPublic *bool, status *consts.StatusType) ([]model.Dataset, int64, error) {
+	var datasets []model.Dataset
 	var total int64
 
-	query := db.Model(&database.Dataset{})
+	query := db.Model(&model.Dataset{})
 	if datasetType != "" {
 		query = query.Where("type = ?", datasetType)
 	}
@@ -75,12 +76,12 @@ func ListDatasets(db *gorm.DB, limit, offset int, datasetType string, isPublic *
 }
 
 // ListDatasetsByID retrieves multiple datasets by their IDs
-func ListDatasetsByID(db *gorm.DB, datasetIDs []int) ([]database.Dataset, error) {
+func ListDatasetsByID(db *gorm.DB, datasetIDs []int) ([]model.Dataset, error) {
 	if len(datasetIDs) == 0 {
-		return []database.Dataset{}, nil
+		return []model.Dataset{}, nil
 	}
 
-	var datasets []database.Dataset
+	var datasets []model.Dataset
 	if err := db.
 		Where("id IN (?) AND status != ?", datasetIDs, consts.CommonDeleted).
 		Find(&datasets).Error; err != nil {
@@ -91,41 +92,41 @@ func ListDatasetsByID(db *gorm.DB, datasetIDs []int) ([]database.Dataset, error)
 }
 
 // UpdateDataset updates dataset information
-func UpdateDataset(db *gorm.DB, dataset *database.Dataset) error {
-	if err := db.Omit(commonOmitFields).Save(dataset).Error; err != nil {
+func UpdateDataset(db *gorm.DB, dataset *model.Dataset) error {
+	if err := db.Omit(datasetActiveNameOmitFields).Save(dataset).Error; err != nil {
 		return fmt.Errorf("failed to update dataset: %v", err)
 	}
 	return nil
 }
 
 // GetDatasetStatistics returns statistics about datasets
-func GetDatasetStatistics() (map[string]int64, error) {
+func GetDatasetStatistics(db *gorm.DB) (map[string]int64, error) {
 	stats := make(map[string]int64)
 
 	// Total datasets
 	var total int64
-	if err := database.DB.Model(&database.Dataset{}).Count(&total).Error; err != nil {
+	if err := db.Model(&model.Dataset{}).Count(&total).Error; err != nil {
 		return nil, fmt.Errorf("failed to count total datasets: %v", err)
 	}
 	stats["total"] = total
 
 	// Active datasets
 	var active int64
-	if err := database.DB.Model(&database.Dataset{}).Where("status = ?", consts.DatapackInjectSuccess).Count(&active).Error; err != nil {
+	if err := db.Model(&model.Dataset{}).Where("status = ?", consts.DatapackInjectSuccess).Count(&active).Error; err != nil {
 		return nil, fmt.Errorf("failed to count active datasets: %v", err)
 	}
 	stats["active"] = active
 
 	// Disabled datasets
 	var disabled int64
-	if err := database.DB.Model(&database.Dataset{}).Where("status = ?", consts.DatapackInitial).Count(&disabled).Error; err != nil {
+	if err := db.Model(&model.Dataset{}).Where("status = ?", consts.DatapackInitial).Count(&disabled).Error; err != nil {
 		return nil, fmt.Errorf("failed to count disabled datasets: %v", err)
 	}
 	stats["disabled"] = disabled
 
 	// Deleted datasets
 	var deleted int64
-	if err := database.DB.Model(&database.Dataset{}).Where("status = ?", consts.CommonDeleted).Count(&deleted).Error; err != nil {
+	if err := db.Model(&model.Dataset{}).Where("status = ?", consts.CommonDeleted).Count(&deleted).Error; err != nil {
 		return nil, fmt.Errorf("failed to count deleted datasets: %v", err)
 	}
 	stats["deleted"] = deleted
@@ -138,7 +139,7 @@ func GetDatasetStatistics() (map[string]int64, error) {
 // =====================================================================
 
 // BatchCreateDatasetVersions creates multiple dataset versions
-func BatchCreateDatasetVersions(db *gorm.DB, versions []database.DatasetVersion) error {
+func BatchCreateDatasetVersions(db *gorm.DB, versions []model.DatasetVersion) error {
 	if len(versions) == 0 {
 		return fmt.Errorf("no dataset versions to create")
 	}
@@ -152,7 +153,7 @@ func BatchCreateDatasetVersions(db *gorm.DB, versions []database.DatasetVersion)
 
 // BatchDeleteDatasetVersions soft deletes all versions of a specific dataset
 func BatchDeleteDatasetVersions(db *gorm.DB, datasetID int) (int64, error) {
-	result := db.Model(&database.DatasetVersion{}).
+	result := db.Model(&model.DatasetVersion{}).
 		Where("dataset_id = ? AND status != ?", datasetID, consts.CommonDeleted).
 		Update("status", consts.CommonDeleted)
 	if result.Error != nil {
@@ -162,12 +163,12 @@ func BatchDeleteDatasetVersions(db *gorm.DB, datasetID int) (int64, error) {
 }
 
 // BatchGetDatasetVersions retrieves dataset versions for multiple dataset names
-func BatchGetDatasetVersions(db *gorm.DB, datasetNames []string, userID int) ([]database.DatasetVersion, error) {
+func BatchGetDatasetVersions(db *gorm.DB, datasetNames []string, userID int) ([]model.DatasetVersion, error) {
 	if len(datasetNames) == 0 {
-		return []database.DatasetVersion{}, nil
+		return []model.DatasetVersion{}, nil
 	}
 
-	var versions []database.DatasetVersion
+	var versions []model.DatasetVersion
 
 	query := db.Table("dataset_versions dv").
 		Preload("Dataset").
@@ -196,7 +197,7 @@ func BatchGetDatasetVersions(db *gorm.DB, datasetNames []string, userID int) ([]
 
 // DeleteDatasetVersion performs a soft delete on the dataset version by setting its status to  deleted
 func DeleteDatasetVersion(db *gorm.DB, versionID int) (int64, error) {
-	result := db.Model(&database.DatasetVersion{}).
+	result := db.Model(&model.DatasetVersion{}).
 		Where("id = ? AND status != ?", versionID, consts.CommonDeleted).
 		Update("status", consts.CommonDeleted)
 	if result.Error != nil {
@@ -206,8 +207,8 @@ func DeleteDatasetVersion(db *gorm.DB, versionID int) (int64, error) {
 }
 
 // GetDatasetVersionByID retrieves a dataset version by its ID
-func GetDatasetVersionByID(db *gorm.DB, id int) (*database.DatasetVersion, error) {
-	var version database.DatasetVersion
+func GetDatasetVersionByID(db *gorm.DB, id int) (*model.DatasetVersion, error) {
+	var version model.DatasetVersion
 	if err := db.Preload("Datapacks").Where("id = ?", id).First(&version).Error; err != nil {
 		return nil, fmt.Errorf("failed to get dataset version: %v", err)
 	}
@@ -215,11 +216,11 @@ func GetDatasetVersionByID(db *gorm.DB, id int) (*database.DatasetVersion, error
 }
 
 // ListDatasetVersions lists dataset versions with pagination and optional status filtering
-func ListDatasetVersions(db *gorm.DB, limit, offset int, datasetID int, status *consts.StatusType) ([]database.DatasetVersion, int64, error) {
-	var versions []database.DatasetVersion
+func ListDatasetVersions(db *gorm.DB, limit, offset int, datasetID int, status *consts.StatusType) ([]model.DatasetVersion, int64, error) {
+	var versions []model.DatasetVersion
 	var total int64
 
-	query := db.Model(&database.DatasetVersion{}).Where("dataset_id = ?", datasetID)
+	query := db.Model(&model.DatasetVersion{}).Where("dataset_id = ?", datasetID)
 	if status != nil {
 		query = query.Where("status = ?", *status)
 	}
@@ -237,8 +238,8 @@ func ListDatasetVersions(db *gorm.DB, limit, offset int, datasetID int, status *
 }
 
 // ListDatasetVersions lists all versions of a specific dataset
-func ListDatasetVersionsByDatasetID(db *gorm.DB, datasetID int) ([]database.DatasetVersion, error) {
-	var versions []database.DatasetVersion
+func ListDatasetVersionsByDatasetID(db *gorm.DB, datasetID int) ([]model.DatasetVersion, error) {
+	var versions []model.DatasetVersion
 	if err := db.Where("dataset_id = ?", datasetID).Find(&versions).Error; err != nil {
 		return nil, fmt.Errorf("failed to list dataset versions for dataset %d: %w", datasetID, err)
 	}
@@ -246,7 +247,7 @@ func ListDatasetVersionsByDatasetID(db *gorm.DB, datasetID int) ([]database.Data
 }
 
 // UpdateDatasetVersion updates a dataset version
-func UpdateDatasetVersion(db *gorm.DB, version *database.DatasetVersion) error {
+func UpdateDatasetVersion(db *gorm.DB, version *model.DatasetVersion) error {
 	if err := db.Omit(datasetVersionOmitFields).Save(version).Error; err != nil {
 		return fmt.Errorf("failed to update dataset version: %w", err)
 	}
@@ -258,7 +259,7 @@ func UpdateDatasetVersion(db *gorm.DB, version *database.DatasetVersion) error {
 // =====================================================================
 
 // AddDatasetLabels adds multiple dataset-label associations in a batch
-func AddDatasetLabels(db *gorm.DB, datasetLabels []database.DatasetLabel) error {
+func AddDatasetLabels(db *gorm.DB, datasetLabels []model.DatasetLabel) error {
 	if len(datasetLabels) == 0 {
 		return nil
 	}
@@ -292,7 +293,7 @@ func ClearDatasetLabels(db *gorm.DB, datasetIDs []int, labelIDs []int) error {
 // RemoveLabelsFromDataset removes all label associations from a specific dataset
 func RemoveLabelsFromDataset(db *gorm.DB, datasetID int) error {
 	if err := db.Where("dataset_id = ?", datasetID).
-		Delete(&database.DatasetLabel{}).Error; err != nil {
+		Delete(&model.DatasetLabel{}).Error; err != nil {
 		return fmt.Errorf("failed to delete all labels from dataset %d: %w", datasetID, err)
 	}
 	return nil
@@ -301,7 +302,7 @@ func RemoveLabelsFromDataset(db *gorm.DB, datasetID int) error {
 // RemoveDatasetsFromLabel removes all dataset associations from a specific label
 func RemoveDatasetsFromLabel(db *gorm.DB, labelID int) (int64, error) {
 	result := db.Where("label_id = ?", labelID).
-		Delete(&database.DatasetLabel{})
+		Delete(&model.DatasetLabel{})
 	if err := result.Error; err != nil {
 		return 0, fmt.Errorf("failed to delete all datasets from label %d: %w", labelID, err)
 	}
@@ -315,7 +316,7 @@ func RemoveDatasetsFromLabels(db *gorm.DB, labelIDs []int) (int64, error) {
 	}
 
 	result := db.Where("label_id IN (?)", labelIDs).
-		Delete(&database.DatasetLabel{})
+		Delete(&model.DatasetLabel{})
 	if err := result.Error; err != nil {
 		return 0, fmt.Errorf("failed to delete all datasets from labels %v: %w", labelIDs, err)
 	}
@@ -334,7 +335,7 @@ func ListDatasetLabelCounts(db *gorm.DB, labelIDs []int) (map[int]int64, error) 
 	}
 
 	var results []datasetLabelResult
-	if err := db.Model(&database.DatasetLabel{}).
+	if err := db.Model(&model.DatasetLabel{}).
 		Select("label_id, count(label_id) as count").
 		Where("label_id IN (?)", labelIDs).
 		Group("label_id").
@@ -351,18 +352,18 @@ func ListDatasetLabelCounts(db *gorm.DB, labelIDs []int) (map[int]int64, error) 
 }
 
 // ListDatasetLabels lists all labels associated with multiple datasets
-func ListDatasetLabels(db *gorm.DB, datasetIDs []int) (map[int][]database.Label, error) {
+func ListDatasetLabels(db *gorm.DB, datasetIDs []int) (map[int][]model.Label, error) {
 	if len(datasetIDs) == 0 {
 		return nil, nil
 	}
 
 	type datasetLabelResult struct {
-		database.Label
+		model.Label
 		datasetID int `gorm:"column:dataset_id"`
 	}
 
 	var flatResults []datasetLabelResult
-	if err := db.Model(&database.Label{}).
+	if err := db.Model(&model.Label{}).
 		Joins("JOIN dataset_labels dl ON dl.label_id = labels.id").
 		Where("dl.dataset_id IN (?)", datasetIDs).
 		Select("labels.*, dl.dataset_id").
@@ -370,9 +371,9 @@ func ListDatasetLabels(db *gorm.DB, datasetIDs []int) (map[int][]database.Label,
 		return nil, fmt.Errorf("failed to batch query dataset labels: %w", err)
 	}
 
-	labelsMap := make(map[int][]database.Label)
+	labelsMap := make(map[int][]model.Label)
 	for _, id := range datasetIDs {
-		labelsMap[id] = []database.Label{}
+		labelsMap[id] = []model.Label{}
 	}
 
 	for _, res := range flatResults {
@@ -384,9 +385,9 @@ func ListDatasetLabels(db *gorm.DB, datasetIDs []int) (map[int][]database.Label,
 }
 
 // ListLabelsByDatasetID lists all labels associated with a specific dataset
-func ListLabelsByDatasetID(db *gorm.DB, datasetID int) ([]database.Label, error) {
-	var labels []database.Label
-	if err := db.Model(&database.Label{}).
+func ListLabelsByDatasetID(db *gorm.DB, datasetID int) ([]model.Label, error) {
+	var labels []model.Label
+	if err := db.Model(&model.Label{}).
 		Joins("JOIN dataset_labels dl ON dl.label_id = labels.id").
 		Where("dl.dataset_id = ?", datasetID).
 		Find(&labels).Error; err != nil {
@@ -416,7 +417,7 @@ func ListLabelIDsByKeyAndDatasetID(db *gorm.DB, datasetID int, keys []string) ([
 // =====================================================================
 
 // AddDatasetVersionInjections adds multiple dataset-version-injection associations in a batch
-func AddDatasetVersionInjections(db *gorm.DB, datasetVersionInjections []database.DatasetVersionInjection) error {
+func AddDatasetVersionInjections(db *gorm.DB, datasetVersionInjections []model.DatasetVersionInjection) error {
 	if len(datasetVersionInjections) == 0 {
 		return nil
 	}
@@ -450,7 +451,7 @@ func ClearDatasetVersionInjections(db *gorm.DB, datasetVersionIDs []int, injecti
 // RemoveInjectionsFromDatasetVersion deletes all injection associations for a given dataset version
 func RemoveInjectionsFromDatasetVersion(db *gorm.DB, datasetVersionID int) error {
 	if err := db.Where("dataset_version_id = ?", datasetVersionID).
-		Delete(&database.DatasetVersionInjection{}).Error; err != nil {
+		Delete(&model.DatasetVersionInjection{}).Error; err != nil {
 		return fmt.Errorf("failed to delete all injections from dataset version %d: %w", datasetVersionID, err)
 	}
 	return nil
@@ -459,20 +460,20 @@ func RemoveInjectionsFromDatasetVersion(db *gorm.DB, datasetVersionID int) error
 // RemoveDatasetVersionsFromInjection deletes all dataset version associations for a given fault injection
 func RemoveDatasetVersionsFromInjection(db *gorm.DB, faultInjectionID int) error {
 	if err := db.Where("injection_id = ?", faultInjectionID).
-		Delete(&database.DatasetVersionInjection{}).Error; err != nil {
+		Delete(&model.DatasetVersionInjection{}).Error; err != nil {
 		return fmt.Errorf("failed to delete all dataset versions from fault injection %d: %w", faultInjectionID, err)
 	}
 	return nil
 }
 
 // ListInjectionsByDatasetVersionID lists all fault injections associated with a specific dataset version
-func ListInjectionsByDatasetVersionID(db *gorm.DB, datasetVersionID int, includeLabels bool) ([]database.FaultInjection, error) {
-	query := db.Model(&database.FaultInjection{})
+func ListInjectionsByDatasetVersionID(db *gorm.DB, datasetVersionID int, includeLabels bool) ([]model.FaultInjection, error) {
+	query := db.Model(&model.FaultInjection{})
 	if includeLabels {
 		query = query.Preload("Labels")
 	}
 
-	var injections []database.FaultInjection
+	var injections []model.FaultInjection
 	if err := query.
 		Joins("JOIN dataset_version_injections dvi ON dvi.injection_id = id").
 		Where("state = ? AND status != ?", consts.DatapackBuildSuccess, consts.CommonDeleted).

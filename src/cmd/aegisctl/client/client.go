@@ -65,7 +65,7 @@ func NewClient(baseURL, token string, timeout time.Duration) *Client {
 }
 
 // doRequest executes an HTTP request and decodes the JSON response into dest.
-func (c *Client) doRequest(method, path string, body any, dest any) error {
+func (c *Client) doRequest(method, path string, body any, headers map[string]string, dest any) error {
 	var bodyReader io.Reader
 	if body != nil {
 		data, err := json.Marshal(body)
@@ -85,6 +85,9 @@ func (c *Client) doRequest(method, path string, body any, dest any) error {
 	req.Header.Set("Accept", "application/json")
 	if c.Token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.Token)
+	}
+	for key, value := range headers {
+		req.Header.Set(key, value)
 	}
 
 	resp, err := c.HTTPClient.Do(req)
@@ -123,25 +126,30 @@ func (c *Client) doRequest(method, path string, body any, dest any) error {
 
 // Get sends a GET request.
 func (c *Client) Get(path string, dest any) error {
-	return c.doRequest(http.MethodGet, path, nil, dest)
+	return c.doRequest(http.MethodGet, path, nil, nil, dest)
 }
 
 // Post sends a POST request.
 func (c *Client) Post(path string, body any, dest any) error {
-	return c.doRequest(http.MethodPost, path, body, dest)
+	return c.doRequest(http.MethodPost, path, body, nil, dest)
+}
+
+// PostWithHeaders sends a POST request with additional headers.
+func (c *Client) PostWithHeaders(path string, headers map[string]string, dest any) error {
+	return c.doRequest(http.MethodPost, path, nil, headers, dest)
 }
 
 // Put sends a PUT request.
 func (c *Client) Put(path string, body any, dest any) error {
-	return c.doRequest(http.MethodPut, path, body, dest)
+	return c.doRequest(http.MethodPut, path, body, nil, dest)
 }
 
 // Patch sends a PATCH request.
 func (c *Client) Patch(path string, body any, dest any) error {
-	return c.doRequest(http.MethodPatch, path, body, dest)
+	return c.doRequest(http.MethodPatch, path, body, nil, dest)
 }
 
 // Delete sends a DELETE request.
 func (c *Client) Delete(path string, dest any) error {
-	return c.doRequest(http.MethodDelete, path, nil, dest)
+	return c.doRequest(http.MethodDelete, path, nil, nil, dest)
 }

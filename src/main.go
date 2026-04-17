@@ -18,52 +18,24 @@
 package main
 
 import (
-	"context"
-	"fmt"
-	"log"
 	"os"
-	"path"
-	"runtime"
-	"time"
 
-	"aegis/client"
-	"aegis/client/k8s"
-	"aegis/config"
-	"aegis/consts"
-	"aegis/database"
-	"aegis/router"
-	"aegis/service/consumer"
-	"aegis/service/initialization"
-	"aegis/service/logreceiver"
-	"aegis/utils"
+	"aegis/app"
 
-	chaosCli "github.com/OperationsPAI/chaos-experiment/client"
-	nested "github.com/antonfisher/nested-logrus-formatter"
-	"github.com/go-logr/stdr"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	k8slogger "sigs.k8s.io/controller-runtime/pkg/log"
+	"go.uber.org/fx"
 )
 
-func init() {
-	logrus.SetReportCaller(true)
-	logrus.SetFormatter(&nested.Formatter{
-		CustomCallerFormatter: func(f *runtime.Frame) string {
-			filename := path.Base(f.File)
-			return fmt.Sprintf(" (%s:%d)", filename, f.Line)
+func newModeCommand(use, short string, run func()) *cobra.Command {
+	return &cobra.Command{
+		Use:   use,
+		Short: short,
+		Run: func(cmd *cobra.Command, args []string) {
+			run()
 		},
-		FieldsOrder:     []string{"component", "category"},
-		HideKeys:        true,
-		TimestampFormat: "2006-01-02 15:04:05",
-	})
-	logrus.SetLevel(logrus.InfoLevel)
-	logrus.Info("Logger initialized")
-}
-
-func initChaosExperiment() {
-	k8sConfig := k8s.GetK8sRestConfig()
-	chaosCli.InitWithConfig(k8sConfig)
+	}
 }
 
 func main() {
@@ -87,113 +59,15 @@ func main() {
 		logrus.Fatalf("failed to bind flag: %v", err)
 	}
 
-	config.Init(viper.GetString("conf"))
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	// Producer command - runs HTTP server for API endpoints
-	var producerCmd = &cobra.Command{
-		Use:   "producer",
-		Short: "Run as a producer",
-		Run: func(cmd *cobra.Command, args []string) {
-			logrus.Println("Running as producer")
-			database.InitDB()
-			initialization.InitializeProducer(ctx)
-
-			utils.InitValidator()
-			client.InitTraceProvider()
-			initChaosExperiment()
-
-			engine := router.New()
-			port := viper.GetString("port")
-			if err := engine.Run(":" + port); err != nil {
-				panic(err)
-			}
-		},
-	}
-
-	// Consumer command - runs background workers and Kubernetes controllers
-	var consumerCmd = &cobra.Command{
-		Use:   "consumer",
-		Short: "Run as a consumer",
-		Run: func(cmd *cobra.Command, args []string) {
-			logrus.Println("Running as consumer")
-			consts.InitialTime = utils.TimePtr(time.Now())
-			consts.AppID = utils.GenerateULID(consts.InitialTime)
-
-			k8slogger.SetLogger(stdr.New(log.New(os.Stdout, "", log.LstdFlags)))
-			initChaosExperiment()
-			go k8s.GetK8sController().Initialize(ctx, cancel, consumer.NewHandler())
-
-			database.InitDB()
-			initialization.InitializeConsumer(ctx)
-			initialization.InitConcurrencyLock(ctx)
-
-			client.InitTraceProvider()
-
-			// Start OTLP log receiver for real-time job log streaming
-			go func() {
-				otlpPort := config.GetInt("otlp_receiver.port")
-				if otlpPort == 0 {
-					otlpPort = logreceiver.DefaultPort
-				}
-				receiver := logreceiver.NewOTLPLogReceiver(otlpPort, 0)
-				if err := receiver.Start(ctx); err != nil {
-					logrus.Errorf("OTLP log receiver error: %v", err)
-				}
-				defer receiver.Shutdown()
-			}()
-
-			go consumer.StartScheduler(ctx)
-			consumer.ConsumeTasks(ctx)
-		},
-	}
-
-	// Both subcommand
-	var bothCmd = &cobra.Command{
-		Use:   "both",
-		Short: "Run as both producer and consumer",
-		Run: func(cmd *cobra.Command, args []string) {
-			logrus.Println("Running as both producer and consumer")
-			consts.InitialTime = utils.TimePtr(time.Now())
-			consts.AppID = utils.GenerateULID(consts.InitialTime)
-
-			k8slogger.SetLogger(stdr.New(log.New(os.Stdout, "", log.LstdFlags)))
-			initChaosExperiment()
-			go k8s.GetK8sController().Initialize(ctx, cancel, consumer.NewHandler())
-
-			database.InitDB()
-			initialization.InitializeProducer(ctx)
-			initialization.InitializeConsumer(ctx)
-			initialization.InitConcurrencyLock(ctx)
-
-			utils.InitValidator()
-			client.InitTraceProvider()
-
-			// Start OTLP log receiver for real-time job log streaming
-			go func() {
-				otlpPort := config.GetInt("otlp_receiver.port")
-				if otlpPort == 0 {
-					otlpPort = logreceiver.DefaultPort
-				}
-				receiver := logreceiver.NewOTLPLogReceiver(otlpPort, 0)
-				if err := receiver.Start(ctx); err != nil {
-					logrus.Errorf("OTLP log receiver error: %v", err)
-				}
-				defer receiver.Shutdown()
-			}()
-
-			go consumer.StartScheduler(ctx)
-			go consumer.ConsumeTasks(ctx)
-
-			engine := router.New()
-			port := viper.GetString("port")
-			if err := engine.Run(":" + port); err != nil {
-				panic(err)
-			}
-		},
-	}
+	producerCmd := newModeCommand("producer", "Run as a producer", func() {
+		fx.New(app.ProducerOptions(viper.GetString("conf"), viper.GetString("port"))).Run()
+	})
+	consumerCmd := newModeCommand("consumer", "Run as a consumer", func() {
+		fx.New(app.ConsumerOptions(viper.GetString("conf"))).Run()
+	})
+	bothCmd := newModeCommand("both", "Run as both producer and consumer", func() {
+		fx.New(app.BothOptions(viper.GetString("conf"), viper.GetString("port"))).Run()
+	})
 
 	rootCmd.AddCommand(producerCmd, consumerCmd, bothCmd)
 	if err := rootCmd.Execute(); err != nil {

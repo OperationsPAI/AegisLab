@@ -1,5 +1,6 @@
 import os
 import re
+import shutil
 from collections import Counter
 
 from rich.table import Table
@@ -39,8 +40,25 @@ class PythonFormatter(Formatter):
         super().__init__(scope)
         self.sdk_dir = sdk_dir or settings.python_sdk_dir
         self.has_errors = False
+        self.ruff_binary = self._resolve_ruff_binary()
         self.extra_args = ["--config", os.path.join(self.sdk_dir, "pyproject.toml")]
         self.files_to_format = self._get_files()
+
+    def _resolve_ruff_binary(self) -> str | None:
+        """Resolve ruff from PATH first, then from the local command venv."""
+        binary = shutil.which("ruff")
+        if binary:
+            return binary
+
+        candidates = [
+            PROJECT_ROOT / "scripts" / "command" / ".venv" / "bin" / "ruff",
+            PROJECT_ROOT / ".venv" / "bin" / "ruff",
+        ]
+        for candidate in candidates:
+            if candidate.is_file():
+                return candidate.as_posix()
+
+        return None
 
     def _get_files(self) -> list[str]:
         """
@@ -140,7 +158,7 @@ class PythonFormatter(Formatter):
 
     def _run_ruff_check(self, category: str, files: list[str]) -> bool:
         """Run ruff check --fix on files."""
-        cmd = ["ruff", "check", "--fix", "--unsafe-fixes"]
+        cmd = [self.ruff_binary or "ruff", "check", "--fix", "--unsafe-fixes"]
         cmd.extend(files)
         if category == ScopeType.SDK.value:
             cmd.extend(self.extra_args)
@@ -164,7 +182,7 @@ class PythonFormatter(Formatter):
 
     def _check_remaining_errors(self, category: str, files: list[str]) -> str | None:
         """Check for remaining errors after fix."""
-        cmd = ["ruff", "check"]
+        cmd = [self.ruff_binary or "ruff", "check"]
         cmd.extend(files)
         if category == ScopeType.SDK.value:
             cmd.extend(self.extra_args)
@@ -238,7 +256,7 @@ class PythonFormatter(Formatter):
 
     def _run_ruff_format(self, category: str, files: list[str]) -> bool:
         """Run ruff format on files."""
-        cmd = ["ruff", "format"] + files
+        cmd = [self.ruff_binary or "ruff", "format"] + files
         cmd.extend(files)
         if category == ScopeType.SDK.value:
             cmd.extend(self.extra_args)
@@ -266,6 +284,11 @@ class PythonFormatter(Formatter):
         """Main execution flow."""
         if not self.files_to_format:
             console.print("[bold yellow]No Python files to format.[/bold yellow]")
+            return 0
+        if self.ruff_binary is None:
+            console.print(
+                "[bold yellow]⚠️  Ruff not found; skipping Python formatting.[/bold yellow]"
+            )
             return 0
 
         console.print("[bold blue]🎨 Formatting Python files with ruff...[/bold blue]")

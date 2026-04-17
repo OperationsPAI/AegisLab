@@ -5,14 +5,14 @@ import (
 	"fmt"
 
 	"aegis/consts"
-	"aegis/database"
+	"aegis/model"
 
 	"gorm.io/gorm"
 )
 
 // ListGranularityResultsByExecutionID lists granularity results for a specific execution ID
-func ListGranularityResultsByExecutionID(db *gorm.DB, executionID int) ([]database.GranularityResult, error) {
-	var results []database.GranularityResult
+func ListGranularityResultsByExecutionID(db *gorm.DB, executionID int) ([]model.GranularityResult, error) {
+	var results []model.GranularityResult
 	if err := db.
 		Where("execution_id = ?", executionID).
 		Find(&results).Error; err != nil {
@@ -22,7 +22,7 @@ func ListGranularityResultsByExecutionID(db *gorm.DB, executionID int) ([]databa
 }
 
 // SaveGranularityResults saves multiple granularity results
-func SaveGranularityResults(db *gorm.DB, results []database.GranularityResult) error {
+func SaveGranularityResults(db *gorm.DB, results []model.GranularityResult) error {
 	if len(results) == 0 {
 		return fmt.Errorf("no granularity results to create")
 	}

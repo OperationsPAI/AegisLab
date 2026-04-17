@@ -5,6 +5,7 @@ go 1.24.11
 toolchain go1.24.12
 
 require (
+	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/BurntSushi/toml v1.4.0
 	github.com/OperationsPAI/chaos-experiment v0.1.0
 	github.com/antonfisher/nested-logrus-formatter v1.3.1
@@ -55,6 +56,7 @@ require (
 	k8s.io/client-go v0.33.1
 	sigs.k8s.io/controller-runtime v0.21.0
 	sigs.k8s.io/yaml v1.4.0
+	go.uber.org/fx v1.24.0
 )
 
 require (
@@ -265,6 +267,7 @@ require (
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.58.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.35.0 // indirect
 	go.opentelemetry.io/otel/metric v1.37.0 // indirect
+	go.uber.org/dig v1.19.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/arch v0.12.0 // indirect

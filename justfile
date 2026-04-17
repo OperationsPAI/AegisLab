@@ -255,6 +255,11 @@ generate-python-sdk version:
     just swag-init {{version}}
     just run-command swagger generate-sdk -l python -v {{version}}
 
+# ⚙️ Generate TypeScript SDK from Swagger documentation
+generate-typescript-sdk version:
+    just swag-init {{version}}
+    just run-command swagger generate-sdk -l typescript -v {{version}}
+
 # =============================================================================
 # Utilities
 # =============================================================================

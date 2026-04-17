@@ -1,6 +1,6 @@
 [project]
 name = "rcabench"
-version = "1.2.0"
+version = "1.2.1"
 description = "RCABench - A comprehensive root cause analysis benchmarking platform for microservices"
 authors = [
     { name = "Lincyaw", email = "814750204@qq.com" },

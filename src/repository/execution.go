@@ -8,7 +8,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"aegis/consts"
-	"aegis/database"
+	"aegis/model"
 )
 
 const BATCH_SIZE = 500
@@ -23,7 +23,7 @@ func BatchDeleteExecutions(db *gorm.DB, executions []int) error {
 		return nil
 	}
 
-	if err := db.Model(&database.Execution{}).
+	if err := db.Model(&model.Execution{}).
 		Where("id IN (?) AND status != ?", executions, consts.CommonDeleted).
 		Update("status", consts.CommonDeleted).Error; err != nil {
 		return fmt.Errorf("failed to batch delete executions: %w", err)
@@ -33,7 +33,7 @@ func BatchDeleteExecutions(db *gorm.DB, executions []int) error {
 }
 
 // CreateExecution creates a new execution result record
-func CreateExecution(db *gorm.DB, execution *database.Execution) error {
+func CreateExecution(db *gorm.DB, execution *model.Execution) error {
 	if err := db.Create(execution).Error; err != nil {
 		return fmt.Errorf("failed to create execution result: %w", err)
 	}
@@ -41,8 +41,8 @@ func CreateExecution(db *gorm.DB, execution *database.Execution) error {
 }
 
 // GetExecutionByID retrieves an execution result by its ID with preloaded associations
-func GetExecutionByID(db *gorm.DB, id int) (*database.Execution, error) {
-	var result database.Execution
+func GetExecutionByID(db *gorm.DB, id int) (*model.Execution, error) {
+	var result model.Execution
 	if err := db.
 		Preload("AlgorithmVersion.Container").
 		Preload("Datapack.Benchmark.Container").
@@ -57,11 +57,11 @@ func GetExecutionByID(db *gorm.DB, id int) (*database.Execution, error) {
 }
 
 // ListExecutions lists executions based on filters and pagination
-func ListExecutions(db *gorm.DB, limit, offset int, event *consts.ExecutionState, status *consts.StatusType, labelConditions []map[string]string) ([]database.Execution, int64, error) {
-	var executions []database.Execution
+func ListExecutions(db *gorm.DB, limit, offset int, event *consts.ExecutionState, status *consts.StatusType, labelConditions []map[string]string) ([]model.Execution, int64, error) {
+	var executions []model.Execution
 	var total int64
 
-	query := db.Model(&database.Execution{}).
+	query := db.Model(&model.Execution{}).
 		Preload("AlgorithmVersion.Container").
 		Preload("Datapack.Benchmark.Container").
 		Preload("Datapack.Pedestal.Container").
@@ -96,12 +96,12 @@ func ListExecutions(db *gorm.DB, limit, offset int, event *consts.ExecutionState
 	return executions, total, nil
 }
 
-func ListExecutionsByDatapackIDs(db *gorm.DB, datapackIDs []int) ([]database.Execution, error) {
+func ListExecutionsByDatapackIDs(db *gorm.DB, datapackIDs []int) ([]model.Execution, error) {
 	if len(datapackIDs) == 0 {
-		return make([]database.Execution, 0), nil
+		return make([]model.Execution, 0), nil
 	}
 
-	var results []database.Execution
+	var results []model.Execution
 
 	query := db.
 		Preload("AlgorithmVersion.Container").
@@ -119,7 +119,7 @@ func ListExecutionsByDatapackIDs(db *gorm.DB, datapackIDs []int) ([]database.Exe
 
 // UpdateExecution updates fields of an execution record
 func UpdateExecution(db *gorm.DB, id int, updates map[string]any) error {
-	result := db.Model(&database.Execution{}).
+	result := db.Model(&model.Execution{}).
 		Where("id = ? AND status != ?", id, consts.CommonDeleted).
 		Updates(updates)
 	if err := result.Error; err != nil {
@@ -142,9 +142,9 @@ func AddExecutionLabels(db *gorm.DB, executionID int, labelIDs []int) error {
 	}
 
 	// Create ExecutionInjectionLabel associations
-	executionLabels := make([]database.ExecutionInjectionLabel, 0, len(labelIDs))
+	executionLabels := make([]model.ExecutionInjectionLabel, 0, len(labelIDs))
 	for _, labelID := range labelIDs {
-		executionLabels = append(executionLabels, database.ExecutionInjectionLabel{
+		executionLabels = append(executionLabels, model.ExecutionInjectionLabel{
 			ExecutionID: executionID,
 			LabelID:     labelID,
 		})
@@ -181,7 +181,7 @@ func ClearExecutionLabels(db *gorm.DB, executionIDs []int, labelIDs []int) error
 // RemoveLabelsFromExecution removes all label associations from a specific execution
 func RemoveLabelsFromExecution(db *gorm.DB, executionID int) error {
 	if err := db.Where("execution_id = ?", executionID).
-		Delete(&database.ExecutionInjectionLabel{}).Error; err != nil {
+		Delete(&model.ExecutionInjectionLabel{}).Error; err != nil {
 		return fmt.Errorf("failed to remove all labels from execution %d: %w", executionID, err)
 	}
 	return nil
@@ -194,7 +194,7 @@ func RemoveLabelsFromExecutions(db *gorm.DB, executionIDs []int) error {
 	}
 
 	if err := db.Where("execution_id IN (?)", executionIDs).
-		Delete(&database.ExecutionInjectionLabel{}).Error; err != nil {
+		Delete(&model.ExecutionInjectionLabel{}).Error; err != nil {
 		return fmt.Errorf("failed to remove all labels from executions %v: %w", executionIDs, err)
 	}
 	return nil
@@ -203,7 +203,7 @@ func RemoveLabelsFromExecutions(db *gorm.DB, executionIDs []int) error {
 // RemoveExecutionsFromLabel deletes all execution-label associations for a specific label
 func RemoveExecutionsFromLabel(db *gorm.DB, labelID int) (int64, error) {
 	result := db.Where("label_id = ?", labelID).
-		Delete(&database.ExecutionInjectionLabel{})
+		Delete(&model.ExecutionInjectionLabel{})
 	if err := result.Error; err != nil {
 		return 0, fmt.Errorf("failed to delete execution-label associations for label %d: %w", labelID, err)
 	}
@@ -218,7 +218,7 @@ func RemoveExecutionsFromLabels(db *gorm.DB, labelIDs []int) (int64, error) {
 	}
 
 	result := db.Where("label_id IN (?)", labelIDs).
-		Delete(&database.ExecutionInjectionLabel{})
+		Delete(&model.ExecutionInjectionLabel{})
 	if err := result.Error; err != nil {
 		return 0, fmt.Errorf("failed to delete execution-label associations for labels %v: %w", labelIDs, err)
 	}
@@ -227,10 +227,10 @@ func RemoveExecutionsFromLabels(db *gorm.DB, labelIDs []int) (int64, error) {
 }
 
 // ListExecutionsByDatapackFilter lists executions for a specific algorithm version and datapack name, with optional label filtering
-func ListExecutionsByDatapackFilter(db *gorm.DB, algorithmVersionID int, datapackName string, labelConditions []map[string]string) ([]database.Execution, error) {
-	var executions []database.Execution
+func ListExecutionsByDatapackFilter(db *gorm.DB, algorithmVersionID int, datapackName string, labelConditions []map[string]string) ([]model.Execution, error) {
+	var executions []model.Execution
 
-	query := db.Model(&database.Execution{}).
+	query := db.Model(&model.Execution{}).
 		Preload("DetectorResults").
 		Preload("GranularityResults").
 		Preload("AlgorithmVersion.Container").
@@ -271,10 +271,10 @@ func ListExecutionsByDatapackFilter(db *gorm.DB, algorithmVersionID int, datapac
 }
 
 // ListExecutionsByDatasetFilter lists executions for a specific algorithm version and dataset version, with optional label filtering
-func ListExecutionsByDatasetFilter(db *gorm.DB, algorithmVersionID, datasetVersionID int, labelConditions []map[string]string) ([]database.Execution, error) {
-	var executions []database.Execution
+func ListExecutionsByDatasetFilter(db *gorm.DB, algorithmVersionID, datasetVersionID int, labelConditions []map[string]string) ([]model.Execution, error) {
+	var executions []model.Execution
 
-	query := db.Model(&database.Execution{}).
+	query := db.Model(&model.Execution{}).
 		Preload("DetectorResults").
 		Preload("GranularityResults").
 		Preload("AlgorithmVersion.Container").
@@ -318,7 +318,7 @@ func ListExecutionsByDatasetFilter(db *gorm.DB, algorithmVersionID, datasetVersi
 // ListExecutionIDsByLabels gets execution IDs associated with all specified labels
 func ListExecutionIDsByLabels(db *gorm.DB, labelConditions []map[string]string) ([]int, error) {
 	var executionIDs []int
-	query := db.Model(&database.Execution{}).
+	query := db.Model(&model.Execution{}).
 		Select("DISTINCT executions.id").
 		Joins("JOIN execution_injection_labels eil ON eil.execution_id = executions.id").
 		Joins("JOIN labels ON labels.id = eil.label_id").
@@ -345,18 +345,18 @@ func ListExecutionIDsByLabels(db *gorm.DB, labelConditions []map[string]string) 
 }
 
 // ListExecutionLabels gets labels for multiple executions in batch
-func ListExecutionLabels(db *gorm.DB, executionIDs []int) (map[int][]database.Label, error) {
+func ListExecutionLabels(db *gorm.DB, executionIDs []int) (map[int][]model.Label, error) {
 	if len(executionIDs) == 0 {
 		return nil, nil
 	}
 
 	type executionLabelResult struct {
-		database.Label
+		model.Label
 		executionID int `gorm:"column:execution_id"`
 	}
 
 	var flatResults []executionLabelResult
-	if err := db.Model(&database.Label{}).
+	if err := db.Model(&model.Label{}).
 		Joins("JOIN execution_injection_labels eil ON eil.label_id = labels.id").
 		Where("eil.execution_id IN (?)", executionIDs).
 		Select("labels.*, eil.execution_id").
@@ -364,9 +364,9 @@ func ListExecutionLabels(db *gorm.DB, executionIDs []int) (map[int][]database.La
 		return nil, fmt.Errorf("failed to batch query execution labels: %w", err)
 	}
 
-	labelsMap := make(map[int][]database.Label)
+	labelsMap := make(map[int][]model.Label)
 	for _, id := range executionIDs {
-		labelsMap[id] = []database.Label{}
+		labelsMap[id] = []model.Label{}
 	}
 
 	for _, res := range flatResults {
@@ -406,8 +406,8 @@ func ListExecutionLabelCounts(db *gorm.DB, labelIDs []int) (map[int]int64, error
 }
 
 // ListLabelsByExecutionID retrieves all labels associated with a specific execution
-func ListLabelsByExecutionID(db *gorm.DB, executionID int) ([]database.Label, error) {
-	var labels []database.Label
+func ListLabelsByExecutionID(db *gorm.DB, executionID int) ([]model.Label, error) {
+	var labels []model.Label
 	if err := db.Table("labels").
 		Joins("JOIN execution_injection_labels eil ON labels.id = eil.label_id").
 		Where("eil.execution_id = ?", executionID).
@@ -434,12 +434,12 @@ func ListLabelIDsByKeyAndExecutionID(db *gorm.DB, executionID int, keys []string
 }
 
 // GetExecutionStatistics returns statistics about executions
-func GetExecutionStatistics() (map[string]int64, error) {
+func GetExecutionStatistics(db *gorm.DB) (map[string]int64, error) {
 	stats := make(map[string]int64)
 
 	// Total executions
 	var total int64
-	if err := database.DB.Model(&database.Execution{}).Count(&total).Error; err != nil {
+	if err := db.Model(&model.Execution{}).Count(&total).Error; err != nil {
 		return nil, fmt.Errorf("failed to count total executions: %w", err)
 	}
 	stats["total"] = total
@@ -451,7 +451,7 @@ func GetExecutionStatistics() (map[string]int64, error) {
 	}
 
 	var statusCounts []StatusCount
-	err := database.DB.Model(&database.Execution{}).
+	err := db.Model(&model.Execution{}).
 		Select("status, COUNT(*) as count").
 		Group("status").
 		Find(&statusCounts).Error
@@ -490,12 +490,12 @@ func GetExecutionStatistics() (map[string]int64, error) {
 }
 
 // ListExecutionsByProjectID retrieves executions for a specific project with pagination
-func ListExecutionsByProjectID(db *gorm.DB, projectID int, limit, offset int) ([]database.Execution, int64, error) {
-	var executions []database.Execution
+func ListExecutionsByProjectID(db *gorm.DB, projectID int, limit, offset int) ([]model.Execution, int64, error) {
+	var executions []model.Execution
 	var total int64
 
 	// Base query with JOIN and WHERE conditions
-	baseQuery := db.Model(&database.Execution{}).
+	baseQuery := db.Model(&model.Execution{}).
 		Joins("JOIN tasks ON tasks.id = executions.task_id").
 		Joins("JOIN traces on traces.id = tasks.trace_id").
 		Where("traces.project_id = ? AND executions.status != ?", projectID, consts.CommonDeleted)

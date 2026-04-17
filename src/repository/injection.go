@@ -7,8 +7,7 @@ import (
 	"time"
 
 	"aegis/consts"
-	"aegis/database"
-	"aegis/dto"
+	"aegis/model"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -18,13 +17,15 @@ import (
 // Injection Repository Functions
 // =====================================================================
 
-// BatchDelteInjections marks multiple injections as deleted in batch
+const injectionActiveNameOmitFields = "active_name"
+
+// BatchDeleteInjections marks multiple injections as deleted in batch
 func BatchDeleteInjections(db *gorm.DB, injectionIDs []int) error {
 	if len(injectionIDs) == 0 {
 		return nil
 	}
 
-	if err := db.Model(&database.FaultInjection{}).
+	if err := db.Model(&model.FaultInjection{}).
 		Where("id IN (?) AND status != ?", injectionIDs, consts.CommonDeleted).
 		Update("status", consts.CommonDeleted).Error; err != nil {
 		return fmt.Errorf("failed to batch delete injections: %w", err)
@@ -34,16 +35,16 @@ func BatchDeleteInjections(db *gorm.DB, injectionIDs []int) error {
 }
 
 // CreateInjection creates a fault injection record
-func CreateInjection(db *gorm.DB, injection *database.FaultInjection) error {
-	if err := db.Omit(commonOmitFields).Create(injection).Error; err != nil {
+func CreateInjection(db *gorm.DB, injection *model.FaultInjection) error {
+	if err := db.Omit(injectionActiveNameOmitFields).Create(injection).Error; err != nil {
 		return fmt.Errorf("failed to create injection: %w", err)
 	}
 	return nil
 }
 
 // GetInjectionByID gets injection by ID with preloaded associations
-func GetInjectionByID(db *gorm.DB, id int) (*database.FaultInjection, error) {
-	var injection database.FaultInjection
+func GetInjectionByID(db *gorm.DB, id int) (*model.FaultInjection, error) {
+	var injection model.FaultInjection
 	if err := db.
 		Preload("Task").
 		Preload("Task.Trace").
@@ -56,13 +57,13 @@ func GetInjectionByID(db *gorm.DB, id int) (*database.FaultInjection, error) {
 }
 
 // GetInjectionByName gets injection by name with preloaded associations
-func GetInjectionByName(db *gorm.DB, name string, includeLabels bool) (*database.FaultInjection, error) {
+func GetInjectionByName(db *gorm.DB, name string, includeLabels bool) (*model.FaultInjection, error) {
 	query := db
 	if includeLabels {
 		query = query.Preload("Labels")
 	}
 
-	var injection database.FaultInjection
+	var injection model.FaultInjection
 	if err := query.
 		Where("name = ? AND status != ?", name, consts.CommonDeleted).First(&injection).Error; err != nil {
 		return nil, fmt.Errorf("failed to find injection with name %s: %w", name, err)
@@ -71,12 +72,12 @@ func GetInjectionByName(db *gorm.DB, name string, includeLabels bool) (*database
 }
 
 // ListFaultInjectionsByID retrieves multiple fault injections by their IDs with preloaded associations
-func ListFaultInjectionsByID(db *gorm.DB, injectionIDs []int) ([]database.FaultInjection, error) {
+func ListFaultInjectionsByID(db *gorm.DB, injectionIDs []int) ([]model.FaultInjection, error) {
 	if len(injectionIDs) == 0 {
-		return []database.FaultInjection{}, nil
+		return []model.FaultInjection{}, nil
 	}
 
-	var injections []database.FaultInjection
+	var injections []model.FaultInjection
 	if err := db.
 		Preload("Benchmark.Container").
 		Preload("Pedestal.Container").
@@ -98,7 +99,7 @@ func ListExistingEngineConfigs(db *gorm.DB, configs []string) ([]string, error) 
 	}
 
 	query := db.
-		Model(&database.FaultInjection{}).
+		Model(&model.FaultInjection{}).
 		Select("engine_config").
 		Where("engine_config in (?) AND state >= ? AND status = ?", configs, consts.DatapackInjectSuccess, consts.CommonEnabled)
 
@@ -124,8 +125,8 @@ func ListEngineConfigByNames(db *gorm.DB, names []string) (map[string]string, er
 		EngineConfig string `gorm:"column:engine_config"`
 	}
 
-	if err := database.DB.
-		Model(&database.FaultInjection{}).
+	if err := db.
+		Model(&model.FaultInjection{}).
 		Select("name, engine_config").
 		Where("name IN (?)", names).
 		Find(&records).Error; err != nil {
@@ -140,54 +141,6 @@ func ListEngineConfigByNames(db *gorm.DB, names []string) (map[string]string, er
 	return result, nil
 }
 
-// ListInjections lists fault injections based on filter options with preloaded associations
-func ListInjections(db *gorm.DB, limit, offset int, filterOptions *dto.ListInjectionFilters) ([]database.FaultInjection, int64, error) {
-	var injections []database.FaultInjection
-	var total int64
-
-	query := db.Model(&database.FaultInjection{}).
-		Preload("Benchmark.Container").
-		Preload("Pedestal.Container").
-		Preload("Task.Trace.Project").
-		Preload("Labels")
-	if filterOptions.FaultType != nil {
-		query = query.Where("fault_type = ?", *filterOptions.FaultType)
-	}
-	if filterOptions.Category != nil {
-		query = query.Where("category = ?", *filterOptions.Category)
-	}
-	if filterOptions.Benchmark != "" {
-		query = query.Where("benchmark = ?", filterOptions.Benchmark)
-	}
-	if filterOptions.State != nil {
-		query = query.Where("state = ?", *filterOptions.State)
-	}
-	if filterOptions.Status != nil {
-		query = query.Where("status = ?", *filterOptions.Status)
-	}
-
-	if len(filterOptions.LabelConditions) > 0 {
-		for _, condition := range filterOptions.LabelConditions {
-			subQuery := db.Table("fault_injection_labels fil").
-				Select("fil.fault_injection_id").
-				Joins("JOIN labels ON labels.id = fil.label_id").
-				Where("labels.label_key = ? AND labels.label_value = ?", condition["key"], condition["value"])
-
-			query = query.Where("fault_injections.id IN (?)", subQuery)
-		}
-	}
-
-	if err := query.Count(&total).Error; err != nil {
-		return nil, 0, fmt.Errorf("failed to count injections: %w", err)
-	}
-
-	if err := query.Limit(limit).Offset(offset).Order("updated_at DESC").Find(&injections).Error; err != nil {
-		return nil, 0, fmt.Errorf("failed to list injections: %w", err)
-	}
-
-	return injections, total, nil
-}
-
 // ListInjectionIDsByNames retrieves injection IDs by their names
 func ListInjectionIDsByNames(db *gorm.DB, names []string) (map[string]int, error) {
 	if len(names) == 0 {
@@ -199,7 +152,7 @@ func ListInjectionIDsByNames(db *gorm.DB, names []string) (map[string]int, error
 		ID   int    `gorm:"column:id"`
 	}
 
-	if err := db.Model(&database.FaultInjection{}).
+	if err := db.Model(&model.FaultInjection{}).
 		Select("name, id").
 		Where("state = ? AND status = ?", consts.DatapackBuildSuccess, consts.CommonEnabled).
 		Where("name IN (?)", names).
@@ -216,15 +169,15 @@ func ListInjectionIDsByNames(db *gorm.DB, names []string) (map[string]int, error
 }
 
 // UpdateGroundtruth updates ground truth and its source for an injection
-func UpdateGroundtruth(db *gorm.DB, id int, groundtruths []database.Groundtruth, source string) error {
+func UpdateGroundtruth(db *gorm.DB, id int, groundtruths []model.Groundtruth, source string) error {
 	gtJSON, err := json.Marshal(groundtruths)
 	if err != nil {
 		return fmt.Errorf("failed to marshal groundtruths: %w", err)
 	}
-	result := db.Model(&database.FaultInjection{}).
+	result := db.Model(&model.FaultInjection{}).
 		Where("id = ? AND status != ?", id, consts.CommonDeleted).
 		Updates(map[string]interface{}{
-			"groundtruths":      string(gtJSON),
+			"groundtruths":       string(gtJSON),
 			"groundtruth_source": source,
 		})
 	if result.Error != nil {
@@ -238,7 +191,7 @@ func UpdateGroundtruth(db *gorm.DB, id int, groundtruths []database.Groundtruth,
 
 // UpdateInjection updates fields of a fault injection record
 func UpdateInjection(db *gorm.DB, id int, updates map[string]any) error {
-	result := db.Model(&database.FaultInjection{}).
+	result := db.Model(&model.FaultInjection{}).
 		Where("id = ? AND status != ?", id, consts.CommonDeleted).
 		Updates(updates)
 	if err := result.Error; err != nil {
@@ -251,8 +204,8 @@ func UpdateInjection(db *gorm.DB, id int, updates map[string]any) error {
 }
 
 // ListInjectionsNoIssues lists fault injections without issues based on label conditions and time range
-func ListInjectionsNoIssues(db *gorm.DB, labelConditions []map[string]string, startTime, endTime *time.Time, projectID *int) ([]database.FaultInjectionNoIssues, error) {
-	query := db.Model(&database.FaultInjectionNoIssues{}).Scopes(database.Sort("dataset_id desc"))
+func ListInjectionsNoIssues(db *gorm.DB, labelConditions []map[string]string, startTime, endTime *time.Time, projectID *int) ([]model.FaultInjectionNoIssues, error) {
+	query := db.Model(&model.FaultInjectionNoIssues{}).Scopes(Sort("dataset_id desc"))
 	if startTime != nil {
 		query = query.Where("created_at >= ?", *startTime)
 	}
@@ -284,7 +237,7 @@ func ListInjectionsNoIssues(db *gorm.DB, labelConditions []map[string]string, st
 			Having("COUNT(id) = ?", len(labelConditions))
 	}
 
-	var records []database.FaultInjectionNoIssues
+	var records []model.FaultInjectionNoIssues
 	if err := query.Find(&records).Error; err != nil {
 		return nil, fmt.Errorf("failed to query fault injections without issues: %v", err)
 	}
@@ -293,8 +246,8 @@ func ListInjectionsNoIssues(db *gorm.DB, labelConditions []map[string]string, st
 }
 
 // ListInjectionsWithIssues lists fault injections with issues based on label conditions and time range
-func ListInjectionsWithIssues(db *gorm.DB, labelConditions []map[string]string, startTime, endTime *time.Time, projectID *int) ([]database.FaultInjectionWithIssues, error) {
-	query := db.Model(&database.FaultInjectionNoIssues{}).Scopes(database.Sort("dataset_id desc"))
+func ListInjectionsWithIssues(db *gorm.DB, labelConditions []map[string]string, startTime, endTime *time.Time, projectID *int) ([]model.FaultInjectionWithIssues, error) {
+	query := db.Model(&model.FaultInjectionNoIssues{}).Scopes(Sort("dataset_id desc"))
 	if startTime != nil {
 		query = query.Where("created_at >= ?", *startTime)
 	}
@@ -326,7 +279,7 @@ func ListInjectionsWithIssues(db *gorm.DB, labelConditions []map[string]string, 
 			Having("COUNT(id) = ?", len(labelConditions))
 	}
 
-	var records []database.FaultInjectionWithIssues
+	var records []model.FaultInjectionWithIssues
 	if err := query.Find(&records).Error; err != nil {
 		return nil, fmt.Errorf("failed to query fault injections without issues: %v", err)
 	}
@@ -347,9 +300,9 @@ func AddInjectionLabels(db *gorm.DB, injectionID int, labelIDs []int) error {
 	}
 
 	// Create FaultInjectionLabel associations
-	injectionLabels := make([]database.FaultInjectionLabel, 0, len(labelIDs))
+	injectionLabels := make([]model.FaultInjectionLabel, 0, len(labelIDs))
 	for _, labelID := range labelIDs {
-		injectionLabels = append(injectionLabels, database.FaultInjectionLabel{
+		injectionLabels = append(injectionLabels, model.FaultInjectionLabel{
 			FaultInjectionID: injectionID,
 			LabelID:          labelID,
 		})
@@ -377,7 +330,7 @@ func ClearInjectionLabels(db *gorm.DB, injectionIDs []int, labelIDs []int) error
 		query = query.Where("label_id IN (?)", labelIDs)
 	}
 
-	if err := query.Delete(&database.FaultInjectionLabel{}).Error; err != nil {
+	if err := query.Delete(&model.FaultInjectionLabel{}).Error; err != nil {
 		return fmt.Errorf("failed to clear injection labels: %w", err)
 	}
 	return nil
@@ -386,7 +339,7 @@ func ClearInjectionLabels(db *gorm.DB, injectionIDs []int, labelIDs []int) error
 // RemoveInjectionsFromLabel removes all injection-label associations for a specific label
 func RemoveInjectionsFromLabel(db *gorm.DB, labelID int) (int64, error) {
 	result := db.Where("label_id = ?", labelID).
-		Delete(&database.FaultInjectionLabel{})
+		Delete(&model.FaultInjectionLabel{})
 	if err := result.Error; err != nil {
 		return 0, fmt.Errorf("failed to remove injection-label associations for label %d: %w", labelID, err)
 	}
@@ -401,7 +354,7 @@ func RemoveInjectionsFromLabels(db *gorm.DB, labelIDs []int) (int64, error) {
 	}
 
 	result := db.Where("label_id IN (?)", labelIDs).
-		Delete(&database.FaultInjectionLabel{})
+		Delete(&model.FaultInjectionLabel{})
 	if err := result.Error; err != nil {
 		return 0, fmt.Errorf("failed to remove injection-label associations for labels %v: %w", labelIDs, err)
 	}
@@ -412,7 +365,7 @@ func RemoveInjectionsFromLabels(db *gorm.DB, labelIDs []int) (int64, error) {
 // RemoveLabelsFromInjection removes all label associations from a specific injection
 func RemoveLabelsFromInjection(db *gorm.DB, injectionID int) error {
 	if err := db.Where("fault_injection_id = ?", injectionID).
-		Delete(&database.FaultInjectionLabel{}).Error; err != nil {
+		Delete(&model.FaultInjectionLabel{}).Error; err != nil {
 		return fmt.Errorf("failed to remove all labels from injection %d: %w", injectionID, err)
 	}
 	return nil
@@ -425,7 +378,7 @@ func RemoveLabelsFromInjections(db *gorm.DB, injectionIDs []int) error {
 	}
 
 	if err := db.Where("fault_injection_id IN (?)", injectionIDs).
-		Delete(&database.FaultInjectionLabel{}).Error; err != nil {
+		Delete(&model.FaultInjectionLabel{}).Error; err != nil {
 		return fmt.Errorf("failed to remove all labels from injections %v: %w", injectionIDs, err)
 	}
 	return nil
@@ -434,7 +387,7 @@ func RemoveLabelsFromInjections(db *gorm.DB, injectionIDs []int) error {
 // ListInjectionIDsByLabels gets injection IDs associated with all specified labels
 func ListInjectionIDsByLabels(db *gorm.DB, labelConditions []map[string]string) ([]int, error) {
 	var injectionIDs []int
-	query := db.Model(&database.FaultInjection{}).
+	query := db.Model(&model.FaultInjection{}).
 		Select("DISTINCT fault_injections.id").
 		Joins("JOIN fault_injection_labels fil ON fil.fault_injection_id = fault_injections.id").
 		Joins("JOIN labels ON labels.id = fil.label_id").
@@ -461,18 +414,18 @@ func ListInjectionIDsByLabels(db *gorm.DB, labelConditions []map[string]string) 
 }
 
 // ListInjectionLabels gets labels for multiple injections in batch
-func ListInjectionLabels(db *gorm.DB, injectionIDs []int) (map[int][]database.Label, error) {
+func ListInjectionLabels(db *gorm.DB, injectionIDs []int) (map[int][]model.Label, error) {
 	if len(injectionIDs) == 0 {
 		return nil, nil
 	}
 
 	type injectionLabelResult struct {
-		database.Label
+		model.Label
 		InjectionID int `gorm:"column:injection_id"`
 	}
 
 	var flatResults []injectionLabelResult
-	if err := db.Model(&database.Label{}).
+	if err := db.Model(&model.Label{}).
 		Joins("JOIN fault_injection_labels fil ON fil.label_id = labels.id").
 		Where("fil.fault_injection_id IN (?)", injectionIDs).
 		Select("labels.*, fil.fault_injection_id as injection_id").
@@ -480,9 +433,9 @@ func ListInjectionLabels(db *gorm.DB, injectionIDs []int) (map[int][]database.La
 		return nil, fmt.Errorf("failed to batch query fault injection labels: %w", err)
 	}
 
-	labelsMap := make(map[int][]database.Label)
+	labelsMap := make(map[int][]model.Label)
 	for _, id := range injectionIDs {
-		labelsMap[id] = []database.Label{}
+		labelsMap[id] = []model.Label{}
 	}
 
 	for _, res := range flatResults {
@@ -522,8 +475,8 @@ func ListInjectionLabelCounts(db *gorm.DB, labelIDs []int) (map[int]int64, error
 }
 
 // ListInjectionLabelsByInjectionID gets labels for a specific injection
-func ListLabelsByInjectionID(db *gorm.DB, injectionID int) ([]database.Label, error) {
-	var labels []database.Label
+func ListLabelsByInjectionID(db *gorm.DB, injectionID int) ([]model.Label, error) {
+	var labels []model.Label
 	if err := db.Table("labels").
 		Joins("JOIN fault_injection_labels fil ON labels.id = fil.label_id").
 		Where("fil.fault_injection_id = ?", injectionID).
@@ -550,12 +503,12 @@ func ListLabelIDsByKeyAndInjectionID(db *gorm.DB, injectionID int, keys []string
 }
 
 // ListInjectionsByProjectID retrieves fault injections for a specific project with pagination
-func ListInjectionsByProjectID(db *gorm.DB, projectID int, limit, offset int) ([]database.FaultInjection, int64, error) {
-	var injections []database.FaultInjection
+func ListInjectionsByProjectID(db *gorm.DB, projectID int, limit, offset int) ([]model.FaultInjection, int64, error) {
+	var injections []model.FaultInjection
 	var total int64
 
 	// Base query with JOIN and WHERE conditions
-	baseQuery := db.Model(&database.FaultInjection{}).
+	baseQuery := db.Model(&model.FaultInjection{}).
 		Joins("JOIN tasks ON tasks.id = fault_injections.task_id").
 		Joins("JOIN traces on traces.id = tasks.trace_id").
 		Where("traces.project_id = ? AND fault_injections.status != ?", projectID, consts.CommonDeleted)

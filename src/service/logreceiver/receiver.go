@@ -11,7 +11,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"aegis/client"
 	"aegis/dto"
 
 	"github.com/sirupsen/logrus"
@@ -40,6 +39,7 @@ type OTLPLogReceiver struct {
 	port           int
 	maxRequestSize int64
 	shutdownCh     chan struct{}
+	publisher      logPublisher
 
 	// Metrics
 	receivedTotal  atomic.Int64
@@ -47,8 +47,12 @@ type OTLPLogReceiver struct {
 	errorsTotal    atomic.Int64
 }
 
+type logPublisher interface {
+	Publish(ctx context.Context, channel string, message any) error
+}
+
 // NewOTLPLogReceiver creates a new OTLP log receiver
-func NewOTLPLogReceiver(port int, maxRequestSize int64) *OTLPLogReceiver {
+func NewOTLPLogReceiver(port int, maxRequestSize int64, publisher logPublisher) *OTLPLogReceiver {
 	if port == 0 {
 		port = DefaultPort
 	}
@@ -60,6 +64,7 @@ func NewOTLPLogReceiver(port int, maxRequestSize int64) *OTLPLogReceiver {
 		port:           port,
 		maxRequestSize: maxRequestSize,
 		shutdownCh:     make(chan struct{}),
+		publisher:      publisher,
 	}
 }
 
@@ -84,7 +89,7 @@ func (r *OTLPLogReceiver) Start(ctx context.Context) error {
 		case <-ctx.Done():
 		case <-r.shutdownCh:
 		}
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
 		defer cancel()
 		if err := r.server.Shutdown(shutdownCtx); err != nil {
 			logrus.Errorf("OTLP log receiver shutdown error: %v", err)
@@ -245,7 +250,10 @@ func (r *OTLPLogReceiver) parseJSONRequest(body []byte, exportReq *collogspb.Exp
 // publishLogEntry publishes a log entry to Redis Pub/Sub channel keyed by task_id
 func (r *OTLPLogReceiver) publishLogEntry(ctx context.Context, entry dto.LogEntry) error {
 	channel := fmt.Sprintf("%s:%s", PubSubChannelPrefix, entry.TaskID)
-	return client.RedisPublish(ctx, channel, entry)
+	if r.publisher == nil {
+		return fmt.Errorf("log publisher not initialized")
+	}
+	return r.publisher.Publish(ctx, channel, entry)
 }
 
 // parseResourceLog parses a single ResourceLog from JSON

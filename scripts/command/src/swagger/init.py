@@ -5,10 +5,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from python_on_whales import docker
-
 from src.common.command import run_command
-from src.common.common import PROJECT_ROOT, console, settings
+from src.common.common import console
 from src.swagger.common import SWAGGER_ROOT, RunMode
 from src.util import get_longest_common_substring
 
@@ -17,6 +15,317 @@ OPENAPI3_DIR = SWAGGER_ROOT / "openapi3"
 CONVERTED_DIR = SWAGGER_ROOT / "converted"
 
 __all__ = ["init"]
+
+
+def audience_flag_enabled(x_api_type: Any, audience: str) -> bool:
+    """Return whether an x-api-type audience flag is enabled."""
+    if not isinstance(x_api_type, dict):
+        return False
+
+    value = x_api_type.get(audience)
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() == "true"
+    return False
+
+
+def normalize_openapi_ref(ref: str) -> str:
+    """Convert Swagger 2 refs to OpenAPI 3 component refs."""
+    return (
+        ref.replace("#/definitions/", "#/components/schemas/")
+        .replace("#/parameters/", "#/components/parameters/")
+        .replace("#/responses/", "#/components/responses/")
+    )
+
+
+def convert_schema_object(schema: Any) -> Any:
+    """Recursively convert a Swagger 2 schema object into OpenAPI 3 format."""
+    if isinstance(schema, dict):
+        if schema.get("type") == "file":
+            converted_file_schema = dict(schema)
+            converted_file_schema["type"] = "string"
+            converted_file_schema["format"] = "binary"
+            return converted_file_schema
+
+        converted: dict[str, Any] = {}
+        for key, value in schema.items():
+            if key == "$ref" and isinstance(value, str):
+                converted[key] = normalize_openapi_ref(value)
+                continue
+
+            if key in {
+                "schema",
+                "items",
+                "additionalProperties",
+                "not",
+                "propertyNames",
+                "contains",
+            }:
+                converted[key] = convert_schema_object(value)
+                continue
+
+            if key in {"allOf", "anyOf", "oneOf"} and isinstance(value, list):
+                converted[key] = [convert_schema_object(item) for item in value]
+                continue
+
+            if key == "properties" and isinstance(value, dict):
+                converted[key] = {
+                    name: convert_schema_object(prop) for name, prop in value.items()
+                }
+                continue
+
+            converted[key] = convert_schema_object(value)
+
+        return converted
+
+    if isinstance(schema, list):
+        return [convert_schema_object(item) for item in schema]
+
+    return schema
+
+
+def convert_swagger_parameter(parameter: dict[str, Any]) -> dict[str, Any]:
+    """Convert a non-body Swagger 2 parameter to OpenAPI 3."""
+    converted = copy.deepcopy(parameter)
+    schema: dict[str, Any] = {}
+
+    for field in (
+        "type",
+        "format",
+        "items",
+        "enum",
+        "default",
+        "minimum",
+        "maximum",
+        "exclusiveMinimum",
+        "exclusiveMaximum",
+        "minLength",
+        "maxLength",
+        "pattern",
+        "multipleOf",
+        "minItems",
+        "maxItems",
+        "uniqueItems",
+    ):
+        if field in converted:
+            schema[field] = convert_schema_object(converted.pop(field))
+
+    if "collectionFormat" in converted:
+        collection_format = converted.pop("collectionFormat")
+        if collection_format == "multi":
+            converted["style"] = "form"
+            converted["explode"] = True
+        elif collection_format == "csv":
+            converted["style"] = "form"
+            converted["explode"] = False
+
+    if schema:
+        converted["schema"] = schema
+
+    return converted
+
+
+def make_request_body_content(
+    schema: dict[str, Any], media_types: list[str]
+) -> dict[str, Any]:
+    """Build an OpenAPI 3 requestBody content map."""
+    return {media_type: {"schema": schema} for media_type in media_types}
+
+
+def convert_swagger_operation(
+    operation: dict[str, Any],
+    global_consumes: list[str],
+    global_produces: list[str],
+) -> dict[str, Any]:
+    """Convert a Swagger 2 operation to OpenAPI 3."""
+    converted = copy.deepcopy(operation)
+    consumes = (
+        converted.pop("consumes", None) or global_consumes or ["application/json"]
+    )
+    produces = (
+        converted.pop("produces", None) or global_produces or ["application/json"]
+    )
+
+    parameters = converted.pop("parameters", [])
+    request_body: dict[str, Any] | None = None
+    form_properties: dict[str, Any] = {}
+    form_required: list[str] = []
+    converted_parameters: list[dict[str, Any]] = []
+
+    for parameter in parameters:
+        if not isinstance(parameter, dict):
+            continue
+
+        if "$ref" in parameter:
+            parameter_ref = dict(parameter)
+            parameter_ref["$ref"] = normalize_openapi_ref(parameter_ref["$ref"])
+            converted_parameters.append(parameter_ref)
+            continue
+
+        location = parameter.get("in")
+        if location == "body":
+            request_schema = convert_schema_object(parameter.get("schema", {}))
+            request_body = {
+                "required": parameter.get("required", False),
+                "content": make_request_body_content(request_schema, consumes),
+            }
+            if parameter.get("description"):
+                request_body["description"] = parameter["description"]
+            continue
+
+        if location == "formData":
+            property_schema: dict[str, Any] = {}
+            parameter_type = parameter.get("type")
+            if parameter_type == "file":
+                property_schema = {"type": "string", "format": "binary"}
+            else:
+                property_schema = {
+                    "type": parameter_type,
+                }
+                if "format" in parameter:
+                    property_schema["format"] = parameter["format"]
+                if "enum" in parameter:
+                    property_schema["enum"] = parameter["enum"]
+                if "items" in parameter:
+                    property_schema["items"] = convert_schema_object(parameter["items"])
+                if "default" in parameter:
+                    property_schema["default"] = parameter["default"]
+
+            if parameter.get("description"):
+                property_schema["description"] = parameter["description"]
+
+            form_properties[parameter["name"]] = property_schema
+            if parameter.get("required"):
+                form_required.append(parameter["name"])
+            continue
+
+        converted_parameters.append(convert_swagger_parameter(parameter))
+
+    if form_properties:
+        request_body = {
+            "required": bool(form_required),
+            "content": {
+                "multipart/form-data": {
+                    "schema": {
+                        "type": "object",
+                        "properties": form_properties,
+                    }
+                }
+            },
+        }
+        if form_required:
+            request_body["content"]["multipart/form-data"]["schema"]["required"] = (
+                form_required
+            )
+
+    if converted_parameters:
+        converted["parameters"] = converted_parameters
+    if request_body is not None:
+        converted["requestBody"] = request_body
+
+    converted_responses: dict[str, Any] = {}
+    for code, response in converted.get("responses", {}).items():
+        if not isinstance(response, dict):
+            converted_responses[code] = response
+            continue
+
+        response_copy = copy.deepcopy(response)
+        response_schema = response_copy.pop("schema", None)
+        if response_schema is not None:
+            response_copy["content"] = {
+                media_type: {"schema": convert_schema_object(response_schema)}
+                for media_type in produces
+            }
+        converted_responses[code] = convert_schema_object(response_copy)
+
+    converted["responses"] = converted_responses
+    return convert_schema_object(converted)
+
+
+def convert_swagger2_to_openapi3(swagger_data: dict[str, Any]) -> dict[str, Any]:
+    """Convert the generated Swagger 2 document into a full OpenAPI 3 document."""
+    openapi_data = copy.deepcopy(swagger_data)
+    openapi_data["openapi"] = "3.0.3"
+    openapi_data.pop("swagger", None)
+
+    global_consumes = openapi_data.pop("consumes", None) or []
+    global_produces = openapi_data.pop("produces", None) or []
+
+    components: dict[str, Any] = {}
+    definitions = openapi_data.pop("definitions", {})
+    if definitions:
+        components["schemas"] = {
+            name: convert_schema_object(schema) for name, schema in definitions.items()
+        }
+
+    parameters = openapi_data.pop("parameters", {})
+    if parameters:
+        components["parameters"] = {
+            name: convert_swagger_parameter(parameter)
+            for name, parameter in parameters.items()
+        }
+
+    responses = openapi_data.pop("responses", {})
+    if responses:
+        components["responses"] = {
+            name: convert_schema_object(response)
+            for name, response in responses.items()
+        }
+
+    security_definitions = openapi_data.pop("securityDefinitions", {})
+    if security_definitions:
+        components["securitySchemes"] = {
+            name: convert_schema_object(scheme)
+            for name, scheme in security_definitions.items()
+        }
+
+    if components:
+        openapi_data["components"] = components
+
+    host = openapi_data.pop("host", "")
+    base_path = openapi_data.pop("basePath", "") or ""
+    schemes = openapi_data.pop("schemes", None) or []
+    if host:
+        if host.startswith("http://") or host.startswith("https://"):
+            server_url = host.rstrip("/")
+        else:
+            scheme = schemes[0] if schemes else "http"
+            server_url = f"{scheme}://{host}".rstrip("/")
+        if base_path:
+            server_url = f"{server_url}{base_path}"
+        openapi_data["servers"] = [{"url": server_url}]
+
+    converted_paths: dict[str, Any] = {}
+    for path, path_item in openapi_data.get("paths", {}).items():
+        if not isinstance(path_item, dict):
+            converted_paths[path] = path_item
+            continue
+
+        converted_path_item: dict[str, Any] = {}
+        path_level_parameters = path_item.get("parameters", [])
+        if path_level_parameters:
+            converted_path_item["parameters"] = [
+                convert_swagger_parameter(parameter)
+                if isinstance(parameter, dict) and "$ref" not in parameter
+                else {"$ref": normalize_openapi_ref(parameter["$ref"])}
+                for parameter in path_level_parameters
+            ]
+
+        for method, operation in path_item.items():
+            if method == "parameters":
+                continue
+            if not isinstance(operation, dict):
+                converted_path_item[method] = operation
+                continue
+            converted_path_item[method] = convert_swagger_operation(
+                operation, global_consumes, global_produces
+            )
+
+        converted_paths[path] = converted_path_item
+
+    openapi_data["paths"] = converted_paths
+    return convert_schema_object(openapi_data)
 
 
 class SDKPostProcesser:
@@ -399,8 +708,8 @@ class SDKPostProcesser:
 
     def output(self, output_file: Path, category: RunMode) -> None:
         output_data = self.data
-        if category == RunMode.SDK:
-            output_data = self._filter_sdk_apis()
+        if category != RunMode.CLIENT:
+            output_data = self._filter_apis_by_audience(category)
             if output_data is None:
                 console.print("[bold red]Processing function returned None[/bold red]")
                 sys.exit(1)
@@ -408,14 +717,22 @@ class SDKPostProcesser:
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(output_data, f, indent=2)
 
-    def _filter_sdk_apis(self) -> dict[str, Any] | None:
+    def _filter_apis_by_audience(self, category: RunMode) -> dict[str, Any] | None:
         """
-        Filter Swagger JSON to only keep APIs marked with x-api-type: {"sdk": "true"}.
-        Remove all other APIs and their unused model definitions.
+        Filter Swagger JSON according to the x-api-type audience flags.
         """
+        audience_keys_by_mode = {
+            RunMode.SDK: {"sdk"},
+            RunMode.PORTAL: {"portal"},
+            RunMode.ADMIN: {"admin"},
+        }
+        audience_keys = audience_keys_by_mode.get(category)
+        if not audience_keys:
+            return copy.deepcopy(self.data)
+
         new_data = copy.deepcopy(self.data)
 
-        # Step 1: Filter paths - keep only APIs with x-api-type.sdk = "true"
+        # Step 1: Filter paths - keep only operations tagged for the target audience.
         original_paths = new_data["paths"]
         filtered_paths = {}
         removed_count = 0
@@ -425,8 +742,7 @@ class SDKPostProcesser:
             filtered_operations = {}
             for method, spec in operations.items():
                 x_api_type = spec.get("x-api-type", {})
-                # Check if sdk is explicitly "true" (string)
-                if x_api_type.get("sdk") == "true":
+                if any(audience_flag_enabled(x_api_type, key) for key in audience_keys):
                     filtered_operations[method] = spec
                     kept_count += 1
                     console.print(f"[gray]   ✓ Kept: {method.upper()} {path}[/gray]")
@@ -499,6 +815,10 @@ class SDKPostProcesser:
                 f"[gray]\n   Models: {len(filtered_schemas)} kept, {removed_models} removed[/gray]"
             )
 
+        console.print(
+            f"[gray]\n   {category.value} operations: {kept_count} kept, {removed_count} removed[/gray]"
+        )
+
         return new_data
 
 
@@ -524,43 +844,42 @@ def init(version: str) -> None:
         ]
     )
 
-    # 2. Generate OpenAPI3 using OpenAPI Generator
-    volume_path = Path("/local")
-    relative_swagger = SWAGGER_ROOT.relative_to(PROJECT_ROOT)
-    container_input_path = volume_path / relative_swagger / "openapi2" / "swagger.json"
-    container_output_path = volume_path / relative_swagger / "openapi3"
-
-    try:
-        docker.run(
-            settings.generator_image,
-            command=[
-                "generate",
-                "-i",
-                container_input_path.as_posix(),
-                "-g",
-                "openapi",
-                "-o",
-                container_output_path.as_posix(),
-            ],
-            volumes=[(PROJECT_ROOT, volume_path)],
-            remove=True,
-        )
-    except Exception as e:
-        console.print(f"[bold_red]❌ Error during OpenAPI3 generation: {e}[/bold_red]")
+    # 2. Convert Swagger 2.0 into a full OpenAPI 3 document locally.
+    swagger2_file = OPENAPI2_DIR / "swagger.json"
+    if not swagger2_file.exists():
+        console.print(f"[bold red]{swagger2_file} not found[/bold red]")
         sys.exit(1)
+
+    if OPENAPI3_DIR.exists():
+        shutil.rmtree(OPENAPI3_DIR)
+    OPENAPI3_DIR.mkdir(parents=True)
+
+    with open(swagger2_file, encoding="utf-8") as f:
+        swagger2_data = json.load(f)
+
+    openapi3_data = convert_swagger2_to_openapi3(swagger2_data)
+    with open(OPENAPI3_DIR / "openapi.json", "w", encoding="utf-8") as f:
+        json.dump(openapi3_data, f, indent=2)
 
     # 3. Post-process Swagger JSON
     console.print("[bold blue]📦 Post-processing swagger initiaization...[/bold blue]")
 
     if not CONVERTED_DIR.exists():
         CONVERTED_DIR.mkdir(parents=True)
+    else:
+        legacy_typescript_file = CONVERTED_DIR / "typescript.json"
+        legacy_typescript_file.unlink(missing_ok=True)
 
     post_input_file = OPENAPI3_DIR / "openapi.json"
     client_file = CONVERTED_DIR / "client.json"
     sdk_file = CONVERTED_DIR / "sdk.json"
+    portal_file = CONVERTED_DIR / "portal.json"
+    admin_file = CONVERTED_DIR / "admin.json"
 
     shutil.copyfile(post_input_file, dst=client_file)
     shutil.copyfile(post_input_file, dst=sdk_file)
+    shutil.copyfile(post_input_file, dst=portal_file)
+    shutil.copyfile(post_input_file, dst=admin_file)
 
     processor = SDKPostProcesser(post_input_file)
     processor.update_version(version)
@@ -571,6 +890,8 @@ def init(version: str) -> None:
 
     processor.output(client_file, RunMode.CLIENT)
     processor.output(sdk_file, RunMode.SDK)
+    processor.output(portal_file, RunMode.PORTAL)
+    processor.output(admin_file, RunMode.ADMIN)
 
     console.print(
         "[bold green]✅ Swagger documentation generation completed successfully![/bold green]"

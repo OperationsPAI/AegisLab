@@ -3,14 +3,14 @@ package repository
 import (
 	"fmt"
 
-	"aegis/database"
+	"aegis/model"
 
 	"gorm.io/gorm"
 )
 
 // ListDetectorResultsByExecutionID lists detector results for a specific execution ID
-func ListDetectorResultsByExecutionID(db *gorm.DB, executionID int) ([]database.DetectorResult, error) {
-	var results []database.DetectorResult
+func ListDetectorResultsByExecutionID(db *gorm.DB, executionID int) ([]model.DetectorResult, error) {
+	var results []model.DetectorResult
 	if err := db.
 		Where("execution_id = ?", executionID).
 		Find(&results).Error; err != nil {
@@ -20,7 +20,7 @@ func ListDetectorResultsByExecutionID(db *gorm.DB, executionID int) ([]database.
 }
 
 // SaveDetectorResults saves multiple detector results
-func SaveDetectorResults(db *gorm.DB, results []database.DetectorResult) error {
+func SaveDetectorResults(db *gorm.DB, results []model.DetectorResult) error {
 	if len(results) == 0 {
 		return fmt.Errorf("no detector results to save")
 	}

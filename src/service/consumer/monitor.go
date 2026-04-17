@@ -5,14 +5,13 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
-	"strconv"
 	"sync"
 	"time"
 
-	"aegis/client"
 	"aegis/config"
 	"aegis/consts"
 	"aegis/dto"
+	redisinfra "aegis/infra/redis"
 	"aegis/utils"
 
 	"github.com/redis/go-redis/v9"
@@ -45,38 +44,70 @@ type NamespaceInitResult struct {
 	Initialized []string                // Namespaces that were re-initialized (all enabled namespaces)
 }
 
-// monitor manages namespace locks and status using Redis
-type monitor struct {
-	redisClient *redis.Client
-	ctx         context.Context
-	mu          sync.RWMutex // Protects namespace operations
+type NamespaceMonitor interface {
+	SetContext(ctx context.Context)
+	InitializeNamespaces() ([]string, error)
+	RefreshNamespaces() (*NamespaceRefreshResult, error)
+	ReleaseLock(ctx context.Context, namespace string, traceID string) error
+	CheckNamespaceToInject(namespace string, executeTime time.Time, traceID string) error
+	GetNamespaceToRestart(endTime time.Time, nsPattern, traceID string) string
 }
 
-// Singleton instance and initialization control
-var (
-	monitorInstance *monitor
-	monitorOnce     sync.Once
-)
+// monitor manages namespace locks and status using Redis
+type monitor struct {
+	ctx          context.Context
+	redisGateway *redisinfra.Gateway
+	namespaces   namespaceCatalogStore
+	locks        namespaceLockStore
+	status       namespaceStatusStore
+	mu           sync.RWMutex // Protects namespace operations
+}
 
-// GetMonitor returns the singleton Monitor instance,
-// ensuring initialization is only performed once across all processes
-func GetMonitor() *monitor {
-	// Local process singleton pattern
-	monitorOnce.Do(func() {
-		monitorInstance = &monitor{
-			redisClient: client.GetRedisClient(),
-			ctx:         context.Background(),
-		}
-	})
+func NewMonitor(gateway *redisinfra.Gateway) NamespaceMonitor {
+	return &monitor{
+		ctx:          context.TODO(),
+		redisGateway: gateway,
+		namespaces:   newNamespaceCatalogStore(gateway),
+		locks:        newNamespaceLockStore(gateway),
+		status:       newNamespaceStatusStore(gateway),
+	}
+}
 
-	return monitorInstance
+func (m *monitor) SetContext(ctx context.Context) {
+	if ctx == nil {
+		return
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.ctx = ctx
+}
+
+func (m *monitor) currentContext() context.Context {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.ctx != nil {
+		return m.ctx
+	}
+	return context.TODO()
+}
+
+func (m *monitor) listNamespaces() ([]string, error) {
+	return m.namespaces.list(m.currentContext())
+}
+
+func (m *monitor) namespaceExists(namespace string) (bool, error) {
+	return m.namespaces.exists(m.currentContext(), namespace)
+}
+
+func (m *monitor) seedNamespace(namespace string, endTime time.Time) error {
+	return m.namespaces.seed(m.currentContext(), namespace, endTime)
 }
 
 // AcquireLock attempts to acquire a lock on a namespace
 // Returns nil on success, error if the lock cannot be acquired
 func (m *monitor) AcquireLock(namespace string, endTime time.Time, traceID string, taskType consts.TaskType) (err error) {
 	defer func() {
-		publishEvent(context.Background(), fmt.Sprintf(consts.StreamTraceLogKey, namespace), dto.TraceStreamEvent{
+		publishEvent(m.redisGateway, m.currentContext(), fmt.Sprintf(consts.StreamTraceLogKey, namespace), dto.TraceStreamEvent{
 			TaskType:  taskType,
 			EventName: consts.EventAcquireLock,
 			Payload: LockMessage{
@@ -87,16 +118,15 @@ func (m *monitor) AcquireLock(namespace string, endTime time.Time, traceID strin
 		})
 	}()
 
-	nsKey := fmt.Sprintf(consts.NamespaceKeyPattern, namespace)
 	nowTime := time.Now().Unix()
 
 	// Check if namespace exists
-	exists, err := m.redisClient.Exists(m.ctx, nsKey).Result()
+	exists, err := m.namespaceExists(namespace)
 	if err != nil {
 		return fmt.Errorf("failed to check namespace existence: %v", err)
 	}
 
-	if exists == 0 {
+	if !exists {
 		// Lazy loading: verify namespace is valid in current configuration
 		latestNamespaces, err := config.GetAllNamespaces()
 		if err != nil {
@@ -128,37 +158,7 @@ func (m *monitor) AcquireLock(namespace string, endTime time.Time, traceID strin
 	}
 
 	// All lock checking and acquisition happens in a single atomic transaction
-	err = m.redisClient.Watch(m.ctx, func(tx *redis.Tx) error {
-		// Check if the lock is still available
-		currentEndTimeStr, e := tx.HGet(m.ctx, nsKey, "end_time").Result()
-		if e != nil && e != redis.Nil {
-			return e
-		}
-
-		currentEndTime, e := strconv.ParseInt(currentEndTimeStr, 10, 64)
-		if e != nil {
-			return e
-		}
-
-		currentTraceID, e := tx.HGet(m.ctx, nsKey, "trace_id").Result()
-		if e != nil && e != redis.Nil {
-			return e
-		}
-
-		// If lock is held by someone else and not expired
-		if currentTraceID != "" && currentTraceID != traceID && nowTime < currentEndTime {
-			return fmt.Errorf("namespace %s is locked by %s until %v",
-				namespace, currentTraceID, time.Unix(currentEndTime, 0).Format(time.RFC3339))
-		}
-
-		// Try to acquire the lock
-		_, e = tx.TxPipelined(m.ctx, func(pipe redis.Pipeliner) error {
-			pipe.HSet(m.ctx, nsKey, "end_time", endTime.Unix())
-			pipe.HSet(m.ctx, nsKey, "trace_id", traceID)
-			return nil
-		})
-		return e
-	}, nsKey)
+	err = m.locks.acquire(m.currentContext(), namespace, endTime, traceID, time.Unix(nowTime, 0))
 
 	logEntry := logrus.WithFields(
 		logrus.Fields{
@@ -180,7 +180,7 @@ func (m *monitor) AcquireLock(namespace string, endTime time.Time, traceID strin
 // ReleaseLock releases a lock on a namespace if it's owned by the specified traceID
 func (m *monitor) ReleaseLock(ctx context.Context, namespace string, traceID string) (err error) {
 	defer func() {
-		publishEvent(ctx, fmt.Sprintf(consts.StreamTraceLogKey, namespace), dto.TraceStreamEvent{
+		publishEvent(m.redisGateway, ctx, fmt.Sprintf(consts.StreamTraceLogKey, namespace), dto.TraceStreamEvent{
 			TaskType:  consts.TaskTypeRestartPedestal,
 			EventName: consts.EventReleaseLock,
 			Payload: LockMessage{
@@ -205,41 +205,21 @@ func (m *monitor) ReleaseLock(ctx context.Context, namespace string, traceID str
 		return fmt.Errorf("namespace or trace_id is empty")
 	}
 
-	nsKey := fmt.Sprintf(consts.NamespaceKeyPattern, namespace)
-
 	// Check if namespace exists
-	var exists int64
-	exists, err = m.redisClient.Exists(m.ctx, nsKey).Result()
+	exists, existsErr := m.namespaceExists(namespace)
+	err = existsErr
 	if err != nil {
 		err = fmt.Errorf("failed to check namespace existence: %v", err)
 		return
 	}
 
-	if exists == 0 {
+	if !exists {
 		err = fmt.Errorf("namespace %s not found", namespace)
 		return
 	}
 
 	// Check if the lock is actually held by this traceID
-	currentTraceID, err := m.redisClient.HGet(m.ctx, nsKey, "trace_id").Result()
-	if err != nil && err != redis.Nil {
-		err = fmt.Errorf("failed to get current trace_id: %v", err)
-		return
-	}
-
-	// If the lock is held by someone else or is already released
-	if currentTraceID != traceID && currentTraceID != "" {
-		err = fmt.Errorf("cannot release lock: namespace %s is not owned by trace_id %s (current owner: %s)",
-			namespace, traceID, currentTraceID)
-		return
-	}
-
-	// Update namespace lock info - release by setting current time and empty trace ID
-	_, err = m.redisClient.Pipelined(m.ctx, func(pipe redis.Pipeliner) error {
-		pipe.HSet(m.ctx, nsKey, "end_time", time.Now().Unix())
-		pipe.HSet(m.ctx, nsKey, "trace_id", "")
-		return nil
-	})
+	err = m.locks.release(m.currentContext(), namespace, traceID, time.Now())
 
 	return
 }
@@ -263,7 +243,7 @@ func (m *monitor) CheckNamespaceToInject(namespace string, executeTime time.Time
 
 // GetNamespaceToRestart finds an available namespace for restart and acquires it
 func (m *monitor) GetNamespaceToRestart(endTime time.Time, nsPattern, traceID string) string {
-	namespaces, err := m.redisClient.SMembers(m.ctx, consts.NamespacesKey).Result()
+	namespaces, err := m.listNamespaces()
 	if err != nil {
 		logrus.Errorf("failed to get namespaces from Redis: %v", err)
 		return ""
@@ -312,7 +292,7 @@ func (m *monitor) InitializeNamespaces() ([]string, error) {
 	}
 
 	// Get all enabled namespaces from Redis
-	allNamespaces, err := m.redisClient.SMembers(m.ctx, consts.NamespacesKey).Result()
+	allNamespaces, err := m.listNamespaces()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get namespaces from Redis: %w", err)
 	}
@@ -358,7 +338,7 @@ func (m *monitor) RefreshNamespaces() (*NamespaceRefreshResult, error) {
 	}
 
 	// Get existing namespaces from Redis
-	existingNamespaces, err := m.redisClient.SMembers(m.ctx, consts.NamespacesKey).Result()
+	existingNamespaces, err := m.listNamespaces()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get existing namespaces: %w", err)
 	}
@@ -449,70 +429,20 @@ func (m *monitor) RefreshNamespaces() (*NamespaceRefreshResult, error) {
 
 // addNamespace adds a new namespace to Redis with initial state (idempotent)
 func (m *monitor) addNamespace(namespace string, endTime time.Time) error {
-	nsKey := fmt.Sprintf(consts.NamespaceKeyPattern, namespace)
-
-	_, err := m.redisClient.Pipelined(m.ctx, func(pipe redis.Pipeliner) error {
-		pipe.SAdd(m.ctx, consts.NamespacesKey, namespace)
-		pipe.HSetNX(m.ctx, nsKey, "end_time", endTime.Unix())
-		pipe.HSetNX(m.ctx, nsKey, "trace_id", "")
-		pipe.HSetNX(m.ctx, nsKey, "status", int(consts.CommonEnabled))
-		return nil
-	})
-
-	return err
+	return m.seedNamespace(namespace, endTime)
 }
 
 // isNamespaceLocked checks if a namespace currently has an active lock
 func (m *monitor) isNamespaceLocked(namespace string) (bool, error) {
-	nsKey := fmt.Sprintf(consts.NamespaceKeyPattern, namespace)
-
-	traceID, err := m.redisClient.HGet(m.ctx, nsKey, "trace_id").Result()
-	if err == redis.Nil {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
-	if traceID == "" {
-		return false, nil
-	}
-
-	// Check if lock has expired
-	endTimeStr, err := m.redisClient.HGet(m.ctx, nsKey, "end_time").Result()
-	if err != nil {
-		return false, err
-	}
-
-	endTime, err := strconv.ParseInt(endTimeStr, 10, 64)
-	if err != nil {
-		return false, err
-	}
-
-	return time.Now().Unix() < endTime, nil
+	return m.locks.isActive(m.currentContext(), namespace, time.Now())
 }
 
 // getNamespaceStatus gets the status of a namespace
 func (m *monitor) getNamespaceStatus(namespace string) (consts.StatusType, error) {
-	nsKey := fmt.Sprintf(consts.NamespaceKeyPattern, namespace)
-	statusStr, err := m.redisClient.HGet(m.ctx, nsKey, "status").Result()
-	if err == redis.Nil {
-		// For backward compatibility, assume enabled if status field doesn't exist
-		return consts.CommonEnabled, nil
-	}
-	if err != nil {
-		return 0, err
-	}
-
-	status, err := strconv.Atoi(statusStr)
-	if err != nil {
-		return 0, fmt.Errorf("invalid status value: %w", err)
-	}
-
-	return consts.StatusType(status), nil
+	return m.status.get(m.currentContext(), namespace)
 }
 
 // setNamespaceStatus sets the status of a namespace
 func (m *monitor) setNamespaceStatus(namespace string, status consts.StatusType) error {
-	nsKey := fmt.Sprintf(consts.NamespaceKeyPattern, namespace)
-	return m.redisClient.HSet(m.ctx, nsKey, "status", int(status)).Err()
+	return m.status.set(m.currentContext(), namespace, status)
 }

@@ -32,12 +32,58 @@ class TypeScriptClient(Generator):
         )
 
 
+class TypeScriptSDK(Generator):
+    """TypeScript generator for separate portal/admin audience specs."""
+
+    SDK_ROOT_DIR = PROJECT_ROOT / "sdk" / "typescript"
+    SDK_GEN_ROOT_DIR = PROJECT_ROOT / "sdk" / "typescript-gen"
+    GENERATOR_CONFIG_DIR = PROJECT_ROOT / ".openapi-generator" / "typescript" / "sdk"
+
+    def __init__(self, version: str) -> None:
+        self.version = version
+
+    def generate(self) -> None:
+        legacy_shared_sdk = self.SDK_ROOT_DIR
+        if legacy_shared_sdk.exists() and legacy_shared_sdk.is_dir():
+            shutil.rmtree(legacy_shared_sdk)
+
+        audience_packages = {
+            RunMode.PORTAL: {
+                "dst_dir": self.SDK_ROOT_DIR / "portal",
+                "gen_dir": self.SDK_GEN_ROOT_DIR / "portal",
+                "config_overrides": {
+                    "npmName": "@OperationsPAI/portal",
+                    "npmDescription": "TypeScript Portal SDK for RCABench API",
+                },
+            },
+            RunMode.ADMIN: {
+                "dst_dir": self.SDK_ROOT_DIR / "admin",
+                "gen_dir": self.SDK_GEN_ROOT_DIR / "admin",
+                "config_overrides": {
+                    "npmName": "@OperationsPAI/admin",
+                    "npmDescription": "TypeScript Admin SDK for RCABench API",
+                },
+            },
+        }
+
+        for mode, spec in audience_packages.items():
+            _generate_typescript_helper(
+                mode,
+                self.version,
+                spec["dst_dir"],
+                spec["gen_dir"],
+                self.GENERATOR_CONFIG_DIR,
+                config_overrides=spec["config_overrides"],
+            )
+
+
 def _generate_typescript_helper(
     mode: RunMode,
     version: str,
     dst_dir: Path,
     gen_dir: Path,
     generator_config_dir: Path,
+    config_overrides: dict[str, str] | None = None,
 ) -> None:
     """
     Helper function to generate TypeScript client or SDK.
@@ -46,10 +92,24 @@ def _generate_typescript_helper(
     3. Post-processes the generated client/SDK.
     4. Cleans up temporary directories.
     """
-    if mode not in {RunMode.CLIENT, RunMode.SDK}:
-        raise ValueError(f"Invalid mode: {mode}. Must be 'client' or 'sdk'.")
+    if mode not in {
+        RunMode.CLIENT,
+        RunMode.SDK,
+        RunMode.PORTAL,
+        RunMode.ADMIN,
+    }:
+        raise ValueError(
+            f"Invalid mode: {mode}. Must be 'client', 'sdk', 'portal', or 'admin'."
+        )
 
-    msg = "Client" if mode == RunMode.CLIENT else "SDK"
+    if mode == RunMode.CLIENT:
+        msg = "Client"
+    elif mode == RunMode.PORTAL:
+        msg = "Portal SDK"
+    elif mode == RunMode.ADMIN:
+        msg = "Admin SDK"
+    else:
+        msg = "SDK"
 
     # 1. Update generator config with the specified version
     generator_config = generator_config_dir / "config.json"
@@ -57,6 +117,8 @@ def _generate_typescript_helper(
         config_data = json.load(f)
 
     config_data["npmVersion"] = version
+    if config_overrides:
+        config_data.update(config_overrides)
 
     tmp_generator_config = generator_config_dir / "config_tmp.json"
     with open(tmp_generator_config, "w") as f:

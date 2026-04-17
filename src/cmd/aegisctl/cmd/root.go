@@ -33,8 +33,8 @@ var rootCmd = &cobra.Command{
 fault-injection and root-cause-analysis benchmarking platform.
 
 QUICK START:
-  # 1. Login (saves token to ~/.aegisctl/config.yaml)
-  aegisctl auth login --server http://HOST:8082 --username admin --password admin123
+  # 1. Exchange AK/SK for a token (saves token to ~/.aegisctl/config.yaml)
+  aegisctl auth login --server http://HOST:8082 --access-key ak_xxx --secret-key sk_xxx
 
   # 2. Set default project so you don't need --project every time
   aegisctl context set --name default --default-project pair_diagnosis
@@ -68,11 +68,13 @@ OUTPUT:
   Use --quiet (-q) to suppress informational messages.
 
 ENVIRONMENT VARIABLES:
-  AEGIS_SERVER   - Server URL (overridden by --server flag)
-  AEGIS_TOKEN    - Auth token (overridden by --token flag)
-  AEGIS_PROJECT  - Default project name (overridden by --project flag)
-  AEGIS_OUTPUT   - Output format: table|json (overridden by --output flag)
-  AEGIS_TIMEOUT  - Request timeout in seconds (overridden by --request-timeout flag)
+  AEGIS_SERVER      - Server URL (overridden by --server flag)
+  AEGIS_TOKEN       - Auth token (overridden by --token flag)
+  AEGIS_ACCESS_KEY  - Access key for 'aegisctl auth login'
+  AEGIS_SECRET_KEY  - Secret key for 'aegisctl auth login'
+  AEGIS_PROJECT     - Default project name (overridden by --project flag)
+  AEGIS_OUTPUT      - Output format: table|json (overridden by --output flag)
+  AEGIS_TIMEOUT     - Request timeout in seconds (overridden by --request-timeout flag)
 
 NAMING CONVENTION:
   Most commands accept human-readable names instead of numeric IDs.
@@ -142,7 +144,7 @@ NAMING CONVENTION:
 			flagRequestTimeout = 30
 		}
 
-		// Wire quiet flag into output package.
+		// Forward quiet flag into the output package.
 		output.Quiet = flagQuiet
 
 		return nil

@@ -5,14 +5,12 @@ import (
 	"fmt"
 	"sync"
 
-	"aegis/client"
 	"aegis/config"
 	"aegis/consts"
-	"aegis/database"
 	"aegis/dto"
-	"aegis/repository"
 
 	"github.com/sirupsen/logrus"
+	"gorm.io/gorm"
 )
 
 // ConfigHandler defines the interface for handling configuration changes.
@@ -34,10 +32,11 @@ type configRegistry struct {
 	handlers map[consts.ConfigScope]map[string]ConfigHandler
 }
 
-var (
-	registryInstance *configRegistry
-	registryOnce     sync.Once
-)
+type ConfigPublisher interface {
+	Publish(ctx context.Context, channel string, message any) error
+}
+
+var registryInstance = newConfigRegistry()
 
 // RegisterHandler registers a configuration handler.
 // External packages (e.g. consumer) call this to plug in their own handlers.
@@ -45,16 +44,14 @@ func RegisterHandler(handler ConfigHandler) {
 	getConfigRegistry().register(handler)
 }
 
-var globalHandlersOnce sync.Once
-
 // RegisterGlobalHandlers registers handlers for global-scope configurations.
-// Safe to call multiple times — subsequent calls are a no-op.
-func RegisterGlobalHandlers() {
-	globalHandlersOnce.Do(func() {
-		RegisterHandler(&algoConfigHandler{})
+// Safe to call multiple times — duplicate registrations are skipped.
+func RegisterGlobalHandlers(publisher ConfigPublisher) {
+	registry := getConfigRegistry()
+	if registry.ensureRegistered(&algoConfigHandler{publisher: publisher}) {
 		scope := consts.ConfigScopeGlobal
 		logrus.Infof("Registered %d global config handler(s)", len(ListRegisteredConfigKeys(&scope)))
-	})
+	}
 }
 
 // ListRegisteredConfigKeys returns all registered configuration keys for informational purposes (e.g. logging)
@@ -77,11 +74,14 @@ func ListRegisteredConfigKeys(scope *consts.ConfigScope) []string {
 
 // PublishWrapper wraps a config update function and publishes the result to Redis.
 // Exported so consumer and producer can reuse it in their own handlers.
-func PublishWrapper(ctx context.Context, function func() error) error {
+func PublishWrapper(ctx context.Context, publisher ConfigPublisher, function func() error) error {
 	updateResponse := dto.NewConfigUpdateResponse()
 
 	defer func() {
-		if err := client.RedisPublish(ctx, consts.ConfigUpdateResponseChannel, updateResponse); err != nil {
+		if publisher == nil {
+			return
+		}
+		if err := publisher.Publish(ctx, consts.ConfigUpdateResponseChannel, updateResponse); err != nil {
 			logrus.Errorf("failed to publish config update response to Redis: %v", err)
 		}
 	}()
@@ -97,17 +97,22 @@ func PublishWrapper(ctx context.Context, function func() error) error {
 
 // getConfigRegistry returns the singleton config registry instance
 func getConfigRegistry() *configRegistry {
-	registryOnce.Do(func() {
-		registryInstance = &configRegistry{
-			handlers: make(map[consts.ConfigScope]map[string]ConfigHandler),
-		}
-	})
 	return registryInstance
 }
 
+func newConfigRegistry() *configRegistry {
+	return &configRegistry{
+		handlers: make(map[consts.ConfigScope]map[string]ConfigHandler),
+	}
+}
+
+func resetConfigRegistryForTest() {
+	registryInstance = newConfigRegistry()
+}
+
 // handleConfigChange routes a configuration change to the appropriate handler
-func handleConfigChange(ctx context.Context, key, oldValue, newValue string) error {
-	existingConfig, err := repository.GetConfigByKey(database.DB, key, false)
+func handleConfigChange(ctx context.Context, db *gorm.DB, key, oldValue, newValue string) error {
+	existingConfig, err := newConfigStore(db).getConfigByKey(key)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve existing config %s from database: %w", key, err)
 	}
@@ -160,20 +165,40 @@ func (r *configRegistry) register(handler ConfigHandler) {
 		consts.GetConfigScopeName(scope), category)
 }
 
+func (r *configRegistry) ensureRegistered(handler ConfigHandler) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	scope := handler.Scope()
+	category := handler.Category()
+
+	if _, ok := r.handlers[scope]; !ok {
+		r.handlers[scope] = make(map[string]ConfigHandler)
+	}
+	if _, exists := r.handlers[scope][category]; exists {
+		return false
+	}
+
+	r.handlers[scope][category] = handler
+	logrus.Debugf("Registered config handler for scope=%s category=%s",
+		consts.GetConfigScopeName(scope), category)
+	return true
+}
+
 // =====================================================================
 // AlgoConfigHandler - handles algo configuration (e.g. algo.detector)
 // =====================================================================
 
-// algoConfigHandler handles algo configuration changes and keeps the global
-// config.DetectorName variable in sync whenever algo.detector is updated.
-type algoConfigHandler struct{}
+type algoConfigHandler struct {
+	publisher ConfigPublisher
+}
 
 func (h *algoConfigHandler) Category() string { return "algo" }
 
 func (h *algoConfigHandler) Scope() consts.ConfigScope { return consts.ConfigScopeGlobal }
 
 func (h *algoConfigHandler) Handle(ctx context.Context, key, oldValue, newValue string) error {
-	return PublishWrapper(ctx, func() error {
+	return PublishWrapper(ctx, h.publisher, func() error {
 		switch key {
 		case consts.DetectorKey:
 			config.SetDetectorName(newValue)

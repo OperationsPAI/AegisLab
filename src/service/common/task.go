@@ -2,9 +2,9 @@ package common
 
 import (
 	"aegis/consts"
-	"aegis/database"
 	"aegis/dto"
-	"aegis/repository"
+	redisinfra "aegis/infra/redis"
+	"aegis/model"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/robfig/cron/v3"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // cronNextTime calculates the next execution time from a cron expression
@@ -45,7 +46,14 @@ func CronNextTime(expr string) (time.Time, error) {
 //	               -> Task 3
 //	               -> Task 4
 //	               -> Task 5
-func SubmitTask(ctx context.Context, t *dto.UnifiedTask) error {
+func SubmitTaskWithDB(ctx context.Context, db *gorm.DB, redisGateway *redisinfra.Gateway, t *dto.UnifiedTask) error {
+	if db == nil {
+		return fmt.Errorf("task db is nil")
+	}
+	if redisGateway == nil {
+		return fmt.Errorf("task redis gateway is nil")
+	}
+
 	if t.TraceID == "" {
 		t.TraceID = uuid.NewString()
 	}
@@ -55,7 +63,7 @@ func SubmitTask(ctx context.Context, t *dto.UnifiedTask) error {
 	}
 
 	if t.ParentTaskID != nil && t.State != consts.TaskRescheduled {
-		parentLevel, err := repository.GetParentTaskLevelByID(database.DB, *t.ParentTaskID)
+		parentLevel, err := getParentTaskLevelByID(db, *t.ParentTaskID)
 		if err != nil {
 			return fmt.Errorf("failed to get parent task level: %w", err)
 		}
@@ -68,7 +76,7 @@ func SubmitTask(ctx context.Context, t *dto.UnifiedTask) error {
 		}
 	}
 
-	var trace *database.Trace
+	var trace *model.Trace
 	var err error
 	if t.ParentTaskID == nil && t.State != consts.TaskRescheduled {
 		withAlgorithms := false
@@ -93,14 +101,14 @@ func SubmitTask(ctx context.Context, t *dto.UnifiedTask) error {
 		return fmt.Errorf("failed to convert to task: %w", err)
 	}
 
-	err = database.DB.Transaction(func(tx *gorm.DB) error {
+	err = db.Transaction(func(tx *gorm.DB) error {
 		if trace != nil {
-			if err := repository.UpsertTrace(tx, trace); err != nil {
+			if err := upsertTrace(tx, trace); err != nil {
 				return fmt.Errorf("failed to upsert trace to database: %w", err)
 			}
 		}
 
-		if err := repository.UpsertTask(tx, task); err != nil {
+		if err := upsertTask(tx, task); err != nil {
 			return fmt.Errorf("failed to upsert task to database: %w", err)
 		}
 
@@ -116,9 +124,9 @@ func SubmitTask(ctx context.Context, t *dto.UnifiedTask) error {
 	}
 
 	if t.Immediate {
-		err = repository.SubmitImmediateTask(ctx, taskData, t.TaskID)
+		err = redisGateway.SubmitImmediateTask(ctx, taskData, t.TaskID)
 	} else {
-		err = repository.SubmitDelayedTask(ctx, taskData, t.TaskID, t.ExecuteTime)
+		err = redisGateway.SubmitDelayedTask(ctx, taskData, t.TaskID, t.ExecuteTime)
 	}
 
 	if err != nil {
@@ -137,6 +145,49 @@ func calculateExecuteTime(task *dto.UnifiedTask) error {
 		}
 
 		task.ExecuteTime = next.Unix()
+	}
+	return nil
+}
+
+func getParentTaskLevelByID(db *gorm.DB, parentTaskID string) (int, error) {
+	var result model.Task
+	if err := db.Select("level").
+		Where("id = ? AND status != ?", parentTaskID, consts.CommonDeleted).
+		First(&result).Error; err != nil {
+		return 0, fmt.Errorf("failed to find parent task with id %s: %w", parentTaskID, err)
+	}
+	return result.Level, nil
+}
+
+func upsertTask(db *gorm.DB, task *model.Task) error {
+	if err := db.Clauses(
+		clause.OnConflict{
+			Columns: []clause.Column{{Name: "id"}},
+			DoUpdates: clause.AssignmentColumns([]string{
+				"execute_time",
+				"state",
+				"updated_at",
+			}),
+		},
+	).Create(task).Error; err != nil {
+		return fmt.Errorf("failed to upsert task: %w", err)
+	}
+	return nil
+}
+
+func upsertTrace(db *gorm.DB, trace *model.Trace) error {
+	if err := db.Clauses(
+		clause.OnConflict{
+			Columns: []clause.Column{{Name: "id"}},
+			DoUpdates: clause.AssignmentColumns([]string{
+				"last_event",
+				"end_time",
+				"state",
+				"updated_at",
+			}),
+		},
+	).Create(trace).Error; err != nil {
+		return fmt.Errorf("failed to upsert trace: %w", err)
 	}
 	return nil
 }

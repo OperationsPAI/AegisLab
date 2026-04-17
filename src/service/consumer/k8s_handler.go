@@ -3,17 +3,15 @@ package consumer
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strconv"
 	"time"
 
-	"aegis/client/k8s"
 	"aegis/config"
 	"aegis/consts"
-	"aegis/database"
 	"aegis/dto"
-	"aegis/repository"
+	k8sinfra "aegis/infra/k8s"
+	redisinfra "aegis/infra/redis"
 	"aegis/service/common"
 	"aegis/utils"
 
@@ -33,14 +31,16 @@ const (
 
 // errorContext holds common context for error handling
 type errorContext struct {
-	ctx      context.Context
-	span     trace.Span
-	logEntry *logrus.Entry
-	labels   *taskIdentifiers
+	ctx          context.Context
+	span         trace.Span
+	logEntry     *logrus.Entry
+	labels       *taskIdentifiers
+	db           *gorm.DB
+	redisGateway *redisinfra.Gateway
 }
 
 // NewErrorContext creates an ErrorContext from parsed labels
-func NewErrorContext(ctx context.Context, span trace.Span, labels *taskIdentifiers) *errorContext {
+func NewErrorContext(ctx context.Context, db *gorm.DB, redisGateway *redisinfra.Gateway, span trace.Span, labels *taskIdentifiers) *errorContext {
 	return &errorContext{
 		ctx:  ctx,
 		span: span,
@@ -48,7 +48,9 @@ func NewErrorContext(ctx context.Context, span trace.Span, labels *taskIdentifie
 			"task_id":  labels.taskID,
 			"trace_id": labels.traceID,
 		}),
-		labels: labels,
+		labels:       labels,
+		db:           db,
+		redisGateway: redisGateway,
 	}
 }
 
@@ -74,7 +76,7 @@ func (e *errorContext) Fatal(logEntry *logrus.Entry, message string, err error) 
 			e.labels.taskType,
 			consts.TaskError,
 			message,
-		),
+		).withDB(e.db).withRedis(e.redisGateway),
 	)
 }
 
@@ -124,10 +126,25 @@ type jobLabels struct {
 }
 
 type k8sHandler struct {
+	db           *gorm.DB
+	store        *stateStore
+	monitor      NamespaceMonitor
+	algoLimiter  *TokenBucketRateLimiter
+	k8sGateway   *k8sinfra.Gateway
+	redisGateway *redisinfra.Gateway
+	batchManager *FaultBatchManager
 }
 
-func NewHandler() *k8sHandler {
-	return &k8sHandler{}
+func NewHandler(db *gorm.DB, monitor NamespaceMonitor, algoLimiter *TokenBucketRateLimiter, k8sGateway *k8sinfra.Gateway, redisGateway *redisinfra.Gateway, batchManager *FaultBatchManager) *k8sHandler {
+	return &k8sHandler{
+		db:           db,
+		store:        newStateStore(db),
+		monitor:      monitor,
+		algoLimiter:  algoLimiter,
+		k8sGateway:   k8sGateway,
+		redisGateway: redisGateway,
+		batchManager: batchManager,
+	}
 }
 
 func (h *k8sHandler) HandleCRDAdd(name string, annotations map[string]string, labels map[string]string) {
@@ -143,7 +160,7 @@ func (h *k8sHandler) HandleCRDAdd(name string, annotations map[string]string, la
 		return
 	}
 
-	taskCtx := otel.GetTextMapPropagator().Extract(context.Background(), parsedAnnotations.taskCarrier)
+	taskCtx := otel.GetTextMapPropagator().Extract(consumerDetachedContext(), parsedAnnotations.taskCarrier)
 	updateTaskState(taskCtx,
 		newTaskStateUpdate(
 			parsedLabels.traceID,
@@ -151,7 +168,7 @@ func (h *k8sHandler) HandleCRDAdd(name string, annotations map[string]string, la
 			parsedLabels.taskType,
 			consts.TaskRunning,
 			fmt.Sprintf("injecting fault for task %s", parsedLabels.taskID),
-		).withEvent(consts.EventFaultInjectionStarted, name),
+		).withEvent(consts.EventFaultInjectionStarted, name).withDB(h.db).withRedis(h.redisGateway),
 	)
 }
 
@@ -168,8 +185,12 @@ func (h *k8sHandler) HandleCRDDelete(namespace string, annotations map[string]st
 		return
 	}
 
-	taskCtx := otel.GetTextMapPropagator().Extract(context.Background(), parsedAnnotations.taskCarrier)
-	if err := GetMonitor().ReleaseLock(taskCtx, namespace, parsedLabels.traceID); err != nil {
+	taskCtx := otel.GetTextMapPropagator().Extract(consumerDetachedContext(), parsedAnnotations.taskCarrier)
+	if h.monitor == nil {
+		logrus.Warn("namespace monitor not initialized, skipping lock release")
+		return
+	}
+	if err := h.monitor.ReleaseLock(taskCtx, namespace, parsedLabels.traceID); err != nil {
 		logrus.Errorf("failed to release lock for namespace %s: %v", namespace, err)
 	}
 }
@@ -187,7 +208,7 @@ func (h *k8sHandler) HandleCRDFailed(name string, annotations map[string]string,
 		return
 	}
 
-	taskCtx := otel.GetTextMapPropagator().Extract(context.Background(), parsedAnnotations.taskCarrier)
+	taskCtx := otel.GetTextMapPropagator().Extract(consumerDetachedContext(), parsedAnnotations.taskCarrier)
 	taskSpan := trace.SpanFromContext(taskCtx)
 
 	updateTaskState(taskCtx,
@@ -202,13 +223,13 @@ func (h *k8sHandler) HandleCRDFailed(name string, annotations map[string]string,
 				State: consts.GetTaskStateName(consts.TaskError),
 				Msg:   errMsg,
 			},
-		),
+		).withDB(h.db).withRedis(h.redisGateway),
 	)
 
-	errCtx := NewErrorContext(taskCtx, taskSpan, &parsedLabels.taskIdentifiers)
+	errCtx := NewErrorContext(taskCtx, h.db, h.redisGateway, taskSpan, &parsedLabels.taskIdentifiers)
 
 	postprocess := func(injectionName string) {
-		if err := updateInjectionState(injectionName, consts.DatapackInjectFailed); err != nil {
+		if err := h.store.updateInjectionState(injectionName, consts.DatapackInjectFailed); err != nil {
 			errCtx.Warn(nil, "update injection state failed", err)
 		}
 	}
@@ -216,7 +237,11 @@ func (h *k8sHandler) HandleCRDFailed(name string, annotations map[string]string,
 	if !parsedLabels.IsHybrid {
 		postprocess(name)
 	} else {
-		bm := getBatchManager()
+		bm := h.batchManager
+		if bm == nil {
+			errCtx.Warn(nil, "fault batch manager not initialized", fmt.Errorf("fault batch manager not initialized"))
+			return
+		}
 		bm.incrementBatchCount(parsedLabels.batchID)
 
 		// Check if batch is finished and delete if done
@@ -240,8 +265,8 @@ func (h *k8sHandler) HandleCRDSucceeded(namespace, pod, name string, startTime, 
 		return
 	}
 
-	taskCtx := otel.GetTextMapPropagator().Extract(context.Background(), parsedAnnotations.taskCarrier)
-	traceCtx := otel.GetTextMapPropagator().Extract(context.Background(), parsedAnnotations.traceCarrier)
+	taskCtx := otel.GetTextMapPropagator().Extract(consumerDetachedContext(), parsedAnnotations.taskCarrier)
+	traceCtx := otel.GetTextMapPropagator().Extract(consumerDetachedContext(), parsedAnnotations.traceCarrier)
 
 	logEntry := logrus.WithFields(logrus.Fields{
 		"task_id":  parsedLabels.taskID,
@@ -259,17 +284,17 @@ func (h *k8sHandler) HandleCRDSucceeded(namespace, pod, name string, startTime, 
 			parsedLabels.taskType,
 			consts.TaskCompleted,
 			fmt.Sprintf(consts.TaskMsgCompleted, parsedLabels.taskID),
-		).withEvent(consts.EventFaultInjectionCompleted, name),
+		).withEvent(consts.EventFaultInjectionCompleted, name).withDB(h.db).withRedis(h.redisGateway),
 	)
 
-	errCtx := NewErrorContext(taskCtx, taskSpan, &parsedLabels.taskIdentifiers)
+	errCtx := NewErrorContext(taskCtx, h.db, h.redisGateway, taskSpan, &parsedLabels.taskIdentifiers)
 
 	postProcess := func(injectionName string) {
-		if err := updateInjectionState(injectionName, consts.DatapackInjectSuccess); err != nil {
+		if err := h.store.updateInjectionState(injectionName, consts.DatapackInjectSuccess); err != nil {
 			errCtx.Warn(nil, "update injection state failed", err)
 		}
 
-		datapack, err := updateInjectionTimestamp(injectionName, startTime, endTime)
+		datapack, err := h.store.updateInjectionTimestamp(injectionName, startTime, endTime)
 		if err != nil {
 			errCtx.Warn(nil, "update injection timestamps failed", err)
 			return
@@ -298,7 +323,7 @@ func (h *k8sHandler) HandleCRDSucceeded(namespace, pod, name string, startTime, 
 		}
 		task.SetTraceCtx(traceCtx)
 
-		if err = common.SubmitTask(taskCtx, task); err != nil {
+		if err = common.SubmitTaskWithDB(taskCtx, h.db, h.redisGateway, task); err != nil {
 			errCtx.Fatal(nil, "failed to submit datapack build task", err)
 		}
 	}
@@ -306,7 +331,11 @@ func (h *k8sHandler) HandleCRDSucceeded(namespace, pod, name string, startTime, 
 	if !parsedLabels.IsHybrid {
 		postProcess(name)
 	} else {
-		bm := getBatchManager()
+		bm := h.batchManager
+		if bm == nil {
+			errCtx.Warn(nil, "fault batch manager not initialized", fmt.Errorf("fault batch manager not initialized"))
+			return
+		}
 		bm.incrementBatchCount(parsedLabels.batchID)
 
 		if bm.isFinished(parsedLabels.batchID) {
@@ -351,7 +380,7 @@ func (h *k8sHandler) HandleJobAdd(name string, annotations map[string]string, la
 		}
 	}
 
-	taskCtx := otel.GetTextMapPropagator().Extract(context.Background(), parsedAnnotations.taskCarrier)
+	taskCtx := otel.GetTextMapPropagator().Extract(consumerDetachedContext(), parsedAnnotations.taskCarrier)
 	updateTaskState(taskCtx,
 		newTaskStateUpdate(
 			parsedLabels.traceID,
@@ -359,7 +388,7 @@ func (h *k8sHandler) HandleJobAdd(name string, annotations map[string]string, la
 			parsedLabels.taskType,
 			consts.TaskRunning,
 			message,
-		).withEvent(eventType, payload),
+		).withEvent(eventType, payload).withDB(h.db).withRedis(h.redisGateway),
 	)
 }
 
@@ -380,17 +409,21 @@ func (h *k8sHandler) HandleJobFailed(job *batchv1.Job, annotations map[string]st
 		"task_id":  parsedLabels.taskID,
 		"trace_id": parsedLabels.traceID,
 	})
-	taskCtx := otel.GetTextMapPropagator().Extract(context.Background(), parsedAnnotations.taskCarrier)
+	taskCtx := otel.GetTextMapPropagator().Extract(consumerDetachedContext(), parsedAnnotations.taskCarrier)
 	taskSpan := trace.SpanFromContext(taskCtx)
 
-	errCtx := NewErrorContext(taskCtx, taskSpan, &parsedLabels.taskIdentifiers)
+	errCtx := NewErrorContext(taskCtx, h.db, h.redisGateway, taskSpan, &parsedLabels.taskIdentifiers)
 
 	if parsedAnnotations.datapack == nil {
 		errCtx.Fatal(nil, "missing datapack information in annotations", nil)
 		return
 	}
 
-	logMap, err := k8s.GetJobPodLogs(taskCtx, job.Namespace, job.Name)
+	if h.k8sGateway == nil {
+		errCtx.Warn(nil, "k8s gateway not initialized", fmt.Errorf("k8s gateway not initialized"))
+		return
+	}
+	logMap, err := h.k8sGateway.GetJobPodLogs(taskCtx, job.Namespace, job.Name)
 	if err != nil {
 		errCtx.Warn(logrus.WithField("job_name", job.Name), "failed to get job logs", err)
 	}
@@ -406,7 +439,7 @@ func (h *k8sHandler) HandleJobFailed(job *batchv1.Job, annotations map[string]st
 		taskSpan.AddEvent("job failed", spanAttrs...)
 	}
 
-	publishEvent(taskCtx, fmt.Sprintf(consts.StreamTraceLogKey, parsedLabels.traceID), dto.TraceStreamEvent{
+	publishEvent(h.redisGateway, taskCtx, fmt.Sprintf(consts.StreamTraceLogKey, parsedLabels.traceID), dto.TraceStreamEvent{
 		TaskID:    parsedLabels.taskID,
 		TaskType:  parsedLabels.taskType,
 		EventName: consts.EventJobFailed,
@@ -430,12 +463,16 @@ func (h *k8sHandler) HandleJobFailed(job *batchv1.Job, annotations map[string]st
 			JobName:  job.Name,
 		}
 
-		if err := updateInjectionState(parsedAnnotations.datapack.Name, consts.DatapackBuildFailed); err != nil {
+		if err := h.store.updateInjectionState(parsedAnnotations.datapack.Name, consts.DatapackBuildFailed); err != nil {
 			errCtx.Warn(nil, "update injection state failed", err)
 		}
 
 	case consts.TaskTypeRunAlgorithm:
-		rateLimiter := GetAlgoExecutionRateLimiter()
+		rateLimiter := h.algoLimiter
+		if rateLimiter == nil {
+			errCtx.Warn(nil, "algorithm execution rate limiter not initialized on job failure", fmt.Errorf("algorithm execution rate limiter not initialized"))
+			return
+		}
 		if releaseErr := rateLimiter.ReleaseToken(taskCtx, parsedLabels.taskID, parsedLabels.traceID); releaseErr != nil {
 			errCtx.Warn(nil, "failed to release algorithm execution token on job failure", releaseErr)
 		} else {
@@ -462,12 +499,12 @@ func (h *k8sHandler) HandleJobFailed(job *batchv1.Job, annotations map[string]st
 		}
 
 		if parsedAnnotations.algorithm.ContainerName == config.GetDetectorName() {
-			if err := updateInjectionState(parsedAnnotations.datapack.Name, consts.DatapackDetectorFailed); err != nil {
+			if err := h.store.updateInjectionState(parsedAnnotations.datapack.Name, consts.DatapackDetectorFailed); err != nil {
 				errCtx.Warn(nil, "update injection state failed", err)
 			}
 		}
 
-		if err := updateExecutionState(*parsedLabels.ExecutionID, consts.ExecutionFailed); err != nil {
+		if err := h.store.updateExecutionState(*parsedLabels.ExecutionID, consts.ExecutionFailed); err != nil {
 			errCtx.Fatal(nil, "update execution state failed", err)
 			return
 		}
@@ -480,7 +517,7 @@ func (h *k8sHandler) HandleJobFailed(job *batchv1.Job, annotations map[string]st
 			parsedLabels.taskType,
 			consts.TaskError,
 			fmt.Sprintf(consts.TaskMsgFailed, parsedLabels.taskID),
-		).withEvent(eventName, payload),
+		).withEvent(eventName, payload).withDB(h.db).withRedis(h.redisGateway),
 	)
 }
 
@@ -499,8 +536,8 @@ func (h *k8sHandler) HandleJobSucceeded(job *batchv1.Job, annotations map[string
 
 	stream := fmt.Sprintf(consts.StreamTraceLogKey, parsedLabels.traceID)
 
-	taskCtx := otel.GetTextMapPropagator().Extract(context.Background(), parsedAnnotations.taskCarrier)
-	traceCtx := otel.GetTextMapPropagator().Extract(context.Background(), parsedAnnotations.traceCarrier)
+	taskCtx := otel.GetTextMapPropagator().Extract(consumerDetachedContext(), parsedAnnotations.taskCarrier)
+	traceCtx := otel.GetTextMapPropagator().Extract(consumerDetachedContext(), parsedAnnotations.traceCarrier)
 
 	logEntry := logrus.WithFields(logrus.Fields{
 		"task_id":  parsedLabels.taskID,
@@ -508,14 +545,14 @@ func (h *k8sHandler) HandleJobSucceeded(job *batchv1.Job, annotations map[string
 	})
 	taskSpan := trace.SpanFromContext(taskCtx)
 
-	errCtx := NewErrorContext(taskCtx, taskSpan, &parsedLabels.taskIdentifiers)
+	errCtx := NewErrorContext(taskCtx, h.db, h.redisGateway, taskSpan, &parsedLabels.taskIdentifiers)
 
 	if parsedAnnotations.datapack == nil {
 		errCtx.Fatal(nil, "missing datapack information in annotations", nil)
 		return
 	}
 
-	publishEvent(taskCtx, stream, dto.TraceStreamEvent{
+	publishEvent(h.redisGateway, taskCtx, stream, dto.TraceStreamEvent{
 		TaskID:    parsedLabels.taskID,
 		TaskType:  parsedLabels.taskType,
 		EventName: consts.EventJobSucceed,
@@ -530,7 +567,7 @@ func (h *k8sHandler) HandleJobSucceeded(job *batchv1.Job, annotations map[string
 		logEntry.Info("datapack build successfully")
 		taskSpan.AddEvent("datapack build successfully")
 
-		if err := updateInjectionState(parsedAnnotations.datapack.Name, consts.DatapackBuildSuccess); err != nil {
+		if err := h.store.updateInjectionState(parsedAnnotations.datapack.Name, consts.DatapackBuildSuccess); err != nil {
 			errCtx.Fatal(nil, "update injection state failed", err)
 			return
 		}
@@ -548,14 +585,14 @@ func (h *k8sHandler) HandleJobSucceeded(job *batchv1.Job, annotations map[string
 					Datapack: parsedAnnotations.datapack.Name,
 					JobName:  job.Name,
 				},
-			),
+			).withDB(h.db).withRedis(h.redisGateway),
 		)
 
 		ref := &dto.ContainerRef{
 			Name: config.GetDetectorName(),
 		}
 
-		algorithmVersionResults, err := common.MapRefsToContainerVersions([]*dto.ContainerRef{ref}, consts.ContainerTypeAlgorithm, parsedLabels.userID)
+		algorithmVersionResults, err := common.MapRefsToContainerVersionsWithDB(h.db, []*dto.ContainerRef{ref}, consts.ContainerTypeAlgorithm, parsedLabels.userID)
 		if err != nil {
 			errCtx.Fatal(nil, "failed to map container refs to versions", err)
 			return
@@ -589,12 +626,16 @@ func (h *k8sHandler) HandleJobSucceeded(job *batchv1.Job, annotations map[string
 		}
 		task.SetTraceCtx(traceCtx)
 
-		if err := common.SubmitTask(taskCtx, task); err != nil {
+		if err := common.SubmitTaskWithDB(taskCtx, h.db, h.redisGateway, task); err != nil {
 			errCtx.Warn(nil, "submit algorithm execution task failed", err)
 		}
 
 	case consts.TaskTypeRunAlgorithm:
-		rateLimiter := GetAlgoExecutionRateLimiter()
+		rateLimiter := h.algoLimiter
+		if rateLimiter == nil {
+			errCtx.Warn(nil, "algorithm execution rate limiter not initialized on job success", fmt.Errorf("algorithm execution rate limiter not initialized"))
+			return
+		}
 		if releaseErr := rateLimiter.ReleaseToken(taskCtx, parsedLabels.taskID, parsedLabels.traceID); releaseErr != nil {
 			errCtx.Warn(nil, "failed to release algorithm execution token on job success", releaseErr)
 		} else {
@@ -616,13 +657,13 @@ func (h *k8sHandler) HandleJobSucceeded(job *batchv1.Job, annotations map[string
 		taskSpan.AddEvent("algorithm execute successfully")
 
 		if parsedAnnotations.algorithm.ContainerName == config.GetDetectorName() {
-			if err := updateInjectionState(parsedAnnotations.datapack.Name, consts.DatapackDetectorSuccess); err != nil {
+			if err := h.store.updateInjectionState(parsedAnnotations.datapack.Name, consts.DatapackDetectorSuccess); err != nil {
 				errCtx.Fatal(nil, "update injection state failed", err)
 				return
 			}
 		}
 
-		if err := updateExecutionState(*parsedLabels.ExecutionID, consts.ExecutionSuccess); err != nil {
+		if err := h.store.updateExecutionState(*parsedLabels.ExecutionID, consts.ExecutionSuccess); err != nil {
 			errCtx.Fatal(nil, "update execution state failed", err)
 			return
 		}
@@ -640,7 +681,7 @@ func (h *k8sHandler) HandleJobSucceeded(job *batchv1.Job, annotations map[string
 					Algorithm: parsedAnnotations.algorithm.ContainerName,
 					JobName:   job.Name,
 				},
-			),
+			).withDB(h.db).withRedis(h.redisGateway),
 		)
 
 		payload := map[string]any{
@@ -661,7 +702,7 @@ func (h *k8sHandler) HandleJobSucceeded(job *batchv1.Job, annotations map[string
 		}
 		task.SetTraceCtx(traceCtx)
 
-		if err := common.SubmitTask(taskCtx, task); err != nil {
+		if err := common.SubmitTaskWithDB(taskCtx, h.db, h.redisGateway, task); err != nil {
 			errCtx.Warn(nil, "submit result collection task failed", err)
 		}
 	}
@@ -821,82 +862,4 @@ func parseJobLabels(labels map[string]string) (*jobLabels, error) {
 	}
 
 	return data, nil
-}
-
-// updateExecutionState updates the state of an execution
-func updateExecutionState(executionID int, newState consts.ExecutionState) error {
-	return database.DB.Transaction(func(tx *gorm.DB) error {
-		execution, err := repository.GetExecutionByID(tx, executionID)
-		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return fmt.Errorf("%w: execution %d not found", consts.ErrNotFound, executionID)
-			}
-			return fmt.Errorf("execution %d not found: %w", executionID, err)
-		}
-
-		if execution.State != consts.ExecutionInitial {
-			return fmt.Errorf("cannot change state of execution %d from %s to %s", executionID, consts.GetExecutionStateName(execution.State), consts.GetExecutionStateName(newState))
-		}
-
-		if err := repository.UpdateExecution(tx, executionID, map[string]any{
-			"state": newState,
-		}); err != nil {
-			return fmt.Errorf("failed to update execution %d duration: %w", executionID, err)
-		}
-
-		return nil
-	})
-}
-
-// updateInjectionState updates the state of a fault injection
-func updateInjectionState(injectionName string, newState consts.DatapackState) error {
-	return database.DB.Transaction(func(tx *gorm.DB) error {
-		injection, err := repository.GetInjectionByName(tx, injectionName, false)
-		if err != nil {
-			return fmt.Errorf("failed to get injection %s: %w", injectionName, err)
-		}
-
-		if err := repository.UpdateInjection(tx, injection.ID, map[string]any{
-			"state": newState,
-		}); err != nil {
-			return fmt.Errorf("failed to update injection %s state: %w", injectionName, err)
-		}
-
-		return nil
-	})
-}
-
-// updateInjectionTimestamp updates the start and end timestamps of a fault injection
-func updateInjectionTimestamp(injectionName string, startTime time.Time, endTime time.Time) (*dto.InjectionItem, error) {
-	var updatedInjection *database.FaultInjection
-	err := database.DB.Transaction(func(tx *gorm.DB) error {
-		injection, err := repository.GetInjectionByName(tx, injectionName, false)
-		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return fmt.Errorf("injection %s not found", injectionName)
-			}
-			return fmt.Errorf("failed to get injection %s: %w", injectionName, err)
-		}
-
-		if err = repository.UpdateInjection(tx, injection.ID, map[string]any{
-			"start_time": startTime,
-			"end_time":   endTime,
-		}); err != nil {
-			return fmt.Errorf("update injection timestamps failed: %w", err)
-		}
-
-		reloadedInjection, err := repository.GetInjectionByID(tx, injection.ID)
-		if err != nil {
-			return fmt.Errorf("failed to reload injection %d after update: %w", injection.ID, err)
-		}
-
-		updatedInjection = reloadedInjection
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	injectionItem := dto.NewInjectionItem(updatedInjection)
-	return &injectionItem, err
 }

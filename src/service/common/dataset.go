@@ -1,21 +1,23 @@
 package common
 
 import (
-	"aegis/database"
 	"aegis/dto"
+	"aegis/model"
 	"aegis/repository"
 	"fmt"
+
+	"gorm.io/gorm"
 )
 
 // mapRefsToDatasetVersions maps dataset refs to their corresponding dataset versions
-func MapRefsToDatasetVersions(refs []*dto.DatasetRef, userID int) (map[*dto.DatasetRef]database.DatasetVersion, error) {
-	versions, err := getUniqueVersionsForDatasetRefs(refs, userID)
+func MapRefsToDatasetVersionsWithDB(db *gorm.DB, refs []*dto.DatasetRef, userID int) (map[*dto.DatasetRef]model.DatasetVersion, error) {
+	versions, err := getUniqueVersionsForDatasetRefsWithDB(db, refs, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to batch get dataset versions: %w", err)
 	}
 
-	flatMap := make(map[string][]database.DatasetVersion)
-	hierarchicalMap := make(map[string]map[string]database.DatasetVersion)
+	flatMap := make(map[string][]model.DatasetVersion)
+	hierarchicalMap := make(map[string]map[string]model.DatasetVersion)
 
 	for _, version := range versions {
 		datasetName := version.Dataset.Name
@@ -24,14 +26,14 @@ func MapRefsToDatasetVersions(refs []*dto.DatasetRef, userID int) (map[*dto.Data
 		flatMap[datasetName] = append(flatMap[datasetName], version)
 
 		if _, exists := hierarchicalMap[datasetName]; !exists {
-			hierarchicalMap[datasetName] = make(map[string]database.DatasetVersion)
+			hierarchicalMap[datasetName] = make(map[string]model.DatasetVersion)
 		}
 		hierarchicalMap[datasetName][versionName] = version
 	}
 
-	results := make(map[*dto.DatasetRef]database.DatasetVersion, len(refs))
+	results := make(map[*dto.DatasetRef]model.DatasetVersion, len(refs))
 	for _, ref := range refs {
-		var result database.DatasetVersion
+		var result model.DatasetVersion
 		if ref.Version != "" {
 			if _, exists := hierarchicalMap[ref.Name]; !exists {
 				return nil, fmt.Errorf("dataset not found: %s", ref.Name)
@@ -55,8 +57,7 @@ func MapRefsToDatasetVersions(refs []*dto.DatasetRef, userID int) (map[*dto.Data
 	return results, nil
 }
 
-// getUniqueVersionsForDatasetrefs retrieves unique dataset versions for the given dataset refs
-func getUniqueVersionsForDatasetRefs(refs []*dto.DatasetRef, userID int) ([]database.DatasetVersion, error) {
+func getUniqueVersionsForDatasetRefsWithDB(db *gorm.DB, refs []*dto.DatasetRef, userID int) ([]model.DatasetVersion, error) {
 	datasetNamesSet := make(map[string]struct{}, len(refs))
 	for _, ref := range refs {
 		if ref.Name != "" {
@@ -65,7 +66,7 @@ func getUniqueVersionsForDatasetRefs(refs []*dto.DatasetRef, userID int) ([]data
 	}
 
 	if len(datasetNamesSet) == 0 {
-		return []database.DatasetVersion{}, nil
+		return []model.DatasetVersion{}, nil
 	}
 
 	requiredNames := make([]string, 0, len(datasetNamesSet))
@@ -73,7 +74,7 @@ func getUniqueVersionsForDatasetRefs(refs []*dto.DatasetRef, userID int) ([]data
 		requiredNames = append(requiredNames, name)
 	}
 
-	versions, err := repository.BatchGetDatasetVersions(database.DB, requiredNames, userID)
+	versions, err := repository.BatchGetDatasetVersions(db, requiredNames, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to batch get dataset versions: %w", err)
 	}

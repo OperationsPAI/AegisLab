@@ -15,11 +15,3 @@ type LogEntry struct {
 	TraceID   string          `json:"trace_id,omitempty"` // Trace ID
 	Level     consts.LogLevel `json:"level,omitempty"`    // Log level
 }
-
-// WSLogMessage represents the WebSocket message format for log streaming
-type WSLogMessage struct {
-	Type    consts.WSLogType `json:"type"`
-	Logs    []LogEntry       `json:"logs,omitempty"`    // Log entries
-	Message string           `json:"message,omitempty"` // Error message or end reason
-	Total   int              `json:"total,omitempty"`   // Total history log count
-}

@@ -9,11 +9,10 @@ import (
 	"sync"
 	"time"
 
-	"aegis/client"
 	"aegis/consts"
-	"aegis/database"
 	"aegis/dto"
-	"aegis/repository"
+	redisinfra "aegis/infra/redis"
+	"aegis/model"
 	"aegis/service/common"
 	"aegis/tracing"
 	"aegis/utils"
@@ -26,6 +25,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
+	"gorm.io/gorm"
 )
 
 // -----------------------------------------------------------------------------
@@ -87,12 +87,14 @@ func withCallerLevel(level int) eventPublishOption {
 
 // taskStateUpdate encapsulates all information needed to update and notify task state changes
 type taskStateUpdate struct {
-	traceID   string
-	taskID    string
-	taskType  consts.TaskType
-	taskState consts.TaskState
-	message   string
-	event     *dto.TraceStreamEvent // Optional: custom event to publish
+	traceID      string
+	taskID       string
+	taskType     consts.TaskType
+	taskState    consts.TaskState
+	message      string
+	event        *dto.TraceStreamEvent // Optional: custom event to publish
+	db           *gorm.DB
+	redisGateway *redisinfra.Gateway
 }
 
 // newTaskStateUpdate creates a basic TaskStateUpdate with required fields
@@ -138,15 +140,25 @@ func (u *taskStateUpdate) withSimpleEvent(eventType consts.EventType) *taskState
 	return u.withEvent(eventType, nil)
 }
 
+func (u *taskStateUpdate) withDB(db *gorm.DB) *taskStateUpdate {
+	u.db = db
+	return u
+}
+
+func (u *taskStateUpdate) withRedis(gateway *redisinfra.Gateway) *taskStateUpdate {
+	u.redisGateway = gateway
+	return u
+}
+
 // StartScheduler starts the scheduler that moves tasks from delayed to ready queue
-func StartScheduler(ctx context.Context) {
+func StartScheduler(ctx context.Context, redisGateway *redisinfra.Gateway) {
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
-			processDelayedTasks(ctx)
+			processDelayedTasks(ctx, redisGateway)
 		case <-ctx.Done():
 			return
 		}
@@ -154,8 +166,8 @@ func StartScheduler(ctx context.Context) {
 }
 
 // processDelayedTasks moves tasks from delayed queue to ready queue when their time arrives
-func processDelayedTasks(ctx context.Context) {
-	result, err := repository.ProcessDelayedTasks(ctx)
+func processDelayedTasks(ctx context.Context, redisGateway *redisinfra.Gateway) {
+	result, err := redisGateway.ProcessDelayedTasks(ctx)
 
 	if err != nil && err != redis.Nil {
 		logrus.Errorf("scheduler error: %v", err)
@@ -173,7 +185,7 @@ func processDelayedTasks(ctx context.Context) {
 			nextTime, err := common.CronNextTime(task.CronExpr)
 			if err != nil {
 				logrus.Warnf("invalid cron expr: %v", err)
-				if err := repository.HandleCronRescheduleFailure(ctx, []byte(taskData)); err != nil {
+				if err := redisGateway.HandleCronRescheduleFailure(ctx, []byte(taskData)); err != nil {
 					logrus.Errorf("failed to handle cron reschedule failure: %v", err)
 				}
 				continue
@@ -186,9 +198,9 @@ func processDelayedTasks(ctx context.Context) {
 				return
 			}
 
-			if err := repository.SubmitDelayedTask(ctx, taskData, task.TaskID, task.ExecuteTime); err != nil {
+			if err := redisGateway.SubmitDelayedTask(ctx, taskData, task.TaskID, task.ExecuteTime); err != nil {
 				logrus.Errorf("failed to reschedule cron task %s: %v", task.TaskID, err)
-				err := repository.HandleCronRescheduleFailure(ctx, []byte(taskData))
+				err := redisGateway.HandleCronRescheduleFailure(ctx, []byte(taskData))
 				if err != nil {
 					logrus.Errorf("failed to handle cron reschedule failure: %v", err)
 				}
@@ -203,7 +215,7 @@ func processDelayedTasks(ctx context.Context) {
 // -----------------------------------------------------------------------------
 
 // ConsumeTasks starts a consumer that processes tasks from the ready queue
-func ConsumeTasks(ctx context.Context) {
+func ConsumeTasks(ctx context.Context, deps RuntimeDeps) {
 	defer func() {
 		if r := recover(); r != nil {
 			logrus.Errorf("consumer panic: %v", r)
@@ -212,14 +224,14 @@ func ConsumeTasks(ctx context.Context) {
 	logrus.Info("Starting consume tasks")
 
 	for {
-		if !repository.AcquireConcurrencyLock(ctx) {
+		if !deps.RedisGateway.AcquireConcurrencyLock(ctx) {
 			time.Sleep(100 * time.Millisecond)
 			continue
 		}
 
-		taskData, err := repository.GetTask(ctx, 30*time.Second)
+		taskData, err := deps.RedisGateway.GetTask(ctx, 30*time.Second)
 		if err != nil {
-			repository.ReleaseConcurrencyLock(ctx)
+			deps.RedisGateway.ReleaseConcurrencyLock(ctx)
 			if err == redis.Nil {
 				continue
 			}
@@ -228,13 +240,13 @@ func ConsumeTasks(ctx context.Context) {
 			continue
 		}
 
-		go processTask(ctx, taskData)
+		go processTask(ctx, taskData, deps)
 	}
 }
 
 // processTask handles a task from the queue
-func processTask(ctx context.Context, taskData string) {
-	defer repository.ReleaseConcurrencyLock(ctx)
+func processTask(ctx context.Context, taskData string, deps RuntimeDeps) {
+	defer deps.RedisGateway.ReleaseConcurrencyLock(ctx)
 	defer func() {
 		if r := recover(); r != nil {
 			logrus.Errorf("task panic: %v\n%s", r, debug.Stack())
@@ -260,7 +272,7 @@ func processTask(ctx context.Context, taskData string) {
 
 	tasksProcessed.WithLabelValues(consts.GetTaskTypeName(task.Type), "started").Inc()
 
-	executeTaskWithRetry(taskCtx, &task)
+	executeTaskWithRetry(taskCtx, &task, deps)
 
 	taskDuration.WithLabelValues(consts.GetTaskTypeName(task.Type)).Observe(time.Since(startTime).Seconds())
 }
@@ -307,7 +319,7 @@ func extractContext(task *dto.UnifiedTask) (context.Context, context.Context) {
 }
 
 // executeTaskWithRetry attempts to execute a task with retry logic
-func executeTaskWithRetry(ctx context.Context, task *dto.UnifiedTask) {
+func executeTaskWithRetry(ctx context.Context, task *dto.UnifiedTask, deps RuntimeDeps) {
 	retryCtx, retryCancel := context.WithCancel(ctx)
 	registerCancelFunc(task.TaskID, retryCancel)
 	defer retryCancel()
@@ -330,7 +342,7 @@ func executeTaskWithRetry(ctx context.Context, task *dto.UnifiedTask) {
 		ctxWithCancel, cancel := context.WithCancel(ctx)
 		_ = cancel
 
-		err := dispatchTask(ctxWithCancel, task)
+		err := dispatchTask(ctxWithCancel, task, deps)
 		if err == nil {
 			tasksProcessed.WithLabelValues(consts.GetTaskTypeName(task.Type), "success").Inc()
 			span.SetStatus(codes.Ok, fmt.Sprintf("Task %s of type %s completed successfully after %d attempts",
@@ -349,7 +361,7 @@ func executeTaskWithRetry(ctx context.Context, task *dto.UnifiedTask) {
 		message := fmt.Sprintf("Attempt %d failed: %v", attempt+1, err)
 		span.AddEvent(message)
 		logrus.WithField("task_id", task.TaskID).Warn(message)
-		publishEvent(ctx, fmt.Sprintf(consts.StreamTraceLogKey, task.TraceID), dto.TraceStreamEvent{
+		publishEvent(deps.RedisGateway, ctx, fmt.Sprintf(consts.StreamTraceLogKey, task.TraceID), dto.TraceStreamEvent{
 			TaskID:    task.TaskID,
 			TaskType:  task.Type,
 			EventName: consts.EventTaskRetryStatus,
@@ -363,7 +375,7 @@ func executeTaskWithRetry(ctx context.Context, task *dto.UnifiedTask) {
 	tasksProcessed.WithLabelValues(consts.GetTaskTypeName(task.Type), "failed").Inc()
 
 	message := fmt.Sprintf("Task failed after %d attempts, errors: [%v]", task.RetryPolicy.MaxAttempts, errs)
-	handleFinalFailure(ctx, task, message)
+	handleFinalFailure(ctx, deps.RedisGateway, task, message)
 
 	// Simple usage: no custom event needed
 	updateTaskState(ctx, newTaskStateUpdate(
@@ -372,7 +384,7 @@ func executeTaskWithRetry(ctx context.Context, task *dto.UnifiedTask) {
 		task.Type,
 		consts.TaskError,
 		message,
-	))
+	).withDB(deps.DB).withRedis(deps.RedisGateway))
 }
 
 // -----------------------------------------------------------------------------
@@ -394,14 +406,14 @@ func unregisterCancelFunc(taskID string) {
 }
 
 // handleFinalFailure moves a failed task to the dead letter queue
-func handleFinalFailure(ctx context.Context, task *dto.UnifiedTask, errMsg string) {
+func handleFinalFailure(ctx context.Context, redisGateway *redisinfra.Gateway, task *dto.UnifiedTask, errMsg string) {
 	taskData, err := json.Marshal(task)
 	if err != nil {
 		logrus.Errorf("failed to marshal failed task %s: %v", task.TaskID, err)
 		return
 	}
 
-	if err := repository.HandleFailedTask(ctx, taskData, task.RetryPolicy.BackoffSec); err != nil {
+	if err := redisGateway.HandleFailedTask(ctx, taskData, task.RetryPolicy.BackoffSec); err != nil {
 		logrus.Errorf("failed to handle failed task %s: %v", task.TaskID, err)
 	}
 
@@ -414,7 +426,7 @@ func handleFinalFailure(ctx context.Context, task *dto.UnifiedTask, errMsg strin
 }
 
 // CancelTask cancels a task and removes it from the queues
-func CancelTask(taskID string) error {
+func CancelTask(redisGateway *redisinfra.Gateway, taskID string) error {
 	// Cancel execution context
 	taskCancelFuncsMutex.RLock()
 	cancelFunc, exists := taskCancelFuncs[taskID]
@@ -425,29 +437,29 @@ func CancelTask(taskID string) error {
 	}
 
 	// Remove task from Redis
-	ctx := context.Background()
+	ctx := consumerDetachedContext()
 
 	// Locate queue using index
-	queueType, err := repository.GetTaskQueue(ctx, taskID)
+	queueType, err := redisGateway.GetTaskQueue(ctx, taskID)
 	if err == nil {
 		switch queueType {
-		case repository.ReadyQueueKey:
-			if _, err := repository.RemoveFromList(ctx, repository.ReadyQueueKey, taskID); err != nil {
+		case redisinfra.ReadyQueueKey:
+			if _, err := redisGateway.RemoveFromList(ctx, redisinfra.ReadyQueueKey, taskID); err != nil {
 				logrus.Warnf("failed to remove from list: %v", err)
 			}
-		case repository.DelayedQueueKey:
-			if s := repository.RemoveFromZSet(ctx, repository.DelayedQueueKey, taskID); !s {
+		case redisinfra.DelayedQueueKey:
+			if s := redisGateway.RemoveFromZSet(ctx, redisinfra.DelayedQueueKey, taskID); !s {
 				logrus.Warnf("failed to remove from delayed queue: %v", err)
 			}
-		case repository.DeadLetterKey:
-			if s := repository.RemoveFromZSet(ctx, repository.DeadLetterKey, taskID); !s {
+		case redisinfra.DeadLetterKey:
+			if s := redisGateway.RemoveFromZSet(ctx, redisinfra.DeadLetterKey, taskID); !s {
 				logrus.Warnf("failed to remove from dead letter queue: %v", err)
 			}
 		}
 	}
 
 	// Clean up index
-	if err := repository.DeleteTaskIndex(ctx, taskID); err != nil {
+	if err := redisGateway.DeleteTaskIndex(ctx, taskID); err != nil {
 		logrus.Warnf("failed to delete task index: %v", err)
 	}
 
@@ -462,7 +474,7 @@ func CancelTask(taskID string) error {
 
 // publishEvent publishes a StreamEvent to the specified Redis stream
 // This adds caller information and handles error logging
-func publishEvent(ctx context.Context, stream string, event dto.TraceStreamEvent, opts ...eventPublishOption) {
+func publishEvent(gateway *redisinfra.Gateway, ctx context.Context, stream string, event dto.TraceStreamEvent, opts ...eventPublishOption) {
 	options := &eventPublishOptions{
 		callerLevel: 2,
 	}
@@ -477,7 +489,7 @@ func publishEvent(ctx context.Context, stream string, event dto.TraceStreamEvent
 	event.FnName = fn
 
 	// Call repository layer for data access
-	if err := client.RedisXAdd(ctx, stream, event.ToRedisStream()); err != nil {
+	if err := publishTraceStreamEvent(gateway, ctx, stream, &event); err != nil {
 		if err == redis.Nil {
 			logrus.Warnf("No new messages to publish to Redis stream %s", stream)
 			return
@@ -489,6 +501,14 @@ func publishEvent(ctx context.Context, stream string, event dto.TraceStreamEvent
 // updateTaskState updates the task states and publishes the update
 func updateTaskState(ctx context.Context, update *taskStateUpdate) {
 	err := tracing.WithSpan(ctx, func(childCtx context.Context) error {
+		db := update.db
+		if db == nil {
+			return fmt.Errorf("task state update db is nil")
+		}
+		if update.redisGateway == nil {
+			return fmt.Errorf("task state update redis gateway is nil")
+		}
+
 		span := trace.SpanFromContext(childCtx)
 		logEntry := logrus.WithField("trace_id", update.traceID).WithField("task_id", update.taskID)
 		span.AddEvent(update.message)
@@ -506,15 +526,15 @@ func updateTaskState(ctx context.Context, update *taskStateUpdate) {
 
 		// Publish custom event or default state update event
 		if update.event != nil {
-			publishEvent(childCtx, stream, *update.event, withCallerLevel(5))
+			publishEvent(update.redisGateway, childCtx, stream, *update.event, withCallerLevel(5))
 		}
 
-		if err := repository.UpdateTaskState(database.DB, childCtx, update.taskID, update.taskState); err != nil {
+		if err := updateTaskStateRecord(db, childCtx, update.taskID, update.taskState); err != nil {
 			logEntry.Errorf("failed to update database: %v", err)
 			return err
 		}
 
-		if err := updateTraceState(update.traceID, update.taskID, update.taskState, update.event); err != nil {
+		if err := updateTraceState(update.redisGateway, db, update.traceID, update.taskID, update.taskState, update.event); err != nil {
 			logEntry.Errorf("failed to update trace state: %v", err)
 			return err
 		}
@@ -525,4 +545,10 @@ func updateTaskState(ctx context.Context, update *taskStateUpdate) {
 	if err != nil {
 		logrus.WithField("task_id", update.taskID).Errorf("failed to update task state: %v", err)
 	}
+}
+
+func updateTaskStateRecord(db *gorm.DB, ctx context.Context, taskID string, state consts.TaskState) error {
+	return db.WithContext(ctx).Model(&model.Task{}).
+		Where("id = ?", taskID).
+		Update("state", state).Error
 }

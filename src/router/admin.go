@@ -1,0 +1,112 @@
+package router
+
+import (
+	"aegis/middleware"
+
+	"github.com/gin-gonic/gin"
+)
+
+func SetupAdminV2Routes(v2 *gin.RouterGroup, handlers *Handlers) {
+	users := v2.Group("/users", middleware.JWTAuth())
+	{
+		roles := users.Group("/:user_id/roles")
+		{
+			roles.POST("/:role_id", middleware.RequireUserAssign, handlers.User.AssignRole)
+			roles.DELETE("/:role_id", middleware.RequireUserAssign, handlers.User.RemoveRole)
+		}
+
+		projects := users.Group("/:user_id/projects")
+		{
+			projects.POST("/:project_id/roles/:role_id", middleware.RequireUserAssign, handlers.User.AssignProject)
+			projects.DELETE("/:project_id", middleware.RequireUserAssign, handlers.User.RemoveProject)
+		}
+
+		permissions := users.Group("/:user_id/permissions")
+		{
+			permissions.POST("/assign", middleware.RequireUserAssign, handlers.User.AssignPermissions)
+			permissions.POST("/remove", middleware.RequireUserAssign, handlers.User.RemovePermissions)
+		}
+
+		containers := users.Group("/:user_id/containers")
+		{
+			containers.POST("/:container_id/roles/:role_id", middleware.RequireUserAssign, handlers.User.AssignContainer)
+			containers.DELETE("/:container_id", middleware.RequireUserAssign, handlers.User.RemoveContainer)
+		}
+
+		datasets := users.Group("/:user_id/datasets")
+		{
+			datasets.POST("/:dataset_id/roles/:role_id", middleware.RequireUserAssign, handlers.User.AssignDataset)
+			datasets.DELETE("/:dataset_id", middleware.RequireUserAssign, handlers.User.RemoveDataset)
+		}
+
+		userRead := users.Group("", middleware.RequireUserRead)
+		{
+			userRead.GET("", handlers.User.ListUsers)
+			userRead.GET("/:user_id/detail", middleware.RequireAdminOrUserOwnership, handlers.User.GetUserDetail)
+		}
+
+		users.POST("", middleware.RequireUserCreate, handlers.User.CreateUser)
+		users.PATCH("/:user_id", middleware.RequireUserUpdate, handlers.User.UpdateUser)
+		users.DELETE("/:user_id", middleware.RequireUserDelete, handlers.User.DeleteUser)
+	}
+
+	roles := v2.Group("/roles", middleware.JWTAuth())
+	{
+		permissions := roles.Group("/:role_id/permissions")
+		{
+			permissions.POST("/assign", middleware.RequireRoleGrant, handlers.RBAC.AssignRolePermissions)
+			permissions.POST("/remove", middleware.RequireRoleRevoke, handlers.RBAC.RemoveRolePermissions)
+		}
+
+		users := roles.Group("/:role_id/users")
+		{
+			users.GET("", middleware.RequireRoleRead, handlers.RBAC.ListUsersFromRole)
+		}
+
+		roleRead := roles.Group("", middleware.RequireRoleRead)
+		{
+			roleRead.GET("/:role_id", handlers.RBAC.GetRole)
+			roleRead.GET("", handlers.RBAC.ListRoles)
+		}
+
+		roles.POST("", middleware.RequireRoleCreate, handlers.RBAC.CreateRole)
+		roles.PATCH("/:role_id", middleware.RequireRoleUpdate, handlers.RBAC.UpdateRole)
+		roles.DELETE("/:role_id", middleware.RequireRoleDelete, handlers.RBAC.DeleteRole)
+	}
+
+	permissions := v2.Group("/permissions", middleware.JWTAuth())
+	{
+		roles := permissions.Group("/:permission_id/roles")
+		{
+			roles.GET("", middleware.RequirePermissionRead, handlers.RBAC.ListRolesFromPermission)
+		}
+
+		permRead := permissions.Group("", middleware.RequirePermissionRead)
+		{
+			permRead.GET("", handlers.RBAC.ListPermissions)
+			permRead.GET("/:permission_id", handlers.RBAC.GetPermission)
+		}
+	}
+
+	resources := v2.Group("/resources", middleware.JWTAuth())
+	{
+		permissions := resources.Group("/:resource_id/permissions")
+		{
+			permissions.GET("", handlers.RBAC.ListResourcePermissions)
+		}
+
+		resources.GET("/:resource_id", handlers.RBAC.GetResource)
+		resources.GET("", handlers.RBAC.ListResources)
+	}
+
+	systems := v2.Group("/systems", middleware.JWTAuth())
+	{
+		systems.GET("", handlers.ChaosSystem.ListSystems)
+		systems.POST("", handlers.ChaosSystem.CreateSystem)
+		systems.GET("/:id", handlers.ChaosSystem.GetSystem)
+		systems.PUT("/:id", handlers.ChaosSystem.UpdateSystem)
+		systems.DELETE("/:id", handlers.ChaosSystem.DeleteSystem)
+		systems.POST("/:id/metadata", handlers.ChaosSystem.UpsertMetadata)
+		systems.GET("/:id/metadata", handlers.ChaosSystem.ListMetadata)
+	}
+}

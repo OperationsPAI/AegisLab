@@ -1,26 +1,46 @@
 package client
 
 import (
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 )
 
-// loginRequest matches dto.LoginReq.
-type loginRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
+const accessKeyTokenPath = "/api/v2/auth/access-key/token"
+
+// AccessKeyTokenDebug contains the fully materialized signed request data for
+// POST /api/v2/auth/access-key/token.
+type AccessKeyTokenDebug struct {
+	Method          string
+	Path            string
+	AccessKey       string
+	Timestamp       string
+	Nonce           string
+	CanonicalString string
+	Signature       string
 }
 
-// loginResponseData matches dto.LoginResp.
-type loginResponseData struct {
+func (d *AccessKeyTokenDebug) Headers() map[string]string {
+	return map[string]string{
+		"X-Access-Key": d.AccessKey,
+		"X-Timestamp":  d.Timestamp,
+		"X-Nonce":      d.Nonce,
+		"X-Signature":  d.Signature,
+	}
+}
+
+// accessKeyTokenResponseData matches dto.AccessKeyTokenResp.
+type accessKeyTokenResponseData struct {
 	Token     string    `json:"token"`
+	TokenType string    `json:"token_type"`
 	ExpiresAt time.Time `json:"expires_at"`
-	User      struct {
-		ID       int    `json:"id"`
-		Username string `json:"username"`
-		Avatar   string `json:"avatar,omitempty"`
-		Role     string `json:"role,omitempty"`
-	} `json:"user"`
+	AuthType  string    `json:"auth_type"`
+	AccessKey string    `json:"access_key"`
 }
 
 // tokenRefreshRequest matches dto.TokenRefreshReq.
@@ -38,26 +58,37 @@ type tokenRefreshResponseData struct {
 type LoginResult struct {
 	Token     string
 	ExpiresAt time.Time
-	Username  string
+	AuthType  string
+	AccessKey string
 }
 
-// Login authenticates against the server and returns a token.
-func Login(server, username, password string) (*LoginResult, error) {
-	c := NewClient(server, "", 30*time.Second)
+// LoginWithAccessKey exchanges an access key signature for a bearer token.
+func LoginWithAccessKey(server, accessKey, secretKey string) (*LoginResult, error) {
+	accessKey = strings.TrimSpace(accessKey)
+	secretKey = strings.TrimSpace(secretKey)
+	if accessKey == "" {
+		return nil, fmt.Errorf("access key is required")
+	}
+	if secretKey == "" {
+		return nil, fmt.Errorf("secret key is required")
+	}
 
-	var resp APIResponse[loginResponseData]
-	err := c.Post("/api/v2/auth/login", loginRequest{
-		Username: username,
-		Password: password,
-	}, &resp)
+	c := NewClient(server, "", 30*time.Second)
+	debugInfo, err := PrepareAccessKeyTokenDebug(accessKey, secretKey, time.Now().UTC(), "")
 	if err != nil {
-		return nil, fmt.Errorf("login failed: %w", err)
+		return nil, fmt.Errorf("prepare signed headers: %w", err)
+	}
+
+	var resp APIResponse[accessKeyTokenResponseData]
+	if err := c.PostWithHeaders(accessKeyTokenPath, debugInfo.Headers(), &resp); err != nil {
+		return nil, fmt.Errorf("exchange access key token failed: %w", err)
 	}
 
 	return &LoginResult{
 		Token:     resp.Data.Token,
 		ExpiresAt: resp.Data.ExpiresAt,
-		Username:  resp.Data.User.Username,
+		AuthType:  resp.Data.AuthType,
+		AccessKey: resp.Data.AccessKey,
 	}, nil
 }
 
@@ -102,4 +133,102 @@ func IsTokenExpired(expiry time.Time) bool {
 		return false // unknown expiry — assume valid
 	}
 	return time.Now().After(expiry)
+}
+
+// PrepareAccessKeyTokenDebug builds the canonical string, signature, and
+// headers for the access-key token exchange request.
+func PrepareAccessKeyTokenDebug(accessKey, secretKey string, now time.Time, nonce string) (*AccessKeyTokenDebug, error) {
+	accessKey = strings.TrimSpace(accessKey)
+	secretKey = strings.TrimSpace(secretKey)
+	nonce = strings.TrimSpace(nonce)
+	if accessKey == "" {
+		return nil, fmt.Errorf("access key is required")
+	}
+	if secretKey == "" {
+		return nil, fmt.Errorf("secret key is required")
+	}
+	var err error
+	if nonce == "" {
+		nonce, err = newAccessKeyNonce()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	timestamp := strconv.FormatInt(now.Unix(), 10)
+	canonical := canonicalAccessKeyString("POST", accessKeyTokenPath, accessKey, timestamp, nonce)
+
+	return &AccessKeyTokenDebug{
+		Method:          "POST",
+		Path:            accessKeyTokenPath,
+		AccessKey:       accessKey,
+		Timestamp:       timestamp,
+		Nonce:           nonce,
+		CanonicalString: canonical,
+		Signature:       signAccessKeyRequest(secretKey, canonical),
+	}, nil
+}
+
+func buildAccessKeyHeaders(accessKey, secretKey string, now time.Time, path string) (map[string]string, error) {
+	debugInfo, err := prepareAccessKeyDebug(accessKey, secretKey, now, path, "")
+	if err != nil {
+		return nil, err
+	}
+	return debugInfo.Headers(), nil
+}
+
+func prepareAccessKeyDebug(accessKey, secretKey string, now time.Time, path, nonce string) (*AccessKeyTokenDebug, error) {
+	accessKey = strings.TrimSpace(accessKey)
+	secretKey = strings.TrimSpace(secretKey)
+	nonce = strings.TrimSpace(nonce)
+	if accessKey == "" {
+		return nil, fmt.Errorf("access key is required")
+	}
+	if secretKey == "" {
+		return nil, fmt.Errorf("secret key is required")
+	}
+	var err error
+	if nonce == "" {
+		nonce, err = newAccessKeyNonce()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	timestamp := strconv.FormatInt(now.Unix(), 10)
+	canonical := canonicalAccessKeyString("POST", path, accessKey, timestamp, nonce)
+
+	return &AccessKeyTokenDebug{
+		Method:          "POST",
+		Path:            path,
+		AccessKey:       accessKey,
+		Timestamp:       timestamp,
+		Nonce:           nonce,
+		CanonicalString: canonical,
+		Signature:       signAccessKeyRequest(secretKey, canonical),
+	}, nil
+}
+
+func canonicalAccessKeyString(method, path, accessKey, timestamp, nonce string) string {
+	return strings.Join([]string{
+		strings.ToUpper(method),
+		path,
+		accessKey,
+		timestamp,
+		nonce,
+	}, "\n")
+}
+
+func signAccessKeyRequest(secretKey, payload string) string {
+	mac := hmac.New(sha256.New, []byte(secretKey))
+	mac.Write([]byte(payload))
+	return hex.EncodeToString(mac.Sum(nil))
+}
+
+func newAccessKeyNonce() (string, error) {
+	nonce := make([]byte, 16)
+	if _, err := rand.Read(nonce); err != nil {
+		return "", fmt.Errorf("generate nonce: %w", err)
+	}
+	return hex.EncodeToString(nonce), nil
 }

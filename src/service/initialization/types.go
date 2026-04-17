@@ -2,10 +2,8 @@ package initialization
 
 import (
 	"aegis/consts"
-	"aegis/database"
-	"aegis/repository"
-
-	"github.com/sirupsen/logrus"
+	"aegis/model"
+	"gorm.io/gorm"
 )
 
 const AdminUsername = "admin"
@@ -24,8 +22,8 @@ type InitialDynamicConfig struct {
 	Options      string                 `yaml:"options"`
 }
 
-func (c *InitialDynamicConfig) ConvertToDBDynamicConfig() *database.DynamicConfig {
-	return &database.DynamicConfig{
+func (c *InitialDynamicConfig) ConvertToDBDynamicConfig() *model.DynamicConfig {
+	return &model.DynamicConfig{
 		Key:          c.Key,
 		DefaultValue: c.DefaultValue,
 		ValueType:    c.ValueType,
@@ -48,8 +46,8 @@ type InitialDataContainer struct {
 	Versions []InitialContainerVersion `yaml:"versions"`
 }
 
-func (c *InitialDataContainer) ConvertToDBContainer() *database.Container {
-	return &database.Container{
+func (c *InitialDataContainer) ConvertToDBContainer() *model.Container {
+	return &model.Container{
 		Type:     c.Type,
 		Name:     c.Name,
 		IsPublic: c.IsPublic,
@@ -67,8 +65,8 @@ type InitialContainerVersion struct {
 	HelmConfig *InitialHelmConfig       `yaml:"helm_config"`
 }
 
-func (cv *InitialContainerVersion) ConvertToDBContainerVersion() *database.ContainerVersion {
-	return &database.ContainerVersion{
+func (cv *InitialContainerVersion) ConvertToDBContainerVersion() *model.ContainerVersion {
+	return &model.ContainerVersion{
 		Name:       cv.Name,
 		GithubLink: cv.GithubLink,
 		ImageRef:   cv.ImageRef,
@@ -85,8 +83,8 @@ type InitialHelmConfig struct {
 	Values    []InitialParameterConfig `yaml:"values"`
 }
 
-func (hc *InitialHelmConfig) ConvertToDBHelmConfig() *database.HelmConfig {
-	return &database.HelmConfig{
+func (hc *InitialHelmConfig) ConvertToDBHelmConfig() *model.HelmConfig {
+	return &model.HelmConfig{
 		Version:   hc.Version,
 		ChartName: hc.ChartName,
 		RepoName:  hc.RepoName,
@@ -105,8 +103,8 @@ type InitialParameterConfig struct {
 	Overridable    *bool                    `yaml:"overridable"`
 }
 
-func (pc *InitialParameterConfig) ConvertToDBParameterConfig() *database.ParameterConfig {
-	config := &database.ParameterConfig{
+func (pc *InitialParameterConfig) ConvertToDBParameterConfig() *model.ParameterConfig {
+	config := &model.ParameterConfig{
 		Key:            pc.Key,
 		Type:           pc.Type,
 		Category:       pc.Category,
@@ -133,8 +131,8 @@ type InitialDatasaet struct {
 	Versions    []InitialDatasetVersion `yaml:"versions"`
 }
 
-func (d *InitialDatasaet) ConvertToDBDataset() *database.Dataset {
-	return &database.Dataset{
+func (d *InitialDatasaet) ConvertToDBDataset() *model.Dataset {
+	return &model.Dataset{
 		Name:        d.Name,
 		Type:        d.Type,
 		Description: d.Description,
@@ -148,8 +146,8 @@ type InitialDatasetVersion struct {
 	Status consts.StatusType `yaml:"status"`
 }
 
-func (dv *InitialDatasetVersion) ConvertToDBDatasetVersion() *database.DatasetVersion {
-	return &database.DatasetVersion{
+func (dv *InitialDatasetVersion) ConvertToDBDatasetVersion() *model.DatasetVersion {
+	return &model.DatasetVersion{
 		Name:   dv.Name,
 		Status: dv.Status,
 	}
@@ -161,8 +159,8 @@ type InitialDataProject struct {
 	Status      consts.StatusType `yaml:"status"`
 }
 
-func (p *InitialDataProject) ConvertToDBProject() *database.Project {
-	return &database.Project{
+func (p *InitialDataProject) ConvertToDBProject() *model.Project {
+	return &model.Project{
 		Name:        p.Name,
 		Description: p.Description,
 		Status:      p.Status,
@@ -176,8 +174,8 @@ type InitialDataTeam struct {
 	Status      consts.StatusType `yaml:"status"`
 }
 
-func (t *InitialDataTeam) ConvertToDBTeam() *database.Team {
-	return &database.Team{
+func (t *InitialDataTeam) ConvertToDBTeam() *model.Team {
+	return &model.Team{
 		Name:        t.Name,
 		Description: t.Description,
 		IsPublic:    t.IsPublic,
@@ -207,8 +205,8 @@ type InitialDataUser struct {
 	Teams    []InitialUserTeam    `yaml:"teams"`
 }
 
-func (u *InitialDataUser) ConvertToDBUser() *database.User {
-	return &database.User{
+func (u *InitialDataUser) ConvertToDBUser() *model.User {
+	return &model.User{
 		Username: u.Username,
 		Email:    u.Email,
 		Password: u.Password,
@@ -230,17 +228,17 @@ type InitialData struct {
 
 type configData struct {
 	scope   consts.ConfigScope
-	configs []database.DynamicConfig
+	configs []model.DynamicConfig
 }
 
-func newConfigData(scope consts.ConfigScope) *configData {
-	configs, err := repository.ListExistingConfigs(database.DB)
+func newConfigDataWithDB(db *gorm.DB, scope consts.ConfigScope) (*configData, error) {
+	configs, err := newBootstrapStore(db).listExistingConfigs()
 	if err != nil {
-		logrus.Fatalf("Failed to check existing dynamic configs: %v", err)
+		return nil, err
 	}
 
 	return &configData{
 		scope:   scope,
 		configs: configs,
-	}
+	}, nil
 }
