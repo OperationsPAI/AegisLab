@@ -4,61 +4,49 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"text/tabwriter"
 )
 
 // Quiet suppresses informational messages when true.
 var Quiet bool
 
-// Format represents an output format.
-type Format string
+// OutputFormat represents the output format type.
+type OutputFormat string
 
-const FormatJSON Format = "json"
+const (
+	FormatTable OutputFormat = "table"
+	FormatJSON  OutputFormat = "json"
+)
 
-// OutputFormat normalizes a string flag to a Format value.
-func OutputFormat(s string) Format { return Format(s) }
-
-// PrintJSON marshals v to indented JSON and writes to stdout.
+// PrintJSON writes v as indented JSON to stdout.
 func PrintJSON(v any) {
 	data, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
-		PrintError(err)
+		fmt.Fprintf(os.Stderr, "error marshalling JSON: %v\n", err)
 		return
 	}
 	fmt.Fprintln(os.Stdout, string(data))
 }
 
-// PrintTable writes a formatted table to stdout with the given headers and rows.
+// PrintTable renders a simple ASCII table to stdout.
 func PrintTable(headers []string, rows [][]string) {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	for i, h := range headers {
-		if i > 0 {
-			fmt.Fprint(w, "\t")
-		}
-		fmt.Fprint(w, h)
-	}
-	fmt.Fprintln(w)
+	w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+	fmt.Fprintln(w, strings.Join(headers, "\t"))
 	for _, row := range rows {
-		for i, col := range row {
-			if i > 0 {
-				fmt.Fprint(w, "\t")
-			}
-			fmt.Fprint(w, col)
-		}
-		fmt.Fprintln(w)
+		fmt.Fprintln(w, strings.Join(row, "\t"))
 	}
-	w.Flush()
+	_ = w.Flush()
 }
 
-// PrintInfo writes an informational message to stderr (suppressed if Quiet).
+// PrintInfo writes an informational message to stderr (suppressed when Quiet).
 func PrintInfo(msg string) {
-	if Quiet {
-		return
+	if !Quiet {
+		fmt.Fprintln(os.Stderr, msg)
 	}
-	fmt.Fprintf(os.Stderr, "INFO: %s\n", msg)
 }
 
 // PrintError writes an error message to stderr.
 func PrintError(err error) {
-	fmt.Fprintf(os.Stderr, "ERROR: %s\n", err)
+	fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 }

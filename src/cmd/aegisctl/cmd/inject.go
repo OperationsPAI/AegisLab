@@ -1,10 +1,13 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -167,16 +170,75 @@ var injectSubmitCmd = &cobra.Command{
 		}
 
 		c := newClient()
+
+		// Try to translate human-readable specs to Nodes via the translate endpoint
+		translatedSpec := translateSpecsIfPossible(c, &spec)
+
 		path := fmt.Sprintf("/api/v2/projects/%d/injections/inject", pid)
 
 		var resp client.APIResponse[any]
-		if err := c.Post(path, spec, &resp); err != nil {
+		if err := c.Post(path, translatedSpec, &resp); err != nil {
 			return err
 		}
 
 		output.PrintJSON(resp.Data)
 		return nil
 	},
+}
+
+// translateSpecsIfPossible attempts to translate FaultSpec names to Nodes via the API.
+// Falls back to the original spec if the translate endpoint is unavailable.
+func translateSpecsIfPossible(c *client.Client, spec *InjectSpec) any {
+	// Build the translate request from the FaultSpec entries
+	if len(spec.Specs) == 0 {
+		return spec
+	}
+
+	translateReq := struct {
+		Specs [][]FaultSpec `json:"specs"`
+	}{
+		Specs: spec.Specs,
+	}
+
+	var translateResp client.APIResponse[json.RawMessage]
+	err := c.Post("/api/v2/injections/translate", translateReq, &translateResp)
+	if err != nil {
+		// Translate endpoint unavailable, fall back to original behavior
+		output.PrintInfo("Note: translate endpoint unavailable, submitting specs as-is")
+		return spec
+	}
+
+	// Parse the translate response
+	var result struct {
+		Nodes    [][]json.RawMessage `json:"nodes"`
+		Warnings []string            `json:"warnings"`
+	}
+	if err := json.Unmarshal(translateResp.Data, &result); err != nil {
+		output.PrintInfo("Note: failed to parse translate response, submitting specs as-is")
+		return spec
+	}
+
+	// Print any warnings
+	for _, w := range result.Warnings {
+		output.PrintInfo("Warning: " + w)
+	}
+
+	// Build the final submission with translated nodes
+	submission := map[string]any{
+		"pedestal":     spec.Pedestal,
+		"benchmark":    spec.Benchmark,
+		"interval":     spec.Interval,
+		"pre_duration": spec.PreDuration,
+		"specs":        result.Nodes,
+	}
+	if len(spec.Algorithms) > 0 {
+		submission["algorithms"] = spec.Algorithms
+	}
+	if len(spec.Labels) > 0 {
+		submission["labels"] = spec.Labels
+	}
+
+	return submission
 }
 
 // ---------- inject list ----------
@@ -434,18 +496,182 @@ var injectDownloadCmd = &cobra.Command{
 
 // ---------- inject metadata ----------
 
+var injectMetadataSystem string
+
 var injectMetadataCmd = &cobra.Command{
 	Use:   "metadata",
-	Short: "Show injection metadata (fault types, etc.)",
+	Short: "Show injection metadata (fault types, system mappings, field descriptions)",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		c := newClient()
-		var resp client.APIResponse[any]
+		path := "/api/v2/injections/metadata"
+		if injectMetadataSystem != "" {
+			path += "?system=" + injectMetadataSystem
+		}
+
+		var resp client.APIResponse[json.RawMessage]
+		if err := c.Get(path, &resp); err != nil {
+			return err
+		}
+
+		if output.OutputFormat(flagOutput) == output.FormatJSON {
+			output.PrintJSON(resp.Data)
+			return nil
+		}
+
+		// Parse into a map for table rendering
+		var meta map[string]json.RawMessage
+		if err := json.Unmarshal(resp.Data, &meta); err != nil {
+			output.PrintJSON(resp.Data)
+			return nil
+		}
+
+		// Fault type table
+		if raw, ok := meta["fault_type_map"]; ok {
+			var ftMap map[string]string
+			if err := json.Unmarshal(raw, &ftMap); err == nil {
+				output.PrintInfo("=== Fault Types ===")
+				headers := []string{"INDEX", "NAME"}
+				var rows [][]string
+				// Sort by index
+				type ftEntry struct {
+					idx  int
+					name string
+				}
+				var entries []ftEntry
+				for idxStr, name := range ftMap {
+					idx, _ := strconv.Atoi(idxStr)
+					entries = append(entries, ftEntry{idx, name})
+				}
+				sort.Slice(entries, func(i, j int) bool { return entries[i].idx < entries[j].idx })
+				for _, e := range entries {
+					rows = append(rows, []string{strconv.Itoa(e.idx), e.name})
+				}
+				output.PrintTable(headers, rows)
+				fmt.Println()
+			}
+		}
+
+		// System mapping table
+		if raw, ok := meta["system_map"]; ok {
+			var sysMap map[string]int
+			if err := json.Unmarshal(raw, &sysMap); err == nil && len(sysMap) > 0 {
+				output.PrintInfo("=== System Types ===")
+				headers := []string{"INDEX", "NAME"}
+				type sysEntry struct {
+					idx  int
+					name string
+				}
+				var entries []sysEntry
+				for name, idx := range sysMap {
+					entries = append(entries, sysEntry{idx, name})
+				}
+				sort.Slice(entries, func(i, j int) bool { return entries[i].idx < entries[j].idx })
+				var rows [][]string
+				for _, e := range entries {
+					rows = append(rows, []string{strconv.Itoa(e.idx), e.name})
+				}
+				output.PrintTable(headers, rows)
+				fmt.Println()
+			}
+		}
+
+		return nil
+	},
+}
+
+// ---------- inject describe ----------
+
+var injectDescribeCmd = &cobra.Command{
+	Use:   "describe <fault-type-name>",
+	Short: "Describe a fault type with field details and YAML template",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		faultTypeName := args[0]
+
+		c := newClient()
+		var resp client.APIResponse[json.RawMessage]
 		if err := c.Get("/api/v2/injections/metadata", &resp); err != nil {
 			return err
 		}
-		output.PrintJSON(resp.Data)
+
+		var meta struct {
+			FaultTypeReverseMap    map[string]int                       `json:"fault_type_reverse_map"`
+			FaultFieldDescriptions map[string][]fieldDescriptionCLI     `json:"fault_field_descriptions"`
+		}
+		if err := json.Unmarshal(resp.Data, &meta); err != nil {
+			return fmt.Errorf("failed to parse metadata: %w", err)
+		}
+
+		// Look up the fault type index
+		ftIdx, ok := meta.FaultTypeReverseMap[faultTypeName]
+		if !ok {
+			// Try case-insensitive
+			for name, idx := range meta.FaultTypeReverseMap {
+				if strings.EqualFold(name, faultTypeName) {
+					faultTypeName = name
+					ftIdx = idx
+					ok = true
+					break
+				}
+			}
+			if !ok {
+				return fmt.Errorf("unknown fault type: %q", faultTypeName)
+			}
+		}
+
+		if output.OutputFormat(flagOutput) == output.FormatJSON {
+			result := map[string]any{
+				"name":   faultTypeName,
+				"index":  ftIdx,
+				"fields": meta.FaultFieldDescriptions[faultTypeName],
+			}
+			output.PrintJSON(result)
+			return nil
+		}
+
+		// Print fault type header
+		fmt.Printf("Fault Type: %s (index: %d)\n\n", faultTypeName, ftIdx)
+
+		// Field table
+		fields := meta.FaultFieldDescriptions[faultTypeName]
+		if len(fields) > 0 {
+			headers := []string{"INDEX", "FIELD", "RANGE", "DYNAMIC", "DESCRIPTION"}
+			var rows [][]string
+			for _, f := range fields {
+				dynStr := ""
+				if f.IsDynamic {
+					dynStr = "yes"
+				}
+				rows = append(rows, []string{
+					strconv.Itoa(f.Index),
+					f.Name,
+					fmt.Sprintf("%d-%d", f.RangeMin, f.RangeMax),
+					dynStr,
+					f.Description,
+				})
+			}
+			output.PrintTable(headers, rows)
+		}
+
+		// YAML template
+		fmt.Printf("\nYAML Template:\n")
+		fmt.Printf("  - type: %s\n", faultTypeName)
+		fmt.Printf("    namespace: <namespace>\n")
+		fmt.Printf("    target: <target-service>\n")
+		fmt.Printf("    duration: \"60s\"\n")
+
 		return nil
 	},
+}
+
+// fieldDescriptionCLI mirrors utils.FieldDescription for CLI JSON parsing.
+type fieldDescriptionCLI struct {
+	Index       int    `json:"index"`
+	Name        string `json:"name"`
+	RangeMin    int    `json:"range_min"`
+	RangeMax    int    `json:"range_max"`
+	IsDynamic   bool   `json:"is_dynamic"`
+	Description string `json:"description"`
 }
 
 // ---------- init ----------
@@ -464,6 +690,8 @@ func init() {
 
 	injectDownloadCmd.Flags().StringVarP(&injectDownloadOutput, "output-file", "O", "", "Output file path")
 
+	injectMetadataCmd.Flags().StringVar(&injectMetadataSystem, "system", "", "System type for config and resources metadata")
+
 	injectCmd.AddCommand(injectSubmitCmd)
 	injectCmd.AddCommand(injectListCmd)
 	injectCmd.AddCommand(injectGetCmd)
@@ -472,4 +700,5 @@ func init() {
 	injectCmd.AddCommand(injectFilesCmd)
 	injectCmd.AddCommand(injectDownloadCmd)
 	injectCmd.AddCommand(injectMetadataCmd)
+	injectCmd.AddCommand(injectDescribeCmd)
 }

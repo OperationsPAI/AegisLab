@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -151,11 +152,24 @@ func GetInjectionMetadata(c *gin.Context) {
 
 	resource := resourceMap[system]
 
+	// Build extended metadata fields
+	systemMap := utils.BuildSystemIndexMap(chaos.GetAllSystemTypes())
+
+	reverseTypeMap := make(map[string]int, len(chaos.ChaosTypeMap))
+	for ct, name := range chaos.ChaosTypeMap {
+		reverseTypeMap[name] = int(ct)
+	}
+
+	fieldDescriptions := utils.ExtractFieldDescriptions(chaos.SpecMap)
+
 	dto.SuccessResponse(c, &dto.InjectionMetadataResp{
-		Config:           confNode,
-		FaultTypeMap:     chaos.ChaosTypeMap,
-		FaultResourceMap: faultResourceMap,
-		SystemResource:   resource,
+		Config:                 confNode,
+		FaultTypeMap:           chaos.ChaosTypeMap,
+		FaultResourceMap:       faultResourceMap,
+		SystemResource:         resource,
+		SystemMap:              systemMap,
+		FaultTypeReverseMap:    reverseTypeMap,
+		FaultFieldDescriptions: fieldDescriptions,
 	})
 }
 
@@ -653,6 +667,101 @@ func QueryDatapackFile(c *gin.Context) {
 		logrus.Errorf("failed to stream file content: %v", err)
 		return
 	}
+}
+
+// GetSystemMapping returns a mapping of system type names to integer indices.
+//
+//	@Summary		Get system type mapping
+//	@Description	Returns all registered system types with their integer indices, sorted alphabetically
+//	@Tags			Injections
+//	@ID				get_system_mapping
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{object}	dto.GenericResponse[dto.SystemMappingResp]	"System mapping retrieved successfully"
+//	@Failure		401	{object}	dto.GenericResponse[any]					"Authentication required"
+//	@Failure		500	{object}	dto.GenericResponse[any]					"Internal server error"
+//	@Router			/api/v2/injections/systems [get]
+func GetSystemMapping(c *gin.Context) {
+	allSystems := chaos.GetAllSystemTypes()
+	systemMap := utils.BuildSystemIndexMap(allSystems)
+
+	// Build sorted details list
+	details := make([]dto.SystemDetail, 0, len(systemMap))
+	for name, idx := range systemMap {
+		details = append(details, dto.SystemDetail{Name: name, Index: idx})
+	}
+	sort.Slice(details, func(i, j int) bool {
+		return details[i].Index < details[j].Index
+	})
+
+	dto.SuccessResponse(c, &dto.SystemMappingResp{
+		Systems:       systemMap,
+		SystemDetails: details,
+	})
+}
+
+// TranslateFaultSpecs translates human-readable fault specs into chaos.Node trees.
+//
+//	@Summary		Translate fault specs to Nodes
+//	@Description	Converts human-readable fault specifications (type names, durations, etc.) into the integer-indexed Node AST used by the injection engine
+//	@Tags			Injections
+//	@ID				translate_fault_specs
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body		dto.TranslateFaultSpecsReq							true	"Fault specs to translate"
+//	@Success		200		{object}	dto.GenericResponse[dto.TranslateFaultSpecsResp]	"Translation successful"
+//	@Failure		400		{object}	dto.GenericResponse[any]							"Invalid request"
+//	@Failure		401		{object}	dto.GenericResponse[any]							"Authentication required"
+//	@Failure		500		{object}	dto.GenericResponse[any]							"Internal server error"
+//	@Router			/api/v2/injections/translate [post]
+func TranslateFaultSpecs(c *gin.Context) {
+	var req dto.TranslateFaultSpecsReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
+		return
+	}
+
+	if len(req.Specs) == 0 {
+		dto.ErrorResponse(c, http.StatusBadRequest, "specs must not be empty")
+		return
+	}
+
+	reverseTypeMap := utils.BuildReverseTypeMap(chaos.ChaosTypeMap)
+	systemIndexMap := utils.BuildSystemIndexMap(chaos.GetAllSystemTypes())
+
+	var allWarnings []string
+	nodes := make([][]chaos.Node, 0, len(req.Specs))
+
+	for batchIdx, batch := range req.Specs {
+		batchNodes := make([]chaos.Node, 0, len(batch))
+		for specIdx, spec := range batch {
+			// Convert dto.FaultSpecInput to utils.FaultSpecInput
+			uSpec := utils.FaultSpecInput{
+				Type:      spec.Type,
+				Namespace: spec.Namespace,
+				Target:    spec.Target,
+				Duration:  spec.Duration,
+				Extra:     spec.Extra,
+			}
+			node, warnings, err := utils.TranslateFaultSpec(uSpec, reverseTypeMap, systemIndexMap)
+			if err != nil {
+				dto.ErrorResponse(c, http.StatusBadRequest,
+					fmt.Sprintf("batch[%d][%d]: %v", batchIdx, specIdx, err))
+				return
+			}
+			for _, w := range warnings {
+				allWarnings = append(allWarnings, fmt.Sprintf("batch[%d][%d]: %s", batchIdx, specIdx, w))
+			}
+			batchNodes = append(batchNodes, *node)
+		}
+		nodes = append(nodes, batchNodes)
+	}
+
+	dto.SuccessResponse(c, &dto.TranslateFaultSpecsResp{
+		Nodes:    nodes,
+		Warnings: allWarnings,
+	})
 }
 
 // ===================== Private Helper Functions =====================

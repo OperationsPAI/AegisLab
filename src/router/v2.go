@@ -491,6 +491,10 @@ func SetupV2Routes(router *gin.Engine) {
 		// Manual upload (must be before /:id routes)
 		injections.POST("/upload", v2handlers.UploadDatapack) // Upload manual datapack
 
+		// DSL translation endpoints (must be before /:id routes)
+		injections.GET("/systems", v2handlers.GetSystemMapping)     // Get system type mapping
+		injections.POST("/translate", v2handlers.TranslateFaultSpecs) // Translate fault specs to Nodes
+
 		// Injection Read operations
 		injections.GET("/:id", v2handlers.GetInjection)                        // Get injection by ID
 		injections.GET("/:id/download", v2handlers.DownloadDatapack)           // Download injection datapack
