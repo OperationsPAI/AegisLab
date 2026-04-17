@@ -96,7 +96,6 @@ func TestPrintJSON(t *testing.T) {
 	if parsed["key"] != "value" {
 		t.Errorf("parsed[\"key\"] = %q, want %q", parsed["key"], "value")
 	}
-	// Verify indentation
 	if !strings.Contains(got, "  ") {
 		t.Errorf("PrintJSON output should be indented, got: %q", got)
 	}
