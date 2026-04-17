@@ -358,17 +358,77 @@ func (req *SearchInjectionReq) ConvertToSearchReq() *SearchReq[consts.InjectionF
 	return sr
 }
 
+// FriendlyFaultSpec is a human-readable fault specification format used by CLI tools.
+// It is automatically converted to chaos.Node DSL on the server side.
+type FriendlyFaultSpec struct {
+	Type      string         `json:"type"`             // Fault type name (e.g., "CPUStress", "MemoryStress")
+	Namespace string         `json:"namespace"`        // Namespace prefix (e.g., "exp")
+	Target    string         `json:"target"`           // Target container/app name or numeric index
+	Duration  string         `json:"duration"`         // Duration as Go duration string (e.g., "60s", "5m") or integer minutes
+	Params    map[string]any `json:"params,omitempty"` // Additional spec-specific parameters (e.g., cpu_load, cpu_worker)
+}
+
 // SubmitInjectionReq represents a request to submit fault injection tasks with parallel fault support
-// Each element in Specs represents a batch of faults to be injected in parallel within a single experiment
+// Each element in Specs represents a batch of faults to be injected in parallel within a single experiment.
+// Specs accepts BOTH chaos.Node DSL (numeric tree) and FriendlyFaultSpec (human-readable YAML) formats.
+// Mixed formats within a single request are supported — each element is auto-detected.
 type SubmitInjectionReq struct {
-	ProjectName string          `json:"project_name" binding:"omitempty"`      // Project name
-	Pedestal    *ContainerSpec  `json:"pedestal" binding:"required"`           // Pedestal (workload) configuration
-	Benchmark   *ContainerSpec  `json:"benchmark" binding:"required"`          // Benchmark (detector) configuration
-	Interval    int             `json:"interval" binding:"required,min=1"`     // Total experiment interval in minutes
-	PreDuration int             `json:"pre_duration" binding:"required,min=1"` // Normal data collection duration before fault injection
-	Specs       [][]chaos.Node  `json:"specs" binding:"required"`              // Fault injection specs - 2D array where each sub-array is a batch of parallel faults
-	Algorithms  []ContainerSpec `json:"algorithms" binding:"omitempty"`        // RCA algorithms to execute (optional)
-	Labels      []LabelItem     `json:"labels" binding:"omitempty"`            // Labels to attach to the injection
+	ProjectName string              `json:"project_name" binding:"omitempty"`      // Project name
+	Pedestal    *ContainerSpec      `json:"pedestal" binding:"required"`           // Pedestal (workload) configuration
+	Benchmark   *ContainerSpec      `json:"benchmark" binding:"required"`          // Benchmark (detector) configuration
+	Interval    int                 `json:"interval" binding:"required,min=1"`     // Total experiment interval in minutes
+	PreDuration int                 `json:"pre_duration" binding:"required,min=1"` // Normal data collection duration before fault injection
+	Specs       [][]json.RawMessage `json:"specs" binding:"required"`              // Fault injection specs - accepts both chaos.Node DSL and FriendlyFaultSpec formats
+	Algorithms  []ContainerSpec     `json:"algorithms" binding:"omitempty"`        // RCA algorithms to execute (optional)
+	Labels      []LabelItem         `json:"labels" binding:"omitempty"`            // Labels to attach to the injection
+
+	// ResolvedSpecs holds the converted [][]chaos.Node after calling ResolveSpecs().
+	// Not serialized — populated server-side only.
+	ResolvedSpecs [][]chaos.Node `json:"-"`
+}
+
+// ResolveSpecs detects the format of each spec element (chaos.Node DSL vs FriendlyFaultSpec)
+// and converts all to [][]chaos.Node, storing the result in req.ResolvedSpecs.
+// The converter function handles FriendlyFaultSpec→Node conversion.
+func (req *SubmitInjectionReq) ResolveSpecs(converter func(*FriendlyFaultSpec) (chaos.Node, error)) error {
+	result := make([][]chaos.Node, len(req.Specs))
+	for i, batch := range req.Specs {
+		nodes := make([]chaos.Node, len(batch))
+		for j, raw := range batch {
+			var probe map[string]json.RawMessage
+			if err := json.Unmarshal(raw, &probe); err != nil {
+				return fmt.Errorf("specs[%d][%d]: invalid JSON: %w", i, j, err)
+			}
+
+			if typeRaw, hasType := probe["type"]; hasType {
+				// Check if "type" is a string (friendly format) vs something else
+				var typeStr string
+				if err := json.Unmarshal(typeRaw, &typeStr); err == nil {
+					// Friendly format detected
+					var friendly FriendlyFaultSpec
+					if err := json.Unmarshal(raw, &friendly); err != nil {
+						return fmt.Errorf("specs[%d][%d]: failed to parse friendly spec: %w", i, j, err)
+					}
+					node, err := converter(&friendly)
+					if err != nil {
+						return fmt.Errorf("specs[%d][%d]: failed to convert friendly spec: %w", i, j, err)
+					}
+					nodes[j] = node
+					continue
+				}
+			}
+
+			// chaos.Node DSL format
+			var node chaos.Node
+			if err := json.Unmarshal(raw, &node); err != nil {
+				return fmt.Errorf("specs[%d][%d]: failed to parse node spec: %w", i, j, err)
+			}
+			nodes[j] = node
+		}
+		result[i] = nodes
+	}
+	req.ResolvedSpecs = result
+	return nil
 }
 
 func (req *SubmitInjectionReq) Validate() error {
