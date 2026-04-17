@@ -40,12 +40,6 @@ func TestBackendSubmitterPostsExpectedPayload(t *testing.T) {
 		resolveProject: func() (int, error) {
 			return 42, nil
 		},
-		resolveSystemIndex: func(_ context.Context, system string) (int, error) {
-			if system != "ts" {
-				t.Fatalf("unexpected system lookup %q", system)
-			}
-			return 11, nil
-		},
 		defaults: &chaosDefaults{
 			pedestal:    "ts",
 			benchmark:   "clickhouse",
@@ -86,7 +80,14 @@ func TestBackendSubmitterPostsExpectedPayload(t *testing.T) {
 		t.Fatalf("expected one node in first batch, got %+v", firstBatch)
 	}
 	node, _ := firstBatch[0].(map[string]any)
-	if node["value"] == nil {
-		t.Fatalf("expected translated node payload, got %+v", node)
+	if node["type"] != "NetworkDelay" {
+		t.Fatalf("expected friendly fault spec payload, got %+v", node)
+	}
+	if node["namespace"] != "ts" || node["target"] != "0" || node["duration"] != "30s" {
+		t.Fatalf("unexpected friendly fault spec payload: %+v", node)
+	}
+	params, _ := node["params"].(map[string]any)
+	if params["target_service"] != "checkout" || params["latency"] != float64(100) {
+		t.Fatalf("unexpected fault params: %+v", params)
 	}
 }
