@@ -15,23 +15,28 @@ import (
 
 func TestBackendSubmitterPostsExpectedPayload(t *testing.T) {
 	var (
-		gotPath string
-		gotBody map[string]any
+		gotInjectPath string
+		gotInjectBody map[string]any
 	)
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotPath = r.URL.Path
-		if r.Method != http.MethodPost {
-			t.Fatalf("expected POST, got %s", r.Method)
+		switch r.URL.Path {
+		case "/api/v2/projects/42/injections/inject":
+			gotInjectPath = r.URL.Path
+			if r.Method != http.MethodPost {
+				t.Fatalf("expected POST inject, got %s", r.Method)
+			}
+			if err := json.NewDecoder(r.Body).Decode(&gotInjectBody); err != nil {
+				t.Fatalf("Decode inject body: %v", err)
+			}
+			_ = json.NewEncoder(w).Encode(aegisclient.APIResponse[any]{
+				Code:    0,
+				Message: "ok",
+				Data:    map[string]any{"id": 1},
+			})
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
 		}
-		if err := json.NewDecoder(r.Body).Decode(&gotBody); err != nil {
-			t.Fatalf("Decode() error = %v", err)
-		}
-		_ = json.NewEncoder(w).Encode(aegisclient.APIResponse[any]{
-			Code:    0,
-			Message: "ok",
-			Data:    map[string]any{"id": 1},
-		})
 	}))
 	defer srv.Close()
 
@@ -41,7 +46,7 @@ func TestBackendSubmitterPostsExpectedPayload(t *testing.T) {
 			return 42, nil
 		},
 		defaults: &chaosDefaults{
-			pedestal:    "ts",
+			pedestal:    "",
 			benchmark:   "clickhouse",
 			interval:    60,
 			preDuration: 30,
@@ -63,17 +68,17 @@ func TestBackendSubmitterPostsExpectedPayload(t *testing.T) {
 		t.Fatalf("Submit() error = %v", err)
 	}
 
-	if gotPath != "/api/v2/projects/42/injections/inject" {
-		t.Fatalf("expected project injection endpoint, got %q", gotPath)
+	if gotInjectPath != "/api/v2/projects/42/injections/inject" {
+		t.Fatalf("expected project injection endpoint, got %q", gotInjectPath)
 	}
-	pedestal, _ := gotBody["pedestal"].(map[string]any)
-	benchmark, _ := gotBody["benchmark"].(map[string]any)
+	pedestal, _ := gotInjectBody["pedestal"].(map[string]any)
+	benchmark, _ := gotInjectBody["benchmark"].(map[string]any)
 	if pedestal["name"] != "ts" || benchmark["name"] != "clickhouse" {
-		t.Fatalf("unexpected defaults: %+v", gotBody)
+		t.Fatalf("unexpected defaults: %+v", gotInjectBody)
 	}
-	specs, _ := gotBody["specs"].([]any)
+	specs, _ := gotInjectBody["specs"].([]any)
 	if len(specs) != 1 {
-		t.Fatalf("expected one fault spec batch, got %+v", gotBody["specs"])
+		t.Fatalf("expected one translated fault spec batch, got %+v", gotInjectBody["specs"])
 	}
 	firstBatch, _ := specs[0].([]any)
 	if len(firstBatch) != 1 {

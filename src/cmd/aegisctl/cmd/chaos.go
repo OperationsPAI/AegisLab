@@ -61,10 +61,10 @@ func (b *backendSubmitter) DryRun(_ context.Context, spec chaoscli.Spec, w io.Wr
 	return err
 }
 
-func (b *backendSubmitter) buildInjectSpec(spec chaoscli.Spec) InjectSpec {
-	return InjectSpec{
+func (b *backendSubmitter) buildInjectSpec(spec chaoscli.Spec) *InjectSpec {
+	return &InjectSpec{
 		Pedestal: ContainerRef{
-			Name: b.defaults.pedestal,
+			Name: valueOrDefault(b.defaults.pedestal, spec.Namespace),
 		},
 		Benchmark: ContainerRef{
 			Name: b.defaults.benchmark,
@@ -83,9 +83,16 @@ func (b *backendSubmitter) buildInjectSpec(spec chaoscli.Spec) InjectSpec {
 	}
 }
 
+func valueOrDefault(v, fallback string) string {
+	if v != "" {
+		return v
+	}
+	return fallback
+}
+
 func init() {
 	defaults := &chaosDefaults{
-		pedestal:    "ts",
+		pedestal:    "",
 		benchmark:   "clickhouse",
 		interval:    60,
 		preDuration: 30,
@@ -93,7 +100,7 @@ func init() {
 
 	chaosCmd := chaoscli.NewRootCmd(newBackendSubmitter(defaults))
 	chaosCmd.Short = "Create tracked chaos injections through the AegisLab backend"
-	chaosCmd.PersistentFlags().StringVar(&defaults.pedestal, "pedestal", defaults.pedestal, "Pedestal container name")
+	chaosCmd.PersistentFlags().StringVar(&defaults.pedestal, "pedestal", defaults.pedestal, "Pedestal container name (defaults to --namespace)")
 	chaosCmd.PersistentFlags().StringVar(&defaults.benchmark, "benchmark", defaults.benchmark, "Benchmark container name")
 	chaosCmd.PersistentFlags().IntVar(&defaults.interval, "interval", defaults.interval, "Experiment interval in minutes")
 	chaosCmd.PersistentFlags().IntVar(&defaults.preDuration, "pre-duration", defaults.preDuration, "Pre-injection duration in minutes")
