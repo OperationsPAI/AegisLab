@@ -840,6 +840,13 @@ func submitFaultInjectionCommon(c *gin.Context, projectID *int) {
 		return
 	}
 
+	// Resolve specs: auto-detect friendly YAML format vs chaos.Node DSL and convert all to chaos.Node
+	if err := req.ResolveSpecs(producer.FriendlySpecToNode); err != nil {
+		span.SetStatus(codes.Error, "spec conversion error in SubmitFaultInjection: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid fault spec: "+err.Error())
+		return
+	}
+
 	if req.ProjectName == "" && projectID == nil {
 		span.SetStatus(codes.Error, "validation error in SubmitFaultInjection: project name is required")
 		dto.ErrorResponse(c, http.StatusBadRequest, "Project name or ID is required")

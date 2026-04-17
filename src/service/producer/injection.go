@@ -862,11 +862,17 @@ func ProduceRestartPedestalTasks(ctx context.Context, req *dto.SubmitInjectionRe
 
 	benchmarkVersionItem.EnvVars = envVars
 
+	// Use ResolvedSpecs (populated by handler-level ResolveSpecs call) instead of raw Specs
+	specs := req.ResolvedSpecs
+	if len(specs) == 0 {
+		return nil, fmt.Errorf("no resolved specs available; call ResolveSpecs before ProduceRestartPedestalTasks")
+	}
+
 	// Parse each batch and collect items
-	processedItems := make([]injectionProcessItem, 0, len(req.Specs))
+	processedItems := make([]injectionProcessItem, 0, len(specs))
 	var parseWarnings []string
-	for i := range req.Specs {
-		item, warning, err := parseBatchInjectionSpecs(ctx, pedestalItem.ContainerName, i, req.Specs[i])
+	for i := range specs {
+		item, warning, err := parseBatchInjectionSpecs(ctx, pedestalItem.ContainerName, i, specs[i])
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse injection spec batch %d: %w", i, err)
 		}

@@ -42,7 +42,7 @@ type FaultSpec struct {
 	Namespace string         `yaml:"namespace" json:"namespace"`
 	Target    string         `yaml:"target"    json:"target"`
 	Duration  string         `yaml:"duration"  json:"duration"`
-	Extra     map[string]any `yaml:",inline"   json:"-"` // catch-all for flexibility
+	Params    map[string]any `yaml:"params,omitempty" json:"params,omitempty"` // Additional spec-specific parameters (e.g., cpu_load, cpu_worker)
 }
 
 // LabelItem is a key-value label.
