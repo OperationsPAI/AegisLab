@@ -15,12 +15,30 @@ import (
 
 func TestBackendSubmitterPostsExpectedPayload(t *testing.T) {
 	var (
-		gotInjectPath string
-		gotInjectBody map[string]any
+		gotTranslatePath string
+		gotTranslateBody map[string]any
+		gotInjectPath    string
+		gotInjectBody    map[string]any
 	)
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case "/api/v2/injections/translate":
+			gotTranslatePath = r.URL.Path
+			if r.Method != http.MethodPost {
+				t.Fatalf("expected POST translate, got %s", r.Method)
+			}
+			if err := json.NewDecoder(r.Body).Decode(&gotTranslateBody); err != nil {
+				t.Fatalf("Decode translate body: %v", err)
+			}
+			_ = json.NewEncoder(w).Encode(aegisclient.APIResponse[json.RawMessage]{
+				Code:    0,
+				Message: "ok",
+				Data: json.RawMessage(`{
+					"nodes": [[{"id": 7, "kind": "translated-node"}]],
+					"warnings": []
+				}`),
+			})
 		case "/api/v2/projects/42/injections/inject":
 			gotInjectPath = r.URL.Path
 			if r.Method != http.MethodPost {
@@ -68,8 +86,15 @@ func TestBackendSubmitterPostsExpectedPayload(t *testing.T) {
 		t.Fatalf("Submit() error = %v", err)
 	}
 
+	if gotTranslatePath != "/api/v2/injections/translate" {
+		t.Fatalf("expected translate endpoint, got %q", gotTranslatePath)
+	}
 	if gotInjectPath != "/api/v2/projects/42/injections/inject" {
 		t.Fatalf("expected project injection endpoint, got %q", gotInjectPath)
+	}
+	translateSpecs, _ := gotTranslateBody["specs"].([]any)
+	if len(translateSpecs) != 1 {
+		t.Fatalf("expected one translate spec batch, got %+v", gotTranslateBody["specs"])
 	}
 	pedestal, _ := gotInjectBody["pedestal"].(map[string]any)
 	benchmark, _ := gotInjectBody["benchmark"].(map[string]any)
@@ -78,21 +103,26 @@ func TestBackendSubmitterPostsExpectedPayload(t *testing.T) {
 	}
 	specs, _ := gotInjectBody["specs"].([]any)
 	if len(specs) != 1 {
-		t.Fatalf("expected one translated fault spec batch, got %+v", gotInjectBody["specs"])
+		t.Fatalf("expected one translated fault node batch, got %+v", gotInjectBody["specs"])
 	}
 	firstBatch, _ := specs[0].([]any)
 	if len(firstBatch) != 1 {
 		t.Fatalf("expected one node in first batch, got %+v", firstBatch)
 	}
 	node, _ := firstBatch[0].(map[string]any)
-	if node["type"] != "NetworkDelay" {
-		t.Fatalf("expected friendly fault spec payload, got %+v", node)
+	if node["id"] != float64(7) || node["kind"] != "translated-node" {
+		t.Fatalf("expected translated node payload, got %+v", node)
 	}
-	if node["namespace"] != "ts" || node["target"] != "0" || node["duration"] != "30s" {
-		t.Fatalf("unexpected friendly fault spec payload: %+v", node)
+	translateBatch, _ := translateSpecs[0].([]any)
+	if len(translateBatch) != 1 {
+		t.Fatalf("expected one friendly spec in translate batch, got %+v", translateBatch)
 	}
-	params, _ := node["params"].(map[string]any)
+	translateSpec, _ := translateBatch[0].(map[string]any)
+	if translateSpec["type"] != "NetworkDelay" || translateSpec["namespace"] != "ts" || translateSpec["target"] != "0" || translateSpec["duration"] != "30s" {
+		t.Fatalf("unexpected translate payload: %+v", translateSpec)
+	}
+	params, _ := translateSpec["params"].(map[string]any)
 	if params["target_service"] != "checkout" || params["latency"] != float64(100) {
-		t.Fatalf("unexpected fault params: %+v", params)
+		t.Fatalf("unexpected translate params: %+v", params)
 	}
 }
