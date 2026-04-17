@@ -138,7 +138,7 @@ SUPPORTED FAULT TYPES:
 
 NOTE: --project is required for submit, list, and search commands.
       It accepts project names (resolved to IDs automatically).
-      The 'target' field accepts container names (resolved to indices automatically).
+      The 'target' field accepts numeric container indices (use 'aegisctl inject metadata' to look up indices).
       Duration accepts Go time strings: "60s", "5m", "1h", etc.`,
 }
 

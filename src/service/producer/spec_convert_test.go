@@ -25,8 +25,6 @@ func TestFriendlySpecToNode_CPUStress(t *testing.T) {
 		Target:    "0", // container index as string
 		Duration:  "5m",
 		Params: map[string]any{
-			// Note: the local toSnakeCase produces "c_p_u_load" for "CPULoad",
-			// so we use the exact field name which is also accepted by mapParamsToFieldIndices.
 			"CPULoad":   80,
 			"CPUWorker": 2,
 		},
@@ -235,8 +233,7 @@ func TestFriendlySpecToNode_ParamsMapping(t *testing.T) {
 	setupNamespacePrefixes(t)
 
 	// Test that named params are correctly mapped to field indices via reflection.
-	// The local toSnakeCase produces "c_p_u_load" for "CPULoad" (not "cpu_load"),
-	// but mapParamsToFieldIndices also accepts exact field names and lowercase field names.
+	// mapParamsToFieldIndices accepts exact field names, lowercase field names, and snake_case names.
 	// JSON numbers are float64, so pass float64 values.
 	spec := &dto.FriendlyFaultSpec{
 		Type:      "CPUStress",
@@ -459,12 +456,9 @@ func TestFriendlySpecToNode_LowercaseParamNames(t *testing.T) {
 	}
 }
 
-func TestFriendlySpecToNode_SnakeCaseParamsMismatch(t *testing.T) {
+func TestFriendlySpecToNode_SnakeCaseParams(t *testing.T) {
 	setupNamespacePrefixes(t)
 
-	// The local toSnakeCase("CPULoad") = "c_p_u_load" (not "cpu_load").
-	// So "cpu_load" does NOT match and the param is silently skipped.
-	// This documents the known limitation.
 	spec := &dto.FriendlyFaultSpec{
 		Type:      "CPUStress",
 		Namespace: "ts",
@@ -485,9 +479,65 @@ func TestFriendlySpecToNode_SnakeCaseParamsMismatch(t *testing.T) {
 		t.Fatal("expected child key '4'")
 	}
 
-	// "cpu_load" doesn't match any registered key, so it's silently skipped
-	if _, ok := typeChild.Children["3"]; ok {
-		t.Error("did not expect child '3' (CPULoad) when using 'cpu_load' param key (snake_case mismatch)")
+	// After toSnakeCase fix, "cpu_load" should now match CPULoad (field index 3)
+	if cpuLoad, ok := typeChild.Children["3"]; ok {
+		if cpuLoad.Value != 80 {
+			t.Errorf("expected CPULoad=80, got %d", cpuLoad.Value)
+		}
+	} else {
+		t.Error("expected child '3' (CPULoad) to exist via snake_case key 'cpu_load'")
+	}
+}
+
+func TestFriendlySpecToNode_UnknownParamError(t *testing.T) {
+	setupNamespacePrefixes(t)
+
+	spec := &dto.FriendlyFaultSpec{
+		Type:      "CPUStress",
+		Namespace: "ts",
+		Target:    "0",
+		Duration:  "5m",
+		Params: map[string]any{
+			"nonexistent_param": float64(99),
+		},
+	}
+
+	_, err := FriendlySpecToNode(spec)
+	if err == nil {
+		t.Fatal("expected error for unknown param, got nil")
+	}
+}
+
+func TestFriendlySpecToNode_NonNumericTargetError(t *testing.T) {
+	setupNamespacePrefixes(t)
+
+	spec := &dto.FriendlyFaultSpec{
+		Type:      "CPUStress",
+		Namespace: "ts",
+		Target:    "frontend", // non-numeric, should error
+		Duration:  "5m",
+	}
+
+	_, err := FriendlySpecToNode(spec)
+	if err == nil {
+		t.Fatal("expected error for non-numeric target, got nil")
+	}
+}
+
+func TestFriendlySpecToNode_LooseNamespaceNoMatch(t *testing.T) {
+	setupNamespacePrefixes(t)
+	// "ts" is the only registered prefix
+
+	spec := &dto.FriendlyFaultSpec{
+		Type:      "CPUStress",
+		Namespace: "t", // "t" should NOT match "ts" anymore (strict matching)
+		Target:    "0",
+		Duration:  "5m",
+	}
+
+	_, err := FriendlySpecToNode(spec)
+	if err == nil {
+		t.Fatal("expected error for namespace 't' not matching 'ts' (strict matching), got nil")
 	}
 }
 
@@ -582,9 +632,6 @@ func TestParseDurationToMinutes(t *testing.T) {
 }
 
 func TestToSnakeCase(t *testing.T) {
-	// Note: the local toSnakeCase implementation inserts underscore before each uppercase letter,
-	// which is simpler than the chaos-experiment utils.ToSnakeCase (regex-based).
-	// "CPULoad" -> "c_p_u_load" with the simple approach.
 	tests := []struct {
 		input    string
 		expected string
@@ -593,6 +640,10 @@ func TestToSnakeCase(t *testing.T) {
 		{"Namespace", "namespace"},
 		{"MemorySize", "memory_size"},
 		{"", ""},
+		{"CPULoad", "cpu_load"},
+		{"CPUWorker", "cpu_worker"},
+		{"HTTPDelay", "http_delay"},
+		{"ContainerIdx", "container_idx"},
 	}
 
 	for _, tc := range tests {
@@ -606,18 +657,21 @@ func TestToSnakeCase(t *testing.T) {
 }
 
 func TestToSnakeCase_ConsecutiveUppercase(t *testing.T) {
-	// The simple toSnakeCase inserts _ before every uppercase letter:
-	// "CPULoad" -> "c_p_u_load"
-	// Verify actual behavior rather than assuming.
-	result := toSnakeCase("CPULoad")
-	// Just verify it returns a non-empty string and is lowercase
-	if result == "" {
-		t.Error("expected non-empty result for CPULoad")
+	tests := []struct{ input, expected string }{
+		{"CPULoad", "cpu_load"},
+		{"CPUWorker", "cpu_worker"},
+		{"HTTPDelay", "http_delay"},
+		{"DNSError", "dns_error"},
+		{"IOLatency", "io_latency"},
 	}
-	t.Logf("toSnakeCase(\"CPULoad\") = %q", result)
-
-	result2 := toSnakeCase("ContainerIdx")
-	t.Logf("toSnakeCase(\"ContainerIdx\") = %q", result2)
+	for _, tc := range tests {
+		t.Run(tc.input, func(t *testing.T) {
+			result := toSnakeCase(tc.input)
+			if result != tc.expected {
+				t.Errorf("toSnakeCase(%q) = %q, want %q", tc.input, result, tc.expected)
+			}
+		})
+	}
 }
 
 func TestToInt(t *testing.T) {

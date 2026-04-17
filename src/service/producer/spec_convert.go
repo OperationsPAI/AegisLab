@@ -61,7 +61,7 @@ func FriendlySpecToNode(spec *dto.FriendlyFaultSpec) (chaos.Node, error) {
 	// Resolve target to a numeric index.
 	// The target field maps to the 3rd field (index 2) of the spec struct,
 	// which is ContainerIdx, AppIdx, etc. depending on the fault type.
-	// If target is a numeric string, use it directly. Otherwise default to 0.
+	// Target must be a numeric string or empty (defaults to 0).
 	targetIdx, err := resolveTargetIndex(spec.Target)
 	if err != nil {
 		return chaos.Node{}, fmt.Errorf("failed to resolve target %q: %w", spec.Target, err)
@@ -131,16 +131,9 @@ func resolveNamespaceIndex(namespace string) (int, error) {
 		return 0, nil
 	}
 
-	// Exact match
+	// Exact match only
 	for idx, prefix := range chaos.NamespacePrefixs {
 		if prefix == namespace {
-			return idx, nil
-		}
-	}
-
-	// Prefix-based match (e.g., "exp" matches "exp" prefix)
-	for idx, prefix := range chaos.NamespacePrefixs {
-		if strings.HasPrefix(prefix, namespace) || strings.HasPrefix(namespace, prefix) {
 			return idx, nil
 		}
 	}
@@ -149,8 +142,8 @@ func resolveNamespaceIndex(namespace string) (int, error) {
 }
 
 // resolveTargetIndex resolves the target field to a numeric index.
-// If target is numeric, parse it directly. If it's a name string, return 0 with
-// a note that the downstream pipeline will validate against the actual cluster state.
+// If target is empty, defaults to 0. If numeric, parses directly.
+// Non-numeric non-empty targets return an error.
 func resolveTargetIndex(target string) (int, error) {
 	if target == "" {
 		return 0, nil
@@ -161,12 +154,8 @@ func resolveTargetIndex(target string) (int, error) {
 		return idx, nil
 	}
 
-	// Non-numeric target: the name-to-index resolution requires K8s cluster state
-	// (via resourcelookup, which is internal to chaos-experiment).
-	// Return 0 as default — users should use the `aegisctl inject metadata` command
-	// to look up numeric indices for named targets before submission.
-	// TODO: When chaos-experiment exposes public lookup APIs, resolve names here.
-	return 0, nil
+	// Non-numeric, non-empty target is an error — users must use numeric indices.
+	return 0, fmt.Errorf("target %q is not a valid numeric index; use 'aegisctl inject metadata' to look up numeric indices", target)
 }
 
 // getSpecType returns the zero-value spec struct for a given ChaosType index.
@@ -206,8 +195,15 @@ func mapParamsToFieldIndices(params map[string]any, specType any, children map[s
 			idx, ok = nameToIdx[strings.ToLower(key)]
 		}
 		if !ok {
-			// Unknown params are silently skipped to allow forward compatibility
-			continue
+			available := make([]string, 0, len(nameToIdx))
+			seen := make(map[int]bool)
+			for name, fieldIdx := range nameToIdx {
+				if !seen[fieldIdx] {
+					seen[fieldIdx] = true
+					available = append(available, name)
+				}
+			}
+			return fmt.Errorf("unknown param %q, available fields: %v", key, available)
 		}
 
 		intVal, err := toInt(val)
@@ -221,13 +217,23 @@ func mapParamsToFieldIndices(params map[string]any, specType any, children map[s
 	return nil
 }
 
-// toSnakeCase converts CamelCase to snake_case (e.g., "CPULoad" → "cpu_load").
+// toSnakeCase converts CamelCase to snake_case, handling consecutive uppercase runs.
+// e.g., "CPULoad" → "cpu_load", "CPUWorker" → "cpu_worker", "MemorySize" → "memory_size".
 func toSnakeCase(s string) string {
 	var result strings.Builder
-	for i, r := range s {
+	runes := []rune(s)
+	for i, r := range runes {
 		if r >= 'A' && r <= 'Z' {
 			if i > 0 {
-				result.WriteByte('_')
+				prev := runes[i-1]
+				// Insert underscore on lowercase→uppercase transition,
+				// or when this uppercase letter is followed by a lowercase letter
+				// (end of an uppercase run, e.g., the 'L' in "CPULoad").
+				if prev >= 'a' && prev <= 'z' {
+					result.WriteByte('_')
+				} else if prev >= 'A' && prev <= 'Z' && i+1 < len(runes) && runes[i+1] >= 'a' && runes[i+1] <= 'z' {
+					result.WriteByte('_')
+				}
 			}
 			result.WriteRune(r + ('a' - 'A'))
 		} else {
