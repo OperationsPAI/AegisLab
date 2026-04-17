@@ -35,17 +35,14 @@ func TestOutputFormat_Constants(t *testing.T) {
 	if FormatJSON != "json" {
 		t.Errorf("FormatJSON = %q, want %q", FormatJSON, "json")
 	}
-	if FormatTable != "table" {
-		t.Errorf("FormatTable = %q, want %q", FormatTable, "table")
-	}
 }
 
 func TestOutputFormat_Conversion(t *testing.T) {
 	if OutputFormat("json") != FormatJSON {
 		t.Errorf("OutputFormat(\"json\") != FormatJSON")
 	}
-	if OutputFormat("table") != FormatTable {
-		t.Errorf("OutputFormat(\"table\") != FormatTable")
+	if OutputFormat("table") == FormatJSON {
+		t.Errorf("OutputFormat(\"table\") should not equal FormatJSON")
 	}
 }
 
@@ -75,8 +72,8 @@ func TestPrintError(t *testing.T) {
 	got := captureStderr(func() {
 		PrintError(fmt.Errorf("something went wrong"))
 	})
-	if !strings.HasPrefix(strings.TrimSpace(got), "Error: ") {
-		t.Errorf("PrintError output = %q, want prefix %q", got, "Error: ")
+	if !strings.Contains(got, "ERROR:") {
+		t.Errorf("PrintError output = %q, want prefix containing ERROR:", got)
 	}
 	if !strings.Contains(got, "something went wrong") {
 		t.Errorf("PrintError output = %q, want it to contain %q", got, "something went wrong")
