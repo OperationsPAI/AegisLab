@@ -72,8 +72,8 @@ func TestPrintError(t *testing.T) {
 	got := captureStderr(func() {
 		PrintError(fmt.Errorf("something went wrong"))
 	})
-	if !strings.Contains(got, "ERROR:") {
-		t.Errorf("PrintError output = %q, want prefix containing ERROR:", got)
+	if !strings.Contains(got, "Error:") {
+		t.Errorf("PrintError output = %q, want prefix containing Error:", got)
 	}
 	if !strings.Contains(got, "something went wrong") {
 		t.Errorf("PrintError output = %q, want it to contain %q", got, "something went wrong")
