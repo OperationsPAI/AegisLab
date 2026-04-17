@@ -77,10 +77,14 @@ func TestBackendSubmitterPostsExpectedPayload(t *testing.T) {
 	}
 	firstBatch, _ := specs[0].([]any)
 	if len(firstBatch) != 1 {
-		t.Fatalf("expected one node in first batch, got %+v", firstBatch)
+		t.Fatalf("expected one spec in first batch, got %+v", firstBatch)
 	}
-	node, _ := firstBatch[0].(map[string]any)
-	if node["value"] == nil {
-		t.Fatalf("expected translated node payload, got %+v", node)
+	faultSpec, _ := firstBatch[0].(map[string]any)
+	if faultSpec["type"] != "NetworkDelay" {
+		t.Fatalf("expected friendly fault type, got %+v", faultSpec)
+	}
+	params, _ := faultSpec["params"].(map[string]any)
+	if params["target_service"] != "checkout" {
+		t.Fatalf("expected target_service to be preserved, got %+v", faultSpec)
 	}
 }

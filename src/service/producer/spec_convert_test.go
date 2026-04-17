@@ -8,20 +8,21 @@ import (
 	chaos "github.com/OperationsPAI/chaos-experiment/handler"
 )
 
-func setupNamespacePrefixes(t *testing.T) {
+func setupNamespacePrefixes(t *testing.T) (string, int) {
 	t.Helper()
-	// Set up NamespacePrefixs so FriendlySpecToNode can resolve namespace names.
-	// In production this is set by InitTargetConfig which requires K8s.
-	chaos.NamespacePrefixs = []string{"ts"}
-	chaos.NamespaceTargetMap = map[string]int{"ts": 1}
+	systems := chaos.GetAllSystemTypes()
+	if len(systems) == 0 {
+		t.Fatal("expected at least one registered chaos system")
+	}
+	return systems[0].String(), 0
 }
 
 func TestFriendlySpecToNode_CPUStress(t *testing.T) {
-	setupNamespacePrefixes(t)
+	namespace, namespaceIdx := setupNamespacePrefixes(t)
 
 	spec := &dto.FriendlyFaultSpec{
 		Type:      "CPUStress",
-		Namespace: "ts",
+		Namespace: namespace,
 		Target:    "0", // container index as string
 		Duration:  "5m",
 		Params: map[string]any{
@@ -61,10 +62,10 @@ func TestFriendlySpecToNode_CPUStress(t *testing.T) {
 		t.Error("expected child '0' (Duration) to exist")
 	}
 
-	// Field 1 = Namespace index: "ts" -> index 0
+	// Field 1 = Namespace index in the registered system list.
 	if ns, ok := typeChild.Children["1"]; ok {
-		if ns.Value != 0 {
-			t.Errorf("expected namespace Value=0, got %d", ns.Value)
+		if ns.Value != namespaceIdx {
+			t.Errorf("expected namespace Value=%d, got %d", namespaceIdx, ns.Value)
 		}
 	} else {
 		t.Error("expected child '1' (Namespace) to exist")
@@ -141,11 +142,11 @@ func TestFriendlySpecToNode_InvalidDuration(t *testing.T) {
 }
 
 func TestFriendlySpecToNode_MemoryStress(t *testing.T) {
-	setupNamespacePrefixes(t)
+	namespace, _ := setupNamespacePrefixes(t)
 
 	spec := &dto.FriendlyFaultSpec{
 		Type:      "MemoryStress",
-		Namespace: "ts",
+		Namespace: namespace,
 		Target:    "0",
 		Duration:  "10m",
 		Params: map[string]any{
@@ -198,12 +199,12 @@ func TestFriendlySpecToNode_MemoryStress(t *testing.T) {
 }
 
 func TestFriendlySpecToNode_DurationCeiling(t *testing.T) {
-	setupNamespacePrefixes(t)
+	namespace, _ := setupNamespacePrefixes(t)
 
 	// 90s should become 2 minutes (ceiling)
 	spec := &dto.FriendlyFaultSpec{
 		Type:      "CPUStress",
-		Namespace: "ts",
+		Namespace: namespace,
 		Target:    "0",
 		Duration:  "90s",
 		Params: map[string]any{
@@ -232,7 +233,7 @@ func TestFriendlySpecToNode_DurationCeiling(t *testing.T) {
 }
 
 func TestFriendlySpecToNode_ParamsMapping(t *testing.T) {
-	setupNamespacePrefixes(t)
+	namespace, _ := setupNamespacePrefixes(t)
 
 	// Test that named params are correctly mapped to field indices via reflection.
 	// The local toSnakeCase produces "c_p_u_load" for "CPULoad" (not "cpu_load"),
@@ -240,7 +241,7 @@ func TestFriendlySpecToNode_ParamsMapping(t *testing.T) {
 	// JSON numbers are float64, so pass float64 values.
 	spec := &dto.FriendlyFaultSpec{
 		Type:      "CPUStress",
-		Namespace: "ts",
+		Namespace: namespace,
 		Target:    "0",
 		Duration:  "5m",
 		Params: map[string]any{
@@ -310,11 +311,11 @@ func TestFriendlySpecToNode_EmptyNamespaceDefaultsToZero(t *testing.T) {
 }
 
 func TestFriendlySpecToNode_EmptyTargetDefaultsToZero(t *testing.T) {
-	setupNamespacePrefixes(t)
+	namespace, _ := setupNamespacePrefixes(t)
 
 	spec := &dto.FriendlyFaultSpec{
 		Type:      "CPUStress",
-		Namespace: "ts",
+		Namespace: namespace,
 		Target:    "", // empty target should default to index 0
 		Duration:  "5m",
 	}
@@ -339,12 +340,12 @@ func TestFriendlySpecToNode_EmptyTargetDefaultsToZero(t *testing.T) {
 }
 
 func TestFriendlySpecToNode_CaseInsensitiveType(t *testing.T) {
-	setupNamespacePrefixes(t)
+	namespace, _ := setupNamespacePrefixes(t)
 
 	// The init() populates lowercase keys too, so "cpustress" should work.
 	spec := &dto.FriendlyFaultSpec{
 		Type:      "cpustress",
-		Namespace: "ts",
+		Namespace: namespace,
 		Duration:  "5m",
 	}
 
@@ -359,12 +360,12 @@ func TestFriendlySpecToNode_CaseInsensitiveType(t *testing.T) {
 }
 
 func TestFriendlySpecToNode_NoParams(t *testing.T) {
-	setupNamespacePrefixes(t)
+	namespace, _ := setupNamespacePrefixes(t)
 
 	// A spec without Params should still produce correct Duration/Namespace/Target nodes
 	spec := &dto.FriendlyFaultSpec{
 		Type:      "CPUStress",
-		Namespace: "ts",
+		Namespace: namespace,
 		Target:    "0",
 		Duration:  "5m",
 	}
@@ -396,11 +397,11 @@ func TestFriendlySpecToNode_NoParams(t *testing.T) {
 }
 
 func TestFriendlySpecToNode_NodeTreeStructure(t *testing.T) {
-	setupNamespacePrefixes(t)
+	namespace, _ := setupNamespacePrefixes(t)
 
 	spec := &dto.FriendlyFaultSpec{
 		Type:      "CPUStress",
-		Namespace: "ts",
+		Namespace: namespace,
 		Duration:  "5m",
 	}
 
@@ -426,12 +427,12 @@ func TestFriendlySpecToNode_NodeTreeStructure(t *testing.T) {
 }
 
 func TestFriendlySpecToNode_LowercaseParamNames(t *testing.T) {
-	setupNamespacePrefixes(t)
+	namespace, _ := setupNamespacePrefixes(t)
 
 	// Lowercase field names (e.g., "cpuload") are also accepted by mapParamsToFieldIndices.
 	spec := &dto.FriendlyFaultSpec{
 		Type:      "CPUStress",
-		Namespace: "ts",
+		Namespace: namespace,
 		Target:    "0",
 		Duration:  "5m",
 		Params: map[string]any{
@@ -460,14 +461,14 @@ func TestFriendlySpecToNode_LowercaseParamNames(t *testing.T) {
 }
 
 func TestFriendlySpecToNode_SnakeCaseParamsMismatch(t *testing.T) {
-	setupNamespacePrefixes(t)
+	namespace, _ := setupNamespacePrefixes(t)
 
 	// The local toSnakeCase("CPULoad") = "c_p_u_load" (not "cpu_load").
 	// So "cpu_load" does NOT match and the param is silently skipped.
 	// This documents the known limitation.
 	spec := &dto.FriendlyFaultSpec{
 		Type:      "CPUStress",
-		Namespace: "ts",
+		Namespace: namespace,
 		Target:    "0",
 		Duration:  "5m",
 		Params: map[string]any{
