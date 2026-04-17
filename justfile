@@ -188,6 +188,14 @@ update-dependencies:
     cd {{src_dir}} && go get -u github.com/OperationsPAI/chaos-experiment@injectionv2-dev && go mod tidy
     printf "{{green}}✅ Dependencies update completed{{reset}}\n"
 
+# 🔨 Build aegisctl CLI binary
+build-aegisctl output="/tmp/aegisctl":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    printf "{{blue}}🔨 Building aegisctl...{{reset}}\n"
+    cd {{src_dir}} && go build -o {{output}} ./cmd/aegisctl
+    printf "{{green}}✅ aegisctl built: {{output}}{{reset}}\n"
+
 # =============================================================================
 # Chaos Management
 # =============================================================================
