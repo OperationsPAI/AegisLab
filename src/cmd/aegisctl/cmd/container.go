@@ -12,12 +12,19 @@ import (
 // Local structs for container API responses.
 
 type containerDetail struct {
-	ID        int    `json:"id"`
-	Name      string `json:"name"`
-	Type      string `json:"type"`
-	Status    string `json:"status"`
-	CreatedAt string `json:"created_at"`
-	UpdatedAt string `json:"updated_at"`
+	ID        int                    `json:"id"`
+	Name      string                 `json:"name"`
+	Type      string                 `json:"type"`
+	Status    string                 `json:"status"`
+	Versions  []containerVersionItem `json:"versions"`
+	CreatedAt string                 `json:"created_at"`
+	UpdatedAt string                 `json:"updated_at"`
+}
+
+type containerGetOutput struct {
+	containerDetail
+	DefaultVersion string `json:"default_version"`
+	VersionCount   int    `json:"version_count"`
 }
 
 type containerListItem struct {
@@ -106,17 +113,30 @@ var containerGetCmd = &cobra.Command{
 			return err
 		}
 
+		versionCount := len(resp.Data.Versions)
+		defaultVersion := "(none)"
+		if versionCount > 0 {
+			defaultVersion = resp.Data.Versions[0].Name
+		}
+
 		if output.OutputFormat(flagOutput) == output.FormatJSON {
-			output.PrintJSON(resp.Data)
+			out := containerGetOutput{
+				containerDetail: resp.Data,
+				DefaultVersion:  defaultVersion,
+				VersionCount:    versionCount,
+			}
+			output.PrintJSON(out)
 			return nil
 		}
 
-		fmt.Printf("Name:    %s\n", resp.Data.Name)
-		fmt.Printf("ID:      %d\n", resp.Data.ID)
-		fmt.Printf("Type:    %s\n", resp.Data.Type)
-		fmt.Printf("Status:  %s\n", resp.Data.Status)
-		fmt.Printf("Created: %s\n", resp.Data.CreatedAt)
-		fmt.Printf("Updated: %s\n", resp.Data.UpdatedAt)
+		fmt.Printf("Name:     %s\n", resp.Data.Name)
+		fmt.Printf("ID:       %d\n", resp.Data.ID)
+		fmt.Printf("Type:     %s\n", resp.Data.Type)
+		fmt.Printf("Status:   %s\n", resp.Data.Status)
+		fmt.Printf("Versions: %d\n", versionCount)
+		fmt.Printf("Default:  %s\n", defaultVersion)
+		fmt.Printf("Created:  %s\n", resp.Data.CreatedAt)
+		fmt.Printf("Updated:  %s\n", resp.Data.UpdatedAt)
 		return nil
 	},
 }
