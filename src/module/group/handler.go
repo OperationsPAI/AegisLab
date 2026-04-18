@@ -19,10 +19,10 @@ import (
 )
 
 type Handler struct {
-	service *Service
+	service HandlerService
 }
 
-func NewHandler(service *Service) *Handler {
+func NewHandler(service HandlerService) *Handler {
 	return &Handler{service: service}
 }
 
@@ -113,7 +113,7 @@ func (h *Handler) GetGroupStream(c *gin.Context) {
 		"stream_key": streamKey,
 	})
 
-	processor, err := h.service.NewGroupStreamProcessor(groupID)
+	processor, err := h.service.NewGroupStreamProcessor(ctx, groupID)
 	if err != nil {
 		logEntry.Errorf("Failed to initialize group stream processor: %v", err)
 		dto.ErrorResponse(c, http.StatusInternalServerError, fmt.Sprintf("Failed to initialize group stream: %v", err))

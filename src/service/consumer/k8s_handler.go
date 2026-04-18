@@ -12,6 +12,7 @@ import (
 	"aegis/dto"
 	k8sinfra "aegis/infra/k8s"
 	redisinfra "aegis/infra/redis"
+	containermodule "aegis/module/container"
 	"aegis/service/common"
 	"aegis/utils"
 
@@ -135,10 +136,10 @@ type k8sHandler struct {
 	batchManager *FaultBatchManager
 }
 
-func NewHandler(db *gorm.DB, monitor NamespaceMonitor, algoLimiter *TokenBucketRateLimiter, k8sGateway *k8sinfra.Gateway, redisGateway *redisinfra.Gateway, batchManager *FaultBatchManager) *k8sHandler {
+func NewHandler(db *gorm.DB, monitor NamespaceMonitor, algoLimiter *TokenBucketRateLimiter, k8sGateway *k8sinfra.Gateway, redisGateway *redisinfra.Gateway, batchManager *FaultBatchManager, execution ExecutionOwner, injection InjectionOwner) *k8sHandler {
 	return &k8sHandler{
 		db:           db,
-		store:        newStateStore(db),
+		store:        newStateStore(execution, injection),
 		monitor:      monitor,
 		algoLimiter:  algoLimiter,
 		k8sGateway:   k8sGateway,
@@ -229,7 +230,7 @@ func (h *k8sHandler) HandleCRDFailed(name string, annotations map[string]string,
 	errCtx := NewErrorContext(taskCtx, h.db, h.redisGateway, taskSpan, &parsedLabels.taskIdentifiers)
 
 	postprocess := func(injectionName string) {
-		if err := h.store.updateInjectionState(injectionName, consts.DatapackInjectFailed); err != nil {
+		if err := h.store.updateInjectionState(taskCtx, injectionName, consts.DatapackInjectFailed); err != nil {
 			errCtx.Warn(nil, "update injection state failed", err)
 		}
 	}
@@ -290,11 +291,11 @@ func (h *k8sHandler) HandleCRDSucceeded(namespace, pod, name string, startTime, 
 	errCtx := NewErrorContext(taskCtx, h.db, h.redisGateway, taskSpan, &parsedLabels.taskIdentifiers)
 
 	postProcess := func(injectionName string) {
-		if err := h.store.updateInjectionState(injectionName, consts.DatapackInjectSuccess); err != nil {
+		if err := h.store.updateInjectionState(taskCtx, injectionName, consts.DatapackInjectSuccess); err != nil {
 			errCtx.Warn(nil, "update injection state failed", err)
 		}
 
-		datapack, err := h.store.updateInjectionTimestamp(injectionName, startTime, endTime)
+		datapack, err := h.store.updateInjectionTimestamp(taskCtx, injectionName, startTime, endTime)
 		if err != nil {
 			errCtx.Warn(nil, "update injection timestamps failed", err)
 			return
@@ -463,7 +464,7 @@ func (h *k8sHandler) HandleJobFailed(job *batchv1.Job, annotations map[string]st
 			JobName:  job.Name,
 		}
 
-		if err := h.store.updateInjectionState(parsedAnnotations.datapack.Name, consts.DatapackBuildFailed); err != nil {
+		if err := h.store.updateInjectionState(taskCtx, parsedAnnotations.datapack.Name, consts.DatapackBuildFailed); err != nil {
 			errCtx.Warn(nil, "update injection state failed", err)
 		}
 
@@ -499,12 +500,12 @@ func (h *k8sHandler) HandleJobFailed(job *batchv1.Job, annotations map[string]st
 		}
 
 		if parsedAnnotations.algorithm.ContainerName == config.GetDetectorName() {
-			if err := h.store.updateInjectionState(parsedAnnotations.datapack.Name, consts.DatapackDetectorFailed); err != nil {
+			if err := h.store.updateInjectionState(taskCtx, parsedAnnotations.datapack.Name, consts.DatapackDetectorFailed); err != nil {
 				errCtx.Warn(nil, "update injection state failed", err)
 			}
 		}
 
-		if err := h.store.updateExecutionState(*parsedLabels.ExecutionID, consts.ExecutionFailed); err != nil {
+		if err := h.store.updateExecutionState(taskCtx, *parsedLabels.ExecutionID, consts.ExecutionFailed); err != nil {
 			errCtx.Fatal(nil, "update execution state failed", err)
 			return
 		}
@@ -567,7 +568,7 @@ func (h *k8sHandler) HandleJobSucceeded(job *batchv1.Job, annotations map[string
 		logEntry.Info("datapack build successfully")
 		taskSpan.AddEvent("datapack build successfully")
 
-		if err := h.store.updateInjectionState(parsedAnnotations.datapack.Name, consts.DatapackBuildSuccess); err != nil {
+		if err := h.store.updateInjectionState(taskCtx, parsedAnnotations.datapack.Name, consts.DatapackBuildSuccess); err != nil {
 			errCtx.Fatal(nil, "update injection state failed", err)
 			return
 		}
@@ -592,7 +593,7 @@ func (h *k8sHandler) HandleJobSucceeded(job *batchv1.Job, annotations map[string
 			Name: config.GetDetectorName(),
 		}
 
-		algorithmVersionResults, err := common.MapRefsToContainerVersionsWithDB(h.db, []*dto.ContainerRef{ref}, consts.ContainerTypeAlgorithm, parsedLabels.userID)
+		algorithmVersionResults, err := containermodule.NewRepository(h.db).ResolveContainerVersions([]*dto.ContainerRef{ref}, consts.ContainerTypeAlgorithm, parsedLabels.userID)
 		if err != nil {
 			errCtx.Fatal(nil, "failed to map container refs to versions", err)
 			return
@@ -657,13 +658,13 @@ func (h *k8sHandler) HandleJobSucceeded(job *batchv1.Job, annotations map[string
 		taskSpan.AddEvent("algorithm execute successfully")
 
 		if parsedAnnotations.algorithm.ContainerName == config.GetDetectorName() {
-			if err := h.store.updateInjectionState(parsedAnnotations.datapack.Name, consts.DatapackDetectorSuccess); err != nil {
+			if err := h.store.updateInjectionState(taskCtx, parsedAnnotations.datapack.Name, consts.DatapackDetectorSuccess); err != nil {
 				errCtx.Fatal(nil, "update injection state failed", err)
 				return
 			}
 		}
 
-		if err := h.store.updateExecutionState(*parsedLabels.ExecutionID, consts.ExecutionSuccess); err != nil {
+		if err := h.store.updateExecutionState(taskCtx, *parsedLabels.ExecutionID, consts.ExecutionSuccess); err != nil {
 			errCtx.Fatal(nil, "update execution state failed", err)
 			return
 		}

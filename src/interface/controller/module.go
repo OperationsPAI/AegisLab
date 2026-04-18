@@ -23,13 +23,15 @@ var Module = fx.Module("controller",
 type Params struct {
 	fx.In
 
-	Controller   *k8sinfra.Controller
-	K8sGateway   *k8sinfra.Gateway
-	RedisGateway *redisinfra.Gateway
-	DB           *gorm.DB
-	Monitor      consumer.NamespaceMonitor
-	AlgoLimiter  *consumer.TokenBucketRateLimiter `name:"algo_limiter"`
-	BatchManager *consumer.FaultBatchManager
+	Controller     *k8sinfra.Controller
+	K8sGateway     *k8sinfra.Gateway
+	RedisGateway   *redisinfra.Gateway
+	DB             *gorm.DB
+	Monitor        consumer.NamespaceMonitor
+	AlgoLimiter    *consumer.TokenBucketRateLimiter `name:"algo_limiter"`
+	BatchManager   *consumer.FaultBatchManager
+	ExecutionOwner consumer.ExecutionOwner
+	InjectionOwner consumer.InjectionOwner
 }
 
 type Lifecycle struct {
@@ -47,7 +49,20 @@ func (r *Lifecycle) start(ctx context.Context, cancel context.CancelFunc) error 
 		return r.RunFunc(ctx, cancel)
 	}
 	k8slogger.SetLogger(stdr.New(log.New(os.Stdout, "", log.LstdFlags)))
-	go r.params.Controller.Initialize(ctx, cancel, consumer.NewHandler(r.params.DB, r.params.Monitor, r.params.AlgoLimiter, r.params.K8sGateway, r.params.RedisGateway, r.params.BatchManager))
+	go r.params.Controller.Initialize(
+		ctx,
+		cancel,
+		consumer.NewHandler(
+			r.params.DB,
+			r.params.Monitor,
+			r.params.AlgoLimiter,
+			r.params.K8sGateway,
+			r.params.RedisGateway,
+			r.params.BatchManager,
+			r.params.ExecutionOwner,
+			r.params.InjectionOwner,
+		),
+	)
 	return nil
 }
 

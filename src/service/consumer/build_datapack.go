@@ -51,11 +51,6 @@ func (p *datapackJobCreationParams) toK8sJobConfig(envVars []corev1.EnvVar, volu
 	}
 }
 
-// executeBuildDatapack handles the execution of a datapack building task
-func executeBuildDatapack(ctx context.Context, task *dto.UnifiedTask) error {
-	return executeBuildDatapackWithDeps(ctx, task, RuntimeDeps{})
-}
-
 func executeBuildDatapackWithDeps(ctx context.Context, task *dto.UnifiedTask, deps RuntimeDeps) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		span := trace.SpanFromContext(childCtx)

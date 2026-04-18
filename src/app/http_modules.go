@@ -26,6 +26,13 @@ import (
 	"go.uber.org/fx"
 )
 
+func ExecutionInjectionOwnerModules() fx.Option {
+	return fx.Options(
+		executionmodule.Module,
+		injectionmodule.Module,
+	)
+}
+
 func ProducerHTTPModules() fx.Option {
 	return fx.Options(
 		authmodule.Module,
@@ -33,9 +40,8 @@ func ProducerHTTPModules() fx.Option {
 		containermodule.Module,
 		datasetmodule.Module,
 		evaluationmodule.Module,
-		executionmodule.Module,
+		ExecutionInjectionOwnerModules(),
 		groupmodule.Module,
-		injectionmodule.Module,
 		labelmodule.Module,
 		metricmodule.Module,
 		notificationmodule.Module,

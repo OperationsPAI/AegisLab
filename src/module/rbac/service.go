@@ -23,8 +23,8 @@ func NewService(repo *Repository) *Service {
 func (s *Service) CreateRole(_ context.Context, req *CreateRoleReq) (*RoleResp, error) {
 	role := req.ConvertToRole()
 
-	if err := s.repo.Transaction(func(tx *gorm.DB) error {
-		if err := s.repo.withDB(tx).createRoleRecord(role); err != nil {
+	if err := s.repo.db.Transaction(func(tx *gorm.DB) error {
+		if err := NewRepository(tx).createRoleRecord(role); err != nil {
 			if errors.Is(err, gorm.ErrDuplicatedKey) {
 				return fmt.Errorf("%w: role with name %s already exists", consts.ErrAlreadyExists, role.Name)
 			}
@@ -39,8 +39,8 @@ func (s *Service) CreateRole(_ context.Context, req *CreateRoleReq) (*RoleResp, 
 }
 
 func (s *Service) DeleteRole(_ context.Context, roleID int) error {
-	return s.repo.Transaction(func(tx *gorm.DB) error {
-		rows, err := s.repo.withDB(tx).deleteRoleCascade(roleID)
+	return s.repo.db.Transaction(func(tx *gorm.DB) error {
+		rows, err := NewRepository(tx).deleteRoleCascade(roleID)
 		if err != nil {
 			if errors.Is(err, consts.ErrNotFound) {
 				return fmt.Errorf("%w: role not found", consts.ErrNotFound)
@@ -95,8 +95,8 @@ func (s *Service) ListRoles(_ context.Context, req *ListRoleReq) (*dto.ListResp[
 func (s *Service) UpdateRole(_ context.Context, req *UpdateRoleReq, roleID int) (*RoleResp, error) {
 	var updatedRole *model.Role
 
-	err := s.repo.Transaction(func(tx *gorm.DB) error {
-		repo := s.repo.withDB(tx)
+	err := s.repo.db.Transaction(func(tx *gorm.DB) error {
+		repo := NewRepository(tx)
 		role, err := repo.updateMutableRole(roleID, func(existingRole *model.Role) {
 			req.PatchRoleModel(existingRole)
 		})
@@ -114,9 +114,9 @@ func (s *Service) UpdateRole(_ context.Context, req *UpdateRoleReq, roleID int) 
 }
 
 func (s *Service) AssignRolePermissions(_ context.Context, permissionIDs []int, roleID int) error {
-	return s.repo.Transaction(func(tx *gorm.DB) error {
-		repo := s.repo.withDB(tx)
-		if err := repo.AssignRolePermissions(roleID, permissionIDs); err != nil {
+	return s.repo.db.Transaction(func(tx *gorm.DB) error {
+		repo := NewRepository(tx)
+		if err := repo.assignRolePermissions(roleID, permissionIDs); err != nil {
 			if errors.Is(err, gorm.ErrDuplicatedKey) {
 				return fmt.Errorf("%w: role already has one or more of these permissions", consts.ErrAlreadyExists)
 			}
@@ -127,9 +127,9 @@ func (s *Service) AssignRolePermissions(_ context.Context, permissionIDs []int, 
 }
 
 func (s *Service) RemoveRolePermissions(_ context.Context, permissionIDs []int, roleID int) error {
-	return s.repo.Transaction(func(tx *gorm.DB) error {
-		repo := s.repo.withDB(tx)
-		if err := repo.RemoveRolePermissions(roleID, permissionIDs); err != nil {
+	return s.repo.db.Transaction(func(tx *gorm.DB) error {
+		repo := NewRepository(tx)
+		if err := repo.removeRolePermissions(roleID, permissionIDs); err != nil {
 			return fmt.Errorf("failed to remove permissions from role: %w", err)
 		}
 		return nil

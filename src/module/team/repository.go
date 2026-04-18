@@ -4,9 +4,9 @@ import (
 	"aegis/consts"
 	"aegis/dto"
 	"aegis/model"
+	projectmodule "aegis/module/project"
 	"errors"
 	"fmt"
-	"time"
 
 	"gorm.io/gorm"
 )
@@ -16,14 +16,6 @@ type Repository struct {
 }
 
 func NewRepository(db *gorm.DB) *Repository {
-	return &Repository{db: db}
-}
-
-func (r *Repository) Transaction(fn func(tx *gorm.DB) error) error {
-	return r.db.Transaction(fn)
-}
-
-func (r *Repository) withDB(db *gorm.DB) *Repository {
 	return &Repository{db: db}
 }
 
@@ -49,29 +41,28 @@ func (r *Repository) createTeamWithCreator(team *model.Team, userID int) error {
 	return nil
 }
 
-func (r *Repository) loadTeamDetail(teamID int) (*model.Team, int, int, error) {
+func (r *Repository) loadTeamDetailBase(teamID int) (*model.Team, int, error) {
 	team, err := r.loadTeam(teamID)
 	if err != nil {
-		return nil, 0, 0, err
+		return nil, 0, err
 	}
 
-	userCount, err := r.countTeamUsers(teamID)
-	if err != nil {
-		return nil, 0, 0, err
-	}
-	projectCount, err := r.countTeamProjects(teamID)
-	if err != nil {
-		return nil, 0, 0, err
+	var userCount int64
+	if err := r.db.Model(&model.UserTeam{}).
+		Where("team_id = ? AND status = ?", teamID, consts.CommonEnabled).
+		Count(&userCount).Error; err != nil {
+		return nil, 0, err
 	}
 
-	return team, userCount, projectCount, nil
+	return team, int(userCount), nil
 }
 
 func (r *Repository) listVisibleTeams(limit, offset int, req *ListTeamReq, userID int, isAdmin bool) ([]model.Team, int64, error) {
 	var teamIDs []int
 	if !isAdmin {
-		teamIDs, err := r.listVisibleTeamIDsForUser(userID)
-		if err != nil {
+		if err := r.db.Model(&model.UserTeam{}).
+			Where("user_id = ? AND status = ?", userID, consts.CommonEnabled).
+			Pluck("team_id", &teamIDs).Error; err != nil {
 			return nil, 0, err
 		}
 		if len(teamIDs) == 0 {
@@ -140,14 +131,14 @@ func (r *Repository) listTeamProjectViews(teamID, limit, offset int, isPublic *b
 		projectIDs = append(projectIDs, project.ID)
 	}
 
-	statsMap, err := listTeamProjectStatistics(r.db, projectIDs)
+	statsMap, err := projectmodule.NewRepository(r.db).ListProjectStatistics(projectIDs)
 	if err != nil {
 		return nil, nil, 0, err
 	}
 	return projects, statsMap, total, nil
 }
 
-func (r *Repository) AddMember(teamID int, username string, roleID int) error {
+func (r *Repository) addMember(teamID int, username string, roleID int) error {
 	if _, err := r.loadTeam(teamID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return consts.ErrNotFound
@@ -159,8 +150,9 @@ func (r *Repository) AddMember(teamID int, username string, roleID int) error {
 	if err := r.db.Where("username = ?", username).First(&user).Error; err != nil {
 		return fmt.Errorf("failed to find user with username %s: %w", username, err)
 	}
-	if err := r.ensureRoleExists(roleID); err != nil {
-		return err
+	var role model.Role
+	if err := r.db.Where("id = ? AND status != ?", roleID, consts.CommonDeleted).First(&role).Error; err != nil {
+		return fmt.Errorf("failed to find role with id %d: %w", roleID, err)
 	}
 
 	if err := r.db.Omit("active_user_team").Create(&model.UserTeam{
@@ -174,7 +166,7 @@ func (r *Repository) AddMember(teamID int, username string, roleID int) error {
 	return nil
 }
 
-func (r *Repository) RemoveMember(teamID, userID int) (int64, error) {
+func (r *Repository) removeMember(teamID, userID int) (int64, error) {
 	if _, err := r.loadTeam(teamID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return 0, consts.ErrNotFound
@@ -191,15 +183,16 @@ func (r *Repository) RemoveMember(teamID, userID int) (int64, error) {
 	return result.RowsAffected, nil
 }
 
-func (r *Repository) UpdateMemberRole(teamID, targetUserID, roleID int) error {
+func (r *Repository) updateMemberRole(teamID, targetUserID, roleID int) error {
 	if _, err := r.loadTeam(teamID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return consts.ErrNotFound
 		}
 		return err
 	}
-	if err := r.ensureRoleExists(roleID); err != nil {
-		return err
+	var role model.Role
+	if err := r.db.Where("id = ? AND status != ?", roleID, consts.CommonDeleted).First(&role).Error; err != nil {
+		return fmt.Errorf("failed to find role with id %d: %w", roleID, err)
 	}
 
 	var userTeam model.UserTeam
@@ -212,7 +205,7 @@ func (r *Repository) UpdateMemberRole(teamID, targetUserID, roleID int) error {
 	return r.db.Save(&userTeam).Error
 }
 
-func (r *Repository) ListTeamMembers(teamID, limit, offset int) ([]TeamMemberResp, int64, error) {
+func (r *Repository) listTeamMembers(teamID, limit, offset int) ([]TeamMemberResp, int64, error) {
 	if _, err := r.loadTeam(teamID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, 0, consts.ErrNotFound
@@ -256,7 +249,7 @@ func (r *Repository) loadUserTeamMembership(userID, teamID int) (*model.UserTeam
 	return &userTeam, nil
 }
 
-func (r *Repository) DeleteTeam(teamID int) (int64, error) {
+func (r *Repository) deleteTeam(teamID int) (int64, error) {
 	result := r.db.Model(&model.Team{}).
 		Where("id = ? AND status != ?", teamID, consts.CommonDeleted).
 		Update("status", consts.CommonDeleted)
@@ -274,98 +267,10 @@ func (r *Repository) isTeamPublic(teamID int) (bool, error) {
 	return team.IsPublic, nil
 }
 
-func (r *Repository) ensureRoleExists(roleID int) error {
-	var role model.Role
-	if err := r.db.Where("id = ? AND status != ?", roleID, consts.CommonDeleted).First(&role).Error; err != nil {
-		return fmt.Errorf("failed to find role with id %d: %w", roleID, err)
-	}
-	return nil
-}
-
 func (r *Repository) loadTeam(teamID int) (*model.Team, error) {
 	var team model.Team
 	if err := r.db.Where("id = ?", teamID).First(&team).Error; err != nil {
 		return nil, fmt.Errorf("failed to find team with id %d: %w", teamID, err)
 	}
 	return &team, nil
-}
-
-func (r *Repository) countTeamUsers(teamID int) (int, error) {
-	var userCount int64
-	if err := r.db.Model(&model.UserTeam{}).
-		Where("team_id = ? AND status = ?", teamID, consts.CommonEnabled).
-		Count(&userCount).Error; err != nil {
-		return 0, fmt.Errorf("failed to get team user count: %w", err)
-	}
-	return int(userCount), nil
-}
-
-func (r *Repository) countTeamProjects(teamID int) (int, error) {
-	var projectCount int64
-	if err := r.db.Model(&model.Project{}).
-		Where("team_id = ? AND status != ?", teamID, consts.CommonDeleted).
-		Count(&projectCount).Error; err != nil {
-		return 0, fmt.Errorf("failed to get team project count: %w", err)
-	}
-	return int(projectCount), nil
-}
-
-func (r *Repository) listVisibleTeamIDsForUser(userID int) ([]int, error) {
-	var teamIDs []int
-	if err := r.db.Model(&model.UserTeam{}).
-		Where("user_id = ? AND status = ?", userID, consts.CommonEnabled).
-		Pluck("team_id", &teamIDs).Error; err != nil {
-		return nil, fmt.Errorf("failed to get user teams: %w", err)
-	}
-	return teamIDs, nil
-}
-
-func listTeamProjectStatistics(db *gorm.DB, projectIDs []int) (map[int]*dto.ProjectStatistics, error) {
-	statsMap := make(map[int]*dto.ProjectStatistics, len(projectIDs))
-	for _, projectID := range projectIDs {
-		statsMap[projectID] = &dto.ProjectStatistics{}
-	}
-	if len(projectIDs) == 0 {
-		return statsMap, nil
-	}
-
-	var injectionStats []struct {
-		ProjectID int
-		Count     int64
-		LastAt    *time.Time
-	}
-	if err := db.Table("fault_injections fi").
-		Select("tr.project_id, COUNT(*) as count, MAX(fi.updated_at) as last_at").
-		Joins("JOIN tasks t ON fi.task_id = t.id").
-		Joins("JOIN traces tr ON t.trace_id = tr.id").
-		Where("tr.project_id IN (?)", projectIDs).
-		Group("tr.project_id").
-		Scan(&injectionStats).Error; err != nil {
-		return nil, fmt.Errorf("failed to batch get injection statistics: %w", err)
-	}
-	for _, stat := range injectionStats {
-		statsMap[stat.ProjectID].InjectionCount = int(stat.Count)
-		statsMap[stat.ProjectID].LastInjectionAt = stat.LastAt
-	}
-
-	var executionStats []struct {
-		ProjectID int
-		Count     int64
-		LastAt    *time.Time
-	}
-	if err := db.Table("executions e").
-		Select("tr.project_id, COUNT(*) as count, MAX(e.updated_at) as last_at").
-		Joins("JOIN tasks t ON e.task_id = t.id").
-		Joins("JOIN traces tr ON t.trace_id = tr.id").
-		Where("tr.project_id IN (?)", projectIDs).
-		Group("tr.project_id").
-		Scan(&executionStats).Error; err != nil {
-		return nil, fmt.Errorf("failed to batch get execution statistics: %w", err)
-	}
-	for _, stat := range executionStats {
-		statsMap[stat.ProjectID].ExecutionCount = int(stat.Count)
-		statsMap[stat.ProjectID].LastExecutionAt = stat.LastAt
-	}
-
-	return statsMap, nil
 }

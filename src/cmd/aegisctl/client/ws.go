@@ -55,14 +55,16 @@ func (r *WSReader) Stream(ctx context.Context) (<-chan string, <-chan error) {
 			errs <- fmt.Errorf("websocket connect: %w", err)
 			return
 		}
-		defer conn.Close()
+		defer func() {
+			_ = conn.Close()
+		}()
 
 		// Close the connection when context is cancelled.
 		go func() {
 			<-ctx.Done()
-			conn.WriteMessage(websocket.CloseMessage,
+			_ = conn.WriteMessage(websocket.CloseMessage,
 				websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-			conn.Close()
+			_ = conn.Close()
 		}()
 
 		for {

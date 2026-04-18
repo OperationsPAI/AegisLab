@@ -60,6 +60,36 @@ experiment_storage_path = "/mnt/jfs/experiment_storage"
 [buildkit]
 address = "localhost:1234"
 
+[clients.iam]
+target = "localhost:9091"
+
+[clients.orchestrator]
+target = "localhost:9092"
+
+[clients.resource]
+target = "localhost:9093"
+
+[clients.runtime]
+target = "localhost:9094"
+
+[clients.system]
+target = "localhost:9095"
+
+[iam.grpc]
+addr = ":9091"
+
+[orchestrator.grpc]
+addr = ":9092"
+
+[resource.grpc]
+addr = ":9093"
+
+[runtime_worker.grpc]
+addr = ":9094"
+
+[system.grpc]
+addr = ":9095"
+
 [loki]
 address = "http://10.10.10.161:3100"
 timeout = "10s"

@@ -187,6 +187,15 @@ func (ds DatapackState) MarshalJSON() ([]byte, error) {
 	return json.Marshal(GetDatapackStateName(ds))
 }
 
+func (ds *DatapackState) UnmarshalJSON(data []byte) error {
+	var stateName string
+	if err := json.Unmarshal(data, &stateName); err != nil {
+		return err
+	}
+	*ds = *GetDatapackStateByName(stateName)
+	return nil
+}
+
 type ExecutionState int
 
 const (

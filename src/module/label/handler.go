@@ -12,10 +12,10 @@ import (
 )
 
 type Handler struct {
-	service *Service
+	service HandlerService
 }
 
-func NewHandler(service *Service) *Handler { return &Handler{service: service} }
+func NewHandler(service HandlerService) *Handler { return &Handler{service: service} }
 
 // BatchDeleteLabels handles batch deletion of labels
 //

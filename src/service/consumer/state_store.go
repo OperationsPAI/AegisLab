@@ -1,100 +1,55 @@
 package consumer
 
 import (
-	"aegis/consts"
-	"aegis/dto"
-	"aegis/model"
-	"aegis/repository"
-	"errors"
+	"context"
 	"fmt"
 	"time"
 
-	"gorm.io/gorm"
+	"aegis/consts"
+	"aegis/dto"
+	executionmodule "aegis/module/execution"
+	injectionmodule "aegis/module/injection"
 )
 
 type stateStore struct {
-	db *gorm.DB
+	execution ExecutionOwner
+	injection InjectionOwner
 }
 
-func newStateStore(db *gorm.DB) *stateStore {
-	return &stateStore{db: db}
-}
-
-func (s *stateStore) updateExecutionState(executionID int, newState consts.ExecutionState) error {
-	return s.db.Transaction(func(tx *gorm.DB) error {
-		execution, err := repository.GetExecutionByID(tx, executionID)
-		if err != nil {
-			if errorsIsRecordNotFound(err) {
-				return fmt.Errorf("%w: execution %d not found", consts.ErrNotFound, executionID)
-			}
-			return fmt.Errorf("execution %d not found: %w", executionID, err)
-		}
-
-		if execution.State != consts.ExecutionInitial {
-			return fmt.Errorf("cannot change state of execution %d from %s to %s", executionID, consts.GetExecutionStateName(execution.State), consts.GetExecutionStateName(newState))
-		}
-
-		if err := repository.UpdateExecution(tx, executionID, map[string]any{
-			"state": newState,
-		}); err != nil {
-			return fmt.Errorf("failed to update execution %d duration: %w", executionID, err)
-		}
-
-		return nil
-	})
-}
-
-func (s *stateStore) updateInjectionState(injectionName string, newState consts.DatapackState) error {
-	return s.db.Transaction(func(tx *gorm.DB) error {
-		injection, err := repository.GetInjectionByName(tx, injectionName, false)
-		if err != nil {
-			return fmt.Errorf("failed to get injection %s: %w", injectionName, err)
-		}
-
-		if err := repository.UpdateInjection(tx, injection.ID, map[string]any{
-			"state": newState,
-		}); err != nil {
-			return fmt.Errorf("failed to update injection %s state: %w", injectionName, err)
-		}
-
-		return nil
-	})
-}
-
-func (s *stateStore) updateInjectionTimestamp(injectionName string, startTime time.Time, endTime time.Time) (*dto.InjectionItem, error) {
-	var updatedInjection *model.FaultInjection
-	err := s.db.Transaction(func(tx *gorm.DB) error {
-		injection, err := repository.GetInjectionByName(tx, injectionName, false)
-		if err != nil {
-			if errorsIsRecordNotFound(err) {
-				return fmt.Errorf("injection %s not found", injectionName)
-			}
-			return fmt.Errorf("failed to get injection %s: %w", injectionName, err)
-		}
-
-		if err = repository.UpdateInjection(tx, injection.ID, map[string]any{
-			"start_time": startTime,
-			"end_time":   endTime,
-		}); err != nil {
-			return fmt.Errorf("update injection timestamps failed: %w", err)
-		}
-
-		reloadedInjection, err := repository.GetInjectionByID(tx, injection.ID)
-		if err != nil {
-			return fmt.Errorf("failed to reload injection %d after update: %w", injection.ID, err)
-		}
-
-		updatedInjection = reloadedInjection
-		return nil
-	})
-	if err != nil {
-		return nil, err
+func newStateStore(execution ExecutionOwner, injection InjectionOwner) *stateStore {
+	return &stateStore{
+		execution: execution,
+		injection: injection,
 	}
-
-	injectionItem := dto.NewInjectionItem(updatedInjection)
-	return &injectionItem, nil
 }
 
-func errorsIsRecordNotFound(err error) bool {
-	return errors.Is(err, gorm.ErrRecordNotFound)
+func (s *stateStore) updateExecutionState(ctx context.Context, executionID int, newState consts.ExecutionState) error {
+	if s.execution == nil {
+		return fmt.Errorf("execution owner service is nil")
+	}
+	return s.execution.UpdateExecutionState(ctx, &executionmodule.RuntimeUpdateExecutionStateReq{
+		ExecutionID: executionID,
+		State:       newState,
+	})
+}
+
+func (s *stateStore) updateInjectionState(ctx context.Context, injectionName string, newState consts.DatapackState) error {
+	if s.injection == nil {
+		return fmt.Errorf("injection owner service is nil")
+	}
+	return s.injection.UpdateInjectionState(ctx, &injectionmodule.RuntimeUpdateInjectionStateReq{
+		Name:  injectionName,
+		State: newState,
+	})
+}
+
+func (s *stateStore) updateInjectionTimestamp(ctx context.Context, injectionName string, startTime time.Time, endTime time.Time) (*dto.InjectionItem, error) {
+	if s.injection == nil {
+		return nil, fmt.Errorf("injection owner service is nil")
+	}
+	return s.injection.UpdateInjectionTimestamps(ctx, &injectionmodule.RuntimeUpdateInjectionTimestampReq{
+		Name:      injectionName,
+		StartTime: startTime,
+		EndTime:   endTime,
+	})
 }

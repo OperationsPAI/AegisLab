@@ -10,9 +10,13 @@ import (
 	"aegis/dto"
 	redisinfra "aegis/infra/redis"
 	"aegis/model"
+	containermodule "aegis/module/container"
+	injectionmodule "aegis/module/injection"
+	labelmodule "aegis/module/label"
 	"aegis/service/common"
 	"aegis/utils"
 
+	chaos "github.com/OperationsPAI/chaos-experiment/handler"
 	"gorm.io/gorm"
 )
 
@@ -67,7 +71,7 @@ func (s *Service) SubmitAlgorithmExecution(ctx context.Context, req *SubmitExecu
 		refs = append(refs, &req.Specs[i].Algorithm.ContainerRef)
 	}
 
-	algorithmVersionResults, err := common.MapRefsToContainerVersionsWithDB(db, refs, consts.ContainerTypeAlgorithm, userID)
+	algorithmVersionResults, err := containermodule.NewRepository(db).ResolveContainerVersions(refs, consts.ContainerTypeAlgorithm, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to map container refs to versions: %w", err)
 	}
@@ -77,7 +81,7 @@ func (s *Service) SubmitAlgorithmExecution(ctx context.Context, req *SubmitExecu
 
 	var allExecutionItems []SubmitExecutionItem
 	for idx, spec := range req.Specs {
-		datapacks, datasetID, err := common.ExtractDatapacks(s.repo.db, spec.Datapack, spec.Dataset, userID, consts.TaskTypeRunAlgorithm)
+		datapacks, datasetID, err := injectionmodule.NewRepository(s.repo.db).ResolveDatapacks(spec.Datapack, spec.Dataset, userID, consts.TaskTypeRunAlgorithm)
 		if err != nil {
 			return nil, fmt.Errorf("failed to extract datapacks: %w", err)
 		}
@@ -93,7 +97,7 @@ func (s *Service) SubmitAlgorithmExecution(ctx context.Context, req *SubmitExecu
 			}
 
 			algorithmItem := dto.NewContainerVersionItem(&algorithmVersion)
-			envVars, err := common.ListContainerVersionEnvVarsWithDB(db, spec.Algorithm.EnvVars, &algorithmVersion)
+			envVars, err := containermodule.NewRepository(db).ListContainerVersionEnvVars(spec.Algorithm.EnvVars, &algorithmVersion)
 			if err != nil {
 				return nil, fmt.Errorf("failed to list algorithm env vars: %w", err)
 			}
@@ -183,6 +187,30 @@ func (s *Service) GetExecution(_ context.Context, id int) (*ExecutionDetailResp,
 	return resp, nil
 }
 
+func (s *Service) ListEvaluationExecutionsByDatapack(_ context.Context, req *EvaluationExecutionsByDatapackReq) ([]EvaluationExecutionItem, error) {
+	if req == nil {
+		return nil, fmt.Errorf("evaluation datapack query is nil")
+	}
+
+	executions, err := s.repo.listEvaluationExecutionsByDatapack(req.AlgorithmVersionID, req.DatapackName, req.FilterLabels)
+	if err != nil {
+		return nil, err
+	}
+	return buildEvaluationExecutionItems(executions), nil
+}
+
+func (s *Service) ListEvaluationExecutionsByDataset(_ context.Context, req *EvaluationExecutionsByDatasetReq) ([]EvaluationExecutionItem, error) {
+	if req == nil {
+		return nil, fmt.Errorf("evaluation dataset query is nil")
+	}
+
+	executions, err := s.repo.listEvaluationExecutionsByDataset(req.AlgorithmVersionID, req.DatasetVersionID, req.FilterLabels)
+	if err != nil {
+		return nil, err
+	}
+	return buildEvaluationExecutionItems(executions), nil
+}
+
 func (s *Service) ListAvailableLabels(_ context.Context) ([]dto.LabelItem, error) {
 	labels, err := s.repo.listAvailableExecutionLabels()
 	if err != nil {
@@ -203,8 +231,8 @@ func (s *Service) ManageLabels(_ context.Context, req *ManageExecutionLabelReq, 
 
 	var managedExecution *model.Execution
 	var managedLabels []model.Label
-	err := s.repo.Transaction(func(tx *gorm.DB) error {
-		repo := s.repo.withDB(tx)
+	err := s.repo.db.Transaction(func(tx *gorm.DB) error {
+		repo := NewRepository(tx)
 		execution, _, err := repo.getExecutionView(executionID)
 		if err != nil {
 			if errors.Is(err, consts.ErrNotFound) {
@@ -214,7 +242,7 @@ func (s *Service) ManageLabels(_ context.Context, req *ManageExecutionLabelReq, 
 		}
 
 		if len(req.AddLabels) > 0 {
-			labels, err := common.CreateOrUpdateLabelsFromItems(tx, req.AddLabels, consts.ExecutionCategory)
+			labels, err := labelmodule.NewRepository(tx).CreateOrUpdateLabelsFromItems(tx, req.AddLabels, consts.ExecutionCategory)
 			if err != nil {
 				return fmt.Errorf("failed to create or update labels: %w", err)
 			}
@@ -223,7 +251,7 @@ func (s *Service) ManageLabels(_ context.Context, req *ManageExecutionLabelReq, 
 			for _, label := range labels {
 				labelIDs = append(labelIDs, label.ID)
 			}
-			if err := repo.AddExecutionLabels(execution.ID, labelIDs); err != nil {
+			if err := repo.addExecutionLabels(execution.ID, labelIDs); err != nil {
 				return fmt.Errorf("failed to add execution labels: %w", err)
 			}
 		}
@@ -235,10 +263,10 @@ func (s *Service) ManageLabels(_ context.Context, req *ManageExecutionLabelReq, 
 			}
 
 			if len(labelIDs) > 0 {
-				if err := repo.ClearExecutionLabels([]int{executionID}, labelIDs); err != nil {
+				if err := repo.clearExecutionLabels([]int{executionID}, labelIDs); err != nil {
 					return fmt.Errorf("failed to clear execution labels: %w", err)
 				}
-				if err := repo.BatchDecreaseLabelUsages(labelIDs, 1); err != nil {
+				if err := repo.batchDecreaseLabelUsages(labelIDs, 1); err != nil {
 					return fmt.Errorf("failed to decrease label usage counts: %w", err)
 				}
 			}
@@ -266,10 +294,35 @@ func (s *Service) BatchDelete(_ context.Context, req *BatchDeleteExecutionReq) e
 	return s.batchDeleteByLabels(req.Labels)
 }
 
+func buildEvaluationExecutionItems(executions []model.Execution) []EvaluationExecutionItem {
+	items := make([]EvaluationExecutionItem, 0, len(executions))
+	for _, execution := range executions {
+		item := EvaluationExecutionItem{
+			Datapack:     execution.Datapack.Name,
+			Groundtruths: collectGroundtruths(execution.Datapack),
+			ExecutionRef: NewExecutionGranularityRef(&execution),
+		}
+		items = append(items, item)
+	}
+	return items
+}
+
+func collectGroundtruths(datapack *model.FaultInjection) []chaos.Groundtruth {
+	if datapack == nil || len(datapack.Groundtruths) == 0 {
+		return nil
+	}
+
+	items := make([]chaos.Groundtruth, 0, len(datapack.Groundtruths))
+	for _, gt := range datapack.Groundtruths {
+		items = append(items, *gt.ConvertToChaosGroundtruth())
+	}
+	return items
+}
+
 func (s *Service) UploadDetectorResults(_ context.Context, req *UploadDetectorResultReq, executionID int) (*UploadExecutionResultResp, error) {
-	err := s.repo.Transaction(func(tx *gorm.DB) error {
-		repo := s.repo.withDB(tx)
-		if err := repo.UpdateExecutionDuration(executionID, req.Duration); err != nil {
+	err := s.repo.db.Transaction(func(tx *gorm.DB) error {
+		repo := NewRepository(tx)
+		if err := repo.updateExecutionDuration(executionID, req.Duration); err != nil {
 			return err
 		}
 
@@ -277,7 +330,7 @@ func (s *Service) UploadDetectorResults(_ context.Context, req *UploadDetectorRe
 		for _, item := range req.Results {
 			results = append(results, *item.ConvertToDetectorResult(executionID))
 		}
-		if err := repo.SaveDetectorResults(results); err != nil {
+		if err := repo.saveDetectorResults(results); err != nil {
 			return fmt.Errorf("failed to save detector results for execution %d: %w", executionID, err)
 		}
 		return nil
@@ -294,9 +347,9 @@ func (s *Service) UploadDetectorResults(_ context.Context, req *UploadDetectorRe
 }
 
 func (s *Service) UploadGranularityResults(_ context.Context, req *UploadGranularityResultReq, executionID int) (*UploadExecutionResultResp, error) {
-	err := s.repo.Transaction(func(tx *gorm.DB) error {
-		repo := s.repo.withDB(tx)
-		if err := repo.UpdateExecutionDuration(executionID, req.Duration); err != nil {
+	err := s.repo.db.Transaction(func(tx *gorm.DB) error {
+		repo := NewRepository(tx)
+		if err := repo.updateExecutionDuration(executionID, req.Duration); err != nil {
 			return err
 		}
 
@@ -304,7 +357,7 @@ func (s *Service) UploadGranularityResults(_ context.Context, req *UploadGranula
 		for _, item := range req.Results {
 			results = append(results, *item.ConvertToGranularityResult(executionID))
 		}
-		if err := repo.SaveGranularityResults(results); err != nil {
+		if err := repo.saveGranularityResults(results); err != nil {
 			return fmt.Errorf("failed to save detector results for execution %d: %w", executionID, err)
 		}
 		return nil
@@ -319,12 +372,90 @@ func (s *Service) UploadGranularityResults(_ context.Context, req *UploadGranula
 	}, nil
 }
 
+func (s *Service) CreateExecutionRecord(_ context.Context, req *RuntimeCreateExecutionReq) (int, error) {
+	if req == nil {
+		return 0, fmt.Errorf("runtime create execution request is nil")
+	}
+	if req.TaskID == "" {
+		return 0, fmt.Errorf("%w: task_id is required", consts.ErrBadRequest)
+	}
+	if req.AlgorithmVersionID <= 0 || req.DatapackID <= 0 {
+		return 0, fmt.Errorf("%w: algorithm_version_id and datapack_id are required", consts.ErrBadRequest)
+	}
+
+	var createdExecutionID int
+	err := s.repo.db.Transaction(func(tx *gorm.DB) error {
+		repo := NewRepository(tx)
+		execution := &model.Execution{
+			TaskID:             &req.TaskID,
+			AlgorithmVersionID: req.AlgorithmVersionID,
+			DatapackID:         req.DatapackID,
+			DatasetVersionID:   req.DatasetVersionID,
+			State:              consts.ExecutionInitial,
+			Status:             consts.CommonEnabled,
+		}
+
+		if err := repo.createExecutionRecord(execution); err != nil {
+			if errors.Is(err, gorm.ErrDuplicatedKey) {
+				return fmt.Errorf("%w: execution already exists for task %s", consts.ErrAlreadyExists, req.TaskID)
+			}
+			return err
+		}
+
+		if len(req.Labels) > 0 {
+			labels, err := labelmodule.NewRepository(tx).CreateOrUpdateLabelsFromItems(tx, req.Labels, consts.ExecutionCategory)
+			if err != nil {
+				return fmt.Errorf("failed to create or update labels: %w", err)
+			}
+
+			labelIDs := make([]int, 0, len(labels))
+			for _, label := range labels {
+				labelIDs = append(labelIDs, label.ID)
+			}
+			if err := repo.addExecutionLabels(execution.ID, labelIDs); err != nil {
+				return fmt.Errorf("failed to add execution labels: %w", err)
+			}
+		}
+
+		createdExecutionID = execution.ID
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return createdExecutionID, nil
+}
+
+func (s *Service) UpdateExecutionState(_ context.Context, req *RuntimeUpdateExecutionStateReq) error {
+	if req == nil {
+		return fmt.Errorf("runtime update execution state request is nil")
+	}
+	if req.ExecutionID <= 0 {
+		return fmt.Errorf("%w: execution_id is required", consts.ErrBadRequest)
+	}
+
+	return s.repo.db.Transaction(func(tx *gorm.DB) error {
+		repo := NewRepository(tx)
+		execution, err := repo.loadExecution(req.ExecutionID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return fmt.Errorf("%w: execution %d not found", consts.ErrNotFound, req.ExecutionID)
+			}
+			return err
+		}
+		if execution.State != consts.ExecutionInitial {
+			return fmt.Errorf("cannot change state of execution %d from %s to %s", req.ExecutionID, consts.GetExecutionStateName(execution.State), consts.GetExecutionStateName(req.State))
+		}
+		return repo.updateExecutionFields(req.ExecutionID, map[string]any{"state": req.State})
+	})
+}
+
 func (s *Service) batchDeleteByIDs(executionIDs []int) error {
 	if len(executionIDs) == 0 {
 		return nil
 	}
-	return s.repo.Transaction(func(tx *gorm.DB) error {
-		return s.repo.withDB(tx).BatchDeleteExecutions(executionIDs)
+	return s.repo.db.Transaction(func(tx *gorm.DB) error {
+		return NewRepository(tx).batchDeleteExecutions(executionIDs)
 	})
 }
 
@@ -332,7 +463,7 @@ func (s *Service) batchDeleteByLabels(labelItems []dto.LabelItem) error {
 	if len(labelItems) == 0 {
 		return nil
 	}
-	executionIDs, err := s.repo.ListExecutionIDsByLabelItems(labelItems)
+	executionIDs, err := s.repo.listExecutionIDsByLabelItems(labelItems)
 	if err != nil {
 		return fmt.Errorf("failed to list execution ids by labels: %w", err)
 	}

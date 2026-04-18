@@ -24,7 +24,9 @@ func newProjectService(t *testing.T) (*Service, sqlmock.Sqlmock, func()) {
 	}), &gorm.Config{})
 	require.NoError(t, err)
 
-	return NewService(NewRepository(db)), mock, func() {
+	repo := NewRepository(db)
+	stats := newProjectStatisticsSource(projectStatisticsSourceParams{Repository: repo})
+	return NewService(repo, stats), mock, func() {
 		_ = sqlDB.Close()
 	}
 }
@@ -50,11 +52,11 @@ func TestProjectServiceListProjectsSuccess(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{
 			"id", "label_key", "label_value", "category", "description", "color", "usage_count", "is_system", "status", "created_at", "updated_at", "project_id",
 		}).AddRow(10, "env", "prod", consts.ProjectCategory, "", "#1890ff", 1, false, consts.CommonEnabled, now, now, 1))
-	mock.ExpectQuery("SELECT tr\\.project_id, COUNT\\(\\*\\) as count, MAX\\(fi\\.updated_at\\) as last_at FROM fault_injections fi .* WHERE tr\\.project_id IN \\(\\?\\) GROUP BY `tr`\\.`project_id`").
-		WithArgs(1).
+	mock.ExpectQuery("SELECT tr\\.project_id, COUNT\\(\\*\\) as count, MAX\\(fi\\.updated_at\\) as last_at FROM fault_injections fi .* WHERE tr\\.project_id IN \\(\\?\\) AND fi\\.status != \\? GROUP BY `tr`\\.`project_id`").
+		WithArgs(1, consts.CommonDeleted).
 		WillReturnRows(sqlmock.NewRows([]string{"project_id", "count", "last_at"}).AddRow(1, 2, now))
-	mock.ExpectQuery("SELECT tr\\.project_id, COUNT\\(\\*\\) as count, MAX\\(e\\.updated_at\\) as last_at FROM executions e .* WHERE tr\\.project_id IN \\(\\?\\) GROUP BY `tr`\\.`project_id`").
-		WithArgs(1).
+	mock.ExpectQuery("SELECT tr\\.project_id, COUNT\\(\\*\\) as count, MAX\\(e\\.updated_at\\) as last_at FROM executions e .* WHERE tr\\.project_id IN \\(\\?\\) AND e\\.status != \\? GROUP BY `tr`\\.`project_id`").
+		WithArgs(1, consts.CommonDeleted).
 		WillReturnRows(sqlmock.NewRows([]string{"project_id", "count", "last_at"}).AddRow(1, 3, now))
 
 	resp, err := service.ListProjects(t.Context(), &ListProjectReq{
@@ -113,15 +115,15 @@ func TestProjectServiceGetProjectDetailSuccess(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{
 			"id", "name", "description", "team_id", "is_public", "status", "created_at", "updated_at",
 		}).AddRow(1, "demo-project", "demo", nil, true, consts.CommonEnabled, now, now))
-	mock.ExpectQuery("SELECT tr\\.project_id, COUNT\\(\\*\\) as count, MAX\\(fi\\.updated_at\\) as last_at FROM fault_injections fi .* WHERE tr\\.project_id IN \\(\\?\\) GROUP BY `tr`\\.`project_id`").
-		WithArgs(1).
-		WillReturnRows(sqlmock.NewRows([]string{"project_id", "count", "last_at"}).AddRow(1, 2, now))
-	mock.ExpectQuery("SELECT tr\\.project_id, COUNT\\(\\*\\) as count, MAX\\(e\\.updated_at\\) as last_at FROM executions e .* WHERE tr\\.project_id IN \\(\\?\\) GROUP BY `tr`\\.`project_id`").
-		WithArgs(1).
-		WillReturnRows(sqlmock.NewRows([]string{"project_id", "count", "last_at"}).AddRow(1, 3, now))
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM `user_projects` WHERE project_id = ? AND status = ?")).
 		WithArgs(1, consts.CommonEnabled).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(4))
+	mock.ExpectQuery("SELECT tr\\.project_id, COUNT\\(\\*\\) as count, MAX\\(fi\\.updated_at\\) as last_at FROM fault_injections fi .* WHERE tr\\.project_id IN \\(\\?\\) AND fi\\.status != \\? GROUP BY `tr`\\.`project_id`").
+		WithArgs(1, consts.CommonDeleted).
+		WillReturnRows(sqlmock.NewRows([]string{"project_id", "count", "last_at"}).AddRow(1, 2, now))
+	mock.ExpectQuery("SELECT tr\\.project_id, COUNT\\(\\*\\) as count, MAX\\(e\\.updated_at\\) as last_at FROM executions e .* WHERE tr\\.project_id IN \\(\\?\\) AND e\\.status != \\? GROUP BY `tr`\\.`project_id`").
+		WithArgs(1, consts.CommonDeleted).
+		WillReturnRows(sqlmock.NewRows([]string{"project_id", "count", "last_at"}).AddRow(1, 3, now))
 
 	resp, err := service.GetProjectDetail(t.Context(), 1)
 
@@ -185,7 +187,7 @@ func TestProjectServiceDeleteProjectSuccess(t *testing.T) {
 }
 
 func TestProjectServiceManageLabelsNilRequest(t *testing.T) {
-	service := NewService(nil)
+	service := NewService(nil, nil)
 
 	_, err := service.ManageProjectLabels(t.Context(), nil, 1)
 

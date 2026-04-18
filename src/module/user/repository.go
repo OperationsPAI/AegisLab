@@ -16,30 +16,15 @@ func NewRepository(db *gorm.DB) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) withDB(db *gorm.DB) *Repository {
-	return &Repository{db: db}
-}
-
-func (r *Repository) Transaction(fn func(tx *gorm.DB) error) error {
-	return r.db.Transaction(fn)
-}
-
-func (r *Repository) ensureUserUnique(username, email string) error {
+func (r *Repository) createUserIfUnique(user *model.User) error {
 	var existingByUsername model.User
-	if err := r.db.Where("username = ?", username).First(&existingByUsername).Error; err == nil {
-		return fmt.Errorf("%w: username %s already exists", consts.ErrAlreadyExists, username)
+	if err := r.db.Where("username = ?", user.Username).First(&existingByUsername).Error; err == nil {
+		return fmt.Errorf("%w: username %s already exists", consts.ErrAlreadyExists, user.Username)
 	}
 
 	var existingByEmail model.User
-	if err := r.db.Where("email = ?", email).First(&existingByEmail).Error; err == nil {
-		return fmt.Errorf("%w: email %s already exists", consts.ErrAlreadyExists, email)
-	}
-	return nil
-}
-
-func (r *Repository) createUserIfUnique(user *model.User) error {
-	if err := r.ensureUserUnique(user.Username, user.Email); err != nil {
-		return err
+	if err := r.db.Where("email = ?", user.Email).First(&existingByEmail).Error; err == nil {
+		return fmt.Errorf("%w: email %s already exists", consts.ErrAlreadyExists, user.Email)
 	}
 	if err := r.db.Omit("active_username").Create(user).Error; err != nil {
 		return fmt.Errorf("failed to create user: %w", err)
@@ -55,7 +40,7 @@ func (r *Repository) getUserDetailBase(userID int) (*model.User, error) {
 	return &user, nil
 }
 
-func (r *Repository) DeleteUserCascade(userID int) (int64, error) {
+func (r *Repository) deleteUserCascade(userID int) (int64, error) {
 	if err := r.ensureActiveRecordExists(&model.User{}, userID, "user"); err != nil {
 		return 0, err
 	}
@@ -162,7 +147,7 @@ func (r *Repository) loadUserDetailRelations(userID int) ([]model.Role, []model.
 	return roles, permissions, userContainers, userDatasets, userProjects, nil
 }
 
-func (r *Repository) AssignGlobalRole(userID, roleID int) error {
+func (r *Repository) assignGlobalRole(userID, roleID int) error {
 	if err := r.ensureActiveRecordExists(&model.User{}, userID, "user"); err != nil {
 		return err
 	}
@@ -175,7 +160,7 @@ func (r *Repository) AssignGlobalRole(userID, roleID int) error {
 	return nil
 }
 
-func (r *Repository) RemoveGlobalRole(userID, roleID int) error {
+func (r *Repository) removeGlobalRole(userID, roleID int) error {
 	if err := r.ensureActiveRecordExists(&model.User{}, userID, "user"); err != nil {
 		return err
 	}
@@ -189,7 +174,7 @@ func (r *Repository) RemoveGlobalRole(userID, roleID int) error {
 	return nil
 }
 
-func (r *Repository) BuildUserPermissions(userID int, items []AssignUserPermissionItem) ([]model.UserPermission, error) {
+func (r *Repository) buildUserPermissions(userID int, items []AssignUserPermissionItem) ([]model.UserPermission, error) {
 	if err := r.ensureActiveRecordExists(&model.User{}, userID, "user"); err != nil {
 		return nil, err
 	}
@@ -235,7 +220,7 @@ func (r *Repository) BuildUserPermissions(userID int, items []AssignUserPermissi
 	return userPermissions, nil
 }
 
-func (r *Repository) BatchCreateUserPermissions(userPermissions []model.UserPermission) error {
+func (r *Repository) batchCreateUserPermissions(userPermissions []model.UserPermission) error {
 	if len(userPermissions) == 0 {
 		return nil
 	}
@@ -245,7 +230,7 @@ func (r *Repository) BatchCreateUserPermissions(userPermissions []model.UserPerm
 	return nil
 }
 
-func (r *Repository) BatchDeleteUserPermissions(userID int, permissionIDs []int) error {
+func (r *Repository) batchDeleteUserPermissions(userID int, permissionIDs []int) error {
 	if err := r.ensureActiveRecordExists(&model.User{}, userID, "user"); err != nil {
 		return err
 	}
@@ -271,7 +256,7 @@ func (r *Repository) BatchDeleteUserPermissions(userID int, permissionIDs []int)
 	return nil
 }
 
-func (r *Repository) AssignContainerRole(userID, containerID, roleID int) error {
+func (r *Repository) assignContainerRole(userID, containerID, roleID int) error {
 	if err := r.ensureActiveRecordExists(&model.User{}, userID, "user"); err != nil {
 		return err
 	}
@@ -292,7 +277,7 @@ func (r *Repository) AssignContainerRole(userID, containerID, roleID int) error 
 	return nil
 }
 
-func (r *Repository) RemoveContainerRole(userID, containerID int) (int64, error) {
+func (r *Repository) removeContainerRole(userID, containerID int) (int64, error) {
 	if err := r.ensureActiveRecordExists(&model.User{}, userID, "user"); err != nil {
 		return 0, err
 	}
@@ -308,7 +293,7 @@ func (r *Repository) RemoveContainerRole(userID, containerID int) (int64, error)
 	return result.RowsAffected, nil
 }
 
-func (r *Repository) AssignDatasetRole(userID, datasetID, roleID int) error {
+func (r *Repository) assignDatasetRole(userID, datasetID, roleID int) error {
 	if err := r.ensureActiveRecordExists(&model.User{}, userID, "user"); err != nil {
 		return err
 	}
@@ -329,7 +314,7 @@ func (r *Repository) AssignDatasetRole(userID, datasetID, roleID int) error {
 	return nil
 }
 
-func (r *Repository) RemoveDatasetRole(userID, datasetID int) (int64, error) {
+func (r *Repository) removeDatasetRole(userID, datasetID int) (int64, error) {
 	if err := r.ensureActiveRecordExists(&model.User{}, userID, "user"); err != nil {
 		return 0, err
 	}
@@ -345,7 +330,7 @@ func (r *Repository) RemoveDatasetRole(userID, datasetID int) (int64, error) {
 	return result.RowsAffected, nil
 }
 
-func (r *Repository) AssignProjectRole(userID, projectID, roleID int) error {
+func (r *Repository) assignProjectRole(userID, projectID, roleID int) error {
 	if err := r.ensureActiveRecordExists(&model.User{}, userID, "user"); err != nil {
 		return err
 	}
@@ -366,7 +351,7 @@ func (r *Repository) AssignProjectRole(userID, projectID, roleID int) error {
 	return nil
 }
 
-func (r *Repository) RemoveProjectRole(userID, projectID int) (int64, error) {
+func (r *Repository) removeProjectRole(userID, projectID int) (int64, error) {
 	if err := r.ensureActiveRecordExists(&model.User{}, userID, "user"); err != nil {
 		return 0, err
 	}

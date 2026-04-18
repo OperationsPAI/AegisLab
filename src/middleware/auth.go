@@ -9,21 +9,27 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func extractTokenFromHeader(header string) (string, error) {
+	return utils.ExtractTokenFromHeader(header)
+}
+
 // JWTAuth is the JWT authentication middleware
 // Supports both user tokens and service tokens (for K8s jobs)
 func JWTAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Extract token from Authorization header
 		authHeader := c.GetHeader("Authorization")
-		token, err := utils.ExtractTokenFromHeader(authHeader)
+		token, err := extractTokenFromHeader(authHeader)
 		if err != nil {
 			dto.ErrorResponse(c, http.StatusUnauthorized, "Unauthorized: "+err.Error())
 			c.Abort()
 			return
 		}
 
+		service := serviceFromContext(c)
+
 		// Try to validate as user token first
-		claims, err := utils.ValidateToken(token)
+		claims, err := service.VerifyToken(c.Request.Context(), token)
 		if err == nil {
 			// Valid user token - store user information in context
 			c.Set("user_id", claims.UserID)
@@ -39,7 +45,7 @@ func JWTAuth() gin.HandlerFunc {
 		}
 
 		// Try to validate as service token (for K8s jobs)
-		serviceClaims, serviceErr := utils.ValidateServiceToken(token)
+		serviceClaims, serviceErr := service.VerifyServiceToken(c.Request.Context(), token)
 		if serviceErr == nil {
 			// Valid service token - store service information in context
 			c.Set("task_id", serviceClaims.TaskID)
@@ -69,15 +75,17 @@ func OptionalJWTAuth() gin.HandlerFunc {
 			return
 		}
 
-		token, err := utils.ExtractTokenFromHeader(authHeader)
+		token, err := extractTokenFromHeader(authHeader)
 		if err != nil {
 			// Invalid header format, continue without auth
 			c.Next()
 			return
 		}
 
+		service := serviceFromContext(c)
+
 		// Try to validate as user token first
-		claims, err := utils.ValidateToken(token)
+		claims, err := service.VerifyToken(c.Request.Context(), token)
 		if err == nil {
 			// Valid user token, set user information
 			c.Set("user_id", claims.UserID)
@@ -93,7 +101,7 @@ func OptionalJWTAuth() gin.HandlerFunc {
 		}
 
 		// Try to validate as service token (for K8s jobs)
-		serviceClaims, serviceErr := utils.ValidateServiceToken(token)
+		serviceClaims, serviceErr := service.VerifyServiceToken(c.Request.Context(), token)
 		if serviceErr == nil {
 			// Valid service token, set service information
 			c.Set("task_id", serviceClaims.TaskID)

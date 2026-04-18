@@ -16,15 +16,7 @@ func NewRepository(db *gorm.DB) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) withDB(db *gorm.DB) *Repository {
-	return &Repository{db: db}
-}
-
-func (r *Repository) Transaction(fn func(tx *gorm.DB) error) error {
-	return r.db.Transaction(fn)
-}
-
-func (r *Repository) GetAuditLogByID(id int) (*model.AuditLog, error) {
+func (r *Repository) getAuditLogByID(id int) (*model.AuditLog, error) {
 	var auditLog model.AuditLog
 	if err := r.db.Where("id = ?", id).First(&auditLog).Error; err != nil {
 		return nil, fmt.Errorf("failed to get audit log: %w", err)
@@ -32,7 +24,7 @@ func (r *Repository) GetAuditLogByID(id int) (*model.AuditLog, error) {
 	return &auditLog, nil
 }
 
-func (r *Repository) ListAuditLogs(limit, offset int, filters *ListAuditLogFilters) ([]model.AuditLog, int64, error) {
+func (r *Repository) listAuditLogs(limit, offset int, filters *ListAuditLogFilters) ([]model.AuditLog, int64, error) {
 	var (
 		logs  []model.AuditLog
 		total int64
@@ -75,7 +67,7 @@ func (r *Repository) ListAuditLogs(limit, offset int, filters *ListAuditLogFilte
 	return logs, total, nil
 }
 
-func (r *Repository) GetConfigByID(configID int, includeUser bool) (*model.DynamicConfig, error) {
+func (r *Repository) getConfigByID(configID int, includeUser bool) (*model.DynamicConfig, error) {
 	query := r.db
 	if includeUser {
 		query = query.Preload("UpdatedByUser")
@@ -88,7 +80,7 @@ func (r *Repository) GetConfigByID(configID int, includeUser bool) (*model.Dynam
 	return &cfg, nil
 }
 
-func (r *Repository) ListConfigs(limit, offset int, valueType *consts.ConfigValueType, category *string, isSecret *bool, updatedBy *int) ([]model.DynamicConfig, int64, error) {
+func (r *Repository) listConfigs(limit, offset int, valueType *consts.ConfigValueType, category *string, isSecret *bool, updatedBy *int) ([]model.DynamicConfig, int64, error) {
 	var (
 		configs []model.DynamicConfig
 		total   int64
@@ -117,14 +109,14 @@ func (r *Repository) ListConfigs(limit, offset int, valueType *consts.ConfigValu
 	return configs, total, nil
 }
 
-func (r *Repository) UpdateConfig(config *model.DynamicConfig) error {
+func (r *Repository) updateConfig(config *model.DynamicConfig) error {
 	if err := r.db.Save(config).Error; err != nil {
 		return fmt.Errorf("failed to update config: %w", err)
 	}
 	return nil
 }
 
-func (r *Repository) GetConfigHistory(historyID int) (*model.ConfigHistory, error) {
+func (r *Repository) getConfigHistory(historyID int) (*model.ConfigHistory, error) {
 	var history model.ConfigHistory
 	if err := r.db.Preload("Operator").Preload("Config").First(&history, historyID).Error; err != nil {
 		return nil, fmt.Errorf("failed to find config history with id %d: %w", historyID, err)
@@ -132,14 +124,14 @@ func (r *Repository) GetConfigHistory(historyID int) (*model.ConfigHistory, erro
 	return &history, nil
 }
 
-func (r *Repository) CreateConfigHistory(history *model.ConfigHistory) error {
+func (r *Repository) createConfigHistory(history *model.ConfigHistory) error {
 	if err := r.db.Create(history).Error; err != nil {
 		return fmt.Errorf("failed to create config history: %w", err)
 	}
 	return nil
 }
 
-func (r *Repository) ListConfigHistories(limit, offset int, configID int, changeType *consts.ConfigHistoryChangeType, operatorID *int) ([]model.ConfigHistory, int64, error) {
+func (r *Repository) listConfigHistories(limit, offset int, configID int, changeType *consts.ConfigHistoryChangeType, operatorID *int) ([]model.ConfigHistory, int64, error) {
 	var (
 		histories []model.ConfigHistory
 		total     int64
@@ -162,7 +154,7 @@ func (r *Repository) ListConfigHistories(limit, offset int, configID int, change
 	return histories, total, nil
 }
 
-func (r *Repository) ListConfigHistoriesByConfigID(configID int) ([]model.ConfigHistory, error) {
+func (r *Repository) listConfigHistoriesByConfigID(configID int) ([]model.ConfigHistory, error) {
 	var histories []model.ConfigHistory
 	if err := r.db.Preload("Operator").Where("config_id = ?", configID).Order("created_at DESC").Find(&histories).Error; err != nil {
 		return nil, fmt.Errorf("failed to list config histories for config %d: %w", configID, err)

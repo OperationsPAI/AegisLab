@@ -6,7 +6,7 @@ data:
   config.prod.toml: |
     name = "{{ .Values.configmap.name }}"
     version = "{{ .Values.configmap.version }}"
-    port = {{ .Values.configmap.port }}
+    port = {{ .Values.microservices.apiGateway.httpPort }}
     workspace = "{{ .Values.configmap.workspace }}"
 
     [system]
@@ -36,7 +36,7 @@ data:
     [k8s]
     namespace = "{{ .Values.configmap.k8s.namespace }}"
     [k8s.service]
-    internal_url = "http://{{ .Release.Name }}-exp:8080"
+    internal_url = "http://{{ .Release.Name }}-api-gateway:{{ .Values.microservices.apiGateway.httpPort }}"
     [k8s.init_container]
     {{- range $key, $value := .Values.configmap.k8s.init_container }}
     {{ $key }} = {{ $value | quote }}
@@ -66,7 +66,7 @@ data:
     claim_name = {{ $value.claim_name | quote }}
     {{- end }}
     {{- end }}
-    
+
     [jfs]
     container_path = "{{ .Values.configmap.jfs.container_path }}"
     dataset_path = "{{ .Values.configmap.jfs.dataset_path }}"
@@ -77,16 +77,46 @@ data:
     address = "{{ .Release.Name }}-buildkit:1234"
     {{- end }}
 
+    [clients.iam]
+    target = "{{ .Release.Name }}-iam-service:{{ .Values.microservices.iamService.grpcPort }}"
+
+    [clients.orchestrator]
+    target = "{{ .Release.Name }}-orchestrator-service:{{ .Values.microservices.orchestratorService.grpcPort }}"
+
+    [clients.resource]
+    target = "{{ .Release.Name }}-resource-service:{{ .Values.microservices.resourceService.grpcPort }}"
+
+    [clients.runtime]
+    target = "{{ .Release.Name }}-runtime-worker-service:{{ .Values.microservices.runtimeWorkerService.grpcPort }}"
+
+    [clients.system]
+    target = "{{ .Release.Name }}-system-service:{{ .Values.microservices.systemService.grpcPort }}"
+
+    [iam.grpc]
+    addr = ":{{ .Values.microservices.iamService.grpcPort }}"
+
+    [orchestrator.grpc]
+    addr = ":{{ .Values.microservices.orchestratorService.grpcPort }}"
+
+    [resource.grpc]
+    addr = ":{{ .Values.microservices.resourceService.grpcPort }}"
+
+    [runtime_worker.grpc]
+    addr = ":{{ .Values.microservices.runtimeWorkerService.grpcPort }}"
+
+    [system.grpc]
+    addr = ":{{ .Values.microservices.systemService.grpcPort }}"
+
     {{- if .Values.loki.enabled }}
     [loki]
     address = "http://{{ .Release.Name }}-loki:3100"
     timeout = "{{ .Values.configmap.loki.timeout }}"
     max_entries = {{ .Values.configmap.loki.max_entries }}
+    {{- end }}
 
-    [otlp.receiver]
+    [otlp_receiver]
     port = {{ .Values.configmap.otlp.port }}
     max_request_size = {{ .Values.configmap.otlp.max_request_size }}
-    {{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap

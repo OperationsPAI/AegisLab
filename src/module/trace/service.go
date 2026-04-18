@@ -51,6 +51,14 @@ func (s *Service) ListTraces(_ context.Context, req *ListTraceReq) (*dto.ListRes
 }
 
 func (s *Service) GetTraceStreamProcessor(ctx context.Context, traceID string) (*StreamProcessor, error) {
+	algorithms, err := s.GetTraceStreamAlgorithms(ctx, traceID)
+	if err != nil {
+		return nil, err
+	}
+	return NewStreamProcessor(algorithms), nil
+}
+
+func (s *Service) GetTraceStreamAlgorithms(ctx context.Context, traceID string) ([]dto.ContainerVersionItem, error) {
 	trace, err := s.repo.GetTraceByID(traceID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch trace: %w", err)
@@ -63,17 +71,17 @@ func (s *Service) GetTraceStreamProcessor(ctx context.Context, traceID string) (
 		}
 	}
 
-	if len(algorithms) > 0 {
-		filtered := algorithms[:0]
-		for _, algorithm := range algorithms {
-			if algorithm.ContainerName != config.GetDetectorName() {
-				filtered = append(filtered, algorithm)
-			}
-		}
-		algorithms = filtered
+	if len(algorithms) == 0 {
+		return nil, nil
 	}
 
-	return NewStreamProcessor(algorithms), nil
+	filtered := algorithms[:0]
+	for _, algorithm := range algorithms {
+		if algorithm.ContainerName != config.GetDetectorName() {
+			filtered = append(filtered, algorithm)
+		}
+	}
+	return filtered, nil
 }
 
 func (s *Service) ReadTraceStreamMessages(ctx context.Context, streamKey, lastID string, count int64, block time.Duration) ([]redis.XStream, error) {

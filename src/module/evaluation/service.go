@@ -8,24 +8,27 @@ import (
 	"aegis/consts"
 	"aegis/dto"
 	"aegis/model"
+	containermodule "aegis/module/container"
+	datasetmodule "aegis/module/dataset"
 	executionmodule "aegis/module/execution"
-	"aegis/repository"
-	"aegis/service/common"
 
-	chaos "github.com/OperationsPAI/chaos-experiment/handler"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
 type Service struct {
-	repo *Repository
+	repo  *Repository
+	query executionQuerySource
 }
 
-func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo *Repository, query executionQuerySource) *Service {
+	return &Service{
+		repo:  repo,
+		query: query,
+	}
 }
 
-func (s *Service) ListDatapackEvaluationResults(_ context.Context, req *BatchEvaluateDatapackReq, userID int) (*BatchEvaluateDatapackResp, error) {
+func (s *Service) ListDatapackEvaluationResults(ctx context.Context, req *BatchEvaluateDatapackReq, userID int) (*BatchEvaluateDatapackResp, error) {
 	if req == nil {
 		return nil, fmt.Errorf("batch evaluate datapack request is nil")
 	}
@@ -35,7 +38,7 @@ func (s *Service) ListDatapackEvaluationResults(_ context.Context, req *BatchEva
 		algorithms = append(algorithms, &req.Specs[i].Algorithm)
 	}
 
-	algorithmVersionResults, err := common.MapRefsToContainerVersionsWithDB(s.repo.db, algorithms, consts.ContainerTypeAlgorithm, userID)
+	algorithmVersionResults, err := containermodule.NewRepository(s.repo.db).ResolveContainerVersions(algorithms, consts.ContainerTypeAlgorithm, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to map container refs to versions: %w", err)
 	}
@@ -53,8 +56,11 @@ func (s *Service) ListDatapackEvaluationResults(_ context.Context, req *BatchEva
 			continue
 		}
 
-		labelConditions := dto.ConvertLabelItemsToConditions(spec.FilterLabels)
-		executions, err := repository.ListExecutionsByDatapackFilter(s.repo.db, algorithmVersion.ID, spec.Datapack, labelConditions)
+		executions, err := s.listEvaluationExecutionsByDatapack(ctx, &executionmodule.EvaluationExecutionsByDatapackReq{
+			AlgorithmVersionID: algorithmVersion.ID,
+			DatapackName:       spec.Datapack,
+			FilterLabels:       spec.FilterLabels,
+		})
 		if err != nil {
 			failedItems = append(failedItems, fmt.Sprintf("%s - failed to query executions: %v", specIdentifier, err))
 			continue
@@ -66,7 +72,7 @@ func (s *Service) ListDatapackEvaluationResults(_ context.Context, req *BatchEva
 
 		refs := make([]executionmodule.ExecutionRef, 0, len(executions))
 		for _, execution := range executions {
-			refs = append(refs, executionmodule.NewExecutionGranularityRef(&execution))
+			refs = append(refs, execution.ExecutionRef)
 		}
 
 		evaluateRef := EvaluateDatapackRef{
@@ -74,14 +80,8 @@ func (s *Service) ListDatapackEvaluationResults(_ context.Context, req *BatchEva
 			ExecutionRefs: refs,
 		}
 
-		datapack := executions[0].Datapack
-		if datapack != nil {
-			groundtruths, err := getGroundtruths(datapack)
-			if err != nil {
-				logrus.Warnf("failed to get groundtruth for datapack %s: %v", spec.Datapack, err)
-			} else {
-				evaluateRef.Groundtruths = groundtruths
-			}
+		if len(executions[0].Groundtruths) > 0 {
+			evaluateRef.Groundtruths = executions[0].Groundtruths
 		}
 
 		successItems = append(successItems, EvaluateDatapackItem{
@@ -109,7 +109,7 @@ func (s *Service) ListDatapackEvaluationResults(_ context.Context, req *BatchEva
 	}, nil
 }
 
-func (s *Service) ListDatasetEvaluationResults(_ context.Context, req *BatchEvaluateDatasetReq, userID int) (*BatchEvaluateDatasetResp, error) {
+func (s *Service) ListDatasetEvaluationResults(ctx context.Context, req *BatchEvaluateDatasetReq, userID int) (*BatchEvaluateDatasetResp, error) {
 	if req == nil {
 		return nil, fmt.Errorf("batch evaluate datapack request is nil")
 	}
@@ -121,12 +121,12 @@ func (s *Service) ListDatasetEvaluationResults(_ context.Context, req *BatchEval
 		datasets = append(datasets, &req.Specs[i].Dataset)
 	}
 
-	algorithmVersionResults, err := common.MapRefsToContainerVersionsWithDB(s.repo.db, algorithms, consts.ContainerTypeAlgorithm, userID)
+	algorithmVersionResults, err := containermodule.NewRepository(s.repo.db).ResolveContainerVersions(algorithms, consts.ContainerTypeAlgorithm, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to map container refs to versions: %w", err)
 	}
 
-	datasetVersionResults, err := common.MapRefsToDatasetVersionsWithDB(s.repo.db, datasets, userID)
+	datasetVersionResults, err := datasetmodule.NewRepository(s.repo.db).ResolveDatasetVersions(datasets, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to map dataset refs to versions: %w", err)
 	}
@@ -150,8 +150,11 @@ func (s *Service) ListDatasetEvaluationResults(_ context.Context, req *BatchEval
 			continue
 		}
 
-		labelConditions := dto.ConvertLabelItemsToConditions(spec.FilterLabels)
-		executions, err := repository.ListExecutionsByDatasetFilter(s.repo.db, algorithmVersion.ID, datasetVersion.ID, labelConditions)
+		executions, err := s.listEvaluationExecutionsByDataset(ctx, &executionmodule.EvaluationExecutionsByDatasetReq{
+			AlgorithmVersionID: algorithmVersion.ID,
+			DatasetVersionID:   datasetVersion.ID,
+			FilterLabels:       spec.FilterLabels,
+		})
 		if err != nil {
 			failedItems = append(failedItems, fmt.Sprintf("%s - failed to query executions: %v", specIdentifier, err))
 			continue
@@ -161,11 +164,11 @@ func (s *Service) ListDatasetEvaluationResults(_ context.Context, req *BatchEval
 			continue
 		}
 
-		executionMap := make(map[string][]model.Execution)
+		executionMap := make(map[string][]executionmodule.EvaluationExecutionItem)
 		for _, execution := range executions {
-			name := execution.Datapack.Name
+			name := execution.Datapack
 			if _, exists := executionMap[name]; !exists {
-				executionMap[name] = make([]model.Execution, 0)
+				executionMap[name] = make([]executionmodule.EvaluationExecutionItem, 0)
 			}
 			executionMap[name] = append(executionMap[name], execution)
 		}
@@ -181,7 +184,7 @@ func (s *Service) ListDatasetEvaluationResults(_ context.Context, req *BatchEval
 		for datapackName, groupedExecutions := range executionMap {
 			refs := make([]executionmodule.ExecutionRef, 0, len(groupedExecutions))
 			for _, execution := range groupedExecutions {
-				refs = append(refs, executionmodule.NewExecutionGranularityRef(&execution))
+				refs = append(refs, execution.ExecutionRef)
 			}
 
 			evaluateRef := EvaluateDatapackRef{
@@ -189,14 +192,8 @@ func (s *Service) ListDatasetEvaluationResults(_ context.Context, req *BatchEval
 				ExecutionRefs: refs,
 			}
 
-			datapack := groupedExecutions[0].Datapack
-			if datapack != nil {
-				groundtruths, err := getGroundtruths(datapack)
-				if err != nil {
-					logrus.Warnf("failed to get groundtruth for datapack %s: %v", datapackName, err)
-				} else {
-					evaluateRef.Groundtruths = groundtruths
-				}
+			if len(groupedExecutions[0].Groundtruths) > 0 {
+				evaluateRef.Groundtruths = groupedExecutions[0].Groundtruths
 			}
 
 			evaluateRefs = append(evaluateRefs, evaluateRef)
@@ -262,6 +259,20 @@ func (s *Service) DeleteEvaluation(_ context.Context, id int) error {
 	return s.repo.DeleteEvaluation(id)
 }
 
+func (s *Service) listEvaluationExecutionsByDatapack(ctx context.Context, req *executionmodule.EvaluationExecutionsByDatapackReq) ([]executionmodule.EvaluationExecutionItem, error) {
+	if s.query == nil {
+		return nil, fmt.Errorf("evaluation execution query source is not configured")
+	}
+	return s.query.ListEvaluationExecutionsByDatapack(ctx, req)
+}
+
+func (s *Service) listEvaluationExecutionsByDataset(ctx context.Context, req *executionmodule.EvaluationExecutionsByDatasetReq) ([]executionmodule.EvaluationExecutionItem, error) {
+	if s.query == nil {
+		return nil, fmt.Errorf("evaluation execution query source is not configured")
+	}
+	return s.query.ListEvaluationExecutionsByDataset(ctx, req)
+}
+
 func persistEvaluations[T any](db *gorm.DB, evalType string, items []T, toEval func(*T) *model.Evaluation) {
 	if len(items) == 0 {
 		return
@@ -283,12 +294,4 @@ func persistEvaluations[T any](db *gorm.DB, evalType string, items []T, toEval f
 	if err := db.Create(&evals).Error; err != nil {
 		logrus.Warnf("failed to batch persist %d %s evaluations: %v", len(evals), evalType, err)
 	}
-}
-
-func getGroundtruths(datapack *model.FaultInjection) ([]chaos.Groundtruth, error) {
-	chaosGroundtruths := make([]chaos.Groundtruth, 0, len(datapack.Groundtruths))
-	for _, gt := range datapack.Groundtruths {
-		chaosGroundtruths = append(chaosGroundtruths, *gt.ConvertToChaosGroundtruth())
-	}
-	return chaosGroundtruths, nil
 }

@@ -22,6 +22,14 @@ const (
 	MaxConcurrency     = 20
 )
 
+type TaskQueueStats struct {
+	ReadyCount       int64
+	DelayedCount     int64
+	DeadCount        int64
+	IndexedCount     int64
+	ConcurrencyCount int64
+}
+
 func (g *Gateway) SubmitImmediateTask(ctx context.Context, taskData []byte, taskID string) error {
 	redisCli := g.clientOrInit()
 	if err := redisCli.LPush(ctx, ReadyQueueKey, taskData).Err(); err != nil {
@@ -42,10 +50,18 @@ func (g *Gateway) GetTask(ctx context.Context, timeout time.Duration) (string, e
 func (g *Gateway) HandleFailedTask(ctx context.Context, taskData []byte, backoffSec int) error {
 	deadLetterTime := time.Now().Add(time.Duration(backoffSec) * time.Second).Unix()
 	redisCli := g.clientOrInit()
-	return redisCli.ZAdd(ctx, DeadLetterKey, redis.Z{
+	if err := redisCli.ZAdd(ctx, DeadLetterKey, redis.Z{
 		Score:  float64(deadLetterTime),
 		Member: taskData,
-	}).Err()
+	}).Err(); err != nil {
+		return err
+	}
+
+	var task dto.UnifiedTask
+	if err := json.Unmarshal(taskData, &task); err == nil && task.TaskID != "" {
+		return redisCli.HSet(ctx, TaskIndexKey, task.TaskID, DeadLetterKey).Err()
+	}
+	return nil
 }
 
 func (g *Gateway) SubmitDelayedTask(ctx context.Context, taskData []byte, taskID string, executeTime int64) error {
@@ -87,10 +103,19 @@ func (g *Gateway) ProcessDelayedTasks(ctx context.Context) ([]string, error) {
 }
 
 func (g *Gateway) HandleCronRescheduleFailure(ctx context.Context, taskData []byte) error {
-	return g.clientOrInit().ZAdd(ctx, DeadLetterKey, redis.Z{
+	redisCli := g.clientOrInit()
+	if err := redisCli.ZAdd(ctx, DeadLetterKey, redis.Z{
 		Score:  float64(time.Now().Unix()),
 		Member: taskData,
-	}).Err()
+	}).Err(); err != nil {
+		return err
+	}
+
+	var task dto.UnifiedTask
+	if err := json.Unmarshal(taskData, &task); err == nil && task.TaskID != "" {
+		return redisCli.HSet(ctx, TaskIndexKey, task.TaskID, DeadLetterKey).Err()
+	}
+	return nil
 }
 
 func (g *Gateway) AcquireConcurrencyLock(ctx context.Context) bool {
@@ -123,6 +148,24 @@ func (g *Gateway) ListDelayedTasks(ctx context.Context, limit int64) ([]string, 
 		taskData, ok := z.Member.(string)
 		if !ok {
 			return nil, fmt.Errorf("invalid delayed task data")
+		}
+		taskDatas = append(taskDatas, taskData)
+	}
+
+	return taskDatas, nil
+}
+
+func (g *Gateway) ListDeadLetterTasks(ctx context.Context, limit int64) ([]string, error) {
+	deadTasksWithScore, err := g.ZRangeByScoreWithScores(ctx, DeadLetterKey, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	taskDatas := make([]string, 0, len(deadTasksWithScore))
+	for _, z := range deadTasksWithScore {
+		taskData, ok := z.Member.(string)
+		if !ok {
+			return nil, fmt.Errorf("invalid dead letter task data")
 		}
 		taskDatas = append(taskDatas, taskData)
 	}
@@ -191,4 +234,39 @@ func (g *Gateway) RemoveFromZSet(ctx context.Context, key, taskID string) bool {
 
 func (g *Gateway) DeleteTaskIndex(ctx context.Context, taskID string) error {
 	return g.clientOrInit().HDel(ctx, TaskIndexKey, taskID).Err()
+}
+
+func (g *Gateway) GetTaskQueueStats(ctx context.Context) (TaskQueueStats, error) {
+	readyCount, err := g.ListLength(ctx, ReadyQueueKey)
+	if err != nil {
+		return TaskQueueStats{}, err
+	}
+
+	delayedCount, err := g.SortedSetCard(ctx, DelayedQueueKey)
+	if err != nil {
+		return TaskQueueStats{}, err
+	}
+
+	deadCount, err := g.SortedSetCard(ctx, DeadLetterKey)
+	if err != nil {
+		return TaskQueueStats{}, err
+	}
+
+	indexedCount, err := g.HashLength(ctx, TaskIndexKey)
+	if err != nil {
+		return TaskQueueStats{}, err
+	}
+
+	concurrencyCount, err := g.GetInt64(ctx, ConcurrencyLockKey)
+	if err != nil {
+		return TaskQueueStats{}, err
+	}
+
+	return TaskQueueStats{
+		ReadyCount:       readyCount,
+		DelayedCount:     delayedCount,
+		DeadCount:        deadCount,
+		IndexedCount:     indexedCount,
+		ConcurrencyCount: concurrencyCount,
+	}, nil
 }

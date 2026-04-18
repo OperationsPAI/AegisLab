@@ -21,6 +21,12 @@ import (
 	"os"
 
 	"aegis/app"
+	gatewayapp "aegis/app/gateway"
+	iamapp "aegis/app/iam"
+	orchestratorapp "aegis/app/orchestrator"
+	resourceapp "aegis/app/resource"
+	runtimeapp "aegis/app/runtime"
+	systemapp "aegis/app/system"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -45,7 +51,7 @@ func main() {
 		Use:   "rcabench",
 		Short: "RCA Bench is a benchmarking tool",
 		Run: func(cmd *cobra.Command, args []string) {
-			logrus.Println("Please specify a mode: producer, consumer, or both")
+			logrus.Println("Please specify a mode: producer, consumer, both, api-gateway, iam-service, orchestrator-service, resource-service, runtime-worker-service, or system-service")
 		},
 	}
 
@@ -68,8 +74,36 @@ func main() {
 	bothCmd := newModeCommand("both", "Run as both producer and consumer", func() {
 		fx.New(app.BothOptions(viper.GetString("conf"), viper.GetString("port"))).Run()
 	})
+	apiGatewayCmd := newModeCommand("api-gateway", "Run as the API gateway", func() {
+		fx.New(gatewayapp.Options(viper.GetString("conf"), viper.GetString("port"))).Run()
+	})
+	iamServiceCmd := newModeCommand("iam-service", "Run as the IAM service", func() {
+		fx.New(iamapp.Options(viper.GetString("conf"))).Run()
+	})
+	orchestratorServiceCmd := newModeCommand("orchestrator-service", "Run as the orchestrator service", func() {
+		fx.New(orchestratorapp.Options(viper.GetString("conf"))).Run()
+	})
+	resourceServiceCmd := newModeCommand("resource-service", "Run as the resource service", func() {
+		fx.New(resourceapp.Options(viper.GetString("conf"))).Run()
+	})
+	runtimeWorkerServiceCmd := newModeCommand("runtime-worker-service", "Run as the runtime worker service", func() {
+		fx.New(runtimeapp.Options(viper.GetString("conf"))).Run()
+	})
+	systemServiceCmd := newModeCommand("system-service", "Run as the system service", func() {
+		fx.New(systemapp.Options(viper.GetString("conf"))).Run()
+	})
 
-	rootCmd.AddCommand(producerCmd, consumerCmd, bothCmd)
+	rootCmd.AddCommand(
+		producerCmd,
+		consumerCmd,
+		bothCmd,
+		apiGatewayCmd,
+		iamServiceCmd,
+		orchestratorServiceCmd,
+		resourceServiceCmd,
+		runtimeWorkerServiceCmd,
+		systemServiceCmd,
+	)
 	if err := rootCmd.Execute(); err != nil {
 		logrus.Println(err.Error())
 		os.Exit(1)

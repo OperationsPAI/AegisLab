@@ -56,3 +56,16 @@ func (s *TokenStore) ReserveAccessKeyNonce(ctx context.Context, accessKey, nonce
 	}
 	return nil
 }
+
+func (s *TokenStore) IsTokenBlacklisted(ctx context.Context, tokenID string) (bool, error) {
+	if s == nil || s.redis == nil || tokenID == "" {
+		return false, nil
+	}
+
+	key := fmt.Sprintf(tokenBlacklistPrefix, tokenID)
+	exists, err := s.redis.Exists(ctx, key)
+	if err != nil {
+		return false, fmt.Errorf("failed to check blacklisted token: %w", err)
+	}
+	return exists, nil
+}

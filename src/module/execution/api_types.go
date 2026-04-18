@@ -9,6 +9,8 @@ import (
 	"aegis/consts"
 	"aegis/dto"
 	"aegis/model"
+
+	chaos "github.com/OperationsPAI/chaos-experiment/handler"
 )
 
 // ExecutionRef represents execution granularity results for evaluation.
@@ -44,6 +46,27 @@ func NewExecutionGranularityRef(execution *model.Execution) ExecutionRef {
 	}
 
 	return *ref
+}
+
+// EvaluationExecutionsByDatapackReq resolves execution results for one algorithm/datapack pair.
+type EvaluationExecutionsByDatapackReq struct {
+	AlgorithmVersionID int             `json:"algorithm_version_id"`
+	DatapackName       string          `json:"datapack_name"`
+	FilterLabels       []dto.LabelItem `json:"filter_labels,omitempty"`
+}
+
+// EvaluationExecutionsByDatasetReq resolves execution results for one algorithm/dataset pair.
+type EvaluationExecutionsByDatasetReq struct {
+	AlgorithmVersionID int             `json:"algorithm_version_id"`
+	DatasetVersionID   int             `json:"dataset_version_id"`
+	FilterLabels       []dto.LabelItem `json:"filter_labels,omitempty"`
+}
+
+// EvaluationExecutionItem is the orchestrator-owned execution payload used by evaluation queries.
+type EvaluationExecutionItem struct {
+	Datapack     string              `json:"datapack"`
+	Groundtruths []chaos.Groundtruth `json:"groundtruths,omitempty"`
+	ExecutionRef
 }
 
 // BatchDeleteExecutionReq represents the request to batch delete executions.

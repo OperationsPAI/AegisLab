@@ -13,10 +13,10 @@ import (
 )
 
 type Handler struct {
-	service *Service
+	service HandlerService
 }
 
-func NewHandler(service *Service) *Handler {
+func NewHandler(service HandlerService) *Handler {
 	return &Handler{service: service}
 }
 
@@ -65,7 +65,11 @@ func (h *Handler) GetMetrics(c *gin.Context) {
 	}
 	c.Header("Deprecation", "true")
 	c.Header("Link", `</api/v2/system/metrics>; rel="successor-version"`)
-	dto.SuccessResponse(c, h.service.GetMetrics())
+	resp, err := h.service.GetMetrics(c.Request.Context())
+	if httpx.HandleServiceError(c, err) {
+		return
+	}
+	dto.SuccessResponse(c, resp)
 }
 
 // GetSystemInfo handles basic system information
@@ -85,7 +89,11 @@ func (h *Handler) GetMetrics(c *gin.Context) {
 func (h *Handler) GetSystemInfo(c *gin.Context) {
 	c.Header("Deprecation", "true")
 	c.Header("Link", `</api/v2/system/metrics>; rel="successor-version"`)
-	dto.SuccessResponse(c, h.service.GetSystemInfo())
+	resp, err := h.service.GetSystemInfo(c.Request.Context())
+	if httpx.HandleServiceError(c, err) {
+		return
+	}
+	dto.SuccessResponse(c, resp)
 }
 
 // ListNamespaceLocks handles listing of namespace locks
@@ -153,7 +161,7 @@ func (h *Handler) GetAuditLog(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.service.GetAuditLog(id)
+	resp, err := h.service.GetAuditLog(c.Request.Context(), id)
 	if httpx.HandleServiceError(c, err) {
 		return
 	}
@@ -194,7 +202,7 @@ func (h *Handler) ListAuditLogs(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.service.ListAuditLogs(&req)
+	resp, err := h.service.ListAuditLogs(c.Request.Context(), &req)
 	if httpx.HandleServiceError(c, err) {
 		return
 	}
@@ -224,7 +232,7 @@ func (h *Handler) GetConfig(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.service.GetConfig(configID)
+	resp, err := h.service.GetConfig(c.Request.Context(), configID)
 	if httpx.HandleServiceError(c, err) {
 		return
 	}
@@ -263,7 +271,7 @@ func (h *Handler) ListConfigs(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.service.ListConfigs(&req)
+	resp, err := h.service.ListConfigs(c.Request.Context(), &req)
 	if httpx.HandleServiceError(c, err) {
 		return
 	}
@@ -350,7 +358,7 @@ func (h *Handler) RollbackConfigMetadata(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.service.RollbackConfigMetadata(&req, configID, userID, c.ClientIP(), c.Request.UserAgent())
+	resp, err := h.service.RollbackConfigMetadata(c.Request.Context(), &req, configID, userID, c.ClientIP(), c.Request.UserAgent())
 	if httpx.HandleServiceError(c, err) {
 		return
 	}
@@ -441,7 +449,7 @@ func (h *Handler) UpdateConfigMetadata(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.service.UpdateConfigMetadata(&req, configID, userID, c.ClientIP(), c.Request.UserAgent())
+	resp, err := h.service.UpdateConfigMetadata(c.Request.Context(), &req, configID, userID, c.ClientIP(), c.Request.UserAgent())
 	if httpx.HandleServiceError(c, err) {
 		return
 	}
@@ -482,7 +490,7 @@ func (h *Handler) ListConfigHistories(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.service.ListConfigHistories(&req, configID)
+	resp, err := h.service.ListConfigHistories(c.Request.Context(), &req, configID)
 	if httpx.HandleServiceError(c, err) {
 		return
 	}

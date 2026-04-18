@@ -1,6 +1,7 @@
 package systemmodule
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -15,7 +16,7 @@ type fakeConfigHistoryWriter struct {
 	err     error
 }
 
-func (f *fakeConfigHistoryWriter) CreateConfigHistory(history *model.ConfigHistory) error {
+func (f *fakeConfigHistoryWriter) createConfigHistory(history *model.ConfigHistory) error {
 	f.history = history
 	return f.err
 }
@@ -23,7 +24,10 @@ func (f *fakeConfigHistoryWriter) CreateConfigHistory(history *model.ConfigHisto
 func TestGetMetricsReturnsExpectedLabels(t *testing.T) {
 	svc := &Service{}
 
-	resp := svc.GetMetrics()
+	resp, err := svc.GetMetrics(context.Background())
+	if err != nil {
+		t.Fatalf("GetMetrics() error = %v", err)
+	}
 	if resp == nil {
 		t.Fatal("expected metrics response")
 	}
@@ -38,7 +42,10 @@ func TestGetMetricsReturnsExpectedLabels(t *testing.T) {
 func TestGetSystemInfoReturnsLoadAverage(t *testing.T) {
 	svc := &Service{}
 
-	resp := svc.GetSystemInfo()
+	resp, err := svc.GetSystemInfo(context.Background())
+	if err != nil {
+		t.Fatalf("GetSystemInfo() error = %v", err)
+	}
 	if resp == nil {
 		t.Fatal("expected system info response")
 	}

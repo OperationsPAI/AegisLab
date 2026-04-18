@@ -152,7 +152,7 @@ func (s *Service) removeDuplicated(items []injectionProcessItem) ([]injectionPro
 	existed := make(map[string]struct{})
 	for start := 0; start < len(keys); start += 100 {
 		end := min(start+100, len(keys))
-		existing, err := s.repo.ListExistingEngineConfigs(keys[start:end])
+		existing, err := s.repo.listExistingEngineConfigs(keys[start:end])
 		if err != nil {
 			return nil, nil, nil, err
 		}

@@ -44,7 +44,9 @@ func StartRedisStub(tb testing.TB) (string, func()) {
 }
 
 func handleRedisStubConn(conn net.Conn) {
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	reader := bufio.NewReader(conn)
 	writer := bufio.NewWriter(conn)

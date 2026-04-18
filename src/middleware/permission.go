@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -17,6 +18,7 @@ type permissionContext struct {
 	isAdmin     bool
 	roles       []string
 	checker     permissionChecker
+	ctx         context.Context
 	teamID      *int
 	projectID   *int
 	containerID *int
@@ -64,6 +66,7 @@ func extractPermissionContext(c *gin.Context) (*permissionContext, string) {
 		isAdmin: isAdmin,
 		roles:   roles,
 		checker: permissionCheckerFromContext(c),
+		ctx:     c.Request.Context(),
 	}
 
 	// Extract optional IDs from URL parameters
@@ -144,7 +147,7 @@ func withPermissionCheck(checkFunc permissionCheckFunc) gin.HandlerFunc {
 // singlePermission creates a check for a single permission
 func singlePermission(permission consts.PermissionRule) permissionCheckFunc {
 	return func(ctx *permissionContext) (bool, error) {
-		return ctx.checker.CheckUserPermission(&dto.CheckPermissionParams{
+		return ctx.checker.CheckUserPermission(ctx.ctx, &dto.CheckPermissionParams{
 			UserID:       ctx.userID,
 			Action:       permission.Action,
 			Scope:        permission.Scope,
@@ -163,6 +166,7 @@ func anyPermission(permissions []consts.PermissionRule) permissionCheckFunc {
 	return func(ctx *permissionContext) (bool, error) {
 		for _, perm := range permissions {
 			hasPermission, err := ctx.checker.CheckUserPermission(
+				ctx.ctx,
 				&dto.CheckPermissionParams{
 					UserID:       ctx.userID,
 					Action:       perm.Action,
@@ -191,6 +195,7 @@ func allPermissions(permissions []consts.PermissionRule) permissionCheckFunc {
 	return func(ctx *permissionContext) (bool, error) {
 		for _, perm := range permissions {
 			hasPermission, err := ctx.checker.CheckUserPermission(
+				ctx.ctx,
 				&dto.CheckPermissionParams{
 					UserID:       ctx.userID,
 					Action:       perm.Action,
@@ -268,7 +273,7 @@ func teamAccessCheck(requireAdmin bool) permissionCheckFunc {
 
 		// If admin access required, check team admin status
 		if requireAdmin {
-			isTeamAdmin, err := ctx.checker.IsUserTeamAdmin(ctx.userID, *ctx.teamID)
+			isTeamAdmin, err := ctx.checker.IsUserTeamAdmin(ctx.ctx, ctx.userID, *ctx.teamID)
 			if err != nil {
 				return false, err
 			}
@@ -276,13 +281,13 @@ func teamAccessCheck(requireAdmin bool) permissionCheckFunc {
 		}
 
 		// For member access: check if member OR team is public
-		isMember, err := ctx.checker.IsUserInTeam(ctx.userID, *ctx.teamID)
+		isMember, err := ctx.checker.IsUserInTeam(ctx.ctx, ctx.userID, *ctx.teamID)
 		if err == nil && isMember {
 			return true, nil
 		}
 
 		// Check if team is public
-		isPublic, err := ctx.checker.IsTeamPublic(*ctx.teamID)
+		isPublic, err := ctx.checker.IsTeamPublic(ctx.ctx, *ctx.teamID)
 		if err == nil && isPublic {
 			return true, nil
 		}
@@ -305,7 +310,7 @@ func projectAccessCheck(requireAdmin bool) permissionCheckFunc {
 
 		// Check project admin status if required
 		if requireAdmin {
-			isProjectAdmin, err := ctx.checker.IsUserProjectAdmin(ctx.userID, *ctx.projectID)
+			isProjectAdmin, err := ctx.checker.IsUserProjectAdmin(ctx.ctx, ctx.userID, *ctx.projectID)
 			if err != nil {
 				return false, err
 			}
@@ -313,7 +318,7 @@ func projectAccessCheck(requireAdmin bool) permissionCheckFunc {
 		}
 
 		// Check if user is project member
-		isMember, err := ctx.checker.IsUserInProject(ctx.userID, *ctx.projectID)
+		isMember, err := ctx.checker.IsUserInProject(ctx.ctx, ctx.userID, *ctx.projectID)
 		if err != nil {
 			return false, err
 		}

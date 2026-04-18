@@ -36,6 +36,8 @@ type Params struct {
 	BuildLimiter   *consumer.TokenBucketRateLimiter `name:"build_limiter"`
 	AlgoLimiter    *consumer.TokenBucketRateLimiter `name:"algo_limiter"`
 	BatchManager   *consumer.FaultBatchManager
+	ExecutionOwner consumer.ExecutionOwner
+	InjectionOwner consumer.InjectionOwner
 }
 
 type Lifecycle struct {
@@ -82,6 +84,8 @@ func (r *Lifecycle) start(ctx context.Context) error {
 		BuildKitGateway:      params.BuildKit,
 		HelmGateway:          params.Helm,
 		FaultBatchManager:    params.BatchManager,
+		ExecutionOwner:       params.ExecutionOwner,
+		InjectionOwner:       params.InjectionOwner,
 	})
 	return nil
 }

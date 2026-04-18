@@ -8,7 +8,7 @@ import (
 	"aegis/consts"
 	"aegis/dto"
 	redisinfra "aegis/infra/redis"
-	"aegis/repository"
+	executionmodule "aegis/module/execution"
 	"aegis/service/common"
 	"aegis/tracing"
 	"aegis/utils"
@@ -47,7 +47,7 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask, deps Runti
 		}
 
 		if collectPayload.algorithm.ContainerName == config.GetDetectorName() {
-			results, err := repository.ListDetectorResultsByExecutionID(db, collectPayload.executionID)
+			results, err := loadDetectorResults(childCtx, deps, db, collectPayload.executionID)
 			if err != nil {
 				logEntry.Errorf("failed to get detector results by execution ID: %v", err)
 				span.AddEvent("failed to get detector results by execution ID")
@@ -115,7 +115,7 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask, deps Runti
 			return nil
 		}
 
-		results, err := repository.ListGranularityResultsByExecutionID(db, collectPayload.executionID)
+		results, err := loadGranularityResults(childCtx, deps, db, collectPayload.executionID)
 		if err != nil {
 			span.AddEvent("failed to get detector results by execution ID")
 			span.RecordError(err)
@@ -135,6 +135,28 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask, deps Runti
 		logEntry.Info("Collect algorithm result task completed successfully")
 		return nil
 	})
+}
+
+func loadDetectorResults(ctx context.Context, deps RuntimeDeps, _ *gorm.DB, executionID int) ([]executionmodule.DetectorResultItem, error) {
+	if deps.ExecutionOwner == nil {
+		return nil, fmt.Errorf("execution owner service is nil")
+	}
+	resp, err := deps.ExecutionOwner.GetExecution(ctx, executionID)
+	if err != nil {
+		return nil, err
+	}
+	return resp.DetectorResults, nil
+}
+
+func loadGranularityResults(ctx context.Context, deps RuntimeDeps, _ *gorm.DB, executionID int) ([]executionmodule.GranularityResultItem, error) {
+	if deps.ExecutionOwner == nil {
+		return nil, fmt.Errorf("execution owner service is nil")
+	}
+	resp, err := deps.ExecutionOwner.GetExecution(ctx, executionID)
+	if err != nil {
+		return nil, err
+	}
+	return resp.GranularityResults, nil
 }
 
 // parseCollectPayload parses the payload for collect result tasks

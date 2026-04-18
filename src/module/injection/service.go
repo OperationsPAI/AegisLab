@@ -15,6 +15,8 @@ import (
 	lokiinfra "aegis/infra/loki"
 	redisinfra "aegis/infra/redis"
 	"aegis/model"
+	containermodule "aegis/module/container"
+	labelmodule "aegis/module/label"
 	"aegis/service/common"
 	"aegis/utils"
 
@@ -43,7 +45,7 @@ func (s *Service) ListProjectInjections(ctx context.Context, req *ListInjectionR
 	}
 
 	limit, offset := req.ToGormParams()
-	injections, total, err := s.repo.ListProjectInjectionsView(projectID, limit, offset)
+	injections, total, err := s.repo.listProjectInjectionsView(projectID, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list injections for project %d: %w", projectID, err)
 	}
@@ -63,7 +65,7 @@ func (s *Service) Search(ctx context.Context, req *SearchInjectionReq, projectID
 	if req == nil {
 		return nil, fmt.Errorf("search injection request is nil")
 	}
-	injections, total, err := s.repo.SearchInjections(req, projectID)
+	injections, total, err := s.repo.searchInjections(req, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search injections: %w", err)
 	}
@@ -99,7 +101,7 @@ func (s *Service) ListNoIssues(ctx context.Context, req *ListInjectionNoIssuesRe
 		return nil, fmt.Errorf("invalid time range: %w", err)
 	}
 
-	records, err := s.repo.ListIssuesFreeInjections(labelConditions, &opts.CustomStartTime, &opts.CustomEndTime, projectID)
+	records, err := s.repo.listIssuesFreeInjections(labelConditions, &opts.CustomStartTime, &opts.CustomEndTime, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list fault injections without issues: %w", err)
 	}
@@ -131,7 +133,7 @@ func (s *Service) ListWithIssues(ctx context.Context, req *ListInjectionWithIssu
 		return nil, fmt.Errorf("invalid time range: %w", err)
 	}
 
-	records, err := s.repo.ListIssueInjections(labelConditions, &opts.CustomStartTime, &opts.CustomEndTime, projectID)
+	records, err := s.repo.listIssueInjections(labelConditions, &opts.CustomStartTime, &opts.CustomEndTime, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list fault injections without issues: %w", err)
 	}
@@ -154,7 +156,7 @@ func (s *Service) SubmitFaultInjection(ctx context.Context, req *SubmitInjection
 	db := s.repo.db
 
 	if projectID == nil {
-		project, err := s.repo.ResolveProject(req.ProjectName)
+		project, err := s.repo.resolveProject(req.ProjectName)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil, fmt.Errorf("%w: project %s not found", consts.ErrNotFound, req.ProjectName)
@@ -164,7 +166,7 @@ func (s *Service) SubmitFaultInjection(ctx context.Context, req *SubmitInjection
 		projectID = &project.ID
 	}
 
-	pedestalVersionResults, err := common.MapRefsToContainerVersionsWithDB(db, []*dto.ContainerRef{&req.Pedestal.ContainerRef}, consts.ContainerTypePedestal, userID)
+	pedestalVersionResults, err := containermodule.NewRepository(db).ResolveContainerVersions([]*dto.ContainerRef{&req.Pedestal.ContainerRef}, consts.ContainerTypePedestal, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to map pedestal container ref to version: %w", err)
 	}
@@ -173,7 +175,7 @@ func (s *Service) SubmitFaultInjection(ctx context.Context, req *SubmitInjection
 		return nil, fmt.Errorf("pedestal version not found for container: %s (version: %s)", req.Pedestal.Name, req.Pedestal.Version)
 	}
 
-	helmConfig, err := s.repo.LoadPedestalHelmConfig(pedestalVersion.ID)
+	helmConfig, err := s.repo.loadPedestalHelmConfig(pedestalVersion.ID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("%w: helm config not found for pedestal version id %d", consts.ErrNotFound, pedestalVersion.ID)
@@ -182,7 +184,7 @@ func (s *Service) SubmitFaultInjection(ctx context.Context, req *SubmitInjection
 	}
 
 	params := flattenYAMLToParameters(req.Pedestal.Payload, "")
-	helmValues, err := common.ListHelmConfigValuesWithDB(db, params, helmConfig)
+	helmValues, err := containermodule.NewRepository(db).ListHelmConfigValues(params, helmConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to render pedestal helm values: %w", err)
 	}
@@ -193,7 +195,7 @@ func (s *Service) SubmitFaultInjection(ctx context.Context, req *SubmitInjection
 	pedestalItem := dto.NewContainerVersionItem(&pedestalVersion)
 	pedestalItem.Extra = helmConfigItem
 
-	benchmarkVersionResults, err := common.MapRefsToContainerVersionsWithDB(db, []*dto.ContainerRef{&req.Benchmark.ContainerRef}, consts.ContainerTypeBenchmark, userID)
+	benchmarkVersionResults, err := containermodule.NewRepository(db).ResolveContainerVersions([]*dto.ContainerRef{&req.Benchmark.ContainerRef}, consts.ContainerTypeBenchmark, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to map benchmark container ref to version: %w", err)
 	}
@@ -203,7 +205,7 @@ func (s *Service) SubmitFaultInjection(ctx context.Context, req *SubmitInjection
 	}
 
 	benchmarkVersionItem := dto.NewContainerVersionItem(&benchmarkVersion)
-	envVars, err := common.ListContainerVersionEnvVarsWithDB(db, req.Benchmark.EnvVars, &benchmarkVersion)
+	envVars, err := containermodule.NewRepository(db).ListContainerVersionEnvVars(req.Benchmark.EnvVars, &benchmarkVersion)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list benchmark env vars: %w", err)
 	}
@@ -243,7 +245,7 @@ func (s *Service) SubmitFaultInjection(ctx context.Context, req *SubmitInjection
 			refs = append(refs, &req.Algorithms[i].ContainerRef)
 		}
 
-		algorithmVersionsResults, err := common.MapRefsToContainerVersionsWithDB(db, refs, consts.ContainerTypeAlgorithm, userID)
+		algorithmVersionsResults, err := containermodule.NewRepository(db).ResolveContainerVersions(refs, consts.ContainerTypeAlgorithm, userID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to map container refs to versions: %w", err)
 		}
@@ -257,7 +259,7 @@ func (s *Service) SubmitFaultInjection(ctx context.Context, req *SubmitInjection
 			}
 
 			algorithmVersionItem := dto.NewContainerVersionItem(&algorithmVersion)
-			envVars, err := common.ListContainerVersionEnvVarsWithDB(db, spec.EnvVars, &algorithmVersion)
+			envVars, err := containermodule.NewRepository(db).ListContainerVersionEnvVars(spec.EnvVars, &algorithmVersion)
 			if err != nil {
 				return nil, fmt.Errorf("failed to list algorithm env vars: %w", err)
 			}
@@ -331,7 +333,7 @@ func (s *Service) SubmitDatapackBuilding(ctx context.Context, req *SubmitDatapac
 	db := s.repo.db
 
 	if projectID == nil {
-		project, err := s.repo.ResolveProject(req.ProjectName)
+		project, err := s.repo.resolveProject(req.ProjectName)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil, fmt.Errorf("%w: project %s not found", consts.ErrNotFound, req.ProjectName)
@@ -346,14 +348,14 @@ func (s *Service) SubmitDatapackBuilding(ctx context.Context, req *SubmitDatapac
 		refs = append(refs, &req.Specs[i].Benchmark.ContainerRef)
 	}
 
-	benchmarkVersionResults, err := common.MapRefsToContainerVersionsWithDB(db, refs, consts.ContainerTypeBenchmark, userID)
+	benchmarkVersionResults, err := containermodule.NewRepository(db).ResolveContainerVersions(refs, consts.ContainerTypeBenchmark, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to map container refs to versions: %w", err)
 	}
 
 	var allBuildingItems []SubmitBuildingItem
 	for idx, spec := range req.Specs {
-		datapacks, datasetVersionID, err := common.ExtractDatapacks(s.repo.db, spec.Datapack, spec.Dataset, userID, consts.TaskTypeBuildDatapack)
+		datapacks, datasetVersionID, err := s.repo.ResolveDatapacks(spec.Datapack, spec.Dataset, userID, consts.TaskTypeBuildDatapack)
 		if err != nil {
 			return nil, fmt.Errorf("failed to extract datapacks: %w", err)
 		}
@@ -364,7 +366,7 @@ func (s *Service) SubmitDatapackBuilding(ctx context.Context, req *SubmitDatapac
 		}
 
 		benchmarkVersionItem := dto.NewContainerVersionItem(&benchmarkVersion)
-		envVars, err := common.ListContainerVersionEnvVarsWithDB(db, spec.Benchmark.EnvVars, &benchmarkVersion)
+		envVars, err := containermodule.NewRepository(db).ListContainerVersionEnvVars(spec.Benchmark.EnvVars, &benchmarkVersion)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list benchmark env vars: %w", err)
 		}
@@ -413,7 +415,7 @@ func (s *Service) SubmitDatapackBuilding(ctx context.Context, req *SubmitDatapac
 
 func (s *Service) ListInjections(_ context.Context, req *ListInjectionReq) (*dto.ListResp[InjectionResp], error) {
 	limit, offset := req.ToGormParams()
-	injections, total, err := s.repo.ListInjectionsView(limit, offset, req.ToFilterOptions())
+	injections, total, err := s.repo.listInjectionsView(limit, offset, req.ToFilterOptions())
 	if err != nil {
 		return nil, fmt.Errorf("failed to list injections: %w", err)
 	}
@@ -430,7 +432,7 @@ func (s *Service) ListInjections(_ context.Context, req *ListInjectionReq) (*dto
 }
 
 func (s *Service) GetInjection(_ context.Context, id int) (*InjectionDetailResp, error) {
-	injection, err := s.repo.GetInjectionWithLabels(id)
+	injection, err := s.repo.getInjectionWithLabels(id)
 	if err != nil {
 		if errors.Is(err, consts.ErrNotFound) {
 			return nil, fmt.Errorf("%w: injection id: %d", consts.ErrNotFound, id)
@@ -446,9 +448,9 @@ func (s *Service) GetMetadata(_ context.Context) (*InjectionMetadataResp, error)
 
 func (s *Service) ManageLabels(_ context.Context, req *ManageInjectionLabelReq, id int) (*InjectionResp, error) {
 	var managedInjection *model.FaultInjection
-	err := s.repo.Transaction(func(tx *gorm.DB) error {
-		repo := s.repo.withDB(tx)
-		injection, err := repo.LoadInjection(id)
+	err := s.repo.db.Transaction(func(tx *gorm.DB) error {
+		repo := NewRepository(tx)
+		injection, err := repo.loadInjection(id)
 		if err != nil {
 			if errors.Is(err, consts.ErrNotFound) {
 				return fmt.Errorf("%w: injection id: %d", consts.ErrNotFound, id)
@@ -457,7 +459,7 @@ func (s *Service) ManageLabels(_ context.Context, req *ManageInjectionLabelReq, 
 		}
 
 		if len(req.AddLabels) > 0 {
-			labels, err := common.CreateOrUpdateLabelsFromItems(tx, req.AddLabels, consts.InjectionCategory)
+			labels, err := labelmodule.NewRepository(tx).CreateOrUpdateLabelsFromItems(tx, req.AddLabels, consts.InjectionCategory)
 			if err != nil {
 				return fmt.Errorf("failed to create or update labels: %w", err)
 			}
@@ -465,27 +467,27 @@ func (s *Service) ManageLabels(_ context.Context, req *ManageInjectionLabelReq, 
 			for _, label := range labels {
 				labelIDs = append(labelIDs, label.ID)
 			}
-			if err := repo.AddInjectionLabels(injection.ID, labelIDs); err != nil {
+			if err := repo.addInjectionLabels(injection.ID, labelIDs); err != nil {
 				return fmt.Errorf("failed to add injection labels: %w", err)
 			}
 		}
 
 		if len(req.RemoveLabels) > 0 {
-			labelIDs, err := repo.ListInjectionLabelIDsByKeys(injection.ID, req.RemoveLabels)
+			labelIDs, err := repo.listInjectionLabelIDsByKeys(injection.ID, req.RemoveLabels)
 			if err != nil {
 				return fmt.Errorf("failed to find label ids by keys: %w", err)
 			}
 			if len(labelIDs) > 0 {
-				if err := repo.ClearInjectionLabels([]int{id}, labelIDs); err != nil {
+				if err := repo.clearInjectionLabels([]int{id}, labelIDs); err != nil {
 					return fmt.Errorf("failed to clear injection labels: %w", err)
 				}
-				if err := repo.BatchDecreaseLabelUsages(labelIDs, 1); err != nil {
+				if err := repo.batchDecreaseLabelUsages(labelIDs, 1); err != nil {
 					return fmt.Errorf("failed to decrease label usage counts: %w", err)
 				}
 			}
 		}
 
-		managedInjection, err = repo.GetInjectionWithLabels(id)
+		managedInjection, err = repo.getInjectionWithLabels(id)
 		if err != nil {
 			return fmt.Errorf("failed to reload injection labels: %w", err)
 		}
@@ -506,8 +508,8 @@ func (s *Service) BatchManageLabels(_ context.Context, req *BatchManageInjection
 		return resp, nil
 	}
 
-	return resp, s.repo.Transaction(func(tx *gorm.DB) error {
-		repo := s.repo.withDB(tx)
+	return resp, s.repo.db.Transaction(func(tx *gorm.DB) error {
+		repo := NewRepository(tx)
 		allInjectionIDs := make([]int, 0, len(req.Items))
 		operationMap := make(map[int]*InjectionLabelOperation, len(req.Items))
 		for i := range req.Items {
@@ -516,7 +518,7 @@ func (s *Service) BatchManageLabels(_ context.Context, req *BatchManageInjection
 			operationMap[item.InjectionID] = item
 		}
 
-		foundIDMap, err := repo.LoadExistingInjectionsByID(allInjectionIDs)
+		foundIDMap, err := repo.loadExistingInjectionsByID(allInjectionIDs)
 		if err != nil {
 			return fmt.Errorf("failed to list injections: %w", err)
 		}
@@ -557,7 +559,7 @@ func (s *Service) BatchManageLabels(_ context.Context, req *BatchManageInjection
 
 		var labelMap map[string]int
 		if len(allAddLabels) > 0 {
-			labels, err := common.CreateOrUpdateLabelsFromItems(tx, allAddLabels, consts.InjectionCategory)
+			labels, err := labelmodule.NewRepository(tx).CreateOrUpdateLabelsFromItems(tx, allAddLabels, consts.InjectionCategory)
 			if err != nil {
 				return fmt.Errorf("failed to create or update labels: %w", err)
 			}
@@ -573,7 +575,7 @@ func (s *Service) BatchManageLabels(_ context.Context, req *BatchManageInjection
 			for _, item := range allRemoveLabels {
 				labelConditions = append(labelConditions, map[string]string{"key": item.Key, "value": item.Value})
 			}
-			removeLabelMap, err = repo.LoadInjectionLabelIDsByItems(labelConditions, consts.InjectionCategory)
+			removeLabelMap, err = repo.loadInjectionLabelIDsByItems(labelConditions, consts.InjectionCategory)
 			if err != nil {
 				return fmt.Errorf("failed to find labels to remove: %w", err)
 			}
@@ -589,7 +591,7 @@ func (s *Service) BatchManageLabels(_ context.Context, req *BatchManageInjection
 					}
 				}
 				if len(labelIDsToAdd) > 0 {
-					if err := repo.AddInjectionLabels(injectionID, labelIDsToAdd); err != nil {
+					if err := repo.addInjectionLabels(injectionID, labelIDsToAdd); err != nil {
 						resp.FailedItems = append(resp.FailedItems, fmt.Sprintf("Injection ID %d: failed to add labels - %s", injectionID, err.Error()))
 						resp.FailedCount++
 						delete(foundIDMap, injectionID)
@@ -606,7 +608,7 @@ func (s *Service) BatchManageLabels(_ context.Context, req *BatchManageInjection
 					}
 				}
 				if len(labelIDsToRemove) > 0 {
-					if err := repo.ClearInjectionLabels([]int{injectionID}, labelIDsToRemove); err != nil {
+					if err := repo.clearInjectionLabels([]int{injectionID}, labelIDsToRemove); err != nil {
 						resp.FailedItems = append(resp.FailedItems, fmt.Sprintf("Injection ID %d: failed to remove labels - %s", injectionID, err.Error()))
 						resp.FailedCount++
 						delete(foundIDMap, injectionID)
@@ -621,7 +623,7 @@ func (s *Service) BatchManageLabels(_ context.Context, req *BatchManageInjection
 			for id := range foundIDMap {
 				successIDs = append(successIDs, id)
 			}
-			updatedInjections, err := repo.ListFaultInjectionsByIDWithLabels(successIDs)
+			updatedInjections, err := repo.listFaultInjectionsByIDWithLabels(successIDs)
 			if err != nil {
 				return fmt.Errorf("failed to fetch updated injections: %w", err)
 			}
@@ -644,7 +646,7 @@ func (s *Service) BatchDelete(ctx context.Context, req *BatchDeleteInjectionReq)
 }
 
 func (s *Service) Clone(_ context.Context, id int, req *CloneInjectionReq) (*InjectionDetailResp, error) {
-	original, err := s.repo.LoadInjection(id)
+	original, err := s.repo.loadInjection(id)
 	if err != nil {
 		if errors.Is(err, consts.ErrNotFound) {
 			return nil, fmt.Errorf("%w: injection id: %d", consts.ErrNotFound, id)
@@ -669,16 +671,16 @@ func (s *Service) Clone(_ context.Context, id int, req *CloneInjectionReq) (*Inj
 		Status:        consts.CommonEnabled,
 	}
 
-	err = s.repo.Transaction(func(tx *gorm.DB) error {
-		repo := s.repo.withDB(tx)
-		if err := repo.CreateInjectionRecord(cloned); err != nil {
+	err = s.repo.db.Transaction(func(tx *gorm.DB) error {
+		repo := NewRepository(tx)
+		if err := repo.createInjectionRecord(cloned); err != nil {
 			if errors.Is(err, gorm.ErrDuplicatedKey) {
 				return fmt.Errorf("%w: injection with name %s already exists", consts.ErrAlreadyExists, cloned.Name)
 			}
 			return fmt.Errorf("failed to create injection: %w", err)
 		}
 		if len(req.Labels) > 0 {
-			labels, err := common.CreateOrUpdateLabelsFromItems(tx, req.Labels, consts.InjectionCategory)
+			labels, err := labelmodule.NewRepository(tx).CreateOrUpdateLabelsFromItems(tx, req.Labels, consts.InjectionCategory)
 			if err != nil {
 				return fmt.Errorf("failed to create or update labels: %w", err)
 			}
@@ -686,7 +688,7 @@ func (s *Service) Clone(_ context.Context, id int, req *CloneInjectionReq) (*Inj
 			for _, label := range labels {
 				labelIDs = append(labelIDs, label.ID)
 			}
-			if err := repo.AddInjectionLabels(cloned.ID, labelIDs); err != nil {
+			if err := repo.addInjectionLabels(cloned.ID, labelIDs); err != nil {
 				return fmt.Errorf("failed to add injection labels: %w", err)
 			}
 		}
@@ -696,7 +698,7 @@ func (s *Service) Clone(_ context.Context, id int, req *CloneInjectionReq) (*Inj
 		return nil, err
 	}
 
-	cloned, err = s.repo.GetInjectionWithLabels(cloned.ID)
+	cloned, err = s.repo.getInjectionWithLabels(cloned.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get cloned injection labels: %w", err)
 	}
@@ -704,7 +706,7 @@ func (s *Service) Clone(_ context.Context, id int, req *CloneInjectionReq) (*Inj
 }
 
 func (s *Service) GetLogs(ctx context.Context, id int) (*InjectionLogsResp, error) {
-	injection, err := s.repo.LoadInjection(id)
+	injection, err := s.repo.loadInjection(id)
 	if err != nil {
 		if errors.Is(err, consts.ErrNotFound) {
 			return nil, fmt.Errorf("%w: injection id: %d", consts.ErrNotFound, id)
@@ -718,7 +720,7 @@ func (s *Service) GetLogs(ctx context.Context, id int) (*InjectionLogsResp, erro
 	}
 
 	resp.TaskID = *injection.TaskID
-	task, taskErr := s.repo.LoadTask(*injection.TaskID)
+	task, taskErr := s.repo.loadTask(*injection.TaskID)
 	if taskErr != nil {
 		return resp, nil
 	}
@@ -739,7 +741,7 @@ func (s *Service) GetLogs(ctx context.Context, id int) (*InjectionLogsResp, erro
 }
 
 func (s *Service) GetDatapackFilename(_ context.Context, id int) (string, error) {
-	injection, err := s.repo.LoadInjection(id)
+	injection, err := s.repo.loadInjection(id)
 	if err != nil {
 		if errors.Is(err, consts.ErrNotFound) || errors.Is(err, gorm.ErrRecordNotFound) {
 			return "", fmt.Errorf("%w: injection id: %d", consts.ErrNotFound, id)
@@ -791,10 +793,134 @@ func (s *Service) QueryDatapackFile(ctx context.Context, id int, filePath string
 }
 
 func (s *Service) UpdateGroundtruth(_ context.Context, id int, req *UpdateGroundtruthReq) error {
-	if _, err := s.repo.LoadInjection(id); err != nil {
+	if _, err := s.repo.loadInjection(id); err != nil {
 		return err
 	}
-	return s.repo.UpdateGroundtruth(id, req.Groundtruths, consts.GroundtruthSourceManual)
+	return s.repo.updateGroundtruth(id, req.Groundtruths, consts.GroundtruthSourceManual)
+}
+
+func (s *Service) CreateInjectionRecord(_ context.Context, req *RuntimeCreateInjectionReq) (*dto.InjectionItem, error) {
+	if req == nil {
+		return nil, fmt.Errorf("runtime create injection request is nil")
+	}
+	if req.Name == "" || req.TaskID == "" {
+		return nil, fmt.Errorf("%w: name and task_id are required", consts.ErrBadRequest)
+	}
+
+	var created *model.FaultInjection
+	err := s.repo.db.Transaction(func(tx *gorm.DB) error {
+		repo := NewRepository(tx)
+		injection := &model.FaultInjection{
+			Name:              req.Name,
+			Source:            consts.DatapackSourceInjection,
+			FaultType:         req.FaultType,
+			Category:          req.Category,
+			Description:       req.Description,
+			DisplayConfig:     utils.StringPtr(req.DisplayConfig),
+			EngineConfig:      req.EngineConfig,
+			Groundtruths:      req.Groundtruths,
+			GroundtruthSource: req.GroundtruthSource,
+			PreDuration:       req.PreDuration,
+			TaskID:            utils.StringPtr(req.TaskID),
+			BenchmarkID:       req.BenchmarkID,
+			PedestalID:        req.PedestalID,
+			State:             req.State,
+			Status:            consts.CommonEnabled,
+		}
+
+		if err := repo.createInjectionRecord(injection); err != nil {
+			if errors.Is(err, gorm.ErrDuplicatedKey) {
+				return fmt.Errorf("%w: injection %s already exists", consts.ErrAlreadyExists, req.Name)
+			}
+			return err
+		}
+
+		if len(req.Labels) > 0 {
+			createdLabels, err := labelmodule.NewRepository(tx).CreateOrUpdateLabelsFromItems(tx, req.Labels, consts.InjectionCategory)
+			if err != nil {
+				return fmt.Errorf("failed to create or update labels: %w", err)
+			}
+
+			labelIDs := make([]int, 0, len(createdLabels))
+			for _, label := range createdLabels {
+				labelIDs = append(labelIDs, label.ID)
+			}
+
+			if err := repo.addInjectionLabels(injection.ID, labelIDs); err != nil {
+				return fmt.Errorf("failed to add injection labels: %w", err)
+			}
+		}
+
+		created = injection
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	item := dto.NewInjectionItem(created)
+	return &item, nil
+}
+
+func (s *Service) UpdateInjectionState(_ context.Context, req *RuntimeUpdateInjectionStateReq) error {
+	if req == nil {
+		return fmt.Errorf("runtime update injection state request is nil")
+	}
+	if req.Name == "" {
+		return fmt.Errorf("%w: name is required", consts.ErrBadRequest)
+	}
+
+	return s.repo.db.Transaction(func(tx *gorm.DB) error {
+		repo := NewRepository(tx)
+		injection, err := repo.findInjectionByName(req.Name, false)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return fmt.Errorf("%w: injection %s not found", consts.ErrNotFound, req.Name)
+			}
+			return err
+		}
+		return repo.updateInjectionFields(injection.ID, map[string]any{"state": req.State})
+	})
+}
+
+func (s *Service) UpdateInjectionTimestamps(_ context.Context, req *RuntimeUpdateInjectionTimestampReq) (*dto.InjectionItem, error) {
+	if req == nil {
+		return nil, fmt.Errorf("runtime update injection timestamp request is nil")
+	}
+	if req.Name == "" {
+		return nil, fmt.Errorf("%w: name is required", consts.ErrBadRequest)
+	}
+
+	var updated *model.FaultInjection
+	err := s.repo.db.Transaction(func(tx *gorm.DB) error {
+		repo := NewRepository(tx)
+		injection, err := repo.findInjectionByName(req.Name, false)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return fmt.Errorf("%w: injection %s not found", consts.ErrNotFound, req.Name)
+			}
+			return err
+		}
+		if err := repo.updateInjectionFields(injection.ID, map[string]any{
+			"start_time": req.StartTime,
+			"end_time":   req.EndTime,
+		}); err != nil {
+			return err
+		}
+
+		reloaded, err := repo.loadInjection(injection.ID)
+		if err != nil {
+			return err
+		}
+		updated = reloaded
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	item := dto.NewInjectionItem(updated)
+	return &item, nil
 }
 
 func (s *Service) UploadDatapack(_ context.Context, req *UploadDatapackReq, file io.Reader, fileSize int64) (*UploadDatapackResp, error) {
@@ -810,7 +936,7 @@ func (s *Service) UploadDatapack(_ context.Context, req *UploadDatapackReq, file
 		return nil, fmt.Errorf("%w: %s", consts.ErrBadRequest, err.Error())
 	}
 
-	existing, _ := s.repo.FindInjectionByName(req.Name, false)
+	existing, _ := s.repo.findInjectionByName(req.Name, false)
 	if existing != nil {
 		return nil, fmt.Errorf("%w: injection with name %s already exists", consts.ErrAlreadyExists, req.Name)
 	}
@@ -874,14 +1000,14 @@ func (s *Service) UploadDatapack(_ context.Context, req *UploadDatapackReq, file
 		Status:            consts.CommonEnabled,
 	}
 
-	err = s.repo.Transaction(func(tx *gorm.DB) error {
-		repo := s.repo.withDB(tx)
-		if err := repo.CreateInjectionRecord(injection); err != nil {
+	err = s.repo.db.Transaction(func(tx *gorm.DB) error {
+		repo := NewRepository(tx)
+		if err := repo.createInjectionRecord(injection); err != nil {
 			return err
 		}
 
 		if len(labels) > 0 {
-			createdLabels, err := common.CreateOrUpdateLabelsFromItems(tx, labels, consts.InjectionCategory)
+			createdLabels, err := labelmodule.NewRepository(tx).CreateOrUpdateLabelsFromItems(tx, labels, consts.InjectionCategory)
 			if err != nil {
 				return fmt.Errorf("failed to create or update labels: %w", err)
 			}
@@ -891,7 +1017,7 @@ func (s *Service) UploadDatapack(_ context.Context, req *UploadDatapackReq, file
 				labelIDs = append(labelIDs, label.ID)
 			}
 
-			if err := repo.AddInjectionLabels(injection.ID, labelIDs); err != nil {
+			if err := repo.addInjectionLabels(injection.ID, labelIDs); err != nil {
 				return fmt.Errorf("failed to add injection labels: %w", err)
 			}
 		}
@@ -909,7 +1035,7 @@ func (s *Service) UploadDatapack(_ context.Context, req *UploadDatapackReq, file
 }
 
 func (s *Service) getReadyDatapack(id int) (*model.FaultInjection, error) {
-	injection, err := s.repo.LoadInjection(id)
+	injection, err := s.repo.loadInjection(id)
 	if err != nil {
 		if errors.Is(err, consts.ErrNotFound) || errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("%w: injection id: %d", consts.ErrNotFound, id)
@@ -926,9 +1052,9 @@ func (s *Service) batchDeleteByIDs(injectionIDs []int) error {
 	if len(injectionIDs) == 0 {
 		return nil
 	}
-	return s.repo.Transaction(func(tx *gorm.DB) error {
-		repo := s.repo.withDB(tx)
-		return repo.DeleteInjectionsCascade(injectionIDs)
+	return s.repo.db.Transaction(func(tx *gorm.DB) error {
+		repo := NewRepository(tx)
+		return repo.deleteInjectionsCascade(injectionIDs)
 	})
 }
 
@@ -940,7 +1066,7 @@ func (s *Service) batchDeleteByLabels(labelItems []dto.LabelItem) error {
 	for _, item := range labelItems {
 		labelConditions = append(labelConditions, map[string]string{"key": item.Key, "value": item.Value})
 	}
-	injectionIDs, err := s.repo.ListInjectionIDsByLabelConditions(labelConditions)
+	injectionIDs, err := s.repo.listInjectionIDsByLabelConditions(labelConditions)
 	if err != nil {
 		return fmt.Errorf("failed to list injection ids by labels: %w", err)
 	}

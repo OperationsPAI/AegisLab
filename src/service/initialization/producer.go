@@ -389,14 +389,13 @@ func initializeContainers(tx *gorm.DB, data *InitialData, userID int) error {
 
 		container.Versions = versions
 
-		createdContainer, err := containermodule.CreateContainerCore(tx, container, userID)
+		createdContainer, err := containermodule.NewRepository(tx).CreateContainerCore(container, userID)
 		if err != nil {
 			return fmt.Errorf("failed to create container %s: %w", containerData.Name, err)
 		}
 
 		if createdContainer.Type == consts.ContainerTypePedestal {
-			if err := containermodule.UploadHelmValueFileFromPath(
-				tx,
+			if err := containermodule.NewRepository(tx).UploadHelmValueFileFromPath(
 				containerData.Name,
 				container.Versions[0].HelmConfig,
 				filepath.Join(dataPath, fmt.Sprintf("%s.yaml", createdContainer.Name)),
@@ -419,7 +418,7 @@ func initializeDatasets(tx *gorm.DB, data *InitialData, userID int) error {
 			versions = append(versions, *version)
 		}
 
-		_, err := datasetmodule.CreateDatasetCore(tx, dataset, versions, userID)
+		_, err := datasetmodule.NewRepository(tx).CreateDatasetCore(dataset, versions, userID)
 		if err != nil {
 			return fmt.Errorf("failed to create dataset %s: %w", datasetData.Name, err)
 		}
@@ -438,7 +437,7 @@ func initializeExecutionLabels(tx *gorm.DB) error {
 	}
 
 	for _, labelInfo := range sourceLabels {
-		_, err := labelmodule.CreateLabelCore(tx, &model.Label{
+		_, err := labelmodule.NewRepository(tx).CreateLabelCore(tx, &model.Label{
 			Key:         consts.ExecutionLabelSource,
 			Value:       labelInfo.value,
 			Category:    consts.ExecutionCategory,

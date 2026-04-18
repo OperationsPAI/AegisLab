@@ -25,7 +25,7 @@ func (s *Service) BatchDelete(_ context.Context, ids []int) error {
 		return nil
 	}
 
-	return s.repo.Transaction(func(tx *gorm.DB) error {
+	return s.repo.db.Transaction(func(tx *gorm.DB) error {
 		labels, err := s.repo.ListLabelsByID(tx, ids)
 		if err != nil {
 			return fmt.Errorf("failed to list labels by IDs: %w", err)
@@ -92,7 +92,7 @@ func (s *Service) Create(_ context.Context, req *CreateLabelReq) (*LabelResp, er
 
 	label := req.ConvertToLabel()
 	var createdLabel *model.Label
-	err := s.repo.Transaction(func(tx *gorm.DB) error {
+	err := s.repo.db.Transaction(func(tx *gorm.DB) error {
 		item, err := s.createLabelCore(tx, label)
 		if err != nil {
 			return fmt.Errorf("failed to create label: %w", err)
@@ -108,7 +108,7 @@ func (s *Service) Create(_ context.Context, req *CreateLabelReq) (*LabelResp, er
 }
 
 func (s *Service) Delete(_ context.Context, id int) error {
-	return s.repo.Transaction(func(tx *gorm.DB) error {
+	return s.repo.db.Transaction(func(tx *gorm.DB) error {
 		label, err := s.repo.GetLabelByID(tx, id)
 		if err != nil {
 			if errors.Is(err, consts.ErrNotFound) {
@@ -188,7 +188,7 @@ func (s *Service) Update(_ context.Context, req *UpdateLabelReq, id int) (*Label
 	}
 
 	var updatedLabel *model.Label
-	err := s.repo.Transaction(func(tx *gorm.DB) error {
+	err := s.repo.db.Transaction(func(tx *gorm.DB) error {
 		existingLabel, err := s.repo.GetLabelByID(tx, id)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -218,7 +218,7 @@ type labelRemovalOps struct {
 }
 
 func (s *Service) createLabelCore(db *gorm.DB, label *model.Label) (*model.Label, error) {
-	return CreateLabelCore(db, label)
+	return s.repo.CreateLabelCore(db, label)
 }
 
 func (s *Service) removeAssociationsFromLabels(db *gorm.DB, labelIDs []int, ops labelRemovalOps) (map[int]int64, error) {

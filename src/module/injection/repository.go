@@ -4,7 +4,7 @@ import (
 	"aegis/consts"
 	"aegis/dto"
 	"aegis/model"
-	"aegis/repository"
+	"aegis/searchx"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -21,15 +21,7 @@ func NewRepository(db *gorm.DB) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) withDB(db *gorm.DB) *Repository {
-	return &Repository{db: db}
-}
-
-func (r *Repository) Transaction(fn func(tx *gorm.DB) error) error {
-	return r.db.Transaction(fn)
-}
-
-func (r *Repository) LoadInjection(id int) (*model.FaultInjection, error) {
+func (r *Repository) loadInjection(id int) (*model.FaultInjection, error) {
 	var injection model.FaultInjection
 	if err := r.db.
 		Preload("Task").
@@ -43,7 +35,7 @@ func (r *Repository) LoadInjection(id int) (*model.FaultInjection, error) {
 	return &injection, nil
 }
 
-func (r *Repository) FindInjectionByName(name string, preload bool) (*model.FaultInjection, error) {
+func (r *Repository) findInjectionByName(name string, preload bool) (*model.FaultInjection, error) {
 	query := r.db
 	if preload {
 		query = query.Preload("Labels")
@@ -57,14 +49,14 @@ func (r *Repository) FindInjectionByName(name string, preload bool) (*model.Faul
 	return &injection, nil
 }
 
-func (r *Repository) CreateInjectionRecord(injection *model.FaultInjection) error {
+func (r *Repository) createInjectionRecord(injection *model.FaultInjection) error {
 	if err := r.db.Create(injection).Error; err != nil {
 		return fmt.Errorf("failed to create injection: %w", err)
 	}
 	return nil
 }
 
-func (r *Repository) UpdateGroundtruth(id int, groundtruths []model.Groundtruth, source string) error {
+func (r *Repository) updateGroundtruth(id int, groundtruths []model.Groundtruth, source string) error {
 	groundtruthJSON, err := json.Marshal(groundtruths)
 	if err != nil {
 		return fmt.Errorf("failed to marshal groundtruths: %w", err)
@@ -85,7 +77,20 @@ func (r *Repository) UpdateGroundtruth(id int, groundtruths []model.Groundtruth,
 	return nil
 }
 
-func (r *Repository) AddInjectionLabels(injectionID int, labelIDs []int) error {
+func (r *Repository) updateInjectionFields(id int, fields map[string]any) error {
+	result := r.db.Model(&model.FaultInjection{}).
+		Where("id = ? AND status != ?", id, consts.CommonDeleted).
+		Updates(fields)
+	if result.Error != nil {
+		return fmt.Errorf("failed to update injection %d: %w", id, result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("%w: injection %d not found", consts.ErrNotFound, id)
+	}
+	return nil
+}
+
+func (r *Repository) addInjectionLabels(injectionID int, labelIDs []int) error {
 	if len(labelIDs) == 0 {
 		return nil
 	}
@@ -103,7 +108,7 @@ func (r *Repository) AddInjectionLabels(injectionID int, labelIDs []int) error {
 	return nil
 }
 
-func (r *Repository) ResolveProject(name string) (*model.Project, error) {
+func (r *Repository) resolveProject(name string) (*model.Project, error) {
 	var project model.Project
 	if err := r.db.Where("name = ? AND status != ?", name, consts.CommonDeleted).First(&project).Error; err != nil {
 		return nil, fmt.Errorf("failed to find project with name %s: %w", name, err)
@@ -111,7 +116,7 @@ func (r *Repository) ResolveProject(name string) (*model.Project, error) {
 	return &project, nil
 }
 
-func (r *Repository) LoadTask(taskID string) (*model.Task, error) {
+func (r *Repository) loadTask(taskID string) (*model.Task, error) {
 	var task model.Task
 	if err := r.db.
 		Preload("FaultInjection.Benchmark.Container").
@@ -126,7 +131,7 @@ func (r *Repository) LoadTask(taskID string) (*model.Task, error) {
 	return &task, nil
 }
 
-func (r *Repository) LoadPedestalHelmConfig(versionID int) (*model.HelmConfig, error) {
+func (r *Repository) loadPedestalHelmConfig(versionID int) (*model.HelmConfig, error) {
 	var helmConfig model.HelmConfig
 	if err := r.db.Preload("ContainerVersion").
 		Where("container_version_id = ?", versionID).
@@ -136,7 +141,7 @@ func (r *Repository) LoadPedestalHelmConfig(versionID int) (*model.HelmConfig, e
 	return &helmConfig, nil
 }
 
-func (r *Repository) ListExistingEngineConfigs(configs []string) ([]string, error) {
+func (r *Repository) listExistingEngineConfigs(configs []string) ([]string, error) {
 	if len(configs) == 0 {
 		return []string{}, nil
 	}
@@ -157,7 +162,7 @@ func (r *Repository) ListExistingEngineConfigs(configs []string) ([]string, erro
 	return existing, nil
 }
 
-func (r *Repository) ClearInjectionLabels(injectionIDs []int, labelIDs []int) error {
+func (r *Repository) clearInjectionLabels(injectionIDs []int, labelIDs []int) error {
 	if len(injectionIDs) == 0 {
 		return nil
 	}
@@ -172,7 +177,7 @@ func (r *Repository) ClearInjectionLabels(injectionIDs []int, labelIDs []int) er
 	return nil
 }
 
-func (r *Repository) BatchDecreaseLabelUsages(labelIDs []int, decrement int) error {
+func (r *Repository) batchDecreaseLabelUsages(labelIDs []int, decrement int) error {
 	if len(labelIDs) == 0 {
 		return nil
 	}
@@ -186,7 +191,7 @@ func (r *Repository) BatchDecreaseLabelUsages(labelIDs []int, decrement int) err
 	return nil
 }
 
-func (r *Repository) ListExecutionsByDatapackIDs(datapackIDs []int) ([]model.Execution, error) {
+func (r *Repository) listExecutionsByDatapackIDs(datapackIDs []int) ([]model.Execution, error) {
 	if len(datapackIDs) == 0 {
 		return []model.Execution{}, nil
 	}
@@ -205,7 +210,7 @@ func (r *Repository) ListExecutionsByDatapackIDs(datapackIDs []int) ([]model.Exe
 	return executions, nil
 }
 
-func (r *Repository) RemoveLabelsFromExecutions(executionIDs []int) error {
+func (r *Repository) removeLabelsFromExecutions(executionIDs []int) error {
 	if len(executionIDs) == 0 {
 		return nil
 	}
@@ -216,7 +221,7 @@ func (r *Repository) RemoveLabelsFromExecutions(executionIDs []int) error {
 	return nil
 }
 
-func (r *Repository) BatchDeleteExecutions(executionIDs []int) error {
+func (r *Repository) batchDeleteExecutions(executionIDs []int) error {
 	if len(executionIDs) == 0 {
 		return nil
 	}
@@ -228,7 +233,7 @@ func (r *Repository) BatchDeleteExecutions(executionIDs []int) error {
 	return nil
 }
 
-func (r *Repository) BatchDeleteInjections(injectionIDs []int) error {
+func (r *Repository) batchDeleteInjections(injectionIDs []int) error {
 	if len(injectionIDs) == 0 {
 		return nil
 	}
@@ -240,8 +245,8 @@ func (r *Repository) BatchDeleteInjections(injectionIDs []int) error {
 	return nil
 }
 
-func (r *Repository) DeleteInjectionsCascade(injectionIDs []int) error {
-	executions, err := r.ListExecutionsByDatapackIDs(injectionIDs)
+func (r *Repository) deleteInjectionsCascade(injectionIDs []int) error {
+	executions, err := r.listExecutionsByDatapackIDs(injectionIDs)
 	if err != nil {
 		return fmt.Errorf("failed to list executions by datapack ids: %w", err)
 	}
@@ -252,25 +257,25 @@ func (r *Repository) DeleteInjectionsCascade(injectionIDs []int) error {
 	}
 
 	if len(executionIDs) > 0 {
-		if err := r.RemoveLabelsFromExecutions(executionIDs); err != nil {
+		if err := r.removeLabelsFromExecutions(executionIDs); err != nil {
 			return fmt.Errorf("failed to remove execution labels: %w", err)
 		}
-		if err := r.BatchDeleteExecutions(executionIDs); err != nil {
+		if err := r.batchDeleteExecutions(executionIDs); err != nil {
 			return fmt.Errorf("failed to delete executions: %w", err)
 		}
 	}
 
-	if err := r.ClearInjectionLabels(injectionIDs, nil); err != nil {
+	if err := r.clearInjectionLabels(injectionIDs, nil); err != nil {
 		return fmt.Errorf("failed to clear injection labels: %w", err)
 	}
-	if err := r.BatchDeleteInjections(injectionIDs); err != nil {
+	if err := r.batchDeleteInjections(injectionIDs); err != nil {
 		return fmt.Errorf("failed to delete injections: %w", err)
 	}
 	return nil
 }
 
-func (r *Repository) GetInjectionWithLabels(injectionID int) (*model.FaultInjection, error) {
-	injection, err := r.LoadInjection(injectionID)
+func (r *Repository) getInjectionWithLabels(injectionID int) (*model.FaultInjection, error) {
+	injection, err := r.loadInjection(injectionID)
 	if err != nil {
 		return nil, err
 	}
@@ -286,7 +291,7 @@ func (r *Repository) GetInjectionWithLabels(injectionID int) (*model.FaultInject
 	return injection, nil
 }
 
-func (r *Repository) LoadInjectionLabelIDsByItems(conditions []map[string]string, category consts.LabelCategory) (map[string]int, error) {
+func (r *Repository) loadInjectionLabelIDsByItems(conditions []map[string]string, category consts.LabelCategory) (map[string]int, error) {
 	if len(conditions) == 0 {
 		return map[string]int{}, nil
 	}
@@ -318,8 +323,8 @@ func (r *Repository) LoadInjectionLabelIDsByItems(conditions []map[string]string
 	return result, nil
 }
 
-func (r *Repository) LoadExistingInjectionsByID(injectionIDs []int) (map[int]*model.FaultInjection, error) {
-	injections, err := r.ListFaultInjectionsByIDWithLabels(injectionIDs)
+func (r *Repository) loadExistingInjectionsByID(injectionIDs []int) (map[int]*model.FaultInjection, error) {
+	injections, err := r.listFaultInjectionsByIDWithLabels(injectionIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -332,7 +337,7 @@ func (r *Repository) LoadExistingInjectionsByID(injectionIDs []int) (map[int]*mo
 	return result, nil
 }
 
-func (r *Repository) ListInjectionsView(limit, offset int, filterOptions *ListInjectionFilters) ([]model.FaultInjection, int64, error) {
+func (r *Repository) listInjectionsView(limit, offset int, filterOptions *ListInjectionFilters) ([]model.FaultInjection, int64, error) {
 	query := r.db.Model(&model.FaultInjection{}).
 		Preload("Benchmark.Container").
 		Preload("Pedestal.Container").
@@ -393,7 +398,7 @@ func (r *Repository) ListInjectionsView(limit, offset int, filterOptions *ListIn
 	return injections, total, nil
 }
 
-func (r *Repository) ListProjectInjectionsView(projectID, limit, offset int) ([]model.FaultInjection, int64, error) {
+func (r *Repository) listProjectInjectionsView(projectID, limit, offset int) ([]model.FaultInjection, int64, error) {
 	baseQuery := r.db.Model(&model.FaultInjection{}).
 		Joins("JOIN tasks ON tasks.id = fault_injections.task_id").
 		Joins("JOIN traces on traces.id = tasks.trace_id").
@@ -433,13 +438,13 @@ func (r *Repository) ListProjectInjectionsView(projectID, limit, offset int) ([]
 	return injections, total, nil
 }
 
-func (r *Repository) SearchInjections(req *SearchInjectionReq, projectID *int) ([]model.FaultInjection, int64, error) {
+func (r *Repository) searchInjections(req *SearchInjectionReq, projectID *int) ([]model.FaultInjection, int64, error) {
 	searchReq := req.ConvertToSearchReq()
 	if projectID != nil {
 		searchReq.AddFilter("project_id", dto.OpEqual, *projectID)
 	}
 
-	qb := repository.NewSearchQueryBuilder(r.db, consts.InjectionAllowedFields)
+	qb := searchx.NewQueryBuilder(r.db, consts.InjectionAllowedFields)
 	qb.ApplySearchReq(searchReq.Filters, searchReq.Keyword, searchReq.Sort, searchReq.GroupBy, model.FaultInjection{})
 	qb.ApplyIncludes(searchReq.Includes)
 	qb.ApplyIncludeFields(searchReq.IncludeFields)
@@ -489,7 +494,7 @@ func (r *Repository) SearchInjections(req *SearchInjectionReq, projectID *int) (
 	return filtered, total, nil
 }
 
-func (r *Repository) ListIssuesFreeInjections(labelConditions []map[string]string, startTime, endTime *time.Time, projectID *int) ([]model.FaultInjectionNoIssues, error) {
+func (r *Repository) listIssuesFreeInjections(labelConditions []map[string]string, startTime, endTime *time.Time, projectID *int) ([]model.FaultInjectionNoIssues, error) {
 	var injections []model.FaultInjectionNoIssues
 	query := r.db.Model(&model.FaultInjectionNoIssues{}).
 		Joins("JOIN fault_injections fi ON fi.id = fault_injection_no_issues.datapack_id").
@@ -523,7 +528,7 @@ func (r *Repository) ListIssuesFreeInjections(labelConditions []map[string]strin
 	return injections, nil
 }
 
-func (r *Repository) ListIssueInjections(labelConditions []map[string]string, startTime, endTime *time.Time, projectID *int) ([]model.FaultInjectionWithIssues, error) {
+func (r *Repository) listIssueInjections(labelConditions []map[string]string, startTime, endTime *time.Time, projectID *int) ([]model.FaultInjectionWithIssues, error) {
 	var injections []model.FaultInjectionWithIssues
 	query := r.db.Model(&model.FaultInjectionWithIssues{}).
 		Joins("JOIN fault_injections fi ON fi.id = fault_injection_with_issues.datapack_id").
@@ -552,7 +557,7 @@ func (r *Repository) ListIssueInjections(labelConditions []map[string]string, st
 	return injections, nil
 }
 
-func (r *Repository) ListInjectionLabelIDsByKeys(injectionID int, keys []string) ([]int, error) {
+func (r *Repository) listInjectionLabelIDsByKeys(injectionID int, keys []string) ([]int, error) {
 	var labelIDs []int
 	if err := r.db.Table("labels l").
 		Select("l.id").
@@ -564,7 +569,7 @@ func (r *Repository) ListInjectionLabelIDsByKeys(injectionID int, keys []string)
 	return labelIDs, nil
 }
 
-func (r *Repository) ListFaultInjectionsByIDWithLabels(injectionIDs []int) ([]model.FaultInjection, error) {
+func (r *Repository) listFaultInjectionsByIDWithLabels(injectionIDs []int) ([]model.FaultInjection, error) {
 	if len(injectionIDs) == 0 {
 		return []model.FaultInjection{}, nil
 	}
@@ -594,7 +599,7 @@ func (r *Repository) ListFaultInjectionsByIDWithLabels(injectionIDs []int) ([]mo
 	return injections, nil
 }
 
-func (r *Repository) ListInjectionIDsByLabelConditions(labelConditions []map[string]string) ([]int, error) {
+func (r *Repository) listInjectionIDsByLabelConditions(labelConditions []map[string]string) ([]int, error) {
 	return r.listInjectionIDsByLabels(labelConditions)
 }
 

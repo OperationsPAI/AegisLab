@@ -26,7 +26,7 @@ spec:
       targetPort: 14268
       nodePort: 31468
     - name: query
-      port: 16686  
+      port: 16686
       targetPort: 16686
       nodePort: 31686
 {{- else }}
@@ -52,7 +52,7 @@ spec:
       port: 14268
       targetPort: 14268
     - name: query
-      port: 16686  
+      port: 16686
       targetPort: 16686
 {{- end }}
 
@@ -68,8 +68,8 @@ spec:
   selector:
     app: {{ .Release.Name }}-redis
   ports:
-  - port: 6379
-    nodePort: 32279
+    - port: 6379
+      nodePort: 32279
 {{- else }}
 apiVersion: v1
 kind: Service
@@ -80,7 +80,7 @@ spec:
   selector:
     app: {{ .Release.Name }}-redis
   ports:
-  - port: 6379
+    - port: 6379
 {{- end }}
 
 ---
@@ -95,9 +95,9 @@ spec:
   selector:
     app: {{ .Release.Name }}-mysql
   ports:
-  - port: 3306
-    targetPort: 3306
-    nodePort: 32206
+    - port: 3306
+      targetPort: 3306
+      nodePort: 32206
 {{- else }}
 apiVersion: v1
 kind: Service
@@ -108,8 +108,8 @@ spec:
   selector:
     app: {{ .Release.Name }}-mysql
   ports:
-  - port: 3306
-    targetPort: 3306
+    - port: 3306
+      targetPort: 3306
 {{- end }}
 
 ---
@@ -123,12 +123,12 @@ spec:
   selector:
     app: {{ .Release.Name }}-etcd
   ports:
-  - name: client
-    port: 2379
-    targetPort: 2379
-  - name: peer
-    port: 2380
-    targetPort: 2380
+    - name: client
+      port: 2379
+      targetPort: 2379
+    - name: peer
+      port: 2380
+      targetPort: 2380
 
 ---
 # etcd External Service
@@ -142,9 +142,9 @@ spec:
   selector:
     app: {{ .Release.Name }}-etcd
   ports:
-  - port: 2379
-    targetPort: 2379
-    nodePort: 31379
+    - port: 2379
+      targetPort: 2379
+      nodePort: 31379
 {{- else }}
 apiVersion: v1
 kind: Service
@@ -155,47 +155,104 @@ spec:
   selector:
     app: {{ .Release.Name }}-etcd
   ports:
-  - port: 2379
-    targetPort: 2379
+    - port: 2379
+      targetPort: 2379
 {{- end }}
 
 ---
-# exp Service
-{{- if eq .Values.configmap.system.env_mode "staging" }}
+# API Gateway Service
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Release.Name }}-exp
+  name: {{ .Release.Name }}-api-gateway
 spec:
+  {{- if eq .Values.configmap.system.env_mode "staging" }}
   type: NodePort
+  {{- else }}
+  type: {{ .Values.microservices.apiGateway.service.type }}
+  {{- end }}
   selector:
-    app: {{ .Release.Name }}-producer
+    app: {{ .Release.Name }}-api-gateway
   ports:
-  - name: grpc
-    port: {{ .Values.configmap.otlp.port }}
-    targetPort: {{ .Values.configmap.otlp.port }}
-    nodePort: 32319
-  - name: http
-    port: {{ .Values.configmap.port}}
-    targetPort: {{ .Values.configmap.port}}
-    nodePort: 32080
-{{- else }}
+    - name: http
+      port: {{ .Values.microservices.apiGateway.httpPort }}
+      targetPort: {{ .Values.microservices.apiGateway.httpPort }}
+      {{- if eq .Values.configmap.system.env_mode "staging" }}
+      nodePort: {{ .Values.microservices.apiGateway.service.nodePort }}
+      {{- end }}
+
+---
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Release.Name }}-exp
+  name: {{ .Release.Name }}-iam-service
 spec:
   type: ClusterIP
   selector:
-    app: {{ .Release.Name }}-producer
+    app: {{ .Release.Name }}-iam-service
   ports:
-  - name: grpc
-    port: {{ .Values.configmap.otlp.port }}
-    targetPort: {{ .Values.configmap.otlp.port }}
-  - name: http 
-    port: {{ .Values.configmap.port}}
-    targetPort: {{ .Values.configmap.port}}
-{{- end }}
+    - name: grpc
+      port: {{ .Values.microservices.iamService.grpcPort }}
+      targetPort: {{ .Values.microservices.iamService.grpcPort }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-orchestrator-service
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Release.Name }}-orchestrator-service
+  ports:
+    - name: grpc
+      port: {{ .Values.microservices.orchestratorService.grpcPort }}
+      targetPort: {{ .Values.microservices.orchestratorService.grpcPort }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-resource-service
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Release.Name }}-resource-service
+  ports:
+    - name: grpc
+      port: {{ .Values.microservices.resourceService.grpcPort }}
+      targetPort: {{ .Values.microservices.resourceService.grpcPort }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-runtime-worker-service
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Release.Name }}-runtime-worker-service
+  ports:
+    - name: grpc
+      port: {{ .Values.microservices.runtimeWorkerService.grpcPort }}
+      targetPort: {{ .Values.microservices.runtimeWorkerService.grpcPort }}
+    - name: otlp
+      port: {{ .Values.configmap.otlp.port }}
+      targetPort: {{ .Values.configmap.otlp.port }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-system-service
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Release.Name }}-system-service
+  ports:
+    - name: grpc
+      port: {{ .Values.microservices.systemService.grpcPort }}
+      targetPort: {{ .Values.microservices.systemService.grpcPort }}
 
 ---
 apiVersion: v1
@@ -257,38 +314,5 @@ spec:
     - name: http
       port: 9090
       targetPort: 9090
-{{- end }}
-{{- end }}
-
-{{- if .Values.grafana.enabled }}
----
-# Grafana Service
-{{- if eq .Values.configmap.system.env_mode "staging" }}
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ .Release.Name }}-grafana
-spec:
-  type: NodePort
-  selector:
-    app: {{ .Release.Name }}-grafana
-  ports:
-    - name: http
-      port: 3000
-      targetPort: 3000
-      nodePort: 32300
-{{- else }}
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ .Release.Name }}-grafana
-spec:
-  type: ClusterIP
-  selector:
-    app: {{ .Release.Name }}-grafana
-  ports:
-    - name: http
-      port: 3000
-      targetPort: 3000
 {{- end }}
 {{- end }}

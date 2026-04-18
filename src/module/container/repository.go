@@ -24,15 +24,7 @@ func NewRepository(db *gorm.DB) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) Transaction(fn func(tx *gorm.DB) error) error {
-	return r.db.Transaction(fn)
-}
-
-func (r *Repository) withDB(db *gorm.DB) *Repository {
-	return &Repository{db: db}
-}
-
-func (r *Repository) GetRoleByName(name string) (*model.Role, error) {
+func (r *Repository) getRoleByName(name string) (*model.Role, error) {
 	var role model.Role
 	if err := r.db.Where("name = ? and status != ?", name, consts.CommonDeleted).First(&role).Error; err != nil {
 		return nil, fmt.Errorf("failed to find role with name %s: %w", name, err)
@@ -40,21 +32,21 @@ func (r *Repository) GetRoleByName(name string) (*model.Role, error) {
 	return &role, nil
 }
 
-func (r *Repository) CreateContainer(container *model.Container) error {
+func (r *Repository) createContainer(container *model.Container) error {
 	if err := r.db.Omit(containerCommonOmitFields, containerModelOmitFields).Create(container).Error; err != nil {
 		return fmt.Errorf("failed to create container: %w", err)
 	}
 	return nil
 }
 
-func (r *Repository) CreateUserContainer(userContainer *model.UserContainer) error {
+func (r *Repository) createUserContainer(userContainer *model.UserContainer) error {
 	if err := r.db.Omit("active_user_container").Create(userContainer).Error; err != nil {
 		return fmt.Errorf("failed to create user-container association: %w", err)
 	}
 	return nil
 }
 
-func (r *Repository) BatchDeleteContainerVersions(containerID int) (int64, error) {
+func (r *Repository) batchDeleteContainerVersions(containerID int) (int64, error) {
 	result := r.db.Model(&model.ContainerVersion{}).
 		Where("container_id = ? AND status != ?", containerID, consts.CommonDeleted).
 		Update("status", consts.CommonDeleted)
@@ -64,7 +56,7 @@ func (r *Repository) BatchDeleteContainerVersions(containerID int) (int64, error
 	return result.RowsAffected, nil
 }
 
-func (r *Repository) RemoveUsersFromContainer(containerID int) (int64, error) {
+func (r *Repository) removeUsersFromContainer(containerID int) (int64, error) {
 	result := r.db.Model(&model.UserContainer{}).
 		Where("container_id = ? AND status != ?", containerID, consts.CommonDeleted).
 		Update("status", consts.CommonDeleted)
@@ -74,7 +66,7 @@ func (r *Repository) RemoveUsersFromContainer(containerID int) (int64, error) {
 	return result.RowsAffected, nil
 }
 
-func (r *Repository) ClearContainerLabels(containerIDs []int, labelIDs []int) error {
+func (r *Repository) clearContainerLabels(containerIDs []int, labelIDs []int) error {
 	if len(containerIDs) == 0 {
 		return nil
 	}
@@ -89,7 +81,7 @@ func (r *Repository) ClearContainerLabels(containerIDs []int, labelIDs []int) er
 	return nil
 }
 
-func (r *Repository) DeleteContainer(containerID int) (int64, error) {
+func (r *Repository) deleteContainer(containerID int) (int64, error) {
 	result := r.db.Model(&model.Container{}).
 		Where("id = ? AND status != ?", containerID, consts.CommonDeleted).
 		Update("status", consts.CommonDeleted)
@@ -99,7 +91,7 @@ func (r *Repository) DeleteContainer(containerID int) (int64, error) {
 	return result.RowsAffected, nil
 }
 
-func (r *Repository) GetContainerByID(containerID int) (*model.Container, error) {
+func (r *Repository) getContainerByID(containerID int) (*model.Container, error) {
 	var container model.Container
 	if err := r.db.Where("id = ? AND status != ?", containerID, consts.CommonDeleted).First(&container).Error; err != nil {
 		return nil, fmt.Errorf("failed to find container with id %d: %w", containerID, err)
@@ -107,7 +99,7 @@ func (r *Repository) GetContainerByID(containerID int) (*model.Container, error)
 	return &container, nil
 }
 
-func (r *Repository) ListContainerVersionsByContainerID(containerID int) ([]model.ContainerVersion, error) {
+func (r *Repository) listContainerVersionsByContainerID(containerID int) ([]model.ContainerVersion, error) {
 	var versions []model.ContainerVersion
 	if err := r.db.
 		Preload("Container").
@@ -119,7 +111,59 @@ func (r *Repository) ListContainerVersionsByContainerID(containerID int) ([]mode
 	return versions, nil
 }
 
-func (r *Repository) ListContainers(limit, offset int, containerType *consts.ContainerType, isPublic *bool, status *consts.StatusType) ([]model.Container, int64, error) {
+func (r *Repository) batchGetContainerVersions(containerType consts.ContainerType, containerNames []string, userID int) ([]model.ContainerVersion, error) {
+	if len(containerNames) == 0 {
+		return []model.ContainerVersion{}, nil
+	}
+
+	var versions []model.ContainerVersion
+	query := r.db.Table("container_versions cv").
+		Preload("Container").
+		Where("cv.status = ?", consts.CommonEnabled).
+		Order("cv.container_id DESC, cv.name_major DESC, cv.name_minor DESC, cv.name_patch DESC")
+
+	query = query.Joins("INNER JOIN containers c ON c.id = cv.container_id").
+		Where("c.type = ? AND c.name IN (?) AND c.status = ?", containerType, containerNames, consts.CommonEnabled)
+
+	if userID > 0 {
+		query = query.Joins(
+			"LEFT JOIN user_containers uc ON uc.container_id = c.id AND uc.user_id = ? AND uc.status = ?",
+			userID, consts.CommonEnabled,
+		).Where(
+			r.db.Where("c.is_public = ?", true).Or("uc.container_id IS NOT NULL"),
+		)
+	}
+
+	if err := query.Find(&versions).Error; err != nil {
+		return nil, fmt.Errorf("failed to query container versions: %w", err)
+	}
+	return versions, nil
+}
+
+func (r *Repository) checkContainerExistsWithDifferentType(containerName string, requestedType consts.ContainerType, userID int) (bool, consts.ContainerType, error) {
+	var container model.Container
+	query := r.db.Table("containers").
+		Where("name = ? AND type != ? AND status = ?", containerName, requestedType, consts.CommonEnabled)
+
+	if userID > 0 {
+		query = query.Joins(
+			"LEFT JOIN user_containers uc ON uc.container_id = containers.id AND uc.user_id = ? AND uc.status = ?",
+			userID, consts.CommonEnabled,
+		).Where(
+			r.db.Where("containers.is_public = ?", true).Or("uc.container_id IS NOT NULL"),
+		)
+	}
+
+	if err := query.First(&container).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return false, 0, nil
+		}
+		return false, 0, fmt.Errorf("failed to check container existence: %w", err)
+	}
+	return true, container.Type, nil
+}
+
+func (r *Repository) listContainers(limit, offset int, containerType *consts.ContainerType, isPublic *bool, status *consts.StatusType) ([]model.Container, int64, error) {
 	var (
 		containers []model.Container
 		total      int64
@@ -145,7 +189,7 @@ func (r *Repository) ListContainers(limit, offset int, containerType *consts.Con
 	return containers, total, nil
 }
 
-func (r *Repository) ListContainerLabels(containerIDs []int) (map[int][]model.Label, error) {
+func (r *Repository) listContainerLabels(containerIDs []int) (map[int][]model.Label, error) {
 	if len(containerIDs) == 0 {
 		return nil, nil
 	}
@@ -174,14 +218,14 @@ func (r *Repository) ListContainerLabels(containerIDs []int) (map[int][]model.La
 	return labelsMap, nil
 }
 
-func (r *Repository) UpdateContainer(container *model.Container) error {
+func (r *Repository) updateContainer(container *model.Container) error {
 	if err := r.db.Omit(containerCommonOmitFields).Save(container).Error; err != nil {
 		return fmt.Errorf("failed to update container: %w", err)
 	}
 	return nil
 }
 
-func (r *Repository) AddContainerLabels(containerLabels []model.ContainerLabel) error {
+func (r *Repository) addContainerLabels(containerLabels []model.ContainerLabel) error {
 	if len(containerLabels) == 0 {
 		return nil
 	}
@@ -191,7 +235,7 @@ func (r *Repository) AddContainerLabels(containerLabels []model.ContainerLabel) 
 	return nil
 }
 
-func (r *Repository) ListLabelIDsByKeyAndContainerID(containerID int, keys []string) ([]int, error) {
+func (r *Repository) listLabelIDsByKeyAndContainerID(containerID int, keys []string) ([]int, error) {
 	var labelIDs []int
 	if err := r.db.Table("labels l").
 		Select("l.id").
@@ -203,7 +247,7 @@ func (r *Repository) ListLabelIDsByKeyAndContainerID(containerID int, keys []str
 	return labelIDs, nil
 }
 
-func (r *Repository) BatchDecreaseLabelUsages(labelIDs []int, decrement int) error {
+func (r *Repository) batchDecreaseLabelUsages(labelIDs []int, decrement int) error {
 	if len(labelIDs) == 0 {
 		return nil
 	}
@@ -218,7 +262,7 @@ func (r *Repository) BatchDecreaseLabelUsages(labelIDs []int, decrement int) err
 	return nil
 }
 
-func (r *Repository) ListLabelsByContainerID(containerID int) ([]model.Label, error) {
+func (r *Repository) listLabelsByContainerID(containerID int) ([]model.Label, error) {
 	var labels []model.Label
 	if err := r.db.Model(&model.Label{}).
 		Joins("JOIN container_labels cl ON cl.label_id = labels.id").
@@ -229,7 +273,7 @@ func (r *Repository) ListLabelsByContainerID(containerID int) ([]model.Label, er
 	return labels, nil
 }
 
-func (r *Repository) BatchCreateContainerVersions(versions []model.ContainerVersion) error {
+func (r *Repository) batchCreateContainerVersions(versions []model.ContainerVersion) error {
 	if len(versions) == 0 {
 		return fmt.Errorf("no container versions to create")
 	}
@@ -239,7 +283,7 @@ func (r *Repository) BatchCreateContainerVersions(versions []model.ContainerVers
 	return nil
 }
 
-func (r *Repository) BatchCreateOrFindParameterConfigs(params []model.ParameterConfig) error {
+func (r *Repository) batchCreateOrFindParameterConfigs(params []model.ParameterConfig) error {
 	if len(params) == 0 {
 		return nil
 	}
@@ -249,7 +293,7 @@ func (r *Repository) BatchCreateOrFindParameterConfigs(params []model.ParameterC
 	return nil
 }
 
-func (r *Repository) ListParameterConfigsByKeys(configs []model.ParameterConfig) ([]model.ParameterConfig, error) {
+func (r *Repository) listParameterConfigsByKeys(configs []model.ParameterConfig) ([]model.ParameterConfig, error) {
 	if len(configs) == 0 {
 		return []model.ParameterConfig{}, nil
 	}
@@ -266,7 +310,40 @@ func (r *Repository) ListParameterConfigsByKeys(configs []model.ParameterConfig)
 	return results, nil
 }
 
-func (r *Repository) AddContainerVersionEnvVars(envVars []model.ContainerVersionEnvVar) error {
+func (r *Repository) listContainerVersionEnvVars(keys []string, containerVersionID int) ([]model.ParameterConfig, error) {
+	query := r.db.Model(&model.ParameterConfig{}).
+		Joins("JOIN container_version_env_vars cvev ON cvev.parameter_config_id = parameter_configs.id").
+		Where("cvev.container_version_id = ?", containerVersionID).
+		Where("parameter_configs.category = ?", consts.ParameterCategoryEnvVars)
+
+	if len(keys) > 0 {
+		query = query.Where("parameter_configs.config_key IN (?)", keys)
+	}
+
+	var params []model.ParameterConfig
+	if err := query.Find(&params).Error; err != nil {
+		return nil, fmt.Errorf("failed to list container env vars: %w", err)
+	}
+	return params, nil
+}
+
+func (r *Repository) listHelmConfigValues(keys []string, helmConfigID int) ([]model.ParameterConfig, error) {
+	query := r.db.Model(&model.ParameterConfig{}).
+		Joins("JOIN helm_config_values hcv ON hcv.parameter_config_id = parameter_configs.id").
+		Where("hcv.helm_config_id = ?", helmConfigID)
+
+	if len(keys) > 0 {
+		query = query.Where("parameter_configs.config_key IN (?)", keys)
+	}
+
+	var params []model.ParameterConfig
+	if err := query.Find(&params).Error; err != nil {
+		return nil, fmt.Errorf("failed to list helm values: %w", err)
+	}
+	return params, nil
+}
+
+func (r *Repository) addContainerVersionEnvVars(envVars []model.ContainerVersionEnvVar) error {
 	if len(envVars) == 0 {
 		return nil
 	}
@@ -276,7 +353,7 @@ func (r *Repository) AddContainerVersionEnvVars(envVars []model.ContainerVersion
 	return nil
 }
 
-func (r *Repository) BatchCreateHelmConfigs(helmConfigs []*model.HelmConfig) error {
+func (r *Repository) batchCreateHelmConfigs(helmConfigs []*model.HelmConfig) error {
 	if len(helmConfigs) == 0 {
 		return fmt.Errorf("no helm configs to create")
 	}
@@ -286,7 +363,7 @@ func (r *Repository) BatchCreateHelmConfigs(helmConfigs []*model.HelmConfig) err
 	return nil
 }
 
-func (r *Repository) AddHelmConfigValues(helmValues []model.HelmConfigValue) error {
+func (r *Repository) addHelmConfigValues(helmValues []model.HelmConfigValue) error {
 	if len(helmValues) == 0 {
 		return nil
 	}
@@ -296,7 +373,7 @@ func (r *Repository) AddHelmConfigValues(helmValues []model.HelmConfigValue) err
 	return nil
 }
 
-func (r *Repository) DeleteContainerVersion(versionID int) (int64, error) {
+func (r *Repository) deleteContainerVersion(versionID int) (int64, error) {
 	result := r.db.Model(&model.ContainerVersion{}).
 		Where("id = ? AND status != ?", versionID, consts.CommonDeleted).
 		Update("status", consts.CommonDeleted)
@@ -306,7 +383,7 @@ func (r *Repository) DeleteContainerVersion(versionID int) (int64, error) {
 	return result.RowsAffected, nil
 }
 
-func (r *Repository) GetContainerVersionByID(versionID int) (*model.ContainerVersion, error) {
+func (r *Repository) getContainerVersionByID(versionID int) (*model.ContainerVersion, error) {
 	var version model.ContainerVersion
 	if err := r.db.
 		Preload("Container").
@@ -318,7 +395,7 @@ func (r *Repository) GetContainerVersionByID(versionID int) (*model.ContainerVer
 	return &version, nil
 }
 
-func (r *Repository) ListContainerVersions(limit, offset int, containerID int, status *consts.StatusType) ([]model.ContainerVersion, int64, error) {
+func (r *Repository) listContainerVersions(limit, offset int, containerID int, status *consts.StatusType) ([]model.ContainerVersion, int64, error) {
 	var (
 		versions []model.ContainerVersion
 		total    int64
@@ -338,14 +415,14 @@ func (r *Repository) ListContainerVersions(limit, offset int, containerID int, s
 	return versions, total, nil
 }
 
-func (r *Repository) UpdateContainerVersion(version *model.ContainerVersion) error {
+func (r *Repository) updateContainerVersion(version *model.ContainerVersion) error {
 	if err := r.db.Omit(containerVersionModelOmitFields).Save(version).Error; err != nil {
 		return fmt.Errorf("failed to update container version: %w", err)
 	}
 	return nil
 }
 
-func (r *Repository) GetHelmConfigByContainerVersionID(versionID int) (*model.HelmConfig, error) {
+func (r *Repository) getHelmConfigByContainerVersionID(versionID int) (*model.HelmConfig, error) {
 	var helmConfig model.HelmConfig
 	if err := r.db.Preload("ContainerVersion").Where("container_version_id = ?", versionID).First(&helmConfig).Error; err != nil {
 		return nil, fmt.Errorf("failed to find helm config for version id %d: %w", versionID, err)
@@ -353,7 +430,7 @@ func (r *Repository) GetHelmConfigByContainerVersionID(versionID int) (*model.He
 	return &helmConfig, nil
 }
 
-func (r *Repository) UpdateHelmConfig(helmConfig *model.HelmConfig) error {
+func (r *Repository) updateHelmConfig(helmConfig *model.HelmConfig) error {
 	if err := r.db.Save(helmConfig).Error; err != nil {
 		return fmt.Errorf("failed to update helm config: %w", err)
 	}

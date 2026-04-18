@@ -32,11 +32,34 @@ type TokenBucketRateLimiter struct {
 	serviceName string
 }
 
+type RateLimiterSnapshot struct {
+	ServiceName        string
+	BucketKey          string
+	MaxTokens          int
+	WaitTimeout        time.Duration
+	InUseTokens        int64
+	InUseTokensLoadErr error
+}
+
 // GetConfig returns the current configuration
 func (r *TokenBucketRateLimiter) GetConfig() (maxTokens int, waitTimeout time.Duration) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return r.maxTokens, r.waitTimeout
+}
+
+func (r *TokenBucketRateLimiter) Snapshot(ctx context.Context) RateLimiterSnapshot {
+	maxTokens, waitTimeout := r.GetConfig()
+	inUseTokens, err := r.store.inUse(ctx)
+
+	return RateLimiterSnapshot{
+		ServiceName:        r.serviceName,
+		BucketKey:          r.bucketKey,
+		MaxTokens:          maxTokens,
+		WaitTimeout:        waitTimeout,
+		InUseTokens:        inUseTokens,
+		InUseTokensLoadErr: err,
+	}
 }
 
 // UpdateConfig dynamically updates the rate limiter configuration

@@ -1,54 +1,22 @@
-# exp Application
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-producer
+  name: {{ .Release.Name }}-api-gateway
 spec:
-  replicas: 1
+  replicas: {{ .Values.microservices.apiGateway.replicaCount }}
   selector:
     matchLabels:
-      app: {{ .Release.Name }}-producer
+      app: {{ .Release.Name }}-api-gateway
   template:
     metadata:
       annotations:
         rollout-timestamp: {{ now | quote }}
       labels:
-        app: {{ .Release.Name }}-producer
+        app: {{ .Release.Name }}-api-gateway
     spec:
       serviceAccountName: {{ .Release.Name }}-sa
       initContainers:
-        - name: wait-for-dependencies
-          image: {{ include "helm.image" (dict "imageConfig" .Values.images.busybox "global" .Values.global) }}
-          imagePullPolicy: "{{ .Values.images.busybox.pullPolicy }}"
-          command:
-            - sh
-            - -c
-            - |
-              # Parallel dependency check with timeout
-              TIMEOUT=120
-              START=$(date +%s)
-              
-              check_jaeger() { while ! nc -z {{ .Release.Name }}-jaeger 4318; do sleep 1; done; }
-              check_redis() { while ! nc -z {{ .Release.Name }}-redis 6379; do sleep 1; done; }
-              check_mysql() { while ! nc -z {{ .Release.Name }}-mysql 3306; do sleep 1; done; }
-              check_etcd() { while ! nc -z {{ .Release.Name }}-etcd-headless 2379; do sleep 1; done; }
-              
-              # Start background checks
-              check_jaeger & PID1=$!
-              check_redis & PID2=$!
-              check_mysql & PID3=$!
-              check_etcd & PID4=$!
-              
-              # Wait with timeout
-              while kill -0 $PID1 2>/dev/null || kill -0 $PID2 2>/dev/null || kill -0 $PID3 2>/dev/null || kill -0 $PID4 2>/dev/null; do
-                [ $(($(date +%s) - START)) -ge $TIMEOUT ] && echo "Timeout waiting for dependencies" && exit 1
-                sleep 5
-              done
-              
-              # Verify all succeeded
-              wait $PID1 && wait $PID2 && wait $PID3 && wait $PID4 || exit 1
-              echo "Dependencies ready in $(($(date +%s) - START))s"
-        - name: init-etcd-data
+        - name: init-etcd-producer-config
           image: pair-diag-cn-guangzhou.cr.volces.com/pair/etcdctl:latest
           imagePullPolicy: IfNotPresent
           command:
@@ -59,58 +27,53 @@ spec:
               CONFIG_PREFIX="/rcabench/config/producer"
               CONFIG_YAML_PATH="/initial-config/etcd.yaml"
               FORCE_INIT="{{ .Values.initialConfig.force }}"
-              
-              echo "=== Etcd Initialization Started: $(date) ==="
-              
-              # Check if already initialized
+
               INIT_VALUE=$(etcdctl --endpoints=http://{{ .Release.Name }}-etcd-headless:2379 get "$INIT_KEY" --print-value-only 2>/dev/null || echo "")
               if [ "$INIT_VALUE" = "true" ] && [ "$FORCE_INIT" != "true" ]; then
-                echo "Already initialized (found $INIT_KEY=true). Set initialConfig.force=true to reinitialize."
+                echo "producer config already initialized"
                 exit 0
               fi
-              
-              if [ "$FORCE_INIT" = "true" ]; then
-                echo "Force initialization enabled, proceeding..."
-              else
-                echo "No initialization marker found, proceeding with initialization..."
-              fi
-              
-              # Load initial config from YAML
-              echo "Loading config from $CONFIG_YAML_PATH..."
+
               if [ -f "$CONFIG_YAML_PATH" ]; then
                 while IFS=': ' read -r key_name value || [ -n "$key_name" ]; do
-                  # Skip empty lines and comments
                   [ -z "$key_name" ] && continue
                   echo "$key_name" | grep -q '^#' && continue
-                  
-                  # Remove leading/trailing whitespace and quotes
                   key_name=$(echo "$key_name" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
                   value=$(echo "$value" | sed "s/^[[:space:]]*//; s/[[:space:]]*$//; s/^[\"']//; s/[\"']$//")
-                  
-                  if [ -n "$key_name" ]; then
-                    key="$CONFIG_PREFIX/$key_name"
-                    echo "Setting: $key = $value"
-                    etcdctl --endpoints=http://{{ .Release.Name }}-etcd-headless:2379 put "$key" "$value" || true
-                  fi
+                  [ -n "$key_name" ] || continue
+                  etcdctl --endpoints=http://{{ .Release.Name }}-etcd-headless:2379 put "$CONFIG_PREFIX/$key_name" "$value" || true
                 done < "$CONFIG_YAML_PATH"
                 etcdctl --endpoints=http://{{ .Release.Name }}-etcd-headless:2379 put "$INIT_KEY" "true" || true
-                echo "Config loaded successfully"
-              else
-                echo "Warning: $CONFIG_YAML_PATH not found"
               fi
-              
-              echo "=== Etcd Initialization Done: $(date) ==="
           volumeMounts:
             - name: etcd-initial-config
               mountPath: /initial-config
               readOnly: true
       containers:
-        - name: exp
+        - name: api-gateway
           image: {{ include "helm.image" (dict "imageConfig" .Values.images.rcabench "global" .Values.global) }}
           imagePullPolicy: "{{ .Values.images.rcabench.pullPolicy }}"
-          command: ["/app/entrypoint.sh", "producer", "8080"]
+          args:
+            - api-gateway
+            - --conf
+            - /etc/rcabench/config.prod.toml
+            - --port
+            - {{ .Values.microservices.apiGateway.httpPort | quote }}
           ports:
-            - containerPort: 8080
+            - containerPort: {{ .Values.microservices.apiGateway.httpPort }}
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /system/health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /system/health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
           env:
             - name: GOPRIVATE
               value: "github.com/OperationsPAI/chaos-experiment"
@@ -146,57 +109,166 @@ spec:
           persistentVolumeClaim:
             claimName: {{ .Release.Name }}-juicefs-dataset
 ---
-# exp Application
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-consumer
+  name: {{ .Release.Name }}-iam-service
 spec:
-  replicas: 1
+  replicas: {{ .Values.microservices.iamService.replicaCount }}
   selector:
     matchLabels:
-      app: {{ .Release.Name }}-consumer
+      app: {{ .Release.Name }}-iam-service
   template:
     metadata:
       annotations:
         rollout-timestamp: {{ now | quote }}
       labels:
-        app: {{ .Release.Name }}-consumer
+        app: {{ .Release.Name }}-iam-service
+    spec:
+      serviceAccountName: {{ .Release.Name }}-sa
+      containers:
+        - name: iam-service
+          image: {{ include "helm.image" (dict "imageConfig" .Values.images.rcabench "global" .Values.global) }}
+          imagePullPolicy: "{{ .Values.images.rcabench.pullPolicy }}"
+          args:
+            - iam-service
+            - --conf
+            - /etc/rcabench/config.prod.toml
+          ports:
+            - containerPort: {{ .Values.microservices.iamService.grpcPort }}
+              name: grpc
+          readinessProbe:
+            grpc:
+              port: {{ .Values.microservices.iamService.grpcPort }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            grpc:
+              port: {{ .Values.microservices.iamService.grpcPort }}
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          volumeMounts:
+            - name: config
+              mountPath: /etc/rcabench/config.prod.toml
+              subPath: config.prod.toml
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Release.Name }}-rcabench-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-orchestrator-service
+spec:
+  replicas: {{ .Values.microservices.orchestratorService.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-orchestrator-service
+  template:
+    metadata:
+      annotations:
+        rollout-timestamp: {{ now | quote }}
+      labels:
+        app: {{ .Release.Name }}-orchestrator-service
+    spec:
+      serviceAccountName: {{ .Release.Name }}-sa
+      containers:
+        - name: orchestrator-service
+          image: {{ include "helm.image" (dict "imageConfig" .Values.images.rcabench "global" .Values.global) }}
+          imagePullPolicy: "{{ .Values.images.rcabench.pullPolicy }}"
+          args:
+            - orchestrator-service
+            - --conf
+            - /etc/rcabench/config.prod.toml
+          ports:
+            - containerPort: {{ .Values.microservices.orchestratorService.grpcPort }}
+              name: grpc
+          readinessProbe:
+            grpc:
+              port: {{ .Values.microservices.orchestratorService.grpcPort }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            grpc:
+              port: {{ .Values.microservices.orchestratorService.grpcPort }}
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          volumeMounts:
+            - name: config
+              mountPath: /etc/rcabench/config.prod.toml
+              subPath: config.prod.toml
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Release.Name }}-rcabench-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-resource-service
+spec:
+  replicas: {{ .Values.microservices.resourceService.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-resource-service
+  template:
+    metadata:
+      annotations:
+        rollout-timestamp: {{ now | quote }}
+      labels:
+        app: {{ .Release.Name }}-resource-service
+    spec:
+      serviceAccountName: {{ .Release.Name }}-sa
+      containers:
+        - name: resource-service
+          image: {{ include "helm.image" (dict "imageConfig" .Values.images.rcabench "global" .Values.global) }}
+          imagePullPolicy: "{{ .Values.images.rcabench.pullPolicy }}"
+          args:
+            - resource-service
+            - --conf
+            - /etc/rcabench/config.prod.toml
+          ports:
+            - containerPort: {{ .Values.microservices.resourceService.grpcPort }}
+              name: grpc
+          readinessProbe:
+            grpc:
+              port: {{ .Values.microservices.resourceService.grpcPort }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            grpc:
+              port: {{ .Values.microservices.resourceService.grpcPort }}
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          volumeMounts:
+            - name: config
+              mountPath: /etc/rcabench/config.prod.toml
+              subPath: config.prod.toml
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Release.Name }}-rcabench-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-runtime-worker-service
+spec:
+  replicas: {{ .Values.microservices.runtimeWorkerService.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-runtime-worker-service
+  template:
+    metadata:
+      annotations:
+        rollout-timestamp: {{ now | quote }}
+      labels:
+        app: {{ .Release.Name }}-runtime-worker-service
     spec:
       serviceAccountName: {{ .Release.Name }}-sa
       initContainers:
-        - name: wait-for-dependencies
-          image: {{ include "helm.image" (dict "imageConfig" .Values.images.busybox "global" .Values.global) }}
-          imagePullPolicy: "{{ .Values.images.busybox.pullPolicy }}"
-          command:
-            - sh
-            - -c
-            - |
-              # Parallel dependency check with timeout
-              TIMEOUT=120
-              START=$(date +%s)
-              
-              check_jaeger() { while ! nc -z {{ .Release.Name }}-jaeger 4318; do sleep 1; done; }
-              check_redis() { while ! nc -z {{ .Release.Name }}-redis 6379; do sleep 1; done; }
-              check_mysql() { while ! nc -z {{ .Release.Name }}-mysql 3306; do sleep 1; done; }
-              check_etcd() { while ! nc -z {{ .Release.Name }}-etcd-headless 2379; do sleep 1; done; }
-              
-              # Start background checks
-              check_jaeger & PID1=$!
-              check_redis & PID2=$!
-              check_mysql & PID3=$!
-              check_etcd & PID4=$!
-              
-              # Wait with timeout
-              while kill -0 $PID1 2>/dev/null || kill -0 $PID2 2>/dev/null || kill -0 $PID3 2>/dev/null || kill -0 $PID4 2>/dev/null; do
-                [ $(($(date +%s) - START)) -ge $TIMEOUT ] && echo "Timeout waiting for dependencies" && exit 1
-                sleep 5
-              done
-              
-              # Verify all succeeded
-              wait $PID1 && wait $PID2 && wait $PID3 && wait $PID4 || exit 1
-              echo "Dependencies ready in $(($(date +%s) - START))s"
-        - name: init-etcd-data
+        - name: init-etcd-consumer-config
           image: pair-diag-cn-guangzhou.cr.volces.com/pair/etcdctl:latest
           imagePullPolicy: IfNotPresent
           command:
@@ -207,56 +279,51 @@ spec:
               CONFIG_PREFIX="/rcabench/config/consumer"
               CONFIG_YAML_PATH="/initial-config/etcd.yaml"
               FORCE_INIT="{{ .Values.initialConfig.force }}"
-              
-              echo "=== Etcd Initialization Started: $(date) ==="
-              
-              # Check if already initialized
+
               INIT_VALUE=$(etcdctl --endpoints=http://{{ .Release.Name }}-etcd-headless:2379 get "$INIT_KEY" --print-value-only 2>/dev/null || echo "")
               if [ "$INIT_VALUE" = "true" ] && [ "$FORCE_INIT" != "true" ]; then
-                echo "Already initialized (found $INIT_KEY=true). Set initialConfig.force=true to reinitialize."
+                echo "consumer config already initialized"
                 exit 0
               fi
-              
-              if [ "$FORCE_INIT" = "true" ]; then
-                echo "Force initialization enabled, proceeding..."
-              else
-                echo "No initialization marker found, proceeding with initialization..."
-              fi
-              
-              # Load initial config from YAML
-              echo "Loading config from $CONFIG_YAML_PATH..."
+
               if [ -f "$CONFIG_YAML_PATH" ]; then
                 while IFS=': ' read -r key_name value || [ -n "$key_name" ]; do
-                  # Skip empty lines and comments
                   [ -z "$key_name" ] && continue
                   echo "$key_name" | grep -q '^#' && continue
-                  
-                  # Remove leading/trailing whitespace and quotes
                   key_name=$(echo "$key_name" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
                   value=$(echo "$value" | sed "s/^[[:space:]]*//; s/[[:space:]]*$//; s/^[\"']//; s/[\"']$//")
-                  
-                  if [ -n "$key_name" ]; then
-                    key="$CONFIG_PREFIX/$key_name"
-                    echo "Setting: $key = $value"
-                    etcdctl --endpoints=http://{{ .Release.Name }}-etcd-headless:2379 put "$key" "$value" || true
-                  fi
+                  [ -n "$key_name" ] || continue
+                  etcdctl --endpoints=http://{{ .Release.Name }}-etcd-headless:2379 put "$CONFIG_PREFIX/$key_name" "$value" || true
                 done < "$CONFIG_YAML_PATH"
                 etcdctl --endpoints=http://{{ .Release.Name }}-etcd-headless:2379 put "$INIT_KEY" "true" || true
-                echo "Config loaded successfully"
-              else
-                echo "Warning: $CONFIG_YAML_PATH not found"
               fi
-              
-              echo "=== Etcd Initialization Done: $(date) ==="
           volumeMounts:
             - name: etcd-initial-config
               mountPath: /initial-config
               readOnly: true
       containers:
-        - name: exp
+        - name: runtime-worker-service
           image: {{ include "helm.image" (dict "imageConfig" .Values.images.rcabench "global" .Values.global) }}
           imagePullPolicy: "{{ .Values.images.rcabench.pullPolicy }}"
-          command: ["/app/entrypoint.sh", "consumer"]
+          args:
+            - runtime-worker-service
+            - --conf
+            - /etc/rcabench/config.prod.toml
+          ports:
+            - containerPort: {{ .Values.microservices.runtimeWorkerService.grpcPort }}
+              name: grpc
+            - containerPort: {{ .Values.configmap.otlp.port }}
+              name: otlp
+          readinessProbe:
+            grpc:
+              port: {{ .Values.microservices.runtimeWorkerService.grpcPort }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            grpc:
+              port: {{ .Values.microservices.runtimeWorkerService.grpcPort }}
+            initialDelaySeconds: 10
+            periodSeconds: 15
           env:
             - name: GOPRIVATE
               value: "github.com/OperationsPAI/chaos-experiment"
@@ -315,6 +382,53 @@ spec:
         - name: experiment-storage
           persistentVolumeClaim:
             claimName: {{ .Release.Name }}-juicefs-experiment-storage
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-system-service
+spec:
+  replicas: {{ .Values.microservices.systemService.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-system-service
+  template:
+    metadata:
+      annotations:
+        rollout-timestamp: {{ now | quote }}
+      labels:
+        app: {{ .Release.Name }}-system-service
+    spec:
+      serviceAccountName: {{ .Release.Name }}-sa
+      containers:
+        - name: system-service
+          image: {{ include "helm.image" (dict "imageConfig" .Values.images.rcabench "global" .Values.global) }}
+          imagePullPolicy: "{{ .Values.images.rcabench.pullPolicy }}"
+          args:
+            - system-service
+            - --conf
+            - /etc/rcabench/config.prod.toml
+          ports:
+            - containerPort: {{ .Values.microservices.systemService.grpcPort }}
+              name: grpc
+          readinessProbe:
+            grpc:
+              port: {{ .Values.microservices.systemService.grpcPort }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            grpc:
+              port: {{ .Values.microservices.systemService.grpcPort }}
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          volumeMounts:
+            - name: config
+              mountPath: /etc/rcabench/config.prod.toml
+              subPath: config.prod.toml
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Release.Name }}-rcabench-config
 {{- if .Values.buildkit.enabled }}
 ---
 apiVersion: v1
@@ -375,7 +489,7 @@ spec:
               mountPath: /etc/rcabench/config.prod.toml
               subPath: config.prod.toml
             - name: containers-data
-              mountPath: "{{ .Values.configmap.container.storage_path }}"
+              mountPath: "{{ .Values.configmap.jfs.container_path }}"
             - name: buildkit-socket
               mountPath: /run/buildkit
             - name: buildkit-config

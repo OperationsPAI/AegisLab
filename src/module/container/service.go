@@ -10,6 +10,7 @@ import (
 	"aegis/dto"
 	redisinfra "aegis/infra/redis"
 	"aegis/model"
+	labelmodule "aegis/module/label"
 	"aegis/service/common"
 
 	"gorm.io/gorm"
@@ -32,8 +33,8 @@ func (s *Service) CreateContainer(_ context.Context, req *CreateContainerReq, us
 	}
 
 	container := req.ConvertToContainer()
-	err := s.repo.Transaction(func(tx *gorm.DB) error {
-		createdContainer, err := s.createContainerCore(s.repo.withDB(tx), container, userID)
+	err := s.repo.db.Transaction(func(tx *gorm.DB) error {
+		createdContainer, err := s.createContainerCore(NewRepository(tx), container, userID)
 		if err != nil {
 			return fmt.Errorf("failed to create container: %w", err)
 		}
@@ -48,18 +49,18 @@ func (s *Service) CreateContainer(_ context.Context, req *CreateContainerReq, us
 }
 
 func (s *Service) DeleteContainer(_ context.Context, containerID int) error {
-	return s.repo.Transaction(func(tx *gorm.DB) error {
-		repo := s.repo.withDB(tx)
-		if _, err := repo.BatchDeleteContainerVersions(containerID); err != nil {
+	return s.repo.db.Transaction(func(tx *gorm.DB) error {
+		repo := NewRepository(tx)
+		if _, err := repo.batchDeleteContainerVersions(containerID); err != nil {
 			return fmt.Errorf("failed to delete container versions: %w", err)
 		}
-		if _, err := repo.RemoveUsersFromContainer(containerID); err != nil {
+		if _, err := repo.removeUsersFromContainer(containerID); err != nil {
 			return fmt.Errorf("failed to remove all users from container: %w", err)
 		}
-		if err := repo.ClearContainerLabels([]int{containerID}, nil); err != nil {
+		if err := repo.clearContainerLabels([]int{containerID}, nil); err != nil {
 			return fmt.Errorf("failed to clear container labels: %w", err)
 		}
-		rows, err := repo.DeleteContainer(containerID)
+		rows, err := repo.deleteContainer(containerID)
 		if err != nil {
 			return fmt.Errorf("failed to delete container: %w", err)
 		}
@@ -71,7 +72,7 @@ func (s *Service) DeleteContainer(_ context.Context, containerID int) error {
 }
 
 func (s *Service) GetContainer(_ context.Context, containerID int) (*ContainerDetailResp, error) {
-	container, err := s.repo.GetContainerByID(containerID)
+	container, err := s.repo.getContainerByID(containerID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("%w: container id: %d", consts.ErrNotFound, containerID)
@@ -79,7 +80,7 @@ func (s *Service) GetContainer(_ context.Context, containerID int) (*ContainerDe
 		return nil, fmt.Errorf("failed to get container: %w", err)
 	}
 
-	versions, err := s.repo.ListContainerVersionsByContainerID(container.ID)
+	versions, err := s.repo.listContainerVersionsByContainerID(container.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get container versions: %w", err)
 	}
@@ -95,7 +96,7 @@ func (s *Service) GetContainer(_ context.Context, containerID int) (*ContainerDe
 func (s *Service) ListContainers(_ context.Context, req *ListContainerReq) (*dto.ListResp[ContainerResp], error) {
 	limit, offset := req.ToGormParams()
 
-	containers, total, err := s.repo.ListContainers(limit, offset, req.Type, req.IsPublic, req.Status)
+	containers, total, err := s.repo.listContainers(limit, offset, req.Type, req.IsPublic, req.Status)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list containers: %w", err)
 	}
@@ -105,7 +106,7 @@ func (s *Service) ListContainers(_ context.Context, req *ListContainerReq) (*dto
 		containerIDs = append(containerIDs, container.ID)
 	}
 
-	labelsMap, err := s.repo.ListContainerLabels(containerIDs)
+	labelsMap, err := s.repo.listContainerLabels(containerIDs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list container labels: %w", err)
 	}
@@ -127,9 +128,9 @@ func (s *Service) ListContainers(_ context.Context, req *ListContainerReq) (*dto
 func (s *Service) UpdateContainer(_ context.Context, req *UpdateContainerReq, containerID int) (*ContainerResp, error) {
 	var updatedContainer *model.Container
 
-	if err := s.repo.Transaction(func(tx *gorm.DB) error {
-		repo := s.repo.withDB(tx)
-		container, err := repo.GetContainerByID(containerID)
+	if err := s.repo.db.Transaction(func(tx *gorm.DB) error {
+		repo := NewRepository(tx)
+		container, err := repo.getContainerByID(containerID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return fmt.Errorf("%w: container with id %d not found", consts.ErrNotFound, containerID)
@@ -138,7 +139,7 @@ func (s *Service) UpdateContainer(_ context.Context, req *UpdateContainerReq, co
 		}
 
 		req.PatchContainerModel(container)
-		if err := repo.UpdateContainer(container); err != nil {
+		if err := repo.updateContainer(container); err != nil {
 			return fmt.Errorf("failed to update container: %w", err)
 		}
 
@@ -157,9 +158,9 @@ func (s *Service) ManageContainerLabels(_ context.Context, req *ManageContainerL
 	}
 
 	var managedContainer *model.Container
-	if err := s.repo.Transaction(func(tx *gorm.DB) error {
-		repo := s.repo.withDB(tx)
-		container, err := repo.GetContainerByID(containerID)
+	if err := s.repo.db.Transaction(func(tx *gorm.DB) error {
+		repo := NewRepository(tx)
+		container, err := repo.getContainerByID(containerID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return fmt.Errorf("%w: container not found", consts.ErrNotFound)
@@ -168,7 +169,7 @@ func (s *Service) ManageContainerLabels(_ context.Context, req *ManageContainerL
 		}
 
 		if len(req.AddLabels) > 0 {
-			labels, err := common.CreateOrUpdateLabelsFromItems(tx, req.AddLabels, consts.ContainerCategory)
+			labels, err := labelmodule.NewRepository(tx).CreateOrUpdateLabelsFromItems(tx, req.AddLabels, consts.ContainerCategory)
 			if err != nil {
 				return fmt.Errorf("failed to create or update labels: %w", err)
 			}
@@ -181,29 +182,29 @@ func (s *Service) ManageContainerLabels(_ context.Context, req *ManageContainerL
 				})
 			}
 
-			if err := repo.AddContainerLabels(containerLabels); err != nil {
+			if err := repo.addContainerLabels(containerLabels); err != nil {
 				return fmt.Errorf("failed to add container labels: %w", err)
 			}
 		}
 
 		if len(req.RemoveLabels) > 0 {
-			labelIDs, err := repo.ListLabelIDsByKeyAndContainerID(containerID, req.RemoveLabels)
+			labelIDs, err := repo.listLabelIDsByKeyAndContainerID(containerID, req.RemoveLabels)
 			if err != nil {
 				return fmt.Errorf("failed to find label IDs: %w", err)
 			}
 
 			if len(labelIDs) > 0 {
-				if err := repo.ClearContainerLabels([]int{containerID}, labelIDs); err != nil {
+				if err := repo.clearContainerLabels([]int{containerID}, labelIDs); err != nil {
 					return fmt.Errorf("failed to delete container-label associations: %w", err)
 				}
 
-				if err := repo.BatchDecreaseLabelUsages(labelIDs, 1); err != nil {
+				if err := repo.batchDecreaseLabelUsages(labelIDs, 1); err != nil {
 					return fmt.Errorf("failed to decrease label usage counts: %w", err)
 				}
 			}
 		}
 
-		labels, err := repo.ListLabelsByContainerID(container.ID)
+		labels, err := repo.listLabelsByContainerID(container.ID)
 		if err != nil {
 			return fmt.Errorf("failed to get container labels: %w", err)
 		}
@@ -228,8 +229,8 @@ func (s *Service) CreateContainerVersion(_ context.Context, req *CreateContainer
 	version.UserID = userID
 
 	var createdVersion *model.ContainerVersion
-	if err := s.repo.Transaction(func(tx *gorm.DB) error {
-		repo := s.repo.withDB(tx)
+	if err := s.repo.db.Transaction(func(tx *gorm.DB) error {
+		repo := NewRepository(tx)
 		versions, err := s.createContainerVersionsCore(repo, []model.ContainerVersion{*version})
 		if err != nil {
 			return fmt.Errorf("failed to create container version: %w", err)
@@ -245,7 +246,7 @@ func (s *Service) CreateContainerVersion(_ context.Context, req *CreateContainer
 }
 
 func (s *Service) DeleteContainerVersion(_ context.Context, versionID int) error {
-	rows, err := s.repo.DeleteContainerVersion(versionID)
+	rows, err := s.repo.deleteContainerVersion(versionID)
 	if err != nil {
 		return fmt.Errorf("failed to delete container version: %w", err)
 	}
@@ -256,14 +257,14 @@ func (s *Service) DeleteContainerVersion(_ context.Context, versionID int) error
 }
 
 func (s *Service) GetContainerVersion(_ context.Context, containerID, versionID int) (*ContainerVersionDetailResp, error) {
-	if _, err := s.repo.GetContainerByID(containerID); err != nil {
+	if _, err := s.repo.getContainerByID(containerID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("%w: container id: %d", consts.ErrNotFound, containerID)
 		}
 		return nil, fmt.Errorf("failed to get container: %w", err)
 	}
 
-	version, err := s.repo.GetContainerVersionByID(versionID)
+	version, err := s.repo.getContainerVersionByID(versionID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("%w: version id: %d", consts.ErrNotFound, versionID)
@@ -273,7 +274,7 @@ func (s *Service) GetContainerVersion(_ context.Context, containerID, versionID 
 
 	resp := NewContainerVersionDetailResp(version)
 
-	helmConfig, err := s.repo.GetHelmConfigByContainerVersionID(version.ID)
+	helmConfig, err := s.repo.getHelmConfigByContainerVersionID(version.ID)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, fmt.Errorf("failed to get helm config: %w", err)
 	}
@@ -291,7 +292,7 @@ func (s *Service) GetContainerVersion(_ context.Context, containerID, versionID 
 func (s *Service) ListContainerVersions(_ context.Context, req *ListContainerVersionReq, containerID int) (*dto.ListResp[ContainerVersionResp], error) {
 	limit, offset := req.ToGormParams()
 
-	versions, total, err := s.repo.ListContainerVersions(limit, offset, containerID, req.Status)
+	versions, total, err := s.repo.listContainerVersions(limit, offset, containerID, req.Status)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list container versions: %w", err)
 	}
@@ -311,9 +312,9 @@ func (s *Service) UpdateContainerVersion(_ context.Context, req *UpdateContainer
 	_ = containerID
 
 	var updatedVersion *model.ContainerVersion
-	if err := s.repo.Transaction(func(tx *gorm.DB) error {
-		repo := s.repo.withDB(tx)
-		version, err := repo.GetContainerVersionByID(versionID)
+	if err := s.repo.db.Transaction(func(tx *gorm.DB) error {
+		repo := NewRepository(tx)
+		version, err := repo.getContainerVersionByID(versionID)
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return fmt.Errorf("%w: version id: %d", consts.ErrNotFound, versionID)
@@ -322,14 +323,14 @@ func (s *Service) UpdateContainerVersion(_ context.Context, req *UpdateContainer
 		}
 
 		req.PatchContainerVersionModel(version)
-		if err := repo.UpdateContainerVersion(version); err != nil {
+		if err := repo.updateContainerVersion(version); err != nil {
 			return fmt.Errorf("failed to update container version: %w", err)
 		}
 
 		updatedVersion = version
 
 		if req.HelmConfigRequest != nil {
-			helmConfig, err := repo.GetHelmConfigByContainerVersionID(version.ID)
+			helmConfig, err := repo.getHelmConfigByContainerVersionID(version.ID)
 			if err != nil {
 				if errors.Is(err, gorm.ErrRecordNotFound) {
 					return fmt.Errorf("helm config not found for version id %d", versionID)
@@ -340,7 +341,7 @@ func (s *Service) UpdateContainerVersion(_ context.Context, req *UpdateContainer
 			if err := req.HelmConfigRequest.PatchHelmConfigModel(helmConfig); err != nil {
 				return fmt.Errorf("failed to patch helm config model: %w", err)
 			}
-			if err := repo.UpdateHelmConfig(helmConfig); err != nil {
+			if err := repo.updateHelmConfig(helmConfig); err != nil {
 				return fmt.Errorf("failed to update helm config: %w", err)
 			}
 		}
@@ -414,7 +415,7 @@ func (s *Service) UploadHelmChart(_ context.Context, file *multipart.FileHeader,
 	filename := file.Filename
 	containerVersion.HelmConfig.LocalPath = targetPath
 	containerVersion.HelmConfig.Checksum = checksum
-	if err := s.repo.UpdateHelmConfig(containerVersion.HelmConfig); err != nil {
+	if err := s.repo.updateHelmConfig(containerVersion.HelmConfig); err != nil {
 		return nil, fmt.Errorf("failed to update helm config: %w", err)
 	}
 
@@ -444,7 +445,7 @@ func (s *Service) UploadHelmValueFile(_ context.Context, file *multipart.FileHea
 }
 
 func (s *Service) createContainerCore(repo *Repository, container *model.Container, userID int) (*model.Container, error) {
-	role, err := repo.GetRoleByName(consts.RoleContainerAdmin.String())
+	role, err := repo.getRoleByName(consts.RoleContainerAdmin.String())
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("%w: role %v not found", consts.ErrNotFound, consts.RoleContainerAdmin)
@@ -452,14 +453,14 @@ func (s *Service) createContainerCore(repo *Repository, container *model.Contain
 		return nil, fmt.Errorf("failed to get project owner role: %w", err)
 	}
 
-	if err := repo.CreateContainer(container); err != nil {
+	if err := repo.createContainer(container); err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			return nil, consts.ErrAlreadyExists
 		}
 		return nil, err
 	}
 
-	if err := repo.CreateUserContainer(&model.UserContainer{
+	if err := repo.createUserContainer(&model.UserContainer{
 		UserID:      userID,
 		ContainerID: container.ID,
 		RoleID:      role.ID,
@@ -487,7 +488,7 @@ func (s *Service) createContainerVersionsCore(repo *Repository, versions []model
 		return nil, nil
 	}
 
-	if err := repo.BatchCreateContainerVersions(versions); err != nil {
+	if err := repo.batchCreateContainerVersions(versions); err != nil {
 		return nil, fmt.Errorf("failed to create container versions: %w", err)
 	}
 
@@ -512,11 +513,11 @@ func (s *Service) createContainerVersionsCore(repo *Repository, versions []model
 			envVars[i] = item.envVar
 		}
 
-		if err := repo.BatchCreateOrFindParameterConfigs(envVars); err != nil {
+		if err := repo.batchCreateOrFindParameterConfigs(envVars); err != nil {
 			return nil, fmt.Errorf("failed to create parameter configs: %w", err)
 		}
 
-		actualEnvVars, err := repo.ListParameterConfigsByKeys(envVars)
+		actualEnvVars, err := repo.listParameterConfigsByKeys(envVars)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list parameter configs: %w", err)
 		}
@@ -541,7 +542,7 @@ func (s *Service) createContainerVersionsCore(repo *Repository, versions []model
 			})
 		}
 
-		if err := repo.AddContainerVersionEnvVars(relations); err != nil {
+		if err := repo.addContainerVersionEnvVars(relations); err != nil {
 			return nil, fmt.Errorf("failed to create container version env var relations: %w", err)
 		}
 	}
@@ -558,7 +559,7 @@ func (s *Service) createContainerVersionsCore(repo *Repository, versions []model
 		return versions, nil
 	}
 
-	if err := repo.BatchCreateHelmConfigs(helmConfigs); err != nil {
+	if err := repo.batchCreateHelmConfigs(helmConfigs); err != nil {
 		return nil, fmt.Errorf("failed to create helm configs: %w", err)
 	}
 
@@ -586,11 +587,11 @@ func (s *Service) createContainerVersionsCore(repo *Repository, versions []model
 		helmValues[i] = item.value
 	}
 
-	if err := repo.BatchCreateOrFindParameterConfigs(helmValues); err != nil {
+	if err := repo.batchCreateOrFindParameterConfigs(helmValues); err != nil {
 		return nil, fmt.Errorf("failed to create helm parameter configs: %w", err)
 	}
 
-	actualHelmValues, err := repo.ListParameterConfigsByKeys(helmValues)
+	actualHelmValues, err := repo.listParameterConfigsByKeys(helmValues)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list helm parameter configs: %w", err)
 	}
@@ -615,7 +616,7 @@ func (s *Service) createContainerVersionsCore(repo *Repository, versions []model
 		})
 	}
 
-	if err := repo.AddHelmConfigValues(relations); err != nil {
+	if err := repo.addHelmConfigValues(relations); err != nil {
 		return nil, fmt.Errorf("failed to create helm config value relations: %w", err)
 	}
 
@@ -628,14 +629,14 @@ func (s *Service) uploadHelmValueFileCore(containerName string, helmConfig *mode
 		return err
 	}
 	helmConfig.ValueFile = targetPath
-	if err := s.repo.UpdateHelmConfig(helmConfig); err != nil {
+	if err := s.repo.updateHelmConfig(helmConfig); err != nil {
 		return fmt.Errorf("failed to update helm config: %w", err)
 	}
 
 	return nil
 }
 func (s *Service) validateHelmConfigVersion(containerID, versionID int) (*model.ContainerVersion, error) {
-	containerVersion, err := s.repo.GetContainerVersionByID(versionID)
+	containerVersion, err := s.repo.getContainerVersionByID(versionID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("%w: container version %d not found", consts.ErrNotFound, versionID)

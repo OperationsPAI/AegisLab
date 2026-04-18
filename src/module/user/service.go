@@ -37,8 +37,8 @@ func (s *Service) CreateUser(_ context.Context, req *CreateUserReq) (*UserResp, 
 		IsActive: true,
 	}
 
-	if err := s.repo.Transaction(func(tx *gorm.DB) error {
-		repo := s.repo.withDB(tx)
+	if err := s.repo.db.Transaction(func(tx *gorm.DB) error {
+		repo := NewRepository(tx)
 		return repo.createUserIfUnique(user)
 	}); err != nil {
 		return nil, err
@@ -48,8 +48,8 @@ func (s *Service) CreateUser(_ context.Context, req *CreateUserReq) (*UserResp, 
 }
 
 func (s *Service) DeleteUser(_ context.Context, userID int) error {
-	return s.repo.Transaction(func(tx *gorm.DB) error {
-		repo := s.repo.withDB(tx)
+	return s.repo.db.Transaction(func(tx *gorm.DB) error {
+		repo := NewRepository(tx)
 		if err := repo.ensureActiveRecordExists(&model.User{}, userID, "user"); err != nil {
 			if errors.Is(err, consts.ErrNotFound) {
 				return fmt.Errorf("%w: user not found", consts.ErrNotFound)
@@ -57,7 +57,7 @@ func (s *Service) DeleteUser(_ context.Context, userID int) error {
 			return fmt.Errorf("failed to get user: %w", err)
 		}
 
-		rows, err := repo.DeleteUserCascade(userID)
+		rows, err := repo.deleteUserCascade(userID)
 		if err != nil {
 			return err
 		}
@@ -129,8 +129,8 @@ func (s *Service) UpdateUser(_ context.Context, req *UpdateUserReq, userID int) 
 	}
 
 	var updatedUser *model.User
-	err := s.repo.Transaction(func(tx *gorm.DB) error {
-		repo := s.repo.withDB(tx)
+	err := s.repo.db.Transaction(func(tx *gorm.DB) error {
+		repo := NewRepository(tx)
 		user, err := repo.updateMutableUser(userID, func(existingUser *model.User) {
 			req.PatchUserModel(existingUser)
 		})
@@ -152,9 +152,9 @@ func (s *Service) UpdateUser(_ context.Context, req *UpdateUserReq, userID int) 
 }
 
 func (s *Service) AssignRole(_ context.Context, userID, roleID int) error {
-	return s.repo.Transaction(func(tx *gorm.DB) error {
-		repo := s.repo.withDB(tx)
-		if err := repo.AssignGlobalRole(userID, roleID); err != nil {
+	return s.repo.db.Transaction(func(tx *gorm.DB) error {
+		repo := NewRepository(tx)
+		if err := repo.assignGlobalRole(userID, roleID); err != nil {
 			if errors.Is(err, consts.ErrNotFound) {
 				if userErr := repo.ensureActiveRecordExists(&model.User{}, userID, "user"); userErr != nil {
 					return fmt.Errorf("%w: user not found", consts.ErrNotFound)
@@ -171,9 +171,9 @@ func (s *Service) AssignRole(_ context.Context, userID, roleID int) error {
 }
 
 func (s *Service) RemoveRole(_ context.Context, userID, roleID int) error {
-	return s.repo.Transaction(func(tx *gorm.DB) error {
-		repo := s.repo.withDB(tx)
-		if err := repo.RemoveGlobalRole(userID, roleID); err != nil {
+	return s.repo.db.Transaction(func(tx *gorm.DB) error {
+		repo := NewRepository(tx)
+		if err := repo.removeGlobalRole(userID, roleID); err != nil {
 			if errors.Is(err, consts.ErrNotFound) {
 				if userErr := repo.ensureActiveRecordExists(&model.User{}, userID, "user"); userErr != nil {
 					return fmt.Errorf("%w: user not found", consts.ErrNotFound)
@@ -187,9 +187,9 @@ func (s *Service) RemoveRole(_ context.Context, userID, roleID int) error {
 }
 
 func (s *Service) AssignPermissions(_ context.Context, req *AssignUserPermissionReq, userID int) error {
-	return s.repo.Transaction(func(tx *gorm.DB) error {
-		repo := s.repo.withDB(tx)
-		userPermissions, err := repo.BuildUserPermissions(userID, req.Items)
+	return s.repo.db.Transaction(func(tx *gorm.DB) error {
+		repo := NewRepository(tx)
+		userPermissions, err := repo.buildUserPermissions(userID, req.Items)
 		if err != nil {
 			if errors.Is(err, consts.ErrNotFound) {
 				return fmt.Errorf("%w: failed to resolve permission assignment targets", consts.ErrNotFound)
@@ -197,7 +197,7 @@ func (s *Service) AssignPermissions(_ context.Context, req *AssignUserPermission
 			return err
 		}
 
-		if err := repo.BatchCreateUserPermissions(userPermissions); err != nil {
+		if err := repo.batchCreateUserPermissions(userPermissions); err != nil {
 			if errors.Is(err, gorm.ErrDuplicatedKey) {
 				return fmt.Errorf("%w: user already has one or more of these permissions", consts.ErrAlreadyExists)
 			}
@@ -208,9 +208,9 @@ func (s *Service) AssignPermissions(_ context.Context, req *AssignUserPermission
 }
 
 func (s *Service) RemovePermissions(_ context.Context, req *RemoveUserPermissionReq, userID int) error {
-	return s.repo.Transaction(func(tx *gorm.DB) error {
-		repo := s.repo.withDB(tx)
-		if err := repo.BatchDeleteUserPermissions(userID, req.PermissionIDs); err != nil {
+	return s.repo.db.Transaction(func(tx *gorm.DB) error {
+		repo := NewRepository(tx)
+		if err := repo.batchDeleteUserPermissions(userID, req.PermissionIDs); err != nil {
 			if errors.Is(err, consts.ErrNotFound) {
 				return fmt.Errorf("%w: failed to resolve user or permissions", consts.ErrNotFound)
 			}
@@ -221,9 +221,9 @@ func (s *Service) RemovePermissions(_ context.Context, req *RemoveUserPermission
 }
 
 func (s *Service) AssignContainer(_ context.Context, userID, containerID, roleID int) error {
-	return s.repo.Transaction(func(tx *gorm.DB) error {
-		repo := s.repo.withDB(tx)
-		if err := repo.AssignContainerRole(userID, containerID, roleID); err != nil {
+	return s.repo.db.Transaction(func(tx *gorm.DB) error {
+		repo := NewRepository(tx)
+		if err := repo.assignContainerRole(userID, containerID, roleID); err != nil {
 			if errors.Is(err, consts.ErrNotFound) {
 				return fmt.Errorf("%w: user/container/role not found", consts.ErrNotFound)
 			}
@@ -237,9 +237,9 @@ func (s *Service) AssignContainer(_ context.Context, userID, containerID, roleID
 }
 
 func (s *Service) RemoveContainer(_ context.Context, userID, containerID int) error {
-	return s.repo.Transaction(func(tx *gorm.DB) error {
-		repo := s.repo.withDB(tx)
-		rows, err := repo.RemoveContainerRole(userID, containerID)
+	return s.repo.db.Transaction(func(tx *gorm.DB) error {
+		repo := NewRepository(tx)
+		rows, err := repo.removeContainerRole(userID, containerID)
 		if err != nil {
 			return fmt.Errorf("failed to remove user from container: %w", err)
 		}
@@ -251,9 +251,9 @@ func (s *Service) RemoveContainer(_ context.Context, userID, containerID int) er
 }
 
 func (s *Service) AssignDataset(_ context.Context, userID, datasetID, roleID int) error {
-	return s.repo.Transaction(func(tx *gorm.DB) error {
-		repo := s.repo.withDB(tx)
-		if err := repo.AssignDatasetRole(userID, datasetID, roleID); err != nil {
+	return s.repo.db.Transaction(func(tx *gorm.DB) error {
+		repo := NewRepository(tx)
+		if err := repo.assignDatasetRole(userID, datasetID, roleID); err != nil {
 			if errors.Is(err, consts.ErrNotFound) {
 				return fmt.Errorf("%w: user/dataset/role not found", consts.ErrNotFound)
 			}
@@ -267,9 +267,9 @@ func (s *Service) AssignDataset(_ context.Context, userID, datasetID, roleID int
 }
 
 func (s *Service) RemoveDataset(_ context.Context, userID, datasetID int) error {
-	return s.repo.Transaction(func(tx *gorm.DB) error {
-		repo := s.repo.withDB(tx)
-		rows, err := repo.RemoveDatasetRole(userID, datasetID)
+	return s.repo.db.Transaction(func(tx *gorm.DB) error {
+		repo := NewRepository(tx)
+		rows, err := repo.removeDatasetRole(userID, datasetID)
 		if err != nil {
 			return fmt.Errorf("failed to remove user from dataset: %w", err)
 		}
@@ -281,9 +281,9 @@ func (s *Service) RemoveDataset(_ context.Context, userID, datasetID int) error 
 }
 
 func (s *Service) AssignProject(_ context.Context, userID, projectID, roleID int) error {
-	return s.repo.Transaction(func(tx *gorm.DB) error {
-		repo := s.repo.withDB(tx)
-		if err := repo.AssignProjectRole(userID, projectID, roleID); err != nil {
+	return s.repo.db.Transaction(func(tx *gorm.DB) error {
+		repo := NewRepository(tx)
+		if err := repo.assignProjectRole(userID, projectID, roleID); err != nil {
 			if errors.Is(err, consts.ErrNotFound) {
 				return fmt.Errorf("%w: user/project/role not found", consts.ErrNotFound)
 			}
@@ -297,9 +297,9 @@ func (s *Service) AssignProject(_ context.Context, userID, projectID, roleID int
 }
 
 func (s *Service) RemoveProject(_ context.Context, userID, projectID int) error {
-	return s.repo.Transaction(func(tx *gorm.DB) error {
-		repo := s.repo.withDB(tx)
-		rows, err := repo.RemoveProjectRole(userID, projectID)
+	return s.repo.db.Transaction(func(tx *gorm.DB) error {
+		repo := NewRepository(tx)
+		rows, err := repo.removeProjectRole(userID, projectID)
 		if err != nil {
 			return fmt.Errorf("failed to remove user from project: %w", err)
 		}

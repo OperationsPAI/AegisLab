@@ -89,6 +89,36 @@ func (s *Service) StreamLogs(ctx context.Context, conn *websocket.Conn, task *mo
 	s.logService.StreamLogs(ctx, conn, task)
 }
 
+func (s *Service) PollLogs(ctx context.Context, taskID string, after time.Time) (*TaskLogPollResp, error) {
+	task, err := s.repository.GetByID(taskID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("%w: task id: %s", consts.ErrNotFound, taskID)
+		}
+		return nil, fmt.Errorf("failed to get task: %w", err)
+	}
+
+	start := task.CreatedAt
+	if !after.IsZero() && after.After(start) {
+		start = after.Add(time.Nanosecond)
+	}
+
+	lokiCtx, lokiCancel := context.WithTimeout(ctx, 10*time.Second)
+	defer lokiCancel()
+
+	logEntries, err := s.loki.QueryJobLogs(lokiCtx, task.ID, start)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query task logs: %w", err)
+	}
+
+	return &TaskLogPollResp{
+		Logs:      logEntries,
+		Terminal:  isTaskTerminal(task.State),
+		State:     consts.GetTaskStateName(task.State),
+		CreatedAt: task.CreatedAt,
+	}, nil
+}
+
 func (s *Service) queryHistoricalLogs(ctx context.Context, task *model.Task) []string {
 	lokiCtx, lokiCancel := context.WithTimeout(ctx, 10*time.Second)
 	defer lokiCancel()

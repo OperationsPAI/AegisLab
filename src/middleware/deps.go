@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -8,18 +9,24 @@ import (
 	"aegis/consts"
 	"aegis/dto"
 	"aegis/model"
+	"aegis/utils"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
+type TokenVerifier interface {
+	VerifyToken(ctx context.Context, token string) (*utils.Claims, error)
+	VerifyServiceToken(ctx context.Context, token string) (*utils.ServiceClaims, error)
+}
+
 type permissionChecker interface {
-	CheckUserPermission(params *dto.CheckPermissionParams) (bool, error)
-	IsUserTeamAdmin(userID, teamID int) (bool, error)
-	IsUserInTeam(userID, teamID int) (bool, error)
-	IsTeamPublic(teamID int) (bool, error)
-	IsUserProjectAdmin(userID, projectID int) (bool, error)
-	IsUserInProject(userID, projectID int) (bool, error)
+	CheckUserPermission(context.Context, *dto.CheckPermissionParams) (bool, error)
+	IsUserTeamAdmin(context.Context, int, int) (bool, error)
+	IsUserInTeam(context.Context, int, int) (bool, error)
+	IsTeamPublic(context.Context, int) (bool, error)
+	IsUserProjectAdmin(context.Context, int, int) (bool, error)
+	IsUserInProject(context.Context, int, int) (bool, error)
 }
 
 type auditLogger interface {
@@ -28,13 +35,16 @@ type auditLogger interface {
 }
 
 type Service interface {
+	TokenVerifier
 	permissionChecker
 	auditLogger
 }
 
 const middlewareServiceContextKey = "middleware.service"
 
-func NewService(db *gorm.DB) Service { return &dbBackedMiddlewareService{db: db} }
+func NewService(db *gorm.DB, verifier TokenVerifier) Service {
+	return &dbBackedMiddlewareService{db: db, verifier: verifier}
+}
 
 func InjectService(service Service) gin.HandlerFunc {
 	if service == nil {
@@ -67,10 +77,25 @@ func serviceFromContext(c *gin.Context) Service {
 }
 
 type dbBackedMiddlewareService struct {
-	db *gorm.DB
+	db       *gorm.DB
+	verifier TokenVerifier
 }
 
-func (s *dbBackedMiddlewareService) CheckUserPermission(params *dto.CheckPermissionParams) (bool, error) {
+func (s *dbBackedMiddlewareService) VerifyToken(ctx context.Context, token string) (*utils.Claims, error) {
+	if s.verifier == nil {
+		return nil, fmt.Errorf("token verifier not initialized")
+	}
+	return s.verifier.VerifyToken(ctx, token)
+}
+
+func (s *dbBackedMiddlewareService) VerifyServiceToken(ctx context.Context, token string) (*utils.ServiceClaims, error) {
+	if s.verifier == nil {
+		return nil, fmt.Errorf("token verifier not initialized")
+	}
+	return s.verifier.VerifyServiceToken(ctx, token)
+}
+
+func (s *dbBackedMiddlewareService) CheckUserPermission(_ context.Context, params *dto.CheckPermissionParams) (bool, error) {
 	if err := params.Validate(); err != nil {
 		return false, fmt.Errorf("invalid request: %w", err)
 	}
@@ -86,7 +111,7 @@ func (s *dbBackedMiddlewareService) CheckUserPermission(params *dto.CheckPermiss
 	return s.checkUserHasPermission(params, permission.ID)
 }
 
-func (s *dbBackedMiddlewareService) IsUserInTeam(userID, teamID int) (bool, error) {
+func (s *dbBackedMiddlewareService) IsUserInTeam(_ context.Context, userID, teamID int) (bool, error) {
 	ut, err := s.getUserTeamRole(userID, teamID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -97,7 +122,7 @@ func (s *dbBackedMiddlewareService) IsUserInTeam(userID, teamID int) (bool, erro
 	return ut != nil, nil
 }
 
-func (s *dbBackedMiddlewareService) IsUserTeamAdmin(userID, teamID int) (bool, error) {
+func (s *dbBackedMiddlewareService) IsUserTeamAdmin(_ context.Context, userID, teamID int) (bool, error) {
 	ut, err := s.getUserTeamRole(userID, teamID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -108,7 +133,7 @@ func (s *dbBackedMiddlewareService) IsUserTeamAdmin(userID, teamID int) (bool, e
 	return ut != nil && ut.Role != nil && ut.Role.Name == consts.RoleTeamAdmin.String(), nil
 }
 
-func (s *dbBackedMiddlewareService) IsTeamPublic(teamID int) (bool, error) {
+func (s *dbBackedMiddlewareService) IsTeamPublic(_ context.Context, teamID int) (bool, error) {
 	team, err := s.getTeamByID(teamID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -119,7 +144,7 @@ func (s *dbBackedMiddlewareService) IsTeamPublic(teamID int) (bool, error) {
 	return team.IsPublic, nil
 }
 
-func (s *dbBackedMiddlewareService) IsUserInProject(userID, projectID int) (bool, error) {
+func (s *dbBackedMiddlewareService) IsUserInProject(_ context.Context, userID, projectID int) (bool, error) {
 	up, err := s.getUserProjectRole(userID, projectID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -130,7 +155,7 @@ func (s *dbBackedMiddlewareService) IsUserInProject(userID, projectID int) (bool
 	return up != nil, nil
 }
 
-func (s *dbBackedMiddlewareService) IsUserProjectAdmin(userID, projectID int) (bool, error) {
+func (s *dbBackedMiddlewareService) IsUserProjectAdmin(_ context.Context, userID, projectID int) (bool, error) {
 	up, err := s.getUserProjectRole(userID, projectID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -350,55 +375,32 @@ func (s *dbBackedMiddlewareService) createAuditLog(db *gorm.DB, log *model.Audit
 	return db.Create(log).Error
 }
 
-type noopPermissionChecker struct{}
-
-func (noopPermissionChecker) CheckUserPermission(*dto.CheckPermissionParams) (bool, error) {
-	return false, fmt.Errorf("permission checker not initialized")
-}
-func (noopPermissionChecker) IsUserTeamAdmin(int, int) (bool, error) {
-	return false, fmt.Errorf("permission checker not initialized")
-}
-func (noopPermissionChecker) IsUserInTeam(int, int) (bool, error) {
-	return false, fmt.Errorf("permission checker not initialized")
-}
-func (noopPermissionChecker) IsTeamPublic(int) (bool, error) {
-	return false, fmt.Errorf("permission checker not initialized")
-}
-func (noopPermissionChecker) IsUserProjectAdmin(int, int) (bool, error) {
-	return false, fmt.Errorf("permission checker not initialized")
-}
-func (noopPermissionChecker) IsUserInProject(int, int) (bool, error) {
-	return false, fmt.Errorf("permission checker not initialized")
-}
-
 type noopMiddlewareService struct{}
 
-func (noopMiddlewareService) CheckUserPermission(*dto.CheckPermissionParams) (bool, error) {
-	return false, fmt.Errorf("permission checker not initialized")
+func (noopMiddlewareService) VerifyToken(context.Context, string) (*utils.Claims, error) {
+	return nil, fmt.Errorf("token verifier not initialized")
 }
-func (noopMiddlewareService) IsUserTeamAdmin(int, int) (bool, error) {
-	return false, fmt.Errorf("permission checker not initialized")
-}
-func (noopMiddlewareService) IsUserInTeam(int, int) (bool, error) {
-	return false, fmt.Errorf("permission checker not initialized")
-}
-func (noopMiddlewareService) IsTeamPublic(int) (bool, error) {
-	return false, fmt.Errorf("permission checker not initialized")
-}
-func (noopMiddlewareService) IsUserProjectAdmin(int, int) (bool, error) {
-	return false, fmt.Errorf("permission checker not initialized")
-}
-func (noopMiddlewareService) IsUserInProject(int, int) (bool, error) {
-	return false, fmt.Errorf("permission checker not initialized")
+func (noopMiddlewareService) VerifyServiceToken(context.Context, string) (*utils.ServiceClaims, error) {
+	return nil, fmt.Errorf("token verifier not initialized")
 }
 
-type noopAuditLogger struct{}
-
-func (noopAuditLogger) LogFailedAction(string, string, string, string, int, int, consts.ResourceName) error {
-	return fmt.Errorf("audit logger not initialized")
+func (noopMiddlewareService) CheckUserPermission(context.Context, *dto.CheckPermissionParams) (bool, error) {
+	return false, fmt.Errorf("permission checker not initialized")
 }
-func (noopAuditLogger) LogUserAction(string, string, string, string, int, int, consts.ResourceName) error {
-	return fmt.Errorf("audit logger not initialized")
+func (noopMiddlewareService) IsUserTeamAdmin(context.Context, int, int) (bool, error) {
+	return false, fmt.Errorf("permission checker not initialized")
+}
+func (noopMiddlewareService) IsUserInTeam(context.Context, int, int) (bool, error) {
+	return false, fmt.Errorf("permission checker not initialized")
+}
+func (noopMiddlewareService) IsTeamPublic(context.Context, int) (bool, error) {
+	return false, fmt.Errorf("permission checker not initialized")
+}
+func (noopMiddlewareService) IsUserProjectAdmin(context.Context, int, int) (bool, error) {
+	return false, fmt.Errorf("permission checker not initialized")
+}
+func (noopMiddlewareService) IsUserInProject(context.Context, int, int) (bool, error) {
+	return false, fmt.Errorf("permission checker not initialized")
 }
 
 func (noopMiddlewareService) LogFailedAction(string, string, string, string, int, int, consts.ResourceName) error {

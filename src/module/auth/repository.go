@@ -24,14 +24,6 @@ func NewUserRepository(db *gorm.DB) *UserRepository {
 	return &UserRepository{db: db}
 }
 
-func (r *UserRepository) withDB(db *gorm.DB) *UserRepository {
-	return &UserRepository{db: db}
-}
-
-func (r *UserRepository) Transaction(fn func(tx *gorm.DB) error) error {
-	return r.db.Transaction(fn)
-}
-
 func (r *UserRepository) Create(user *model.User) error {
 	if err := r.db.Omit(userOmitFields).Create(user).Error; err != nil {
 		return fmt.Errorf("failed to create user: %w", err)
@@ -118,10 +110,6 @@ type RoleRepository struct {
 }
 
 func NewRoleRepository(db *gorm.DB) *RoleRepository {
-	return &RoleRepository{db: db}
-}
-
-func (r *RoleRepository) withDB(db *gorm.DB) *RoleRepository {
 	return &RoleRepository{db: db}
 }
 

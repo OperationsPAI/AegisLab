@@ -8,24 +8,27 @@ import (
 	"aegis/consts"
 	"aegis/dto"
 	"aegis/model"
-	projectmodule "aegis/module/project"
 
 	"gorm.io/gorm"
 )
 
 type Service struct {
-	repo *Repository
+	repo     *Repository
+	projects projectReader
 }
 
-func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo *Repository, projects projectReader) *Service {
+	return &Service{
+		repo:     repo,
+		projects: projects,
+	}
 }
 
 func (s *Service) CreateTeam(_ context.Context, req *CreateTeamReq, userID int) (*TeamResp, error) {
 	team := req.ConvertToTeam()
 
-	err := s.repo.Transaction(func(tx *gorm.DB) error {
-		if err := s.repo.withDB(tx).createTeamWithCreator(team, userID); err != nil {
+	err := s.repo.db.Transaction(func(tx *gorm.DB) error {
+		if err := NewRepository(tx).createTeamWithCreator(team, userID); err != nil {
 			if errors.Is(err, consts.ErrAlreadyExists) {
 				return consts.ErrAlreadyExists
 			}
@@ -41,7 +44,7 @@ func (s *Service) CreateTeam(_ context.Context, req *CreateTeamReq, userID int) 
 }
 
 func (s *Service) DeleteTeam(_ context.Context, teamID int) error {
-	rowsAffected, err := s.repo.DeleteTeam(teamID)
+	rowsAffected, err := s.repo.deleteTeam(teamID)
 	if err != nil {
 		return err
 	}
@@ -51,12 +54,16 @@ func (s *Service) DeleteTeam(_ context.Context, teamID int) error {
 	return nil
 }
 
-func (s *Service) GetTeamDetail(_ context.Context, teamID int) (*TeamDetailResp, error) {
-	team, userCount, projectCount, err := s.repo.loadTeamDetail(teamID)
+func (s *Service) GetTeamDetail(ctx context.Context, teamID int) (*TeamDetailResp, error) {
+	team, userCount, err := s.repo.loadTeamDetailBase(teamID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, consts.ErrNotFound
 		}
+		return nil, err
+	}
+	projectCount, err := s.projects.CountProjects(ctx, teamID)
+	if err != nil {
 		return nil, err
 	}
 
@@ -99,26 +106,12 @@ func (s *Service) UpdateTeam(_ context.Context, req *UpdateTeamReq, teamID int) 
 	return NewTeamResp(team), nil
 }
 
-func (s *Service) ListTeamProjects(_ context.Context, req *TeamProjectListReq, teamID int) (*dto.ListResp[TeamProjectItem], error) {
-	limit, offset := req.ToGormParams()
-	projects, statsMap, total, err := s.repo.listTeamProjectViews(teamID, limit, offset, req.IsPublic, req.Status)
-	if err != nil {
-		return nil, err
-	}
-
-	items := make([]TeamProjectItem, 0, len(projects))
-	for i := range projects {
-		items = append(items, *projectmodule.NewProjectResp(&projects[i], statsMap[projects[i].ID]))
-	}
-
-	return &dto.ListResp[TeamProjectItem]{
-		Items:      items,
-		Pagination: req.ConvertToPaginationInfo(total),
-	}, nil
+func (s *Service) ListTeamProjects(ctx context.Context, req *TeamProjectListReq, teamID int) (*dto.ListResp[TeamProjectItem], error) {
+	return s.projects.ListProjects(ctx, req, teamID)
 }
 
 func (s *Service) AddMember(_ context.Context, req *AddTeamMemberReq, teamID int) error {
-	if err := s.repo.AddMember(teamID, req.Username, req.RoleID); err != nil {
+	if err := s.repo.addMember(teamID, req.Username, req.RoleID); err != nil {
 		if errors.Is(err, consts.ErrNotFound) {
 			return consts.ErrNotFound
 		}
@@ -138,7 +131,7 @@ func (s *Service) RemoveMember(_ context.Context, teamID, currentUserID, targetU
 		return fmt.Errorf("cannot remove yourself from the team")
 	}
 
-	rowsAffected, err := s.repo.RemoveMember(teamID, targetUserID)
+	rowsAffected, err := s.repo.removeMember(teamID, targetUserID)
 	if err != nil {
 		if errors.Is(err, consts.ErrNotFound) || errors.Is(err, gorm.ErrRecordNotFound) {
 			return consts.ErrNotFound
@@ -154,7 +147,7 @@ func (s *Service) RemoveMember(_ context.Context, teamID, currentUserID, targetU
 func (s *Service) UpdateMemberRole(_ context.Context, req *UpdateTeamMemberRoleReq, teamID, targetUserID, currentUserID int) error {
 	_ = currentUserID
 
-	if err := s.repo.UpdateMemberRole(teamID, targetUserID, req.RoleID); err != nil {
+	if err := s.repo.updateMemberRole(teamID, targetUserID, req.RoleID); err != nil {
 		if errors.Is(err, consts.ErrNotFound) {
 			return consts.ErrNotFound
 		}
@@ -168,7 +161,7 @@ func (s *Service) UpdateMemberRole(_ context.Context, req *UpdateTeamMemberRoleR
 
 func (s *Service) ListMembers(_ context.Context, req *ListTeamMemberReq, teamID int) (*dto.ListResp[TeamMemberResp], error) {
 	limit, offset := req.ToGormParams()
-	members, total, err := s.repo.ListTeamMembers(teamID, limit, offset)
+	members, total, err := s.repo.listTeamMembers(teamID, limit, offset)
 	if err != nil {
 		return nil, err
 	}

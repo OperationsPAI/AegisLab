@@ -4,7 +4,7 @@ import (
 	"aegis/consts"
 	"aegis/dto"
 	"aegis/model"
-	"aegis/repository"
+	"aegis/searchx"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -24,15 +24,7 @@ func NewRepository(db *gorm.DB) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) Transaction(fn func(tx *gorm.DB) error) error {
-	return r.db.Transaction(fn)
-}
-
-func (r *Repository) withDB(db *gorm.DB) *Repository {
-	return &Repository{db: db}
-}
-
-func (r *Repository) GetRoleByName(name string) (*model.Role, error) {
+func (r *Repository) getRoleByName(name string) (*model.Role, error) {
 	var role model.Role
 	if err := r.db.Where("name = ? and status != ?", name, consts.CommonDeleted).First(&role).Error; err != nil {
 		return nil, fmt.Errorf("failed to find role with name %s: %w", name, err)
@@ -40,21 +32,21 @@ func (r *Repository) GetRoleByName(name string) (*model.Role, error) {
 	return &role, nil
 }
 
-func (r *Repository) CreateDataset(dataset *model.Dataset) error {
+func (r *Repository) createDataset(dataset *model.Dataset) error {
 	if err := r.db.Omit(datasetCommonOmitFields).Create(dataset).Error; err != nil {
 		return fmt.Errorf("failed to create dataset: %v", err)
 	}
 	return nil
 }
 
-func (r *Repository) CreateUserDataset(userDataset *model.UserDataset) error {
+func (r *Repository) createUserDataset(userDataset *model.UserDataset) error {
 	if err := r.db.Omit("active_user_dataset").Create(userDataset).Error; err != nil {
 		return fmt.Errorf("failed to create user-dataset association: %w", err)
 	}
 	return nil
 }
 
-func (r *Repository) BatchDeleteDatasetVersions(datasetID int) (int64, error) {
+func (r *Repository) batchDeleteDatasetVersions(datasetID int) (int64, error) {
 	result := r.db.Model(&model.DatasetVersion{}).
 		Where("dataset_id = ? AND status != ?", datasetID, consts.CommonDeleted).
 		Update("status", consts.CommonDeleted)
@@ -64,7 +56,7 @@ func (r *Repository) BatchDeleteDatasetVersions(datasetID int) (int64, error) {
 	return result.RowsAffected, nil
 }
 
-func (r *Repository) RemoveUsersFromDataset(datasetID int) (int64, error) {
+func (r *Repository) removeUsersFromDataset(datasetID int) (int64, error) {
 	result := r.db.Model(&model.UserDataset{}).
 		Where("dataset_id = ? AND status != ?", datasetID, consts.CommonDeleted).
 		Update("status", consts.CommonDeleted)
@@ -74,7 +66,7 @@ func (r *Repository) RemoveUsersFromDataset(datasetID int) (int64, error) {
 	return result.RowsAffected, nil
 }
 
-func (r *Repository) DeleteDataset(datasetID int) (int64, error) {
+func (r *Repository) deleteDataset(datasetID int) (int64, error) {
 	result := r.db.Model(&model.Dataset{}).
 		Where("id = ? AND status != ?", datasetID, consts.CommonDeleted).
 		Update("status", consts.CommonDeleted)
@@ -84,7 +76,7 @@ func (r *Repository) DeleteDataset(datasetID int) (int64, error) {
 	return result.RowsAffected, nil
 }
 
-func (r *Repository) GetDatasetByID(datasetID int) (*model.Dataset, error) {
+func (r *Repository) getDatasetByID(datasetID int) (*model.Dataset, error) {
 	var dataset model.Dataset
 	if err := r.db.Where("id = ? AND status != ?", datasetID, consts.CommonDeleted).First(&dataset).Error; err != nil {
 		return nil, fmt.Errorf("failed to get dataset: %v", err)
@@ -92,7 +84,7 @@ func (r *Repository) GetDatasetByID(datasetID int) (*model.Dataset, error) {
 	return &dataset, nil
 }
 
-func (r *Repository) ListDatasetVersionsByDatasetID(datasetID int) ([]model.DatasetVersion, error) {
+func (r *Repository) listDatasetVersionsByDatasetID(datasetID int) ([]model.DatasetVersion, error) {
 	var versions []model.DatasetVersion
 	if err := r.db.Where("dataset_id = ?", datasetID).Find(&versions).Error; err != nil {
 		return nil, fmt.Errorf("failed to list dataset versions for dataset %d: %w", datasetID, err)
@@ -100,7 +92,36 @@ func (r *Repository) ListDatasetVersionsByDatasetID(datasetID int) ([]model.Data
 	return versions, nil
 }
 
-func (r *Repository) ListDatasets(limit, offset int, datasetType string, isPublic *bool, status *consts.StatusType) ([]model.Dataset, int64, error) {
+func (r *Repository) batchGetDatasetVersions(datasetNames []string, userID int) ([]model.DatasetVersion, error) {
+	if len(datasetNames) == 0 {
+		return []model.DatasetVersion{}, nil
+	}
+
+	var versions []model.DatasetVersion
+	query := r.db.Table("dataset_versions dv").
+		Preload("Dataset").
+		Where("dv.status = ?", consts.CommonEnabled).
+		Order("dv.dataset_id DESC, dv.name_major DESC, dv.name_minor DESC, dv.name_patch DESC")
+
+	query = query.Joins("INNER JOIN datasets d ON d.id = dv.dataset_id").
+		Where("d.name IN (?) AND d.status = ?", datasetNames, consts.CommonEnabled)
+
+	if userID > 0 {
+		query = query.Joins(
+			"LEFT JOIN user_datasets ud ON ud.dataset_id = d.id AND ud.user_id = ? AND ud.status = ?",
+			userID, consts.CommonEnabled,
+		).Where(
+			r.db.Where("d.is_public = ?", true).Or("ud.dataset_id IS NOT NULL"),
+		)
+	}
+
+	if err := query.Find(&versions).Error; err != nil {
+		return nil, fmt.Errorf("failed to query dataset versions: %w", err)
+	}
+	return versions, nil
+}
+
+func (r *Repository) listDatasets(limit, offset int, datasetType string, isPublic *bool, status *consts.StatusType) ([]model.Dataset, int64, error) {
 	var (
 		datasets []model.Dataset
 		total    int64
@@ -126,8 +147,8 @@ func (r *Repository) ListDatasets(limit, offset int, datasetType string, isPubli
 	return datasets, total, nil
 }
 
-func (r *Repository) SearchDatasets(searchReq *dto.SearchReq[consts.DatasetField]) ([]model.Dataset, int64, error) {
-	qb := repository.NewSearchQueryBuilder(r.db, consts.DatasetAllowedFields)
+func (r *Repository) searchDatasets(searchReq *dto.SearchReq[consts.DatasetField]) ([]model.Dataset, int64, error) {
+	qb := searchx.NewQueryBuilder(r.db, consts.DatasetAllowedFields)
 	qb.ApplySearchReq(searchReq.Filters, searchReq.Keyword, searchReq.Sort, searchReq.GroupBy, model.Dataset{})
 	qb.ApplyIncludes(searchReq.Includes)
 	qb.ApplyIncludeFields(searchReq.IncludeFields)
@@ -150,7 +171,7 @@ func (r *Repository) SearchDatasets(searchReq *dto.SearchReq[consts.DatasetField
 	return items, total, nil
 }
 
-func (r *Repository) ListDatasetLabels(datasetIDs []int) (map[int][]model.Label, error) {
+func (r *Repository) listDatasetLabels(datasetIDs []int) (map[int][]model.Label, error) {
 	if len(datasetIDs) == 0 {
 		return nil, nil
 	}
@@ -179,14 +200,14 @@ func (r *Repository) ListDatasetLabels(datasetIDs []int) (map[int][]model.Label,
 	return labelsMap, nil
 }
 
-func (r *Repository) UpdateDataset(dataset *model.Dataset) error {
+func (r *Repository) updateDataset(dataset *model.Dataset) error {
 	if err := r.db.Omit(datasetCommonOmitFields).Save(dataset).Error; err != nil {
 		return fmt.Errorf("failed to update dataset: %v", err)
 	}
 	return nil
 }
 
-func (r *Repository) AddDatasetLabels(datasetLabels []model.DatasetLabel) error {
+func (r *Repository) addDatasetLabels(datasetLabels []model.DatasetLabel) error {
 	if len(datasetLabels) == 0 {
 		return nil
 	}
@@ -199,7 +220,7 @@ func (r *Repository) AddDatasetLabels(datasetLabels []model.DatasetLabel) error 
 	return nil
 }
 
-func (r *Repository) ListLabelIDsByKeyAndDatasetID(datasetID int, keys []string) ([]int, error) {
+func (r *Repository) listLabelIDsByKeyAndDatasetID(datasetID int, keys []string) ([]int, error) {
 	var labelIDs []int
 	if err := r.db.Table("labels l").
 		Select("l.id").
@@ -211,7 +232,7 @@ func (r *Repository) ListLabelIDsByKeyAndDatasetID(datasetID int, keys []string)
 	return labelIDs, nil
 }
 
-func (r *Repository) ClearDatasetLabels(datasetIDs []int, labelIDs []int) error {
+func (r *Repository) clearDatasetLabels(datasetIDs []int, labelIDs []int) error {
 	if len(datasetIDs) == 0 {
 		return nil
 	}
@@ -226,7 +247,7 @@ func (r *Repository) ClearDatasetLabels(datasetIDs []int, labelIDs []int) error 
 	return nil
 }
 
-func (r *Repository) BatchDecreaseLabelUsages(labelIDs []int, decrement int) error {
+func (r *Repository) batchDecreaseLabelUsages(labelIDs []int, decrement int) error {
 	if len(labelIDs) == 0 {
 		return nil
 	}
@@ -241,7 +262,7 @@ func (r *Repository) BatchDecreaseLabelUsages(labelIDs []int, decrement int) err
 	return nil
 }
 
-func (r *Repository) ListLabelsByDatasetID(datasetID int) ([]model.Label, error) {
+func (r *Repository) listLabelsByDatasetID(datasetID int) ([]model.Label, error) {
 	var labels []model.Label
 	if err := r.db.Model(&model.Label{}).
 		Joins("JOIN dataset_labels dl ON dl.label_id = labels.id").
@@ -252,7 +273,7 @@ func (r *Repository) ListLabelsByDatasetID(datasetID int) ([]model.Label, error)
 	return labels, nil
 }
 
-func (r *Repository) BatchCreateDatasetVersions(versions []model.DatasetVersion) error {
+func (r *Repository) batchCreateDatasetVersions(versions []model.DatasetVersion) error {
 	if len(versions) == 0 {
 		return fmt.Errorf("no dataset versions to create")
 	}
@@ -262,7 +283,7 @@ func (r *Repository) BatchCreateDatasetVersions(versions []model.DatasetVersion)
 	return nil
 }
 
-func (r *Repository) DeleteDatasetVersion(versionID int) (int64, error) {
+func (r *Repository) deleteDatasetVersion(versionID int) (int64, error) {
 	result := r.db.Model(&model.DatasetVersion{}).
 		Where("id = ? AND status != ?", versionID, consts.CommonDeleted).
 		Update("status", consts.CommonDeleted)
@@ -272,7 +293,7 @@ func (r *Repository) DeleteDatasetVersion(versionID int) (int64, error) {
 	return result.RowsAffected, nil
 }
 
-func (r *Repository) GetDatasetVersionByID(versionID int) (*model.DatasetVersion, error) {
+func (r *Repository) getDatasetVersionByID(versionID int) (*model.DatasetVersion, error) {
 	var version model.DatasetVersion
 	if err := r.db.Preload("Datapacks").Where("id = ?", versionID).First(&version).Error; err != nil {
 		return nil, fmt.Errorf("failed to get dataset version: %v", err)
@@ -280,7 +301,7 @@ func (r *Repository) GetDatasetVersionByID(versionID int) (*model.DatasetVersion
 	return &version, nil
 }
 
-func (r *Repository) ListDatasetVersions(limit, offset int, datasetID int, status *consts.StatusType) ([]model.DatasetVersion, int64, error) {
+func (r *Repository) listDatasetVersions(limit, offset int, datasetID int, status *consts.StatusType) ([]model.DatasetVersion, int64, error) {
 	var (
 		versions []model.DatasetVersion
 		total    int64
@@ -300,14 +321,14 @@ func (r *Repository) ListDatasetVersions(limit, offset int, datasetID int, statu
 	return versions, total, nil
 }
 
-func (r *Repository) UpdateDatasetVersion(version *model.DatasetVersion) error {
+func (r *Repository) updateDatasetVersion(version *model.DatasetVersion) error {
 	if err := r.db.Omit(datasetVersionModelOmitFields).Save(version).Error; err != nil {
 		return fmt.Errorf("failed to update dataset version: %w", err)
 	}
 	return nil
 }
 
-func (r *Repository) ListInjectionIDsByNames(names []string) (map[string]int, error) {
+func (r *Repository) listInjectionIDsByNames(names []string) (map[string]int, error) {
 	if len(names) == 0 {
 		return map[string]int{}, nil
 	}
@@ -331,7 +352,7 @@ func (r *Repository) ListInjectionIDsByNames(names []string) (map[string]int, er
 	return result, nil
 }
 
-func (r *Repository) AddDatasetVersionInjections(items []model.DatasetVersionInjection) error {
+func (r *Repository) addDatasetVersionInjections(items []model.DatasetVersionInjection) error {
 	if len(items) == 0 {
 		return nil
 	}
@@ -344,7 +365,7 @@ func (r *Repository) AddDatasetVersionInjections(items []model.DatasetVersionInj
 	return nil
 }
 
-func (r *Repository) ClearDatasetVersionInjections(datasetVersionIDs []int, injectionIDs []int) error {
+func (r *Repository) clearDatasetVersionInjections(datasetVersionIDs []int, injectionIDs []int) error {
 	if len(datasetVersionIDs) == 0 {
 		return nil
 	}

@@ -2,16 +2,14 @@ package containermodule
 
 import (
 	"aegis/model"
-
-	"gorm.io/gorm"
 )
 
-func CreateContainerCore(tx *gorm.DB, container *model.Container, userID int) (*model.Container, error) {
-	service := NewService(NewRepository(tx), NewBuildGateway(), NewHelmFileStore(), nil)
-	return service.createContainerCore(service.repo, container, userID)
+func (r *Repository) CreateContainerCore(container *model.Container, userID int) (*model.Container, error) {
+	service := NewService(r, NewBuildGateway(), NewHelmFileStore(), nil)
+	return service.createContainerCore(r, container, userID)
 }
 
-func UploadHelmValueFileFromPath(tx *gorm.DB, containerName string, helmConfig *model.HelmConfig, srcFilePath string) error {
+func (r *Repository) UploadHelmValueFileFromPath(containerName string, helmConfig *model.HelmConfig, srcFilePath string) error {
 	store := NewHelmFileStore()
 	targetPath, err := store.SaveValueFile(containerName, nil, srcFilePath)
 	if err != nil {
@@ -19,5 +17,5 @@ func UploadHelmValueFileFromPath(tx *gorm.DB, containerName string, helmConfig *
 	}
 
 	helmConfig.ValueFile = targetPath
-	return NewRepository(tx).UpdateHelmConfig(helmConfig)
+	return r.updateHelmConfig(helmConfig)
 }

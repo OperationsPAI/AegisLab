@@ -8,5 +8,6 @@ var Module = fx.Module("task",
 	fx.Provide(NewLokiGateway),
 	fx.Provide(NewTaskLogService),
 	fx.Provide(NewService),
+	fx.Provide(AsHandlerService),
 	fx.Provide(NewHandler),
 )

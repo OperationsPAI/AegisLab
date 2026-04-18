@@ -104,6 +104,9 @@ func (s *Service) GetAlgorithmMetrics(_ context.Context, req *GetMetricsReq) (*A
 	}
 
 	for _, algo := range algorithms {
+		if req.AlgorithmID != nil && algo.ID != *req.AlgorithmID {
+			continue
+		}
 		executions, err := s.repo.ListExecutions(func(db *gorm.DB) *gorm.DB {
 			query := db.Where("algorithm_id = ?", algo.ID)
 			if req.StartTime != nil {

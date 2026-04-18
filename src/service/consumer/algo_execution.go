@@ -3,7 +3,6 @@ package consumer
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math/rand"
 	"path/filepath"
@@ -16,8 +15,7 @@ import (
 	"aegis/dto"
 	k8sinfra "aegis/infra/k8s"
 	redisinfra "aegis/infra/redis"
-	"aegis/model"
-	"aegis/repository"
+	executionmodule "aegis/module/execution"
 	"aegis/service/common"
 	"aegis/tracing"
 	"aegis/utils"
@@ -108,7 +106,7 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask, deps RuntimeDe
 			return handleExecutionError(span, logEntry, "failed to parse execution payload", err)
 		}
 
-		executionID, err := createExecution(deps.DB, task.TaskID, payload.algorithm.ID, payload.datapack.ID, payload.datasetVersionID, payload.labels)
+		executionID, err := createExecution(childCtx, deps, task.TaskID, payload.algorithm.ID, payload.datapack.ID, payload.datasetVersionID, payload.labels)
 		if err != nil {
 			return handleExecutionError(span, logEntry, "failed to create execution result", err)
 		}
@@ -343,51 +341,15 @@ func getAlgoJobEnvVars(taskID string, executionID int, datapackPathPrefix, expPa
 }
 
 // createExecution creates a new execution record with associated labels
-func createExecution(db *gorm.DB, taskID string, algorithmVersionID, datapackID int, datasetVersionID *int, labelItems []dto.LabelItem) (int, error) {
-	var createdExecutionID int
-	if db == nil {
-		return 0, fmt.Errorf("consumer runtime db is nil")
+func createExecution(ctx context.Context, deps RuntimeDeps, taskID string, algorithmVersionID, datapackID int, datasetVersionID *int, labelItems []dto.LabelItem) (int, error) {
+	if deps.ExecutionOwner == nil {
+		return 0, fmt.Errorf("execution owner service is nil")
 	}
-
-	err := db.Transaction(func(tx *gorm.DB) error {
-		execution := &model.Execution{
-			TaskID:             &taskID,
-			AlgorithmVersionID: algorithmVersionID,
-			DatapackID:         datapackID,
-			DatasetVersionID:   datasetVersionID,
-			State:              consts.ExecutionInitial,
-			Status:             consts.CommonEnabled,
-		}
-
-		if err := repository.CreateExecution(tx, execution); err != nil {
-			if errors.Is(err, gorm.ErrDuplicatedKey) {
-				return fmt.Errorf("%w: execution with algorithm_version_id %d and datapack_id %d already exists", consts.ErrAlreadyExists, algorithmVersionID, datapackID)
-			}
-			return fmt.Errorf("failed to create execution: %w", err)
-		}
-
-		if len(labelItems) > 0 {
-			labels, err := common.CreateOrUpdateLabelsFromItems(tx, labelItems, consts.ExecutionCategory)
-			if err != nil {
-				return fmt.Errorf("failed to create or update labels: %w", err)
-			}
-
-			labelIDs := make([]int, 0, len(labels))
-			for _, label := range labels {
-				labelIDs = append(labelIDs, label.ID)
-			}
-
-			if err := repository.AddExecutionLabels(tx, execution.ID, labelIDs); err != nil {
-				return fmt.Errorf("failed to add execution labels: %w", err)
-			}
-		}
-
-		createdExecutionID = execution.ID
-		return nil
+	return deps.ExecutionOwner.CreateExecution(ctx, &executionmodule.RuntimeCreateExecutionReq{
+		TaskID:             taskID,
+		AlgorithmVersionID: algorithmVersionID,
+		DatapackID:         datapackID,
+		DatasetVersionID:   datasetVersionID,
+		Labels:             labelItems,
 	})
-	if err != nil {
-		return 0, err
-	}
-
-	return createdExecutionID, nil
 }

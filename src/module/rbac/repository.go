@@ -16,14 +16,6 @@ func NewRepository(db *gorm.DB) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) withDB(db *gorm.DB) *Repository {
-	return &Repository{db: db}
-}
-
-func (r *Repository) Transaction(fn func(tx *gorm.DB) error) error {
-	return r.db.Transaction(fn)
-}
-
 func (r *Repository) createRoleRecord(role *model.Role) error {
 	if err := r.db.Create(role).Error; err != nil {
 		return fmt.Errorf("failed to create role: %w", err)
@@ -133,34 +125,7 @@ func (r *Repository) updateMutableRole(roleID int, patch func(*model.Role)) (*mo
 	return role, nil
 }
 
-func (r *Repository) loadAssignablePermissions(permissionIDs []int) (map[int]model.Permission, error) {
-	if len(permissionIDs) == 0 {
-		return map[int]model.Permission{}, nil
-	}
-
-	unique := make(map[int]struct{}, len(permissionIDs))
-	for _, id := range permissionIDs {
-		unique[id] = struct{}{}
-	}
-
-	deduplicatedIDs := make([]int, 0, len(unique))
-	for id := range unique {
-		deduplicatedIDs = append(deduplicatedIDs, id)
-	}
-
-	permissions, err := r.listPermissionsByIDs(deduplicatedIDs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list permissions by ids: %w", err)
-	}
-
-	result := make(map[int]model.Permission, len(permissions))
-	for _, permission := range permissions {
-		result[permission.ID] = permission
-	}
-	return result, nil
-}
-
-func (r *Repository) AssignRolePermissions(roleID int, permissionIDs []int) error {
+func (r *Repository) assignRolePermissions(roleID int, permissionIDs []int) error {
 	role, err := r.loadRole(roleID)
 	if err != nil {
 		return err
@@ -169,7 +134,7 @@ func (r *Repository) AssignRolePermissions(roleID int, permissionIDs []int) erro
 		return fmt.Errorf("%w: cannot assign permissions to system role", consts.ErrPermissionDenied)
 	}
 
-	permissionMap, err := r.loadAssignablePermissions(permissionIDs)
+	permissionMap, err := r.buildAssignablePermissionMap(permissionIDs)
 	if err != nil {
 		return err
 	}
@@ -194,7 +159,7 @@ func (r *Repository) AssignRolePermissions(roleID int, permissionIDs []int) erro
 	return nil
 }
 
-func (r *Repository) RemoveRolePermissions(roleID int, permissionIDs []int) error {
+func (r *Repository) removeRolePermissions(roleID int, permissionIDs []int) error {
 	role, err := r.loadRole(roleID)
 	if err != nil {
 		return err
@@ -203,7 +168,7 @@ func (r *Repository) RemoveRolePermissions(roleID int, permissionIDs []int) erro
 		return fmt.Errorf("%w: cannot remove permissions of system role", consts.ErrPermissionDenied)
 	}
 
-	permissionMap, err := r.loadAssignablePermissions(permissionIDs)
+	permissionMap, err := r.buildAssignablePermissionMap(permissionIDs)
 	if err != nil {
 		return err
 	}
@@ -355,4 +320,31 @@ func (r *Repository) listPermissionsByIDs(permissionIDs []int) ([]model.Permissi
 		return nil, fmt.Errorf("failed to query permissions: %w", err)
 	}
 	return permissions, nil
+}
+
+func (r *Repository) buildAssignablePermissionMap(permissionIDs []int) (map[int]model.Permission, error) {
+	if len(permissionIDs) == 0 {
+		return map[int]model.Permission{}, nil
+	}
+
+	unique := make(map[int]struct{}, len(permissionIDs))
+	for _, id := range permissionIDs {
+		unique[id] = struct{}{}
+	}
+
+	deduplicatedIDs := make([]int, 0, len(unique))
+	for id := range unique {
+		deduplicatedIDs = append(deduplicatedIDs, id)
+	}
+
+	permissions, err := r.listPermissionsByIDs(deduplicatedIDs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list permissions by ids: %w", err)
+	}
+
+	result := make(map[int]model.Permission, len(permissions))
+	for _, permission := range permissions {
+		result[permission.ID] = permission
+	}
+	return result, nil
 }

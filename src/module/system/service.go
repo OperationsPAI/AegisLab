@@ -17,11 +17,11 @@ import (
 	k8sinfra "aegis/infra/k8s"
 	redisinfra "aegis/infra/redis"
 	"aegis/model"
-	systemmetricmodule "aegis/module/systemmetric"
 	"aegis/service/common"
 	"aegis/utils"
 
 	"github.com/sirupsen/logrus"
+	"go.uber.org/fx"
 	"gorm.io/gorm"
 )
 
@@ -44,7 +44,7 @@ type configHistoryParams struct {
 }
 
 type configHistoryWriter interface {
-	CreateConfigHistory(history *model.ConfigHistory) error
+	createConfigHistory(history *model.ConfigHistory) error
 }
 
 type Service struct {
@@ -53,17 +53,28 @@ type Service struct {
 	etcd         *etcdinfra.Gateway
 	k8s          *k8sinfra.Gateway
 	redis        *redisinfra.Gateway
-	systemMetric *systemmetricmodule.Service
+	runtimeQuery runtimeQuerySource
 }
 
-func NewService(repo *Repository, buildkit *buildkitinfra.Gateway, etcd *etcdinfra.Gateway, k8s *k8sinfra.Gateway, redis *redisinfra.Gateway, systemMetric *systemmetricmodule.Service) *Service {
+type serviceParams struct {
+	fx.In
+
+	Repo         *Repository
+	Buildkit     *buildkitinfra.Gateway
+	Etcd         *etcdinfra.Gateway
+	K8s          *k8sinfra.Gateway
+	Redis        *redisinfra.Gateway
+	RuntimeQuery runtimeQuerySource
+}
+
+func NewService(params serviceParams) *Service {
 	return &Service{
-		repo:         repo,
-		buildkit:     buildkit,
-		etcd:         etcd,
-		k8s:          k8s,
-		redis:        redis,
-		systemMetric: systemMetric,
+		repo:         params.Repo,
+		buildkit:     params.Buildkit,
+		etcd:         params.Etcd,
+		k8s:          params.K8s,
+		redis:        params.Redis,
+		runtimeQuery: params.RuntimeQuery,
 	}
 }
 
@@ -111,7 +122,7 @@ func (s *Service) GetHealth(ctx context.Context) (*HealthCheckResp, error) {
 	}, nil
 }
 
-func (s *Service) GetMetrics() *MonitoringMetricsResp {
+func (s *Service) GetMetrics(_ context.Context) (*MonitoringMetricsResp, error) {
 	return &MonitoringMetricsResp{
 		Timestamp: time.Now(),
 		Metrics: map[string]MetricValue{
@@ -124,10 +135,10 @@ func (s *Service) GetMetrics() *MonitoringMetricsResp {
 			"instance": "rcabench-01",
 			"version":  config.GetString("version"),
 		},
-	}
+	}, nil
 }
 
-func (s *Service) GetSystemInfo() *SystemInfo {
+func (s *Service) GetSystemInfo(_ context.Context) (*SystemInfo, error) {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
 	return &SystemInfo{
@@ -135,19 +146,19 @@ func (s *Service) GetSystemInfo() *SystemInfo {
 		MemoryUsage: float64(memStats.Alloc) / float64(memStats.Sys) * 100,
 		DiskUsage:   45.8,
 		LoadAverage: "1.2, 1.5, 1.8",
-	}
+	}, nil
 }
 
 func (s *Service) ListNamespaceLocks(ctx context.Context) (*ListNamespaceLockResp, error) {
-	return s.systemMetric.ListNamespaceLocks(ctx)
+	return s.runtimeQuery.ListNamespaceLocks(ctx)
 }
 
 func (s *Service) ListQueuedTasks(ctx context.Context) (*QueuedTasksResp, error) {
-	return s.systemMetric.ListQueuedTasks(ctx)
+	return s.runtimeQuery.ListQueuedTasks(ctx)
 }
 
-func (s *Service) GetAuditLog(id int) (*AuditLogDetailResp, error) {
-	log, err := s.repo.GetAuditLogByID(id)
+func (s *Service) GetAuditLog(_ context.Context, id int) (*AuditLogDetailResp, error) {
+	log, err := s.repo.getAuditLogByID(id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("%w: audit log with ID %d not found", consts.ErrNotFound, id)
@@ -158,11 +169,11 @@ func (s *Service) GetAuditLog(id int) (*AuditLogDetailResp, error) {
 	return NewAuditLogDetailResp(log), nil
 }
 
-func (s *Service) ListAuditLogs(req *ListAuditLogReq) (*dto.ListResp[AuditLogResp], error) {
+func (s *Service) ListAuditLogs(_ context.Context, req *ListAuditLogReq) (*dto.ListResp[AuditLogResp], error) {
 	limit, offset := req.ToGormParams()
 	filterOptions := req.ToFilterOptions()
 
-	logs, total, err := s.repo.ListAuditLogs(limit, offset, filterOptions)
+	logs, total, err := s.repo.listAuditLogs(limit, offset, filterOptions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list audit logs: %w", err)
 	}
@@ -170,13 +181,13 @@ func (s *Service) ListAuditLogs(req *ListAuditLogReq) (*dto.ListResp[AuditLogRes
 	return buildAuditLogListResp(logs, req, total), nil
 }
 
-func (s *Service) GetConfig(configID int) (*ConfigDetailResp, error) {
-	cfg, err := s.repo.GetConfigByID(configID, true)
+func (s *Service) GetConfig(_ context.Context, configID int) (*ConfigDetailResp, error) {
+	cfg, err := s.repo.getConfigByID(configID, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get config detail: %w", err)
 	}
 
-	histories, err := s.repo.ListConfigHistoriesByConfigID(cfg.ID)
+	histories, err := s.repo.listConfigHistoriesByConfigID(cfg.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get config histories: %w", err)
 	}
@@ -184,10 +195,10 @@ func (s *Service) GetConfig(configID int) (*ConfigDetailResp, error) {
 	return buildConfigDetailResp(cfg, histories), nil
 }
 
-func (s *Service) ListConfigs(req *ListConfigReq) (*dto.ListResp[ConfigResp], error) {
+func (s *Service) ListConfigs(_ context.Context, req *ListConfigReq) (*dto.ListResp[ConfigResp], error) {
 	limit, offset := req.ToGormParams()
 
-	configs, total, err := s.repo.ListConfigs(limit, offset, req.ValueType, req.Category, req.IsSecret, req.UpdatedBy)
+	configs, total, err := s.repo.listConfigs(limit, offset, req.ValueType, req.Category, req.IsSecret, req.UpdatedBy)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list configs: %w", err)
 	}
@@ -196,7 +207,7 @@ func (s *Service) ListConfigs(req *ListConfigReq) (*dto.ListResp[ConfigResp], er
 }
 
 func (s *Service) RollbackConfigValue(ctx context.Context, req *RollbackConfigReq, configID, userID int, ipAddress, userAgent string) error {
-	history, err := s.repo.GetConfigHistory(req.HistoryID)
+	history, err := s.repo.getConfigHistory(req.HistoryID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fmt.Errorf("%w: history entry with id %d not found", consts.ErrNotFound, req.HistoryID)
@@ -208,7 +219,7 @@ func (s *Service) RollbackConfigValue(ctx context.Context, req *RollbackConfigRe
 		return fmt.Errorf("history entry %d is not a value change (field: %v)", req.HistoryID, history.ChangeField)
 	}
 
-	existingConfig, err := s.repo.GetConfigByID(configID, false)
+	existingConfig, err := s.repo.getConfigByID(configID, false)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fmt.Errorf("%w: configuration with id %d not found", consts.ErrNotFound, configID)
@@ -245,8 +256,8 @@ func (s *Service) RollbackConfigValue(ctx context.Context, req *RollbackConfigRe
 	return s.propagateValueChange(ctx, existingConfig, newValue, "rollback")
 }
 
-func (s *Service) RollbackConfigMetadata(req *RollbackConfigReq, configID, userID int, ipAddress, userAgent string) (*ConfigResp, error) {
-	history, err := s.repo.GetConfigHistory(req.HistoryID)
+func (s *Service) RollbackConfigMetadata(_ context.Context, req *RollbackConfigReq, configID, userID int, ipAddress, userAgent string) (*ConfigResp, error) {
+	history, err := s.repo.getConfigHistory(req.HistoryID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("%w: history entry with id %d not found", consts.ErrNotFound, req.HistoryID)
@@ -258,7 +269,7 @@ func (s *Service) RollbackConfigMetadata(req *RollbackConfigReq, configID, userI
 		return nil, fmt.Errorf("history entry %d is a value change, use RollbackConfigValue instead", req.HistoryID)
 	}
 
-	existingConfig, err := s.repo.GetConfigByID(configID, false)
+	existingConfig, err := s.repo.getConfigByID(configID, false)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("%w: configuration with id %d not found", consts.ErrNotFound, configID)
@@ -292,7 +303,7 @@ func (s *Service) RollbackConfigMetadata(req *RollbackConfigReq, configID, userI
 }
 
 func (s *Service) UpdateConfigValue(ctx context.Context, req *UpdateConfigValueReq, configID, userID int, ipAddress, userAgent string) error {
-	existingConfig, err := s.repo.GetConfigByID(configID, false)
+	existingConfig, err := s.repo.getConfigByID(configID, false)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fmt.Errorf("%w: configuration with id %d not found", consts.ErrNotFound, configID)
@@ -333,8 +344,8 @@ func (s *Service) UpdateConfigValue(ctx context.Context, req *UpdateConfigValueR
 	return s.propagateValueChange(ctx, existingConfig, newValue, "update")
 }
 
-func (s *Service) UpdateConfigMetadata(req *UpdateConfigMetadataReq, configID, userID int, ipAddress, userAgent string) (*ConfigResp, error) {
-	existingConfig, err := s.repo.GetConfigByID(configID, false)
+func (s *Service) UpdateConfigMetadata(_ context.Context, req *UpdateConfigMetadataReq, configID, userID int, ipAddress, userAgent string) (*ConfigResp, error) {
+	existingConfig, err := s.repo.getConfigByID(configID, false)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("%w: configuration with id %d not found", consts.ErrNotFound, configID)
@@ -348,11 +359,11 @@ func (s *Service) UpdateConfigMetadata(req *UpdateConfigMetadataReq, configID, u
 	}
 
 	var updatedConfig *model.DynamicConfig
-	err = s.repo.Transaction(func(tx *gorm.DB) error {
-		txRepo := s.repo.withDB(tx)
+	err = s.repo.db.Transaction(func(tx *gorm.DB) error {
+		txRepo := NewRepository(tx)
 		existingConfig.UpdatedBy = utils.IntPtr(userID)
 
-		if err := txRepo.UpdateConfig(existingConfig); err != nil {
+		if err := txRepo.updateConfig(existingConfig); err != nil {
 			return fmt.Errorf("failed to update config: %w", err)
 		}
 
@@ -382,10 +393,10 @@ func (s *Service) UpdateConfigMetadata(req *UpdateConfigMetadataReq, configID, u
 	return NewConfigResp(updatedConfig), nil
 }
 
-func (s *Service) ListConfigHistories(req *ListConfigHistoryReq, configID int) (*dto.ListResp[ConfigHistoryResp], error) {
+func (s *Service) ListConfigHistories(_ context.Context, req *ListConfigHistoryReq, configID int) (*dto.ListResp[ConfigHistoryResp], error) {
 	limit, offset := req.ToGormParams()
 
-	histories, total, err := s.repo.ListConfigHistories(limit, offset, configID, req.ChangeType, req.OperatorID)
+	histories, total, err := s.repo.listConfigHistories(limit, offset, configID, req.ChangeType, req.OperatorID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list config histories: %w", err)
 	}
@@ -462,7 +473,7 @@ func (s *Service) createConfigHistory(repo configHistoryWriter, params configHis
 		RolledBackFromID: params.RollbackFromID,
 		ChangeField:      params.ConfigUpdateContext.ChangeField,
 	}
-	if err := repo.CreateConfigHistory(entry); err != nil {
+	if err := repo.createConfigHistory(entry); err != nil {
 		return fmt.Errorf("failed to create config history: %w", err)
 	}
 	return nil
@@ -471,9 +482,9 @@ func (s *Service) createConfigHistory(repo configHistoryWriter, params configHis
 func (s *Service) createConfigRollback(cfg *model.DynamicConfig, historyID *int, updateContext configUpdateContext) (*model.DynamicConfig, error) {
 	var updatedConfig *model.DynamicConfig
 
-	err := s.repo.Transaction(func(tx *gorm.DB) error {
-		txRepo := s.repo.withDB(tx)
-		if err := txRepo.UpdateConfig(cfg); err != nil {
+	err := s.repo.db.Transaction(func(tx *gorm.DB) error {
+		txRepo := NewRepository(tx)
+		if err := txRepo.updateConfig(cfg); err != nil {
 			return fmt.Errorf("failed to update config: %w", err)
 		}
 
@@ -706,6 +717,9 @@ func (s *Service) checkJaegerHealth(parent context.Context) ServiceInfo {
 
 func (s *Service) checkKubernetesHealth(parent context.Context) ServiceInfo {
 	start := time.Now()
+	if s.k8s == nil {
+		return ServiceInfo{Status: "unavailable", LastChecked: time.Now(), ResponseTime: time.Since(start).String(), Error: "Kubernetes gateway not configured"}
+	}
 	ctx, cancel := context.WithTimeout(parent, 5*time.Second)
 	defer cancel()
 	if err := s.k8s.CheckHealth(ctx); err != nil {

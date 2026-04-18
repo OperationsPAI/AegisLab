@@ -140,8 +140,8 @@ func newSmokeReplacements(t *testing.T, spies *smokeLifecycleSpies) (fx.Option, 
 			controllerLifecycle,
 			receiverLifecycle,
 		), func() {
-			redisClient.Close()
-			traceProvider.Shutdown(context.Background())
+			_ = redisClient.Close()
+			_ = traceProvider.Shutdown(context.Background())
 			cleanupDB()
 		}
 }
@@ -202,7 +202,9 @@ func waitForHTTPStatus(t *testing.T, client *http.Client, method, url string, wa
 	if err != nil {
 		t.Fatalf("request %s %s failed: %v", method, url, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 	t.Fatalf("expected %d from %s %s, got %d", want, method, url, resp.StatusCode)
 }
 

@@ -47,13 +47,18 @@ func (req *CreateProjectReq) ConvertToProject() *model.Project {
 // ListProjectReq represents project list query parameters.
 type ListProjectReq struct {
 	dto.PaginationReq
-	IsPublic *bool              `form:"is_public" binding:"omitempty"`
-	Status   *consts.StatusType `form:"status" binding:"omitempty"`
+	IsPublic          *bool              `form:"is_public" binding:"omitempty"`
+	Status            *consts.StatusType `form:"status" binding:"omitempty"`
+	TeamID            *int               `form:"team_id" binding:"omitempty"`
+	IncludeStatistics *bool              `form:"include_statistics" binding:"omitempty"`
 }
 
 func (req *ListProjectReq) Validate() error {
 	if err := req.PaginationReq.Validate(); err != nil {
 		return err
+	}
+	if req.TeamID != nil && *req.TeamID <= 0 {
+		return fmt.Errorf("team_id must be greater than 0")
 	}
 	return validateStatus(req.Status, false)
 }

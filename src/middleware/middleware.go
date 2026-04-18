@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"aegis/httpx"
 	"regexp"
 
 	"github.com/google/uuid"
@@ -39,6 +40,19 @@ func GroupID() gin.HandlerFunc {
 			c.Writer.Header().Set("X-Group-ID", groupID)
 		}
 
+		c.Next()
+	}
+}
+
+func RequestID() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		requestID := c.GetHeader(httpx.RequestIDHeader)
+		if requestID == "" {
+			requestID = httpx.NewRequestID()
+		}
+
+		c.Writer.Header().Set(httpx.RequestIDHeader, requestID)
+		c.Request = c.Request.WithContext(httpx.WithRequestID(c.Request.Context(), requestID))
 		c.Next()
 	}
 }

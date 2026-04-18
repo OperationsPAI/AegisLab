@@ -41,8 +41,8 @@ func (s *Service) Register(ctx context.Context, req *RegisterReq) (*UserInfo, er
 	}
 
 	var createdUser *model.User
-	err := s.userRepo.Transaction(func(tx *gorm.DB) error {
-		userRepo := s.userRepo.withDB(tx)
+	err := s.userRepo.db.Transaction(func(tx *gorm.DB) error {
+		userRepo := NewUserRepository(tx)
 
 		if _, err := userRepo.GetByUsername(req.Username); err == nil {
 			return fmt.Errorf("%w: username is already taken", consts.ErrAlreadyExists)
@@ -83,9 +83,9 @@ func (s *Service) Login(ctx context.Context, req *LoginReq) (*LoginResp, error) 
 	var token string
 	var expiresAt time.Time
 
-	err := s.userRepo.Transaction(func(tx *gorm.DB) error {
-		userRepo := s.userRepo.withDB(tx)
-		roleRepo := s.roleRepo.withDB(tx)
+	err := s.userRepo.db.Transaction(func(tx *gorm.DB) error {
+		userRepo := NewUserRepository(tx)
+		roleRepo := NewRoleRepository(tx)
 
 		user, err := userRepo.GetByUsername(req.Username)
 		if err != nil {
@@ -169,13 +169,36 @@ func (s *Service) Logout(ctx context.Context, claims *utils.Claims) error {
 	return nil
 }
 
+func (s *Service) VerifyToken(ctx context.Context, token string) (*utils.Claims, error) {
+	claims, err := utils.ValidateToken(token)
+	if err != nil {
+		return nil, err
+	}
+
+	if s.tokenStore != nil {
+		blacklisted, err := s.tokenStore.IsTokenBlacklisted(ctx, claims.ID)
+		if err != nil {
+			return nil, err
+		}
+		if blacklisted {
+			return nil, fmt.Errorf("%w: token has been revoked", consts.ErrAuthenticationFailed)
+		}
+	}
+
+	return claims, nil
+}
+
+func (s *Service) VerifyServiceToken(ctx context.Context, token string) (*utils.ServiceClaims, error) {
+	return utils.ValidateServiceToken(token)
+}
+
 func (s *Service) ChangePassword(ctx context.Context, req *ChangePasswordReq, userID int) error {
 	if req == nil {
 		return fmt.Errorf("change password request is nil")
 	}
 
-	return s.userRepo.Transaction(func(tx *gorm.DB) error {
-		userRepo := s.userRepo.withDB(tx)
+	return s.userRepo.db.Transaction(func(tx *gorm.DB) error {
+		userRepo := NewUserRepository(tx)
 
 		user, err := userRepo.GetByID(userID)
 		if err != nil {

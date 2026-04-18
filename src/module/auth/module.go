@@ -10,5 +10,7 @@ var Module = fx.Module("auth",
 	fx.Provide(NewAccessKeyRepository),
 	fx.Provide(NewTokenStore),
 	fx.Provide(NewService),
+	fx.Provide(AsHandlerService),
+	fx.Provide(NewTokenVerifier),
 	fx.Provide(NewHandler),
 )

@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"aegis/consts"
+	"aegis/dto"
 	redisinfra "aegis/infra/redis"
-	"aegis/model"
 	taskmodule "aegis/module/task"
 
 	"github.com/redis/go-redis/v9"
@@ -154,11 +154,11 @@ func (s *Service) ListQueuedTasks(ctx context.Context) (*taskmodule.QueuedTasksR
 
 	readyTasks := make([]taskmodule.TaskResp, 0, len(readyTaskDatas))
 	for _, taskData := range readyTaskDatas {
-		var task model.Task
-		if err := json.Unmarshal([]byte(taskData), &task); err != nil {
+		taskResp, err := decodeQueuedTask(taskData)
+		if err != nil {
 			return nil, err
 		}
-		readyTasks = append(readyTasks, *taskmodule.NewTaskResp(&task))
+		readyTasks = append(readyTasks, taskResp)
 	}
 
 	delayedTaskDatas, err := s.redis.ListDelayedTasks(ctx, 1000)
@@ -171,16 +171,36 @@ func (s *Service) ListQueuedTasks(ctx context.Context) (*taskmodule.QueuedTasksR
 
 	delayedTasks := make([]taskmodule.TaskResp, 0, len(delayedTaskDatas))
 	for _, taskData := range delayedTaskDatas {
-		var task model.Task
-		if err := json.Unmarshal([]byte(taskData), &task); err != nil {
+		taskResp, err := decodeQueuedTask(taskData)
+		if err != nil {
 			return nil, err
 		}
-		delayedTasks = append(delayedTasks, *taskmodule.NewTaskResp(&task))
+		delayedTasks = append(delayedTasks, taskResp)
 	}
 
 	return &taskmodule.QueuedTasksResp{
 		ReadyTasks:   readyTasks,
 		DelayedTasks: delayedTasks,
+	}, nil
+}
+
+func decodeQueuedTask(taskData string) (taskmodule.TaskResp, error) {
+	var task dto.UnifiedTask
+	if err := json.Unmarshal([]byte(taskData), &task); err != nil {
+		return taskmodule.TaskResp{}, err
+	}
+
+	return taskmodule.TaskResp{
+		ID:          task.TaskID,
+		Type:        consts.GetTaskTypeName(task.Type),
+		Immediate:   task.Immediate,
+		ExecuteTime: task.ExecuteTime,
+		CronExpr:    task.CronExpr,
+		TraceID:     task.TraceID,
+		GroupID:     task.GroupID,
+		State:       consts.GetTaskStateName(task.State),
+		Status:      consts.GetStatusTypeName(consts.CommonEnabled),
+		ProjectID:   task.ProjectID,
 	}, nil
 }
 

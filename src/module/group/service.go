@@ -60,19 +60,23 @@ func (s *Service) GetGroupStats(_ context.Context, req *GetGroupStatsReq) (*Grou
 	}, nil
 }
 
-func (s *Service) NewGroupStreamProcessor(groupID string) (*GroupStreamProcessor, error) {
+func (s *Service) NewGroupStreamProcessor(_ context.Context, groupID string) (*GroupStreamProcessor, error) {
+	total, err := s.GetGroupTraceCount(groupID)
+	if err != nil {
+		return nil, err
+	}
+	return NewGroupStreamProcessor(int(total)), nil
+}
+
+func (s *Service) GetGroupTraceCount(groupID string) (int64, error) {
 	total, err := s.repo.CountTracesByGroupID(groupID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to count traces for group %s: %w", groupID, err)
+		return 0, fmt.Errorf("failed to count traces for group %s: %w", groupID, err)
 	}
 	if total == 0 {
-		return nil, fmt.Errorf("the group %s does not exist", groupID)
+		return 0, fmt.Errorf("the group %s does not exist", groupID)
 	}
-
-	return &GroupStreamProcessor{
-		totalTraces:   int(total),
-		finishedCount: 0,
-	}, nil
+	return total, nil
 }
 
 func (s *Service) ReadGroupStreamMessages(ctx context.Context, streamKey, lastID string, count int64, block time.Duration) ([]redis.XStream, error) {
@@ -90,6 +94,13 @@ func (s *Service) ReadGroupStreamMessages(ctx context.Context, streamKey, lastID
 type GroupStreamProcessor struct {
 	totalTraces   int
 	finishedCount int
+}
+
+func NewGroupStreamProcessor(totalTraces int) *GroupStreamProcessor {
+	return &GroupStreamProcessor{
+		totalTraces:   totalTraces,
+		finishedCount: 0,
+	}
 }
 
 func (p *GroupStreamProcessor) ProcessGroupMessage(msg redis.XMessage) (*GroupStreamEvent, error) {

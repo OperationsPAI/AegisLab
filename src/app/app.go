@@ -15,18 +15,48 @@ import (
 	"go.uber.org/fx"
 )
 
-func CommonOptions(confPath string) fx.Option {
+func BaseOptions(confPath string) fx.Option {
 	return fx.Options(
 		fx.Supply(configinfra.Params{Path: confPath}),
-		loggerinfra.Module,
 		configinfra.Module,
+		loggerinfra.Module,
+	)
+}
+
+func ObserveOptions() fx.Option {
+	return fx.Options(
+		lokiinfra.Module,
+		tracinginfra.Module,
+	)
+}
+
+func DataOptions() fx.Option {
+	return fx.Options(
 		dbinfra.Module,
 		redisinfra.Module,
+	)
+}
+
+func CoordinationOptions() fx.Option {
+	return fx.Options(
 		etcdinfra.Module,
+	)
+}
+
+func BuildInfraOptions() fx.Option {
+	return fx.Options(
 		harborinfra.Module,
 		helminfra.Module,
 		buildkitinfra.Module,
-		lokiinfra.Module,
-		tracinginfra.Module,
+	)
+}
+
+func CommonOptions(confPath string) fx.Option {
+	return fx.Options(
+		BaseOptions(confPath),
+		ObserveOptions(),
+		DataOptions(),
+		CoordinationOptions(),
+		BuildInfraOptions(),
 	)
 }

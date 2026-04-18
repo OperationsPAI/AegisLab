@@ -20,4 +20,6 @@ type RuntimeDeps struct {
 	BuildKitGateway      *buildkitinfra.Gateway
 	HelmGateway          *helminfra.Gateway
 	FaultBatchManager    *FaultBatchManager
+	ExecutionOwner       ExecutionOwner
+	InjectionOwner       InjectionOwner
 }

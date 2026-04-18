@@ -1,16 +1,28 @@
 package teammodule
 
 import (
+	"context"
 	"regexp"
 	"testing"
 	"time"
 
 	"aegis/consts"
+	"aegis/dto"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
+
+type stubProjectReader struct{}
+
+func (stubProjectReader) CountProjects(context.Context, int) (int, error) {
+	return 0, nil
+}
+
+func (stubProjectReader) ListProjects(context.Context, *TeamProjectListReq, int) (*dto.ListResp[TeamProjectItem], error) {
+	return &dto.ListResp[TeamProjectItem]{Items: []TeamProjectItem{}}, nil
+}
 
 func newTeamService(t *testing.T) (*Service, sqlmock.Sqlmock, func()) {
 	t.Helper()
@@ -24,7 +36,7 @@ func newTeamService(t *testing.T) (*Service, sqlmock.Sqlmock, func()) {
 	}), &gorm.Config{})
 	require.NoError(t, err)
 
-	return NewService(NewRepository(db)), mock, func() {
+	return NewService(NewRepository(db), stubProjectReader{}), mock, func() {
 		_ = sqlDB.Close()
 	}
 }
@@ -54,7 +66,7 @@ func TestTeamServiceListTeamsSuccess(t *testing.T) {
 }
 
 func TestTeamServiceRemoveMemberSelfRejected(t *testing.T) {
-	service := NewService(nil)
+	service := NewService(nil, stubProjectReader{})
 
 	err := service.RemoveMember(t.Context(), 1, 7, 7)
 

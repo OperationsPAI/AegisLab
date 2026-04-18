@@ -5,6 +5,7 @@ import (
 	"aegis/model"
 	"errors"
 	"fmt"
+	"strings"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -23,10 +24,6 @@ type labelCountResult struct {
 
 func NewRepository(db *gorm.DB) *Repository {
 	return &Repository{db: db}
-}
-
-func (r *Repository) Transaction(fn func(tx *gorm.DB) error) error {
-	return r.db.Transaction(fn)
 }
 
 func (r *Repository) ListLabelsByID(db *gorm.DB, labelIDs []int) ([]model.Label, error) {
@@ -82,6 +79,55 @@ func (r *Repository) GetLabelByKeyAndValue(db *gorm.DB, key, value string, statu
 		return nil, fmt.Errorf("failed to get label: %w", err)
 	}
 	return &label, nil
+}
+
+func (r *Repository) batchCreateLabels(labels []model.Label) error {
+	if len(labels) == 0 {
+		return nil
+	}
+	if err := r.db.Omit(labelKeyOmitFields).Create(&labels).Error; err != nil {
+		return fmt.Errorf("failed to batch upsert labels: %w", err)
+	}
+	return nil
+}
+
+func (r *Repository) batchIncreaseLabelUsages(labelIDs []int, increment int) error {
+	if len(labelIDs) == 0 {
+		return nil
+	}
+
+	expr := gorm.Expr("usage_count + ?", increment)
+	if err := r.db.Model(&model.Label{}).
+		Where("id IN (?)", labelIDs).
+		UpdateColumn("usage_count", expr).Error; err != nil {
+		return fmt.Errorf("failed to batch increase label usages: %w", err)
+	}
+	return nil
+}
+
+func (r *Repository) listLabelsByConditions(conditions []map[string]string) ([]model.Label, error) {
+	if len(conditions) == 0 {
+		return []model.Label{}, nil
+	}
+
+	var labels []model.Label
+	query := r.db.Model(&model.Label{})
+	var whereClauses []string
+	var whereArgs []any
+
+	for _, condition := range conditions {
+		whereClauses = append(whereClauses, "(label_key = ? AND label_value = ?)")
+		whereArgs = append(whereArgs, condition["key"], condition["value"])
+	}
+
+	if len(whereClauses) > 0 {
+		query = query.Where(strings.Join(whereClauses, " OR "), whereArgs...)
+	}
+
+	if err := query.Find(&labels).Error; err != nil {
+		return nil, fmt.Errorf("failed to list labels by conditions: %w", err)
+	}
+	return labels, nil
 }
 
 func (r *Repository) CreateLabel(db *gorm.DB, label *model.Label) error {

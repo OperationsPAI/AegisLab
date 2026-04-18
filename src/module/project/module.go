@@ -7,7 +7,9 @@ import (
 var Module = fx.Module("project",
 	fx.Provide(
 		NewRepository,
+		newProjectStatisticsSource,
 		NewService,
+		AsHandlerService,
 		NewHandler,
 	),
 )

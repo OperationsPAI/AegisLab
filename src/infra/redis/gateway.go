@@ -98,6 +98,14 @@ func (g *Gateway) ListRange(ctx context.Context, key string) ([]string, error) {
 	return result, nil
 }
 
+func (g *Gateway) ListLength(ctx context.Context, key string) (int64, error) {
+	result, err := g.clientOrInit().LLen(ctx, key).Result()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get list length for key '%s': %w", key, err)
+	}
+	return result, nil
+}
+
 func (g *Gateway) SetMembers(ctx context.Context, key string) ([]string, error) {
 	result, err := g.clientOrInit().SMembers(ctx, key).Result()
 	if err != nil {
@@ -181,6 +189,14 @@ func (g *Gateway) ZRangeByScore(ctx context.Context, key, min, max string) ([]st
 	return result, nil
 }
 
+func (g *Gateway) SortedSetCard(ctx context.Context, key string) (int64, error) {
+	result, err := g.clientOrInit().ZCard(ctx, key).Result()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get sorted set size for key '%s': %w", key, err)
+	}
+	return result, nil
+}
+
 func (g *Gateway) ZAdd(ctx context.Context, key string, member redis.Z) error {
 	if err := g.clientOrInit().ZAdd(ctx, key, member).Err(); err != nil {
 		return fmt.Errorf("failed to add sorted set member for key '%s': %w", key, err)
@@ -199,6 +215,14 @@ func (g *Gateway) SetRemove(ctx context.Context, key string, members ...any) (in
 	result, err := g.clientOrInit().SRem(ctx, key, members...).Result()
 	if err != nil {
 		return 0, fmt.Errorf("failed to remove set members for key '%s': %w", key, err)
+	}
+	return result, nil
+}
+
+func (g *Gateway) SetCard(ctx context.Context, key string) (int64, error) {
+	result, err := g.clientOrInit().SCard(ctx, key).Result()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get set size for key '%s': %w", key, err)
 	}
 	return result, nil
 }
@@ -230,6 +254,25 @@ func (g *Gateway) Ping(ctx context.Context) error {
 		return fmt.Errorf("redis PING failed: %w", err)
 	}
 	return nil
+}
+
+func (g *Gateway) HashLength(ctx context.Context, key string) (int64, error) {
+	result, err := g.clientOrInit().HLen(ctx, key).Result()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get hash length for key '%s': %w", key, err)
+	}
+	return result, nil
+}
+
+func (g *Gateway) GetInt64(ctx context.Context, key string) (int64, error) {
+	result, err := g.clientOrInit().Get(ctx, key).Int64()
+	if err == redis.Nil {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, fmt.Errorf("failed to get int64 value for key '%s': %w", key, err)
+	}
+	return result, nil
 }
 
 func (g *Gateway) Watch(ctx context.Context, fn func(*redis.Tx) error, keys ...string) error {

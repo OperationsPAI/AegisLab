@@ -1,0 +1,84 @@
+syntax = "proto3";
+
+package runtime.v1;
+
+option go_package = "aegis/proto/runtime/v1;runtimev1";
+
+import "google/protobuf/struct.proto";
+
+service RuntimeService {
+  rpc Ping(PingRequest) returns (PingResponse);
+  rpc GetRuntimeStatus(RuntimeStatusRequest) returns (RuntimeStatusResponse);
+  rpc GetQueueStatus(QueueStatusRequest) returns (QueueStatusResponse);
+  rpc GetLimiterStatus(LimiterStatusRequest) returns (LimiterStatusResponse);
+  rpc GetNamespaceLocks(PingRequest) returns (StructResponse);
+  rpc GetQueuedTasks(PingRequest) returns (StructResponse);
+}
+
+message PingRequest {}
+
+message PingResponse {
+  string service = 1;
+  string app_id = 2;
+  string status = 3;
+  int64 timestamp_unix = 4;
+}
+
+message RuntimeStatusRequest {}
+
+message RuntimeStatusResponse {
+  string service = 1;
+  string mode = 2;
+  string app_id = 3;
+  int64 started_at_unix = 4;
+  int64 uptime_seconds = 5;
+
+  bool db_available = 10;
+  bool db_healthy = 11;
+  string db_error = 12;
+
+  bool redis_available = 20;
+  bool redis_healthy = 21;
+  string redis_error = 22;
+
+  bool k8s_available = 30;
+  bool k8s_healthy = 31;
+  string k8s_error = 32;
+
+  bool buildkit_available = 40;
+  bool buildkit_healthy = 41;
+  string buildkit_error = 42;
+
+  bool helm_available = 50;
+  bool helm_healthy = 51;
+  string helm_error = 52;
+}
+
+message QueueStatusRequest {}
+
+message QueueStatusResponse {
+  int64 ready_count = 1;
+  int64 delayed_count = 2;
+  int64 dead_count = 3;
+  int64 indexed_count = 4;
+  int64 concurrency_count = 5;
+}
+
+message LimiterStatusRequest {}
+
+message LimiterStatusResponse {
+  repeated LimiterStatus items = 1;
+}
+
+message LimiterStatus {
+  string service_name = 1;
+  string bucket_key = 2;
+  int64 max_tokens = 3;
+  int64 wait_timeout_seconds = 4;
+  int64 in_use_tokens = 5;
+  string error = 6;
+}
+
+message StructResponse {
+  google.protobuf.Struct data = 1;
+}

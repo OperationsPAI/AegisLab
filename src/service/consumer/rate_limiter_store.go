@@ -52,3 +52,11 @@ func (s tokenBucketStore) release(ctx context.Context, taskID string) (int64, er
 	}
 	return result, nil
 }
+
+func (s tokenBucketStore) inUse(ctx context.Context) (int64, error) {
+	result, err := s.client.SetCard(ctx, s.bucketKey)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get token usage: %v", err)
+	}
+	return result, nil
+}

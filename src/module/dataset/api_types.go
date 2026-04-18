@@ -1,6 +1,7 @@
 package datasetmodule
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -8,8 +9,9 @@ import (
 	"aegis/consts"
 	"aegis/dto"
 	"aegis/model"
-	injectionmodule "aegis/module/injection"
 	"aegis/utils"
+
+	chaos "github.com/OperationsPAI/chaos-experiment/handler"
 )
 
 // CreateDatasetReq represents dataset creation request.
@@ -329,7 +331,7 @@ func NewDatasetVersionResp(version *model.DatasetVersion) *DatasetVersionResp {
 type DatasetVersionDetailResp struct {
 	DatasetVersionResp
 
-	Datapacks []injectionmodule.InjectionResp `json:"datapacks,omitempty"`
+	Datapacks []DatasetDatapackResp `json:"datapacks,omitempty"`
 }
 
 func NewDatasetVersionDetailResp(version *model.DatasetVersion) *DatasetVersionDetailResp {
@@ -338,11 +340,78 @@ func NewDatasetVersionDetailResp(version *model.DatasetVersion) *DatasetVersionD
 	}
 
 	if len(version.Datapacks) > 0 {
-		resp.Datapacks = make([]injectionmodule.InjectionResp, 0, len(version.Datapacks))
+		resp.Datapacks = make([]DatasetDatapackResp, 0, len(version.Datapacks))
 		for _, datapack := range version.Datapacks {
-			resp.Datapacks = append(resp.Datapacks, *injectionmodule.NewInjectionResp(&datapack))
+			resp.Datapacks = append(resp.Datapacks, *NewDatasetDatapackResp(&datapack))
 		}
 	}
 
+	return resp
+}
+
+type DatasetDatapackResp struct {
+	ID                int                  `json:"id"`
+	Name              string               `json:"name"`
+	Source            string               `json:"source"`
+	FaultType         string               `json:"fault_type"`
+	Category          string               `json:"category"`
+	DisplayConfig     map[string]any       `json:"display_config,omitempty" swaggertype:"object"`
+	PreDuration       int                  `json:"pre_duration"`
+	StartTime         *time.Time           `json:"start_time,omitempty"`
+	EndTime           *time.Time           `json:"end_time,omitempty"`
+	State             consts.DatapackState `json:"state" swaggertype:"string"`
+	Status            string               `json:"status"`
+	GroundtruthSource string               `json:"groundtruth_source"`
+	BenchmarkID       *int                 `json:"benchmark_id"`
+	BenchmarkName     string               `json:"benchmark_name"`
+	PedestalID        *int                 `json:"pedestal_id"`
+	PedestalName      string               `json:"pedestal_name"`
+	CreatedAt         time.Time            `json:"created_at"`
+	UpdatedAt         time.Time            `json:"updated_at"`
+	Labels            []dto.LabelItem      `json:"labels,omitempty"`
+}
+
+func NewDatasetDatapackResp(injection *model.FaultInjection) *DatasetDatapackResp {
+	resp := &DatasetDatapackResp{
+		ID:                injection.ID,
+		Name:              injection.Name,
+		Source:            string(injection.Source),
+		Category:          injection.Category.String(),
+		PreDuration:       injection.PreDuration,
+		StartTime:         injection.StartTime,
+		EndTime:           injection.EndTime,
+		State:             injection.State,
+		Status:            consts.GetStatusTypeName(injection.Status),
+		GroundtruthSource: injection.GroundtruthSource,
+		BenchmarkID:       injection.BenchmarkID,
+		PedestalID:        injection.PedestalID,
+		CreatedAt:         injection.CreatedAt,
+		UpdatedAt:         injection.UpdatedAt,
+	}
+
+	if injection.FaultType == consts.Hybrid {
+		resp.FaultType = "hybrid"
+	} else {
+		resp.FaultType = chaos.ChaosTypeMap[injection.FaultType]
+	}
+
+	if injection.DisplayConfig != nil {
+		var displayConfigData map[string]any
+		_ = json.Unmarshal([]byte(*injection.DisplayConfig), &displayConfigData)
+		resp.DisplayConfig = displayConfigData
+	}
+
+	if injection.Benchmark != nil && injection.Benchmark.Container != nil {
+		resp.BenchmarkName = injection.Benchmark.Container.Name
+	}
+	if injection.Pedestal != nil && injection.Pedestal.Container != nil {
+		resp.PedestalName = injection.Pedestal.Container.Name
+	}
+	if len(injection.Labels) > 0 {
+		resp.Labels = make([]dto.LabelItem, 0, len(injection.Labels))
+		for _, l := range injection.Labels {
+			resp.Labels = append(resp.Labels, dto.LabelItem{Key: l.Key, Value: l.Value, IsSystem: l.IsSystem})
+		}
+	}
 	return resp
 }

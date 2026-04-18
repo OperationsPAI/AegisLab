@@ -21,14 +21,6 @@ func NewRepository(db *gorm.DB) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) withDB(db *gorm.DB) *Repository {
-	return &Repository{db: db}
-}
-
-func (r *Repository) Transaction(fn func(tx *gorm.DB) error) error {
-	return r.db.Transaction(fn)
-}
-
 func (r *Repository) getProjectByName(name string) (*model.Project, error) {
 	var project model.Project
 	if err := r.db.Where("name = ? AND status != ?", name, consts.CommonDeleted).First(&project).Error; err != nil {
@@ -133,6 +125,87 @@ func (r *Repository) getExecutionView(executionID int) (*model.Execution, []mode
 	return &execution, labels, nil
 }
 
+func (r *Repository) listEvaluationExecutionsByDatapack(algorithmVersionID int, datapackName string, filterLabels []dto.LabelItem) ([]model.Execution, error) {
+	var executions []model.Execution
+
+	query := r.db.Model(&model.Execution{}).
+		Preload("DetectorResults").
+		Preload("GranularityResults").
+		Preload("AlgorithmVersion.Container").
+		Preload("Datapack.Groundtruths").
+		Joins("JOIN fault_injections fi ON executions.datapack_id = fi.id").
+		Where(
+			"executions.algorithm_version_id = ? AND fi.name = ? AND executions.status != ?",
+			algorithmVersionID, datapackName, consts.CommonDeleted,
+		)
+
+	if len(filterLabels) > 0 {
+		query = query.
+			Joins("JOIN execution_injection_labels eil ON eil.execution_id = executions.id").
+			Joins("JOIN labels l ON l.id = eil.label_id")
+
+		var whereConditions *gorm.DB
+		for _, label := range filterLabels {
+			if whereConditions == nil {
+				whereConditions = r.db.Where("l.label_key = ? AND l.label_value = ?", label.Key, label.Value)
+			} else {
+				whereConditions = whereConditions.Or("l.label_key = ? AND l.label_value = ?", label.Key, label.Value)
+			}
+		}
+
+		if whereConditions != nil {
+			query = query.Where(whereConditions)
+		}
+		query = query.Group("executions.id").Having("COUNT(executions.id) = ?", len(filterLabels))
+	}
+
+	if err := query.Order("executions.updated_at DESC").Find(&executions).Error; err != nil {
+		return nil, fmt.Errorf("failed to list evaluation executions for algorithm %d and datapack %s: %w", algorithmVersionID, datapackName, err)
+	}
+	return executions, nil
+}
+
+func (r *Repository) listEvaluationExecutionsByDataset(algorithmVersionID, datasetVersionID int, filterLabels []dto.LabelItem) ([]model.Execution, error) {
+	var executions []model.Execution
+
+	query := r.db.Model(&model.Execution{}).
+		Preload("DetectorResults").
+		Preload("GranularityResults").
+		Preload("AlgorithmVersion.Container").
+		Preload("Datapack.Groundtruths").
+		Preload("DatasetVersion").
+		Preload("DatasetVersion.Injections").
+		Where(
+			"executions.algorithm_version_id = ? AND executions.dataset_version_id = ? AND executions.status != ?",
+			algorithmVersionID, datasetVersionID, consts.CommonDeleted,
+		)
+
+	if len(filterLabels) > 0 {
+		query = query.
+			Joins("JOIN execution_injection_labels eil ON eil.execution_id = executions.id").
+			Joins("JOIN labels l ON l.id = eil.label_id")
+
+		var whereConditions *gorm.DB
+		for _, label := range filterLabels {
+			if whereConditions == nil {
+				whereConditions = r.db.Where("l.label_key = ? AND l.label_value = ?", label.Key, label.Value)
+			} else {
+				whereConditions = whereConditions.Or("l.label_key = ? AND l.label_value = ?", label.Key, label.Value)
+			}
+		}
+
+		if whereConditions != nil {
+			query = query.Where(whereConditions)
+		}
+		query = query.Group("executions.id").Having("COUNT(executions.id) = ?", len(filterLabels))
+	}
+
+	if err := query.Order("executions.updated_at DESC").Find(&executions).Error; err != nil {
+		return nil, fmt.Errorf("failed to list evaluation executions for algorithm %d and dataset version %d: %w", algorithmVersionID, datasetVersionID, err)
+	}
+	return executions, nil
+}
+
 func (r *Repository) getExecutionResultView(executionID int) (*model.Execution, []model.Label, []model.DetectorResult, []model.GranularityResult, error) {
 	execution, labels, err := r.getExecutionView(executionID)
 	if err != nil {
@@ -184,38 +257,7 @@ func (r *Repository) listExecutionLabelIDsByKeys(executionID int, keys []string)
 	return labelIDs, nil
 }
 
-func (r *Repository) loadExecutionLabelIDsByItems(conditions []map[string]string, category consts.LabelCategory) (map[string]int, error) {
-	if len(conditions) == 0 {
-		return map[string]int{}, nil
-	}
-
-	query := r.db.Model(&model.Label{}).
-		Where("status != ? AND category = ?", consts.CommonDeleted, category)
-	orBuilder := r.db.Where("1 = 0")
-	for _, condition := range conditions {
-		andBuilder := r.db.Where("1 = 1")
-		if key, ok := condition["key"]; ok {
-			andBuilder = andBuilder.Where("label_key = ?", key)
-		}
-		if value, ok := condition["value"]; ok {
-			andBuilder = andBuilder.Where("label_value = ?", value)
-		}
-		orBuilder = orBuilder.Or(andBuilder)
-	}
-
-	var labels []model.Label
-	if err := query.Where(orBuilder).Find(&labels).Error; err != nil {
-		return nil, fmt.Errorf("failed to list label IDs by conditions: %w", err)
-	}
-
-	result := make(map[string]int, len(labels))
-	for _, label := range labels {
-		result[label.Key+":"+label.Value] = label.ID
-	}
-	return result, nil
-}
-
-func (r *Repository) AddExecutionLabels(executionID int, labelIDs []int) error {
+func (r *Repository) addExecutionLabels(executionID int, labelIDs []int) error {
 	if len(labelIDs) == 0 {
 		return nil
 	}
@@ -236,7 +278,7 @@ func (r *Repository) AddExecutionLabels(executionID int, labelIDs []int) error {
 	return nil
 }
 
-func (r *Repository) ClearExecutionLabels(executionIDs []int, labelIDs []int) error {
+func (r *Repository) clearExecutionLabels(executionIDs []int, labelIDs []int) error {
 	if len(executionIDs) == 0 {
 		return nil
 	}
@@ -251,7 +293,7 @@ func (r *Repository) ClearExecutionLabels(executionIDs []int, labelIDs []int) er
 	return nil
 }
 
-func (r *Repository) BatchDecreaseLabelUsages(labelIDs []int, decrement int) error {
+func (r *Repository) batchDecreaseLabelUsages(labelIDs []int, decrement int) error {
 	if len(labelIDs) == 0 {
 		return nil
 	}
@@ -266,7 +308,7 @@ func (r *Repository) BatchDecreaseLabelUsages(labelIDs []int, decrement int) err
 	return nil
 }
 
-func (r *Repository) ListExecutionIDsByLabelItems(labelItems []dto.LabelItem) ([]int, error) {
+func (r *Repository) listExecutionIDsByLabelItems(labelItems []dto.LabelItem) ([]int, error) {
 	labelConditions := make([]map[string]string, 0, len(labelItems))
 	for _, item := range labelItems {
 		labelConditions = append(labelConditions, map[string]string{"key": item.Key, "value": item.Value})
@@ -295,7 +337,7 @@ func (r *Repository) ListExecutionIDsByLabelItems(labelItems []dto.LabelItem) ([
 	return executionIDs, nil
 }
 
-func (r *Repository) BatchDeleteExecutions(executionIDs []int) error {
+func (r *Repository) batchDeleteExecutions(executionIDs []int) error {
 	if len(executionIDs) == 0 {
 		return nil
 	}
@@ -311,7 +353,7 @@ func (r *Repository) BatchDeleteExecutions(executionIDs []int) error {
 	return nil
 }
 
-func (r *Repository) UpdateExecutionDuration(executionID int, duration float64) error {
+func (r *Repository) updateExecutionDuration(executionID int, duration float64) error {
 	var execution model.Execution
 	if err := r.db.
 		Preload("AlgorithmVersion.Container").
@@ -346,7 +388,35 @@ func (r *Repository) UpdateExecutionDuration(executionID int, duration float64) 
 	return nil
 }
 
-func (r *Repository) SaveDetectorResults(results []model.DetectorResult) error {
+func (r *Repository) loadExecution(executionID int) (*model.Execution, error) {
+	var execution model.Execution
+	if err := r.db.Where("id = ? AND status != ?", executionID, consts.CommonDeleted).First(&execution).Error; err != nil {
+		return nil, fmt.Errorf("failed to find execution %d: %w", executionID, err)
+	}
+	return &execution, nil
+}
+
+func (r *Repository) createExecutionRecord(execution *model.Execution) error {
+	if err := r.db.Create(execution).Error; err != nil {
+		return fmt.Errorf("failed to create execution: %w", err)
+	}
+	return nil
+}
+
+func (r *Repository) updateExecutionFields(executionID int, fields map[string]any) error {
+	result := r.db.Model(&model.Execution{}).
+		Where("id = ? AND status != ?", executionID, consts.CommonDeleted).
+		Updates(fields)
+	if err := result.Error; err != nil {
+		return fmt.Errorf("failed to update execution %d: %w", executionID, err)
+	}
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("%w: execution %d not found", consts.ErrNotFound, executionID)
+	}
+	return nil
+}
+
+func (r *Repository) saveDetectorResults(results []model.DetectorResult) error {
 	if len(results) == 0 {
 		return fmt.Errorf("no detector results to save")
 	}
@@ -356,7 +426,7 @@ func (r *Repository) SaveDetectorResults(results []model.DetectorResult) error {
 	return nil
 }
 
-func (r *Repository) SaveGranularityResults(results []model.GranularityResult) error {
+func (r *Repository) saveGranularityResults(results []model.GranularityResult) error {
 	if len(results) == 0 {
 		return fmt.Errorf("no granularity results to create")
 	}

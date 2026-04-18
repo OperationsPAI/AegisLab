@@ -11,15 +11,13 @@ import (
 	"aegis/consts"
 	"aegis/dto"
 	"aegis/model"
-	"aegis/repository"
-	"aegis/service/common"
+	injectionmodule "aegis/module/injection"
 	"aegis/tracing"
 	"aegis/utils"
 
 	chaos "github.com/OperationsPAI/chaos-experiment/handler"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/trace"
-	"gorm.io/gorm"
 )
 
 // injectionPayload contains all necessary data for executing a fault injection batch
@@ -97,10 +95,6 @@ func (bm *FaultBatchManager) setBatchInjections(batchID string, injectionNames [
 //   - display_config: JSON array of display maps for each fault
 func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask, deps RuntimeDeps) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
-		db := deps.DB
-		if db == nil {
-			return fmt.Errorf("consumer runtime db is nil")
-		}
 		batchManager := deps.FaultBatchManager
 		if batchManager == nil {
 			return fmt.Errorf("fault batch manager is nil")
@@ -215,44 +209,30 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask, deps Runt
 			faultType = chaos.ChaosType(payload.nodes[0].Value)
 		}
 
-		return db.Transaction(func(tx *gorm.DB) error {
-			injection := &model.FaultInjection{
-				Name:              name,
-				FaultType:         faultType,
-				Category:          payload.pedestal,
-				Description:       fmt.Sprintf("Fault batch for task %s (%d faults)", task.TaskID, len(payload.nodes)),
-				DisplayConfig:     utils.StringPtr(string(displayData)),
-				EngineConfig:      string(engineData),
-				Groundtruths:      groundtruths,
-				GroundtruthSource: consts.GroundtruthSourceAuto,
-				PreDuration:       payload.preDuration,
-				State:             consts.DatapackInitial,
-				Status:            consts.CommonEnabled,
-				TaskID:            &task.TaskID,
-				BenchmarkID:       utils.IntPtr(payload.benchmark.ID),
-				PedestalID:        utils.IntPtr(payload.pedestalID),
-			}
+		if deps.InjectionOwner == nil {
+			return handleExecutionError(span, logEntry, "injection owner service is nil", fmt.Errorf("missing injection owner service"))
+		}
 
-			if err = repository.CreateInjection(tx, injection); err != nil {
-				return handleExecutionError(span, logEntry, "failed to write fault injection schedule to database", err)
-			}
-
-			labels, err := common.CreateOrUpdateLabelsFromItems(tx, payload.labels, consts.InjectionCategory)
-			if err != nil {
-				return handleExecutionError(span, logEntry, "failed to create or update labels", err)
-			}
-
-			labelIDs := make([]int, 0, len(labels))
-			for _, label := range labels {
-				labelIDs = append(labelIDs, label.ID)
-			}
-
-			if err := repository.AddInjectionLabels(tx, injection.ID, labelIDs); err != nil {
-				return handleExecutionError(span, logEntry, "failed to associate labels with injection", err)
-			}
-
-			return nil
+		_, err = deps.InjectionOwner.CreateInjection(childCtx, &injectionmodule.RuntimeCreateInjectionReq{
+			Name:              name,
+			FaultType:         faultType,
+			Category:          payload.pedestal,
+			Description:       fmt.Sprintf("Fault batch for task %s (%d faults)", task.TaskID, len(payload.nodes)),
+			DisplayConfig:     string(displayData),
+			EngineConfig:      string(engineData),
+			Groundtruths:      groundtruths,
+			GroundtruthSource: consts.GroundtruthSourceAuto,
+			PreDuration:       payload.preDuration,
+			TaskID:            task.TaskID,
+			BenchmarkID:       utils.IntPtr(payload.benchmark.ID),
+			PedestalID:        utils.IntPtr(payload.pedestalID),
+			Labels:            payload.labels,
+			State:             consts.DatapackInitial,
 		})
+		if err != nil {
+			return handleExecutionError(span, logEntry, "failed to write fault injection schedule to owner service", err)
+		}
+		return nil
 	})
 }
 
