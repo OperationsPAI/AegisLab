@@ -42,11 +42,11 @@ func (b *backendSubmitter) Submit(_ context.Context, spec chaoscli.Spec) error {
 	}
 
 	body := b.buildInjectSpec(spec)
-	submission := translateSpecsIfPossible(b.client, body)
+	// Submit the FaultSpec YAML directly; the backend handles the friendly→Node conversion.
 	path := "/api/v2/projects/" + strconv.Itoa(pid) + "/injections/inject"
 
 	var resp aegisclient.APIResponse[any]
-	if err := b.client.Post(path, submission, &resp); err != nil {
+	if err := b.client.Post(path, body, &resp); err != nil {
 		return err
 	}
 	output.PrintJSON(resp.Data)

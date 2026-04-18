@@ -20,6 +20,11 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Note: the legacy Node/translate round-trip has been removed. The backend's
+// SubmitInjectionReq auto-detects human-readable FaultSpec entries and converts
+// them to the internal chaos.Node DSL via FriendlySpecToNode. aegisctl now
+// submits the FaultSpec YAML shape directly.
+
 // ---------- spec types ----------
 
 // InjectSpec is the YAML structure for injection submission.
@@ -203,15 +208,14 @@ EXIT CODES (--wait mode):
 
 		c := newClient()
 
-		// Try to translate human-readable specs to Nodes via the translate endpoint
-		translatedSpec := translateSpecsIfPossible(c, &spec)
-
+		// Submit the FaultSpec YAML as-is. The backend auto-detects the
+		// FriendlyFaultSpec shape and converts it internally.
 		path := fmt.Sprintf("/api/v2/projects/%d/injections/inject", pid)
 
 		// Preserve existing non-wait behavior: print raw response data.
 		if !injectSubmitWait {
 			var resp client.APIResponse[any]
-			if err := c.Post(path, translatedSpec, &resp); err != nil {
+			if err := c.Post(path, &spec, &resp); err != nil {
 				return err
 			}
 			output.PrintJSON(resp.Data)
@@ -220,7 +224,7 @@ EXIT CODES (--wait mode):
 
 		// --wait path: decode response into a typed struct so we can pull trace_id.
 		var resp client.APIResponse[injectSubmitResponse]
-		if err := c.Post(path, translatedSpec, &resp); err != nil {
+		if err := c.Post(path, &spec, &resp); err != nil {
 			return err
 		}
 		if len(resp.Data.Items) == 0 {
@@ -235,61 +239,6 @@ EXIT CODES (--wait mode):
 
 		return runInjectSubmitWait(cmd.Context(), traceID)
 	},
-}
-
-// translateSpecsIfPossible attempts to translate FaultSpec names to Nodes via the API.
-// Falls back to the original spec if the translate endpoint is unavailable.
-func translateSpecsIfPossible(c *client.Client, spec *InjectSpec) any {
-	// Build the translate request from the FaultSpec entries
-	if len(spec.Specs) == 0 {
-		return spec
-	}
-
-	translateReq := struct {
-		Specs [][]FaultSpec `json:"specs"`
-	}{
-		Specs: spec.Specs,
-	}
-
-	var translateResp client.APIResponse[json.RawMessage]
-	err := c.Post("/api/v2/injections/translate", translateReq, &translateResp)
-	if err != nil {
-		// Translate endpoint unavailable, fall back to original behavior
-		output.PrintInfo("Note: translate endpoint unavailable, submitting specs as-is")
-		return spec
-	}
-
-	// Parse the translate response
-	var result struct {
-		Nodes    [][]json.RawMessage `json:"nodes"`
-		Warnings []string            `json:"warnings"`
-	}
-	if err := json.Unmarshal(translateResp.Data, &result); err != nil {
-		output.PrintInfo("Note: failed to parse translate response, submitting specs as-is")
-		return spec
-	}
-
-	// Print any warnings
-	for _, w := range result.Warnings {
-		output.PrintInfo("Warning: " + w)
-	}
-
-	// Build the final submission with translated nodes
-	submission := map[string]any{
-		"pedestal":     spec.Pedestal,
-		"benchmark":    spec.Benchmark,
-		"interval":     spec.Interval,
-		"pre_duration": spec.PreDuration,
-		"specs":        result.Nodes,
-	}
-	if len(spec.Algorithms) > 0 {
-		submission["algorithms"] = spec.Algorithms
-	}
-	if len(spec.Labels) > 0 {
-		submission["labels"] = spec.Labels
-	}
-
-	return submission
 }
 
 // runInjectSubmitWait subscribes to the trace SSE stream and blocks until a

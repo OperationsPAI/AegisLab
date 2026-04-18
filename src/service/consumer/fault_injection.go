@@ -140,17 +140,17 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 		groundtruths := make([]database.Groundtruth, 0, len(payload.nodes))
 
 		for i, node := range payload.nodes {
-			injectionConf, err := chaos.NodeToStruct[chaos.InjectionConf](ctx, &node)
+			injectionConf, err := chaos.NodeToStruct[chaos.InjectionConf](childCtx, &node)
 			if err != nil {
 				return handleExecutionError(span, logEntry, fmt.Sprintf("failed to convert node %d to injection conf", i), err)
 			}
 
-			displayMap, err := injectionConf.GetDisplayConfig(ctx)
+			displayMap, err := injectionConf.GetDisplayConfig(childCtx)
 			if err != nil {
 				return handleExecutionError(span, logEntry, fmt.Sprintf("failed to get display config for node %d", i), err)
 			}
 
-			chaosGroundtruth, err := injectionConf.GetGroundtruth(ctx)
+			chaosGroundtruth, err := injectionConf.GetGroundtruth(childCtx)
 			if err != nil {
 				return handleExecutionError(span, logEntry, fmt.Sprintf("failed to get groundtruth for node %d", i), err)
 			}

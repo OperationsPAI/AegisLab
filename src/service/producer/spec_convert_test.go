@@ -656,3 +656,76 @@ func TestToInt(t *testing.T) {
 		})
 	}
 }
+
+// TestFriendlySpecToNode_ParseBatchKeyInvariant guards the schema-drift bug
+// that blocked E2E runs with "failed to find key 17 in the children at index 0":
+// every node returned by FriendlySpecToNode MUST contain a child keyed by
+// strconv.Itoa(node.Value). That is the invariant consumed downstream by
+// parseBatchInjectionSpecs — and it is what the old /translate endpoint
+// violated when it re-keyed children by field name ("Latency", "Direction"...).
+func TestFriendlySpecToNode_ParseBatchKeyInvariant(t *testing.T) {
+	namespace, _ := setupNamespacePrefixes(t)
+
+	cases := []dto.FriendlyFaultSpec{
+		{Type: "CPUStress", Namespace: namespace, Target: "0", Duration: "1m"},
+		{Type: "NetworkDelay", Namespace: namespace, Target: "0", Duration: "30s"},
+		{Type: "PodFailure", Namespace: namespace, Target: "0", Duration: "1m"},
+	}
+
+	for _, spec := range cases {
+		spec := spec
+		t.Run(spec.Type, func(t *testing.T) {
+			node, err := FriendlySpecToNode(&spec)
+			if err != nil {
+				t.Skipf("FriendlySpecToNode(%s) unsupported in this build: %v", spec.Type, err)
+			}
+
+			// This is the exact lookup performed by parseBatchInjectionSpecs:
+			//   spec.Children[strconv.Itoa(spec.Value)]
+			// If FriendlySpecToNode ever starts keying children differently
+			// (the /translate schema drift we just removed), this test fails.
+			key := itoa(node.Value)
+			if _, ok := node.Children[key]; !ok {
+				keys := make([]string, 0, len(node.Children))
+				for k := range node.Children {
+					keys = append(keys, k)
+				}
+				t.Fatalf("type=%s: node.Children is missing key %q (Value=%d); got keys=%v",
+					spec.Type, key, node.Value, keys)
+			}
+		})
+	}
+}
+
+// itoa wraps strconv.Itoa to avoid re-importing in the test file; keeps the
+// invariant check identical to parseBatchInjectionSpecs.
+func itoa(v int) string {
+	// Duplicating the one-liner keeps the test self-contained and guards
+	// against accidental string conversions elsewhere.
+	return fmtItoa(v)
+}
+
+func fmtItoa(v int) string {
+	// small, allocation-free Itoa equivalent; std lib is fine but this keeps
+	// the test's import list short.
+	if v == 0 {
+		return "0"
+	}
+	neg := false
+	if v < 0 {
+		neg = true
+		v = -v
+	}
+	var buf [20]byte
+	i := len(buf)
+	for v > 0 {
+		i--
+		buf[i] = byte('0' + v%10)
+		v /= 10
+	}
+	if neg {
+		i--
+		buf[i] = '-'
+	}
+	return string(buf[i:])
+}

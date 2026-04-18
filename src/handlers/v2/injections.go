@@ -110,8 +110,9 @@ func GetInjection(c *gin.Context) {
 
 // GetInjectionMetadata
 //
-//	@Summary		Get Injection Metadata
-//	@Description	Get injection-related metadata including configuration, field mappings, and system resources
+//	@Summary		Get Injection Metadata (DEPRECATED)
+//	@Description	DEPRECATED: This endpoint exposes the legacy integer-indexed Node/InjectionConf metadata used by the old translate round-trip. The inject pipeline now accepts FriendlyFaultSpec/chaoscli.Spec directly and this endpoint is kept only for frontend backward compatibility. Get injection-related metadata including configuration, field mappings, and system resources
+//	@Deprecated
 //	@Tags			Injections
 //	@ID				get_injection_metadata
 //	@Produce		json
@@ -132,9 +133,10 @@ func GetInjectionMetadata(c *gin.Context) {
 	system := chaos.SystemType(systemStr)
 
 	// Config-node introspection is superseded by `aegisctl inject submit --spec`
-	// driving /api/v2/injections/translate, so we no longer pre-build a sample
-	// node here. The field in the response stays nil for backward compatibility
-	// with any client still reading InjectionMetadataResp.
+	// with FaultSpec auto-detection. This deprecated endpoint returns nil for
+	// Config; frontend should migrate to sending FaultSpec directly.
+	_ = ctx
+	_ = system
 	var confNode *chaos.Node
 
 	faultResourceMap, err := chaos.GetChaosTypeResourceMappings()
@@ -702,8 +704,9 @@ func GetSystemMapping(c *gin.Context) {
 
 // TranslateFaultSpecs translates human-readable fault specs into chaos.Node trees.
 //
-//	@Summary		Translate fault specs to Nodes
-//	@Description	Converts human-readable fault specifications (type names, durations, etc.) into the integer-indexed Node AST used by the injection engine
+//	@Summary		Translate fault specs to Nodes (DEPRECATED)
+//	@Description	DEPRECATED: The inject pipeline (POST /api/v2/projects/{project_id}/injections/inject) now auto-detects FriendlyFaultSpec/chaoscli.Spec entries server-side via FriendlySpecToNode — CLI callers should submit FaultSpec YAML directly instead of round-tripping through /translate. Kept live for frontend backward compatibility. Converts human-readable fault specifications (type names, durations, etc.) into the integer-indexed Node AST used by the injection engine
+//	@Deprecated
 //	@Tags			Injections
 //	@ID				translate_fault_specs
 //	@Accept			json

@@ -1117,6 +1117,12 @@ func batchDeleteInjectionsCore(db *gorm.DB, injectionIDs []int) error {
 
 // parseBatchInjectionSpecs parses a single batch of fault injection specifications for parallel execution
 // Returns the processed item, a warning message (if any), and an error
+//
+// Deprecated: this helper is tied to the legacy chaos.Node tree representation.
+// Friendly FaultSpec/chaoscli.Spec payloads are transparently converted to Nodes
+// via FriendlySpecToNode in ResolveSpecs, so this path still exercises the same
+// InjectionConf-based groundtruth pipeline. New callers should rely on the
+// handler-level ResolveSpecs hop and, eventually, consume chaoscli.Spec directly.
 func parseBatchInjectionSpecs(ctx context.Context, pedestal string, batchIndex int, specs []chaos.Node) (*injectionProcessItem, string, error) {
 	if len(specs) == 0 {
 		return nil, "", fmt.Errorf("empty fault injection batch at index %d", batchIndex)
