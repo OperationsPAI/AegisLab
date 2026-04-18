@@ -7,6 +7,7 @@ toolchain go1.24.12
 require (
 	github.com/BurntSushi/toml v1.4.0
 	github.com/OperationsPAI/chaos-experiment v0.1.0
+	github.com/alicebob/miniredis/v2 v2.37.0
 	github.com/antonfisher/nested-logrus-formatter v1.3.1
 	github.com/apache/arrow-go/v18 v18.4.1
 	github.com/distribution/reference v0.6.0
@@ -47,6 +48,7 @@ require (
 	google.golang.org/protobuf v1.36.8
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/driver/mysql v1.5.7
+	gorm.io/driver/sqlite v1.5.0
 	gorm.io/gorm v1.25.12
 	gorm.io/plugin/opentelemetry v0.1.13
 	helm.sh/helm/v3 v3.17.3
@@ -196,6 +198,7 @@ require (
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
+	github.com/mattn/go-sqlite3 v1.14.22 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
@@ -258,6 +261,7 @@ require (
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
 	github.com/xlab/treeprint v1.2.0 // indirect
+	github.com/yuin/gopher-lua v1.1.1 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	github.com/zeebo/xxh3 v1.0.2 // indirect
 	go.etcd.io/etcd/api/v3 v3.6.7 // indirect

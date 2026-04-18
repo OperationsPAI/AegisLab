@@ -648,4 +648,15 @@ func SetupV2Routes(router *gin.Engine) {
 		system.GET("/metrics", v2handlers.GetSystemMetrics)                // Get current system metrics
 		system.GET("/metrics/history", v2handlers.GetSystemMetricsHistory) // Get historical system metrics
 	}
+
+	// Rate Limiter Admin API (OperationsPAI/aegis#21)
+	rateLimiters := v2.Group("/rate-limiters", middleware.JWTAuth())
+	{
+		rateLimiters.GET("", v2handlers.ListRateLimiters)
+		rateLimiterAdmin := rateLimiters.Group("", middleware.RequireSystemAdmin())
+		{
+			rateLimiterAdmin.DELETE("/:bucket", v2handlers.ResetRateLimiter)
+			rateLimiterAdmin.POST("/gc", v2handlers.GCRateLimiters)
+		}
+	}
 }
