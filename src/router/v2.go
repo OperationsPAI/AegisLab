@@ -182,6 +182,14 @@ func SetupV2Routes(router *gin.Engine) {
 		containers.DELETE("/:container_id", middleware.RequireContainerDelete, v2handlers.DeleteContainer) // Delete container
 	}
 
+	// Container Version flat resource — direct-by-version-id operations without
+	// the parent container id in the URL. Used by aegisctl `container version
+	// set-image` to rewrite the four image-reference columns of a single row.
+	containerVersions := v2.Group("/container-versions", middleware.JWTAuth())
+	{
+		containerVersions.PATCH("/:id/image", middleware.RequireContainerVersionUpdate, v2handlers.SetContainerVersionImage)
+	}
+
 	// Dataset Management - Dataset Entity
 	datasets := v2.Group("/datasets", middleware.JWTAuth())
 	{
@@ -473,7 +481,7 @@ func SetupV2Routes(router *gin.Engine) {
 			// Task Delete operations
 			taskWithAuth.POST("/batch-delete", middleware.RequireTaskDelete, v2handlers.BatchDeleteTasks) // Batch delete tasks
 
-			// Task Execute operations
+			// Task Update/Execute operations
 			taskWithAuth.POST("/:task_id/expedite", middleware.RequireTaskExecute, v2handlers.ExpediteTask) // Expedite pending task
 		}
 
@@ -669,5 +677,22 @@ func SetupV2Routes(router *gin.Engine) {
 	{
 		system.GET("/metrics", v2handlers.GetSystemMetrics)                // Get current system metrics
 		system.GET("/metrics/history", v2handlers.GetSystemMetricsHistory) // Get historical system metrics
+	}
+
+	// =====================================================================
+	// Rate Limiter Admin API Group (OperationsPAI/aegis#21)
+	// =====================================================================
+
+	rateLimiters := v2.Group("/rate-limiters", middleware.JWTAuth())
+	{
+		// status: any authenticated user
+		rateLimiters.GET("", v2handlers.ListRateLimiters)
+
+		// reset + gc: system admin only
+		rateLimiterAdmin := rateLimiters.Group("", middleware.RequireSystemAdmin())
+		{
+			rateLimiterAdmin.DELETE("/:bucket", v2handlers.ResetRateLimiter)
+			rateLimiterAdmin.POST("/gc", v2handlers.GCRateLimiters)
+		}
 	}
 }

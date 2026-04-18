@@ -429,6 +429,52 @@ func UpdateContainerVersion(c *gin.Context) {
 	dto.JSONResponse[any](c, http.StatusAccepted, "Container version updated successfully", resp)
 }
 
+// SetContainerVersionImage rewrites the image reference columns on a
+// container_versions row.
+//
+//	@Summary		Set container version image
+//	@Description	Atomically rewrite the (registry, namespace, repository, tag) columns on a single container_versions row.
+//	@Tags			Containers
+//	@ID				set_container_version_image
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id		path		int											true	"Container Version ID"
+//	@Param			request	body		dto.SetContainerVersionImageReq				true	"Image reference components"
+//	@Success		200		{object}	dto.GenericResponse[dto.SetContainerVersionImageResp]	"Image rewritten successfully"
+//	@Failure		400		{object}	dto.GenericResponse[any]					"Invalid request"
+//	@Failure		401		{object}	dto.GenericResponse[any]					"Authentication required"
+//	@Failure		403		{object}	dto.GenericResponse[any]					"Permission denied"
+//	@Failure		404		{object}	dto.GenericResponse[any]					"Container version not found"
+//	@Failure		500		{object}	dto.GenericResponse[any]					"Internal server error"
+//	@Router			/api/v2/container-versions/{id}/image [patch]
+//	@x-api-type		{"sdk":"true"}
+func SetContainerVersionImage(c *gin.Context) {
+	idStr := c.Param("id")
+	versionID, err := strconv.Atoi(idStr)
+	if err != nil || versionID <= 0 {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid container version ID")
+		return
+	}
+
+	var req dto.SetContainerVersionImageReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
+		return
+	}
+	if err := req.Validate(); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
+		return
+	}
+
+	resp, err := producer.SetContainerVersionImage(&req, versionID)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	dto.JSONResponse[any](c, http.StatusOK, "Container version image updated successfully", resp)
+}
+
 // ManageContainerCustomLabels manages container custom labels (key-value pairs)
 //
 //	@Summary		Manage container custom labels
