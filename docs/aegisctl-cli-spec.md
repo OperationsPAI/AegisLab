@@ -802,6 +802,119 @@ aegisctl completion fish > ~/.config/fish/completions/aegisctl.fish
 
 ---
 
+### `aegisctl pedestal` — Pedestal (SUT) Infrastructure
+
+Commands for managing the pedestal container's helm chart configuration
+(the `helm_configs` table) without resorting to `mysql -e UPDATE ...` and
+without triggering a real `restart_pedestal` task.
+
+Typical workflow when a pedestal fails to start because the `helm_configs`
+row points at a bad repo URL or wrong chart version:
+
+```bash
+aegisctl pedestal helm get    --container-version-id 42
+aegisctl pedestal helm set    --container-version-id 42 \
+    --chart-name pedestal --version 1.2.3 \
+    --repo-url https://charts.example.com --repo-name aegis
+aegisctl pedestal helm verify --container-version-id 42
+```
+
+#### `aegisctl pedestal helm get`
+
+```bash
+aegisctl pedestal helm get --container-version-id 42
+aegisctl pedestal helm get --container-version-id 42 --output json
+```
+
+**API**: `GET /api/v2/pedestal/helm/:container_version_id`
+
+Returns all columns of the matching `helm_configs` row. Requires an
+authenticated user.
+
+**Flags**:
+
+| Flag | Description |
+|------|-------------|
+| `--container-version-id` | Container version ID (required, > 0) |
+
+#### `aegisctl pedestal helm set`
+
+```bash
+aegisctl pedestal helm set \
+    --container-version-id 42 \
+    --chart-name pedestal \
+    --version 1.2.3 \
+    --repo-url https://charts.example.com \
+    --repo-name aegis \
+    --values-file /pvc/values.yaml \
+    --local-path /pvc/charts/pedestal-1.2.3.tgz
+```
+
+**API**: `PUT /api/v2/pedestal/helm/:container_version_id`
+
+Upserts the `helm_configs` row bound to the container version. Requires
+project / container-version upload permission (system admin or an
+equivalent admin role). Idempotent: calling twice with the same flags
+produces the same row.
+
+**Flags**:
+
+| Flag | Required | Description |
+|------|----------|-------------|
+| `--container-version-id` | yes | Container version ID (> 0) |
+| `--chart-name` | yes | Helm chart name |
+| `--version` | yes | Helm chart version (semver) |
+| `--repo-url` | yes | Helm repository URL |
+| `--repo-name` | yes | Helm repository name / alias |
+| `--values-file` | no | Path to values YAML file |
+| `--local-path` | no | Local chart fallback path |
+
+#### `aegisctl pedestal helm verify`
+
+```bash
+aegisctl pedestal helm verify --container-version-id 42
+aegisctl pedestal helm verify --container-version-id 42 --output json
+```
+
+**API**: `POST /api/v2/pedestal/helm/:container_version_id/verify`
+
+Runs a dry-run check pipeline on the server side:
+
+1. `helm repo add <repo-name> <repo-url> --force-update`
+2. `helm repo update`
+3. `helm pull <repo>/<chart> --version <version>` into a tmp dir which is
+   discarded afterward
+4. If `value_file` is set: open and `yaml.Unmarshal` to assert it parses,
+   plus a shallow check that `image.repository` / `image.tag` are scalar
+   when present. Image reachability is **not** checked (TODO: add
+   `skopeo inspect` once the round-trip is fast enough).
+
+The command exits **0** on success, **1** on any failed check. On
+failure, each check's `detail` includes the helm CLI stderr — the CLI
+output is never hidden.
+
+Sample JSON response body:
+
+```json
+{
+  "ok": false,
+  "checks": [
+    {"name": "repo_add",    "ok": true},
+    {"name": "repo_update", "ok": true},
+    {"name": "helm_pull",   "ok": false,
+     "detail": "helm pull failed: exit status 1\nError: chart \"pedestal\" matching 9.9.9 not found"}
+  ]
+}
+```
+
+**Flags**:
+
+| Flag | Description |
+|------|-------------|
+| `--container-version-id` | Container version ID (required, > 0) |
+
+---
+
 ## Internal Architecture
 
 ### Directory Structure

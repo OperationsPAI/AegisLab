@@ -623,6 +623,25 @@ func SetupV2Routes(router *gin.Engine) {
 	}
 
 	// =====================================================================
+	// Pedestal Helm Config API Group
+	// =====================================================================
+	//
+	// CRUD + dry-run verification over the helm_configs table, keyed by
+	// container_version_id. Used by `aegisctl pedestal helm` to fix bad
+	// repo URLs without running `mysql -e UPDATE` and without triggering
+	// a real restart_pedestal task.
+	pedestal := v2.Group("/pedestal", middleware.JWTAuth())
+	{
+		helm := pedestal.Group("/helm")
+		{
+			helm.GET("/:container_version_id", v2handlers.GetPedestalHelmConfig)
+			helm.POST("/:container_version_id/verify", v2handlers.VerifyPedestalHelmConfig)
+			// Mutating route — admin/upload permission (same tier as helm-chart upload).
+			helm.PUT("/:container_version_id", middleware.RequireContainerVersionUpload, v2handlers.UpsertPedestalHelmConfig)
+		}
+	}
+
+	// =====================================================================
 	// Chaos Systems API Group
 	// =====================================================================
 
