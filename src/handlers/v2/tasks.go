@@ -136,6 +136,41 @@ func ListTasks(c *gin.Context) {
 	dto.SuccessResponse(c, resp)
 }
 
+// ExpediteTask handles expediting a Pending task to execute immediately.
+//
+//	@Summary		Expedite a pending task
+//	@Description	Moves a Pending task's execute_time to now, rescoring it in the
+//	@Description	Redis delayed queue so the scheduler picks it up on its next tick.
+//	@Description	Rejects the call with 400 if the task is in any state other than
+//	@Description	Pending. Idempotent: expediting an already-due task succeeds.
+//	@Tags			Tasks
+//	@ID				expedite_task
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			task_id	path		string								true	"Task ID"
+//	@Success		200		{object}	dto.GenericResponse[dto.TaskResp]	"Task expedited"
+//	@Failure		400		{object}	dto.GenericResponse[any]			"Invalid task ID or task not in Pending state"
+//	@Failure		401		{object}	dto.GenericResponse[any]			"Authentication required"
+//	@Failure		403		{object}	dto.GenericResponse[any]			"Permission denied"
+//	@Failure		404		{object}	dto.GenericResponse[any]			"Task not found"
+//	@Failure		500		{object}	dto.GenericResponse[any]			"Internal server error"
+//	@Router			/api/v2/tasks/{task_id}/expedite [post]
+//	@x-api-type		{"sdk":"true"}
+func ExpediteTask(c *gin.Context) {
+	taskID := c.Param(consts.URLPathTaskID)
+	if !utils.IsValidUUID(taskID) {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid task ID")
+		return
+	}
+
+	resp, err := producer.ExpediteTask(taskID)
+	if handlers.HandleServiceError(c, err) {
+		return
+	}
+
+	dto.SuccessResponse(c, resp)
+}
+
 // GetTaskLogsWS handles WebSocket connections for real-time job log streaming
 //
 //	@Summary		Stream task logs via WebSocket

@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
+	"gorm.io/gorm"
 )
 
 const (
@@ -46,6 +47,80 @@ func NewTaskLogStreamer(conn *websocket.Conn, taskID string) *TaskLogStreamer {
 		conn:   conn,
 		taskID: taskID,
 		log:    logrus.WithField("task_id", taskID),
+	}
+}
+
+// ExpediteTask moves a Pending task's execute_time to "now" in both the
+// MySQL tasks table and the Redis delayed queue.
+//
+// Contract:
+//   - If the task does not exist: returns wrapped consts.ErrNotFound.
+//   - If the task state is not Pending: returns consts.ErrBadRequest with
+//     the message "state=<X>, cannot expedite".
+//   - If the task is already due (execute_time <= now) the call is a no-op
+//     and returns nil (idempotent).
+//
+// The DB row is updated first; the Redis rescore is attempted as a
+// follow-up. If the Redis entry cannot be found (e.g. the scheduler has
+// already moved it to the ready queue) the call still succeeds, matching
+// the idempotent semantic.
+func ExpediteTask(taskID string) (*dto.TaskResp, error) {
+	ctx := context.Background()
+
+	task, err := repository.GetTaskByID(database.DB, taskID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) || errors.Is(err, consts.ErrNotFound) {
+			return nil, fmt.Errorf("%w: task id: %s", consts.ErrNotFound, taskID)
+		}
+		return nil, fmt.Errorf("failed to load task: %w", err)
+	}
+
+	if task.State != consts.TaskPending {
+		return nil, fmt.Errorf("%w: state=%s, cannot expedite",
+			consts.ErrBadRequest, consts.GetTaskStateName(task.State))
+	}
+
+	now := time.Now().Unix()
+	if task.ExecuteTime <= now {
+		// Already due — nothing to do (idempotent).
+		return dto.NewTaskResp(task), nil
+	}
+
+	if err := repository.UpdateTaskExecuteTime(database.DB, ctx, taskID, now); err != nil {
+		return nil, fmt.Errorf("failed to update execute_time: %w", err)
+	}
+
+	if _, err := repository.ExpediteDelayedTask(ctx, taskID, now); err != nil {
+		logrus.WithField("task_id", taskID).
+			Warnf("DB updated but Redis rescore failed: %v", err)
+	}
+
+	// Emit a task.scheduled trace event documenting the manual expedite.
+	emitExpediteScheduledEvent(ctx, task, now)
+
+	task.ExecuteTime = now
+	return dto.NewTaskResp(task), nil
+}
+
+// emitExpediteScheduledEvent publishes a task.scheduled event for a manually
+// expedited task. The event is best-effort — failures are logged only.
+func emitExpediteScheduledEvent(ctx context.Context, task *database.Task, executeTime int64) {
+	if task == nil || task.TraceID == "" {
+		return
+	}
+	event := dto.TraceStreamEvent{
+		TaskID:    task.ID,
+		TaskType:  task.Type,
+		EventName: consts.EventTaskScheduled,
+		Payload: dto.TaskScheduledPayload{
+			ExecuteTime: executeTime,
+			Reason:      dto.TaskScheduledReasonExpedite,
+		},
+	}
+	stream := fmt.Sprintf(consts.StreamTraceLogKey, task.TraceID)
+	if err := client.RedisXAdd(ctx, stream, event.ToRedisStream()); err != nil {
+		logrus.WithField("task_id", task.ID).
+			Warnf("failed to emit expedite task.scheduled event: %v", err)
 	}
 }
 

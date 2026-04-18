@@ -73,6 +73,23 @@ type InfoPayloadTemplate struct {
 	Msg   string `json:"msg"`
 }
 
+// TaskScheduledPayload is the payload for the task.scheduled trace event
+// emitted whenever a task is enqueued into the delayed queue.
+type TaskScheduledPayload struct {
+	ExecuteTime int64  `json:"execute_time"`
+	Reason      string `json:"reason"`
+}
+
+// Reasons for task.scheduled events.
+const (
+	TaskScheduledReasonPreDurationWait  = "pre_duration wait"
+	TaskScheduledReasonTokenUnavailable = "token unavailable"
+	TaskScheduledReasonRetryBackoff     = "retry_backoff"
+	TaskScheduledReasonManual           = "manual"
+	TaskScheduledReasonCronNext         = "cron_next"
+	TaskScheduledReasonExpedite         = "expedite"
+)
+
 type JobMessage struct {
 	JobName   string `json:"job_name"`
 	Namespace string `json:"namespace"`

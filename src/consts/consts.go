@@ -422,6 +422,7 @@ const (
 	EventTaskStarted     EventType = "task.started"
 	EventTaskStateUpdate EventType = "task.state.update"
 	EventTaskRetryStatus EventType = "task.retry.status"
+	EventTaskScheduled   EventType = "task.scheduled"
 
 	EventNoNamespaceAvailable EventType = "no.namespace.available"
 	EventNoTokenAvailable     EventType = "no.token.available"
