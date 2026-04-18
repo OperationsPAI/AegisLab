@@ -1386,3 +1386,41 @@ install-aegisctl:
 **Binary name**: `aegisctl`
 
 **Dependencies**: Only Go standard library + `github.com/spf13/cobra` (CLI framework). Shares `aegis/dto` and `aegis/consts` types from the main codebase — no duplication.
+
+## rate-limiter
+
+Inspect and remediate the token-bucket rate limiters used by the consumer
+(OperationsPAI/aegis#21). Each bucket is a Redis set keyed
+`token_bucket:<name>` (e.g. `token_bucket:restart_service`, capacity 2)
+whose members are task_ids currently holding a token.
+
+### `aegisctl rate-limiter status`
+
+List all buckets with columns `BUCKET | HELD/CAP | HOLDERS`. Holders in
+a terminal task state (Completed / Error / Cancelled) are marked
+`(LEAKED)` and colored red.
+
+- Auth: any authenticated user.
+- Calls: `GET /api/v2/rate-limiters`.
+
+### `aegisctl rate-limiter reset --bucket <name> --force`
+
+Delete a bucket key from Redis. Errors on unknown or missing bucket.
+`--force` required.
+
+- Auth: system admin only.
+- Calls: `DELETE /api/v2/rate-limiters/:bucket`.
+
+### `aegisctl rate-limiter gc`
+
+Release tokens held by terminal-state tasks across all buckets. Prints
+`released N leaked tokens from M buckets`.
+
+- Auth: system admin only.
+- Calls: `POST /api/v2/rate-limiters/gc`.
+
+### Auto-GC on consumer startup
+
+The consumer runs one GC pass on startup and logs
+`released N leaked tokens`, preventing the `restart_service` bucket from
+getting stuck at HELD=CAP after a process crash.

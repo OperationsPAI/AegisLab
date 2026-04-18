@@ -35,6 +35,7 @@ import (
 	"aegis/service/consumer"
 	"aegis/service/initialization"
 	"aegis/service/logreceiver"
+	producer "aegis/service/producer"
 	"aegis/utils"
 
 	chaosCli "github.com/OperationsPAI/chaos-experiment/client"
@@ -132,6 +133,9 @@ func main() {
 
 			client.InitTraceProvider()
 
+			// Auto-GC leaked rate-limiter tokens (OperationsPAI/aegis#21).
+			runRateLimiterStartupGC(ctx)
+
 			// Start OTLP log receiver for real-time job log streaming
 			go func() {
 				otlpPort := config.GetInt("otlp_receiver.port")
@@ -171,6 +175,9 @@ func main() {
 			utils.InitValidator()
 			client.InitTraceProvider()
 
+			// Auto-GC leaked rate-limiter tokens (OperationsPAI/aegis#21).
+			runRateLimiterStartupGC(ctx)
+
 			// Start OTLP log receiver for real-time job log streaming
 			go func() {
 				otlpPort := config.GetInt("otlp_receiver.port")
@@ -200,4 +207,17 @@ func main() {
 		logrus.Println(err.Error())
 		os.Exit(1)
 	}
+}
+
+// runRateLimiterStartupGC releases tokens still held by terminal-state tasks (OperationsPAI/aegis#21).
+func runRateLimiterStartupGC(ctx context.Context) {
+	released, buckets, err := producer.GCRateLimiters(ctx)
+	if err != nil {
+		logrus.WithError(err).Warn("rate-limiter startup GC failed")
+		return
+	}
+	logrus.WithFields(logrus.Fields{
+		"released": released,
+		"buckets":  buckets,
+	}).Infof("released %d leaked tokens", released)
 }
