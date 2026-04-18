@@ -288,6 +288,26 @@ func UpdateContainerVersion(db *gorm.DB, version *database.ContainerVersion) err
 	return nil
 }
 
+// UpdateContainerVersionImageColumns atomically rewrites the four image
+// reference columns (registry, namespace, repository, tag) on a single
+// container_versions row. It performs a targeted UPDATE of only those
+// columns so that unrelated fields (status, usage_count, version name) and
+// BeforeCreate/hook-maintained fields remain untouched.
+func UpdateContainerVersionImageColumns(db *gorm.DB, versionID int, registry, namespace, repository, tag string) (int64, error) {
+	result := db.Model(&database.ContainerVersion{}).
+		Where("id = ?", versionID).
+		Updates(map[string]any{
+			"registry":   registry,
+			"namespace":  namespace,
+			"repository": repository,
+			"tag":        tag,
+		})
+	if err := result.Error; err != nil {
+		return 0, fmt.Errorf("failed to update container version image columns: %w", err)
+	}
+	return result.RowsAffected, nil
+}
+
 // =====================================================================
 // HelmConfig Repository Functions
 // =====================================================================

@@ -423,6 +423,44 @@ func UpdateContainerVersion(req *dto.UpdateContainerVersionReq, containerID, ver
 	return dto.NewContainerVersionResp(updatedVersion), nil
 }
 
+// SetContainerVersionImage atomically rewrites the four image reference
+// columns (registry, namespace, repository, tag) on a container_versions row.
+func SetContainerVersionImage(req *dto.SetContainerVersionImageReq, versionID int) (*dto.SetContainerVersionImageResp, error) {
+	var updated *database.ContainerVersion
+
+	err := database.DB.Transaction(func(tx *gorm.DB) error {
+		existing, err := repository.GetContainerVersionByID(tx, versionID)
+		if err != nil {
+			if errors.Is(err, consts.ErrNotFound) {
+				return fmt.Errorf("%w: version id: %d", consts.ErrNotFound, versionID)
+			}
+			return fmt.Errorf("failed to get container version: %w", err)
+		}
+		_ = existing // existence check only; update uses a targeted UPDATE below.
+
+		rows, err := repository.UpdateContainerVersionImageColumns(tx, versionID, req.Registry, req.Namespace, req.Repository, req.Tag)
+		if err != nil {
+			return err
+		}
+		if rows == 0 {
+			return fmt.Errorf("%w: version id: %d", consts.ErrNotFound, versionID)
+		}
+
+		// Reload so AfterFind recomputes ImageRef.
+		refreshed, err := repository.GetContainerVersionByID(tx, versionID)
+		if err != nil {
+			return fmt.Errorf("failed to reload container version: %w", err)
+		}
+		updated = refreshed
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return dto.NewSetContainerVersionImageResp(updated), nil
+}
+
 // UploadHelmChart handles uploading a Helm chart package to local storage
 func UploadHelmChart(fileHeader *multipart.FileHeader, containerID, versionID, userID int) (*dto.UploadHelmChartResp, error) {
 	filename := fileHeader.Filename

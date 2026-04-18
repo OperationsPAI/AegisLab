@@ -266,6 +266,11 @@ aegisctl container versions train-ticket
 
 **API**: `GET /api/v2/containers/:container_id/versions`
 
+Output columns: `Version`, `Image`, `IMAGE`, `Usage`, `Updated`. The `IMAGE`
+column is composed from `(registry, namespace, repository, tag)` as
+`<registry>/<namespace>/<repository>:<tag>` (the namespace segment is
+omitted when empty).
+
 #### `aegisctl container build`
 
 ```bash
@@ -273,6 +278,66 @@ aegisctl container build train-ticket --version v1.0.0
 ```
 
 **API**: `POST /api/v2/containers/build`
+
+#### `aegisctl container version list-versions`
+
+List container versions for a container, including an `IMAGE` column built
+from `(registry, namespace, repository, tag)`.
+
+```bash
+aegisctl container version list-versions train-ticket
+aegisctl container version list-versions --name train-ticket -o json
+```
+
+**API**: `GET /api/v2/containers/:container_id/versions`
+
+Output columns: `ID`, `Version`, `IMAGE`, `Usage`, `Updated`.
+
+#### `aegisctl container version set-image`
+
+Rewrite the image reference of a container version directly in the
+database. This is the supported alternative to `mysql -e UPDATE ...` for
+swapping an unreachable registry for a working one.
+
+```bash
+aegisctl container version set-image --id 42 --ref ghcr.io/org/team/app:v1.2.3
+aegisctl container version set-image --id 42 --ref ghcr.io/org/team/app:v1.2.3 --dry-run
+aegisctl container version set-image --id 42 --ref nginx:1.25          # defaults registry to docker.io
+```
+
+**API**: `PATCH /api/v2/container-versions/:id/image` with body
+`{"registry":"...", "namespace":"...", "repository":"...", "tag":"..."}`.
+
+**Flags**:
+
+| Flag | Required | Description |
+|------|----------|-------------|
+| `--id` | Yes | Container version ID |
+| `--ref` | Yes | Full image reference `<registry>/<namespace>/<repository>:<tag>` |
+| `--dry-run` | No | Print the current vs proposed diff and exit without writing |
+
+**Reference parsing rules**:
+
+- A tag is **required**. `nginx` (no `:tag`) is rejected.
+- A registry is **optional**. If the first path segment contains no `.` or `:`
+  and is not `localhost`, the registry defaults to `docker.io`. Examples:
+  - `nginx:1.25` → `docker.io/nginx:1.25` (no namespace)
+  - `library/nginx:1.25` → `docker.io/library/nginx:1.25`
+- **Nested namespaces are preserved.** Only the last path segment is the
+  repository; everything between the registry and the repository is the
+  namespace. Example: `docker.io/foo/bar/baz:tag` →
+  `registry=docker.io, namespace=foo/bar, repository=baz, tag=tag`.
+- `localhost[:port]` is treated as a registry host.
+- **Digest references (`@sha256:...`) are rejected.** The backend row stores a
+  tag, not a digest; accepting digests would silently drop the digest.
+
+**Auth**: requires container version write permission (reuses
+`RequireContainerVersionUpdate`, the same middleware as
+`PATCH /api/v2/containers/:container_id/versions/:version_id`).
+
+**TODO (future issue)**: `pedestal helm values rewrite-images` is not
+implemented here — the `helm_configs` table is intentionally left
+untouched.
 
 ---
 
