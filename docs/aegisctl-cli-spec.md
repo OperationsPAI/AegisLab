@@ -342,6 +342,56 @@ labels:                 # Optional: labels to attach
 
 **`--dry-run` behavior**: Validate the spec file against the server (check container names exist, spec structure valid) without submitting. Exit 0 if valid, exit 1 with validation errors.
 
+**`--wait` (opt-in, blocks until terminal state)**
+
+```bash
+aegisctl inject submit --project train-ticket --spec injection.yaml --wait
+aegisctl inject submit --project train-ticket --spec injection.yaml --wait --timeout 10m
+aegisctl inject submit --project train-ticket --spec injection.yaml --wait --wait-until datapack_ready
+```
+
+When `--wait` is set, the CLI subscribes to `GET /api/v2/traces/:trace_id/stream` (SSE) for the returned `trace_id` and blocks until the trace reaches a terminal state, or `--timeout` elapses (default `600s`). The `injection_name` field is populated once the consumer emits `fault.injection.started` on the trace stream (the event payload is the CRD name).
+
+**`--wait-until <event>` (optional, early-exit)**
+
+| CLI value | Trace-stream `event_name` it waits for |
+|-----------|-----------------------------------------|
+| `injection_created` | `fault.injection.started` (consumer sets CRD name) |
+| `fault_injection_started` | `fault.injection.started` (alias of above) |
+| `datapack_ready` | `datapack.build.succeed` or `datapack.result.collection` |
+| `finished` | terminal `end` SSE frame (default) |
+
+Event names above are the literal `event_name` strings emitted by `service/consumer/*` to the Redis trace stream (see `src/consts/consts.go` `EventType` constants). Terminal success/failure events recognized by the CLI:
+
+- success → `datapack.build.succeed`, `datapack.result.collection`, `datapack.no_anomaly`, `datapack.no_detector_data`, `algorithm.run.succeed`, `algorithm.result.collection`, plus the SSE `event: end` framing event emitted by `handlers/v2/traces.go`
+- failure → `restart.pedestal.failed`, `fault.injection.failed`, `datapack.build.failed`, `algorithm.run.failed`, `image.build.failed`
+
+**Wait-mode JSON output** (stdout, emitted whether exit is 0/2/3):
+
+```json
+{
+  "injection_name": "otel-demo0-checkout-delay-p7qd5c",
+  "injection_id": 42,
+  "trace_id": "abc-123-def-456",
+  "trace_state": "Succeeded",
+  "datapack_id": 17,
+  "duration_seconds": 348
+}
+```
+
+`injection_id` is resolved via `GET /api/v2/injections?page=1&size=100` (name→id lookup) once the name is known; omitted if the name hasn't been emitted yet. `datapack_id` is omitted if the pipeline exits before the datapack stage.
+
+**Exit codes (`--wait` mode)**
+
+| Code | Meaning |
+|------|---------|
+| 0 | `trace_state=Succeeded` |
+| 2 | `trace_state=Failed`; human-readable reason to stderr |
+| 3 | `--timeout` exceeded; stderr shows current stage + `aegisctl trace watch <trace-id>` hint |
+| 1 | Other CLI error (network, auth, spec parse) |
+
+Without `--wait`, exit/output behavior is unchanged (raw response JSON on stdout).
+
 #### `aegisctl inject list`
 
 ```bash

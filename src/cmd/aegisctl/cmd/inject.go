@@ -1,10 +1,13 @@
 package cmd
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
 	"time"
 
@@ -131,14 +134,44 @@ NOTE: --project is required for submit, list, and search commands.
 
 // ---------- inject submit ----------
 
-var injectSubmitSpec string
+var (
+	injectSubmitSpec      string
+	injectSubmitWait      bool
+	injectSubmitWaitUntil string
+	injectSubmitTimeout   time.Duration
+)
+
+// injectSubmitResponse captures the fields we care about from the server's
+// SubmitInjectionResp envelope (see src/dto/injection.go).
+type injectSubmitResponse struct {
+	GroupID string `json:"group_id"`
+	Items   []struct {
+		Index   int    `json:"index"`
+		TraceID string `json:"trace_id"`
+		TaskID  string `json:"task_id"`
+	} `json:"items"`
+}
 
 var injectSubmitCmd = &cobra.Command{
 	Use:   "submit",
 	Short: "Submit a fault injection from a YAML spec",
+	Long: `Submit a fault injection from a YAML spec.
+
+With --wait, the command blocks on the trace SSE stream until the pipeline
+reaches a terminal state (or --timeout elapses). Emits a JSON summary on
+stdout, including the resolved injection_name once the consumer fills it in.
+
+EXIT CODES (--wait mode):
+  0 — Succeeded
+  2 — Failed (reason on stderr)
+  3 — --timeout exceeded (stage + trace_id on stderr)
+  1 — other CLI error (network, auth, spec parse)`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if injectSubmitSpec == "" {
 			return fmt.Errorf("--spec is required")
+		}
+		if !validWaitUntil(injectSubmitWaitUntil) {
+			return fmt.Errorf("invalid --wait-until %q (one of: injection_created, fault_injection_started, datapack_ready, finished)", injectSubmitWaitUntil)
 		}
 
 		data, err := os.ReadFile(injectSubmitSpec)
@@ -159,14 +192,119 @@ var injectSubmitCmd = &cobra.Command{
 		c := newClient()
 		path := fmt.Sprintf("/api/v2/projects/%d/injections/inject", pid)
 
-		var resp client.APIResponse[any]
+		// Preserve existing non-wait behavior: print raw response data.
+		if !injectSubmitWait {
+			var resp client.APIResponse[any]
+			if err := c.Post(path, spec, &resp); err != nil {
+				return err
+			}
+			output.PrintJSON(resp.Data)
+			return nil
+		}
+
+		// --wait path: decode response into a typed struct so we can pull trace_id.
+		var resp client.APIResponse[injectSubmitResponse]
 		if err := c.Post(path, spec, &resp); err != nil {
 			return err
 		}
+		if len(resp.Data.Items) == 0 {
+			return fmt.Errorf("server accepted submission but returned no items")
+		}
+		// For --wait, we monitor the first item's trace. Multi-batch submissions
+		// beyond one item are out of scope (see docs/aegisctl-cli-spec.md).
+		traceID := resp.Data.Items[0].TraceID
+		if traceID == "" {
+			return fmt.Errorf("server response missing trace_id")
+		}
 
-		output.PrintJSON(resp.Data)
-		return nil
+		return runInjectSubmitWait(cmd.Context(), traceID)
 	},
+}
+
+// runInjectSubmitWait subscribes to the trace SSE stream and blocks until a
+// terminal state or --timeout. Emits the JSON summary on stdout and exits with
+// the appropriate code via os.Exit (so Cobra doesn't wrap the error).
+func runInjectSubmitWait(parentCtx context.Context, traceID string) error {
+	if parentCtx == nil {
+		parentCtx = context.Background()
+	}
+	timeout := injectSubmitTimeout
+	if timeout <= 0 {
+		timeout = 600 * time.Second
+	}
+
+	ctx, cancel := context.WithTimeout(parentCtx, timeout)
+	defer cancel()
+
+	// Forward Ctrl+C as cancellation.
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt)
+	defer signal.Stop(sigCh)
+	go func() {
+		select {
+		case <-sigCh:
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
+
+	ssePath := fmt.Sprintf("/api/v2/traces/%s/stream", traceID)
+	reader := client.NewSSEReader(flagServer, ssePath, flagToken)
+	rawEvents, rawErrs := reader.Stream(ctx)
+
+	// Translate raw SSE events into injectWaitEvents for the wait loop.
+	out := make(chan injectWaitEvent, 64)
+	go func() {
+		defer close(out)
+		for e := range rawEvents {
+			select {
+			case out <- parseTraceSSEEvent(e):
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	start := time.Now()
+	result, code, err := runInjectWait(ctx, out, rawErrs, traceID, injectSubmitWaitUntil, start)
+
+	// Resolve injection_id if we learned the name.
+	if result.InjectionName != "" {
+		if id, resolveErr := newResolver().InjectionID(result.InjectionName); resolveErr == nil {
+			result.InjectionID = id
+		}
+	}
+
+	// Emit JSON summary on stdout regardless of exit code.
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	_ = enc.Encode(result)
+
+	switch code {
+	case 0:
+		return nil
+	case 2:
+		fmt.Fprintf(os.Stderr, "fault injection failed: %s (trace_id=%s)\n",
+			nonEmpty(result.failureReason, "unknown reason"), traceID)
+		os.Exit(2)
+	case 3:
+		fmt.Fprintf(os.Stderr, "timeout exceeded at stage %q (trace_id=%s); check progress with: aegisctl trace watch %s\n",
+			nonEmpty(result.currentStage, "waiting"), traceID, traceID)
+		os.Exit(3)
+	default:
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "inject wait error: %v\n", err)
+		}
+		os.Exit(1)
+	}
+	return nil
+}
+
+func nonEmpty(s, fallback string) string {
+	if s == "" {
+		return fallback
+	}
+	return s
 }
 
 // ---------- inject list ----------
@@ -442,6 +580,9 @@ var injectMetadataCmd = &cobra.Command{
 
 func init() {
 	injectSubmitCmd.Flags().StringVar(&injectSubmitSpec, "spec", "", "Path to injection spec YAML file")
+	injectSubmitCmd.Flags().BoolVar(&injectSubmitWait, "wait", false, "Block until the trace reaches a terminal state (or --wait-until event)")
+	injectSubmitCmd.Flags().StringVar(&injectSubmitWaitUntil, "wait-until", "", "Return early on event: injection_created | fault_injection_started | datapack_ready | finished (default: finished)")
+	injectSubmitCmd.Flags().DurationVar(&injectSubmitTimeout, "timeout", 600*time.Second, "Maximum time to wait when --wait is set (e.g. 600s, 10m)")
 
 	injectListCmd.Flags().StringVar(&injectListState, "state", "", "Filter by state")
 	injectListCmd.Flags().StringVar(&injectListFaultType, "fault-type", "", "Filter by fault type")
