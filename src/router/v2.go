@@ -472,6 +472,9 @@ func SetupV2Routes(router *gin.Engine) {
 
 			// Task Delete operations
 			taskWithAuth.POST("/batch-delete", middleware.RequireTaskDelete, v2handlers.BatchDeleteTasks) // Batch delete tasks
+
+			// Task Execute operations
+			taskWithAuth.POST("/:task_id/expedite", middleware.RequireTaskExecute, v2handlers.ExpediteTask) // Expedite pending task
 		}
 
 		// Task Log streaming (WebSocket) - auth via query param, not middleware

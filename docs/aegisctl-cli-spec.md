@@ -522,14 +522,38 @@ aegisctl task list --type FaultInjection
 |------|-------------|
 | `--state` | Filter: `Pending`, `Running`, `Completed`, `Error`, `Cancelled`, `Rescheduled` |
 | `--type` | Filter: `BuildContainer`, `RestartPedestal`, `FaultInjection`, `RunAlgorithm`, `BuildDatapack`, `CollectResult`, `CronJob` |
+| `--overdue` | Show only Pending tasks whose `execute_time` is already in the past (WAIT < 0) |
 
 **Table Output**:
 
 ```
-TASK-ID          TYPE              STATE      TRACE-ID         PROJECT    CREATED
-task-abc123      RestartPedestal   Running    trace-def456     train-ticket  2m ago
-task-xyz789      FaultInjection    Pending    trace-def456     train-ticket  1m ago
+TASK-ID          TYPE              STATE      WAIT     TRACE-ID         PROJECT       CREATED
+task-abc123      RestartPedestal   Running    -        trace-def456     train-ticket  2m ago
+task-xyz789      FaultInjection    Pending    +01:23   trace-def456     train-ticket  1m ago
+task-overdue     BuildDatapack     Pending    -00:05   trace-def456     train-ticket  3m ago
 ```
+
+**`WAIT` column**: for `Pending` rows, shows the signed remaining time until
+`execute_time`, rendered as `+MM:SS` (still waiting) or `-MM:SS` (overdue — the
+scheduler has not picked it up yet). Non-Pending rows show `-`.
+
+#### `aegisctl task expedite`
+
+Force a `Pending` task to run on the next scheduler tick.
+
+```bash
+aegisctl task expedite <task-id>
+```
+
+**API**: `POST /api/v2/tasks/:task_id/expedite`
+
+Atomically resets the task's `execute_time` to now in both the MySQL `tasks`
+table and the Redis `task:delayed` sorted set. The consumer emits a
+`task.scheduled` trace event with `reason=expedite`.
+
+- Rejects with `state=<X>, cannot expedite` if the task is not in `Pending`.
+- Idempotent: expediting an already-due task succeeds silently.
+- The CLI never talks to Redis directly — all atomic work happens server-side.
 
 #### `aegisctl task get`
 

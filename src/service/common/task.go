@@ -1,6 +1,7 @@
 package common
 
 import (
+	"aegis/client"
 	"aegis/consts"
 	"aegis/database"
 	"aegis/dto"
@@ -11,7 +12,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"github.com/robfig/cron/v3"
+	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
@@ -119,6 +122,13 @@ func SubmitTask(ctx context.Context, t *dto.UnifiedTask) error {
 		err = repository.SubmitImmediateTask(ctx, taskData, t.TaskID)
 	} else {
 		err = repository.SubmitDelayedTask(ctx, taskData, t.TaskID, t.ExecuteTime)
+		if err == nil {
+			reason := dto.TaskScheduledReasonPreDurationWait
+			if t.Type == consts.TaskTypeCronJob {
+				reason = dto.TaskScheduledReasonCronNext
+			}
+			EmitTaskScheduled(ctx, t, t.ExecuteTime, reason)
+		}
 	}
 
 	if err != nil {
@@ -126,6 +136,33 @@ func SubmitTask(ctx context.Context, t *dto.UnifiedTask) error {
 	}
 
 	return nil
+}
+
+// EmitTaskScheduled publishes a task.scheduled trace event to the task's
+// trace stream. It records the execute_time and the reason the task was
+// deferred. Failures are logged but not propagated — scheduling is the
+// primary concern and the event is observational.
+func EmitTaskScheduled(ctx context.Context, t *dto.UnifiedTask, executeTime int64, reason string) {
+	if t == nil || t.TraceID == "" {
+		return
+	}
+	event := dto.TraceStreamEvent{
+		TaskID:    t.TaskID,
+		TaskType:  t.Type,
+		EventName: consts.EventTaskScheduled,
+		Payload: dto.TaskScheduledPayload{
+			ExecuteTime: executeTime,
+			Reason:      reason,
+		},
+	}
+	stream := fmt.Sprintf(consts.StreamTraceLogKey, t.TraceID)
+	if err := client.RedisXAdd(ctx, stream, event.ToRedisStream()); err != nil {
+		if err == redis.Nil {
+			return
+		}
+		logrus.WithField("task_id", t.TaskID).
+			Warnf("failed to emit task.scheduled event: %v", err)
+	}
 }
 
 // calculateExecuteTime calculates the execution time for a task

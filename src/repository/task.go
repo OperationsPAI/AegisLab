@@ -234,6 +234,66 @@ func DeleteTaskIndex(ctx context.Context, taskID string) error {
 	return client.GetRedisClient().HDel(ctx, TaskIndexKey, taskID).Err()
 }
 
+// ExpediteDelayedTask finds a task in the delayed queue by task_id, updates
+// its embedded execute_time field, and re-scores the sorted-set entry to
+// newExecuteTime. It returns (found, err).
+//
+// The operation is implemented by locating the existing member, updating
+// the JSON payload in-memory, then atomically removing the old member and
+// adding the updated member in a single Redis pipeline.
+//
+// If the task is not present in the delayed queue this function returns
+// (false, nil) so callers can decide whether that is an error condition
+// (e.g. the scheduler may have already moved it to the ready queue).
+func ExpediteDelayedTask(ctx context.Context, taskID string, newExecuteTime int64) (bool, error) {
+	cli := client.GetRedisClient()
+	members, err := cli.ZRangeByScore(ctx, DelayedQueueKey, &redis.ZRangeBy{
+		Min: "-inf",
+		Max: "+inf",
+	}).Result()
+	if err != nil {
+		return false, fmt.Errorf("failed to scan delayed queue: %w", err)
+	}
+
+	for _, member := range members {
+		var parsed map[string]any
+		if err := json.Unmarshal([]byte(member), &parsed); err != nil {
+			continue
+		}
+		id, _ := parsed["task_id"].(string)
+		if id != taskID {
+			continue
+		}
+
+		parsed["execute_time"] = newExecuteTime
+		updated, err := json.Marshal(parsed)
+		if err != nil {
+			return false, fmt.Errorf("failed to re-marshal task payload: %w", err)
+		}
+
+		pipe := cli.TxPipeline()
+		pipe.ZRem(ctx, DelayedQueueKey, member)
+		pipe.ZAdd(ctx, DelayedQueueKey, redis.Z{
+			Score:  float64(newExecuteTime),
+			Member: updated,
+		})
+		pipe.HSet(ctx, TaskIndexKey, taskID, DelayedQueueKey)
+		if _, err := pipe.Exec(ctx); err != nil {
+			return false, fmt.Errorf("failed to rescore delayed task: %w", err)
+		}
+		return true, nil
+	}
+
+	return false, nil
+}
+
+// UpdateTaskExecuteTime updates the execute_time column of a task row.
+func UpdateTaskExecuteTime(db *gorm.DB, ctx context.Context, taskID string, executeTime int64) error {
+	return db.WithContext(ctx).Model(&database.Task{}).
+		Where("id = ?", taskID).
+		Update("execute_time", executeTime).Error
+}
+
 // ===================== Task Database =====================
 
 // BatchDeleteTasks marks multiple tasks as deleted in batch
