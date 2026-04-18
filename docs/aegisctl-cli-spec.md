@@ -792,6 +792,76 @@ Infrastructure Health:
 
 ---
 
+### `aegisctl cluster` — Cluster Dependency Management
+
+Operations that target the AegisLab cluster and its backing services
+(Kubernetes, MySQL, ClickHouse, Redis, etcd).
+
+#### `aegisctl cluster preflight`
+
+Verify that every dependency required by AegisLab is reachable and
+configured. The command prints one row per check with `[OK]` / `[FAIL]` /
+`[WARN]` and a suggested fix on failure. Overall exit code is `0` when
+every executed check is OK, `1` otherwise.
+
+```bash
+aegisctl cluster preflight
+aegisctl cluster preflight --check k8s.rcabench-sa
+aegisctl cluster preflight --fix
+aegisctl cluster preflight --config /path/to/config.dev.toml
+```
+
+**Flags**:
+
+| Flag | Description |
+|------|-------------|
+| `--check <id>` | Run only the named check |
+| `--fix` | Apply idempotent remediation for failing checks that support it |
+| `--config <path>` | Path to a specific config TOML (defaults to `config.$ENV_MODE.toml` in cwd) |
+| `--check-timeout <sec>` | Per-check timeout (default: 10s) |
+
+**Check catalog**:
+
+| ID | Description | `--fix` support |
+|----|-------------|-----------------|
+| `k8s.exp-namespace` | namespace `exp` exists | — |
+| `k8s.rcabench-sa` | ServiceAccount `rcabench-sa` in `exp` exists | yes (kubectl create sa) |
+| `k8s.dataset-pvc` | PVC `rcabench-juicefs-dataset` in `exp` exists & Bound | — (storage-class decision required) |
+| `k8s.chaosmesh-crds` | `chaos-mesh.org` CRDs present | — |
+| `db.mysql` | TCP reachable using `database.mysql.host:port` | — |
+| `db.clickhouse` | TCP reachable using `database.clickhouse.host:port` | — |
+| `db.redis` | TCP reachable using `redis.host` | — |
+| `db.etcd` | TCP reachable using `etcd.endpoints[0]` | — |
+| `clickhouse.otel-tables` | `otel_traces`, `otel_metrics_gauge`, `otel_metrics_sum`, `otel_metrics_histogram`, `otel_logs` tables exist in the `otel` db | — |
+| `redis.token-bucket-leaks` | no terminal tasks leaking slots in `token_bucket:restart_service` | yes (SREM leaked task_ids) |
+
+**Output** (truncated):
+
+```
+CHECK                     STATUS  DETAIL
+------------------------  ------  --------------------
+k8s.exp-namespace         [OK]    namespace "exp" present
+k8s.rcabench-sa           [FAIL]  ServiceAccount exp/rcabench-sa missing
+                                    fix: kubectl -n exp create serviceaccount rcabench-sa (or rerun with --fix)
+k8s.dataset-pvc           [OK]    exp/rcabench-juicefs-dataset Bound
+...
+```
+
+**Config resolution**: The command reads `config.$ENV_MODE.toml` (default
+`ENV_MODE=dev`) from the current working directory. Required keys:
+`[database.mysql] host/port`, `[database.clickhouse] host/port/database`,
+`redis.host`, `etcd.endpoints`, `k8s.namespace`, and the JuiceFS PVC +
+service-account names under `[k8s.job.*]`.
+
+**Not yet implemented** (intentionally, to keep preflight fast):
+
+- container_versions registry pullability — too slow for synchronous run.
+- `helm_configs.repo_url` reachability — too slow.
+
+Both are tracked as TODO comments in `src/cmd/aegisctl/cluster/checks.go`.
+
+---
+
 ### `aegisctl completion` — Shell Completion
 
 ```bash
