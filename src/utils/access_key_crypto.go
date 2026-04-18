@@ -11,8 +11,8 @@ import (
 	"fmt"
 )
 
-func EncryptAccessKeySecret(secret string) (string, error) {
-	block, err := aes.NewCipher(accessKeyCryptoKey())
+func EncryptAPIKeySecret(secret string) (string, error) {
+	block, err := aes.NewCipher(apiKeyCryptoKey())
 	if err != nil {
 		return "", fmt.Errorf("failed to initialize cipher: %w", err)
 	}
@@ -31,13 +31,13 @@ func EncryptAccessKeySecret(secret string) (string, error) {
 	return base64.StdEncoding.EncodeToString(ciphertext), nil
 }
 
-func DecryptAccessKeySecret(ciphertext string) (string, error) {
+func DecryptAPIKeySecret(ciphertext string) (string, error) {
 	raw, err := base64.StdEncoding.DecodeString(ciphertext)
 	if err != nil {
 		return "", fmt.Errorf("failed to decode ciphertext: %w", err)
 	}
 
-	block, err := aes.NewCipher(accessKeyCryptoKey())
+	block, err := aes.NewCipher(apiKeyCryptoKey())
 	if err != nil {
 		return "", fmt.Errorf("failed to initialize cipher: %w", err)
 	}
@@ -61,18 +61,23 @@ func DecryptAccessKeySecret(ciphertext string) (string, error) {
 	return string(plaintext), nil
 }
 
-func SignAccessKeyRequest(secret, payload string) string {
+func SignAPIKeyRequest(secret, payload string) string {
 	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write([]byte(payload))
 	return hex.EncodeToString(mac.Sum(nil))
 }
 
-func VerifyAccessKeyRequestSignature(secret, payload, signature string) bool {
-	expected := SignAccessKeyRequest(secret, payload)
+func VerifyAPIKeyRequestSignature(secret, payload, signature string) bool {
+	expected := SignAPIKeyRequest(secret, payload)
 	return hmac.Equal([]byte(expected), []byte(signature))
 }
 
-func accessKeyCryptoKey() []byte {
+func SHA256Hex(payload []byte) string {
+	sum := sha256.Sum256(payload)
+	return hex.EncodeToString(sum[:])
+}
+
+func apiKeyCryptoKey() []byte {
 	sum := sha256.Sum256([]byte(JWTSecret))
 	return sum[:]
 }

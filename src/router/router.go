@@ -35,11 +35,16 @@ func New(handlers *Handlers, services ...middleware.Service) *gin.Engine {
 		middleware.TracerMiddleware(),
 	)
 
-	// Set up system routes
-	SetupSystemRoutes(router, handlers)
+	middleware.StartCleanupRoutine()
 
-	// Set up API routes
-	SetupV2Routes(router, handlers)
+	v2 := router.Group("/api/v2")
+	SetupPublicV2Routes(v2, handlers)
+	SetupSDKV2Routes(v2, handlers)
+	SetupRuntimeV2Routes(v2, handlers)
+	SetupAdminV2Routes(v2, handlers)
+	SetupPortalV2Routes(v2, handlers)
+	SetupSystemV2Routes(v2, handlers)
+	SetupSystemRoutes(router, handlers)
 
 	// Swagger documentation
 	router.GET("/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

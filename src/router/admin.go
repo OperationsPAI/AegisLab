@@ -1,6 +1,7 @@
 package router
 
 import (
+	"aegis/consts"
 	"aegis/middleware"
 
 	"github.com/gin-gonic/gin"
@@ -90,23 +91,34 @@ func SetupAdminV2Routes(v2 *gin.RouterGroup, handlers *Handlers) {
 
 	resources := v2.Group("/resources", middleware.JWTAuth())
 	{
-		permissions := resources.Group("/:resource_id/permissions")
+		resourceRead := resources.Group("", middleware.RequirePermissionRead)
 		{
-			permissions.GET("", handlers.RBAC.ListResourcePermissions)
-		}
+			permissions := resourceRead.Group("/:resource_id/permissions")
+			{
+				permissions.GET("", handlers.RBAC.ListResourcePermissions)
+			}
 
-		resources.GET("/:resource_id", handlers.RBAC.GetResource)
-		resources.GET("", handlers.RBAC.ListResources)
+			resourceRead.GET("/:resource_id", handlers.RBAC.GetResource)
+			resourceRead.GET("", handlers.RBAC.ListResources)
+		}
 	}
 
 	systems := v2.Group("/systems", middleware.JWTAuth())
 	{
-		systems.GET("", handlers.ChaosSystem.ListSystems)
-		systems.POST("", handlers.ChaosSystem.CreateSystem)
-		systems.GET("/:id", handlers.ChaosSystem.GetSystem)
-		systems.PUT("/:id", handlers.ChaosSystem.UpdateSystem)
-		systems.DELETE("/:id", handlers.ChaosSystem.DeleteSystem)
-		systems.POST("/:id/metadata", handlers.ChaosSystem.UpsertMetadata)
-		systems.GET("/:id/metadata", handlers.ChaosSystem.ListMetadata)
+		systemRead := systems.Group("", middleware.RequireSystemRead)
+		{
+			systemRead.GET("", handlers.ChaosSystem.ListSystems)
+			systemRead.GET("/:id", handlers.ChaosSystem.GetSystem)
+			systemRead.GET("/:id/metadata", handlers.ChaosSystem.ListMetadata)
+		}
+
+		systemConfigure := systems.Group("", middleware.RequireSystemConfigure)
+		{
+			systemConfigure.POST("", handlers.ChaosSystem.CreateSystem)
+			systemConfigure.PUT("/:id", handlers.ChaosSystem.UpdateSystem)
+			systemConfigure.POST("/:id/metadata", handlers.ChaosSystem.UpsertMetadata)
+		}
+
+		systems.DELETE("/:id", middleware.RequirePermission(consts.PermSystemManage), handlers.ChaosSystem.DeleteSystem)
 	}
 }

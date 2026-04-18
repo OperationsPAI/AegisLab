@@ -23,8 +23,12 @@ func TestGeneratedAPIDocsContainCorePaths(t *testing.T) {
 		`"/api/v2/users"`,
 	})
 	checkJSONContains(t, filepath.Join(baseDir, "converted", "sdk.json"), []string{
-		`"/api/v2/auth/access-key/token"`,
+		`"/api/v2/auth/api-key/token"`,
 		`"/api/v2/sdk/evaluations"`,
+	})
+	checkJSONContains(t, filepath.Join(baseDir, "converted", "runtime.json"), []string{
+		`"/api/v2/executions/{execution_id}/detector_results"`,
+		`"/api/v2/executions/{execution_id}/granularity_results"`,
 	})
 }
 
@@ -32,6 +36,7 @@ func TestAudienceFilteredDocsMatchOpenAPI3Extensions(t *testing.T) {
 	openapi := readJSON(t, filepath.Join(".", "openapi3", "openapi.json"))
 
 	checkAudienceMatches(t, openapi, filepath.Join(".", "converted", "sdk.json"), "sdk")
+	checkAudienceMatches(t, openapi, filepath.Join(".", "converted", "runtime.json"), "runtime")
 	checkAudienceMatches(t, openapi, filepath.Join(".", "converted", "portal.json"), "portal")
 	checkAudienceMatches(t, openapi, filepath.Join(".", "converted", "admin.json"), "admin")
 }

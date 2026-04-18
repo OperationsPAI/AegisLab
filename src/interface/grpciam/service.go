@@ -69,7 +69,8 @@ func (s *iamServer) VerifyToken(ctx context.Context, req *iamv1.VerifyTokenReque
 			Roles:         claims.Roles,
 			ExpiresAtUnix: claims.ExpiresAt.Unix(),
 			AuthType:      claims.AuthType,
-			AccessKeyId:   int64(claims.AccessKeyID),
+			KeyId:         int64(claims.APIKeyID),
+			ApiKeyScopes:  append([]string(nil), claims.APIKeyScopes...),
 		}, nil
 	}
 
@@ -202,88 +203,98 @@ func (s *iamServer) GetProfile(ctx context.Context, req *iamv1.UserIDRequest) (*
 	return encodeStruct(resp)
 }
 
-func (s *iamServer) CreateAccessKey(ctx context.Context, req *iamv1.UserBodyRequest) (*iamv1.StructResponse, error) {
+func (s *iamServer) CreateAPIKey(ctx context.Context, req *iamv1.UserBodyRequest) (*iamv1.StructResponse, error) {
 	if req.GetUserId() <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "user_id is required")
 	}
-	body, err := decodeBody[authmodule.CreateAccessKeyReq](req.GetBody())
+	body, err := decodeBody[authmodule.CreateAPIKeyReq](req.GetBody())
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	if err := body.Validate(); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	resp, err := s.authAPI.CreateAccessKey(ctx, int(req.GetUserId()), body)
+	resp, err := s.authAPI.CreateAPIKey(ctx, int(req.GetUserId()), body)
 	if err != nil {
 		return nil, mapIAMError(err)
 	}
 	return encodeStruct(resp)
 }
 
-func (s *iamServer) ListAccessKeys(ctx context.Context, req *iamv1.UserQueryRequest) (*iamv1.StructResponse, error) {
+func (s *iamServer) ListAPIKeys(ctx context.Context, req *iamv1.UserQueryRequest) (*iamv1.StructResponse, error) {
 	if req.GetUserId() <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "user_id is required")
 	}
-	query, err := decodeQuery[authmodule.ListAccessKeyReq](req.GetQuery())
+	query, err := decodeQuery[authmodule.ListAPIKeyReq](req.GetQuery())
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	if err := query.Validate(); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	resp, err := s.authAPI.ListAccessKeys(ctx, int(req.GetUserId()), query)
+	resp, err := s.authAPI.ListAPIKeys(ctx, int(req.GetUserId()), query)
 	if err != nil {
 		return nil, mapIAMError(err)
 	}
 	return encodeStruct(resp)
 }
 
-func (s *iamServer) GetAccessKey(ctx context.Context, req *iamv1.UserScopedIDRequest) (*iamv1.StructResponse, error) {
+func (s *iamServer) GetAPIKey(ctx context.Context, req *iamv1.UserScopedIDRequest) (*iamv1.StructResponse, error) {
 	if req.GetUserId() <= 0 || req.GetId() <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "user_id and id are required")
 	}
-	resp, err := s.authAPI.GetAccessKey(ctx, int(req.GetUserId()), int(req.GetId()))
+	resp, err := s.authAPI.GetAPIKey(ctx, int(req.GetUserId()), int(req.GetId()))
 	if err != nil {
 		return nil, mapIAMError(err)
 	}
 	return encodeStruct(resp)
 }
 
-func (s *iamServer) DeleteAccessKey(ctx context.Context, req *iamv1.UserScopedIDRequest) (*emptypb.Empty, error) {
+func (s *iamServer) DeleteAPIKey(ctx context.Context, req *iamv1.UserScopedIDRequest) (*emptypb.Empty, error) {
 	if req.GetUserId() <= 0 || req.GetId() <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "user_id and id are required")
 	}
-	if err := s.authAPI.DeleteAccessKey(ctx, int(req.GetUserId()), int(req.GetId())); err != nil {
+	if err := s.authAPI.DeleteAPIKey(ctx, int(req.GetUserId()), int(req.GetId())); err != nil {
 		return nil, mapIAMError(err)
 	}
 	return &emptypb.Empty{}, nil
 }
 
-func (s *iamServer) DisableAccessKey(ctx context.Context, req *iamv1.UserScopedIDRequest) (*emptypb.Empty, error) {
+func (s *iamServer) DisableAPIKey(ctx context.Context, req *iamv1.UserScopedIDRequest) (*emptypb.Empty, error) {
 	if req.GetUserId() <= 0 || req.GetId() <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "user_id and id are required")
 	}
-	if err := s.authAPI.DisableAccessKey(ctx, int(req.GetUserId()), int(req.GetId())); err != nil {
+	if err := s.authAPI.DisableAPIKey(ctx, int(req.GetUserId()), int(req.GetId())); err != nil {
 		return nil, mapIAMError(err)
 	}
 	return &emptypb.Empty{}, nil
 }
 
-func (s *iamServer) EnableAccessKey(ctx context.Context, req *iamv1.UserScopedIDRequest) (*emptypb.Empty, error) {
+func (s *iamServer) EnableAPIKey(ctx context.Context, req *iamv1.UserScopedIDRequest) (*emptypb.Empty, error) {
 	if req.GetUserId() <= 0 || req.GetId() <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "user_id and id are required")
 	}
-	if err := s.authAPI.EnableAccessKey(ctx, int(req.GetUserId()), int(req.GetId())); err != nil {
+	if err := s.authAPI.EnableAPIKey(ctx, int(req.GetUserId()), int(req.GetId())); err != nil {
 		return nil, mapIAMError(err)
 	}
 	return &emptypb.Empty{}, nil
 }
 
-func (s *iamServer) RotateAccessKey(ctx context.Context, req *iamv1.UserScopedIDRequest) (*iamv1.StructResponse, error) {
+func (s *iamServer) RevokeAPIKey(ctx context.Context, req *iamv1.UserScopedIDRequest) (*emptypb.Empty, error) {
 	if req.GetUserId() <= 0 || req.GetId() <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "user_id and id are required")
 	}
-	resp, err := s.authAPI.RotateAccessKey(ctx, int(req.GetUserId()), int(req.GetId()))
+	if err := s.authAPI.RevokeAPIKey(ctx, int(req.GetUserId()), int(req.GetId())); err != nil {
+		return nil, mapIAMError(err)
+	}
+	return &emptypb.Empty{}, nil
+}
+
+func (s *iamServer) RotateAPIKey(ctx context.Context, req *iamv1.UserScopedIDRequest) (*iamv1.StructResponse, error) {
+	if req.GetUserId() <= 0 || req.GetId() <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "user_id and id are required")
+	}
+	resp, err := s.authAPI.RotateAPIKey(ctx, int(req.GetUserId()), int(req.GetId()))
 	if err != nil {
 		return nil, mapIAMError(err)
 	}
@@ -710,9 +721,9 @@ func (s *iamServer) IsUserInProject(ctx context.Context, req *iamv1.UserProjectR
 	return &iamv1.BoolResponse{Value: allowed}, nil
 }
 
-func (s *iamServer) ExchangeAccessKeyToken(ctx context.Context, req *iamv1.ExchangeAccessKeyTokenRequest) (*iamv1.ExchangeAccessKeyTokenResponse, error) {
-	authReq := &authmodule.AccessKeyTokenReq{
-		AccessKey: req.GetAccessKey(),
+func (s *iamServer) ExchangeAPIKeyToken(ctx context.Context, req *iamv1.ExchangeAPIKeyTokenRequest) (*iamv1.ExchangeAPIKeyTokenResponse, error) {
+	authReq := &authmodule.APIKeyTokenReq{
+		KeyID:     req.GetKeyId(),
 		Timestamp: req.GetTimestamp(),
 		Nonce:     req.GetNonce(),
 		Signature: req.GetSignature(),
@@ -724,16 +735,16 @@ func (s *iamServer) ExchangeAccessKeyToken(ctx context.Context, req *iamv1.Excha
 		return nil, status.Error(codes.InvalidArgument, "method and path are required")
 	}
 
-	resp, err := s.auth.ExchangeAccessKeyToken(ctx, authReq, req.GetMethod(), req.GetPath())
+	resp, err := s.auth.ExchangeAPIKeyToken(ctx, authReq, req.GetMethod(), req.GetPath())
 	if err != nil {
 		return nil, mapIAMError(err)
 	}
-	return &iamv1.ExchangeAccessKeyTokenResponse{
+	return &iamv1.ExchangeAPIKeyTokenResponse{
 		Token:         resp.Token,
 		TokenType:     resp.TokenType,
 		ExpiresAtUnix: resp.ExpiresAt.Unix(),
 		AuthType:      resp.AuthType,
-		AccessKey:     resp.AccessKey,
+		KeyId:         resp.KeyID,
 	}, nil
 }
 

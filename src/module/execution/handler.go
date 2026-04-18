@@ -304,7 +304,7 @@ func (h *Handler) BatchDeleteExecutions(c *gin.Context) {
 //	@Failure		404				{object}	dto.GenericResponse[any]							"Execution not found"
 //	@Failure		500				{object}	dto.GenericResponse[any]							"Internal server error"
 //	@Router			/api/v2/executions/{execution_id}/detector_results [post]
-//	@x-api-type		{}
+//	@x-api-type		{"runtime":"true"}
 func (h *Handler) UploadDetectorResults(c *gin.Context) {
 	executionID, ok := httpx.ParsePositiveID(c, c.Param(consts.URLPathExecutionID), "execution ID")
 	if !ok {
@@ -344,7 +344,7 @@ func (h *Handler) UploadDetectorResults(c *gin.Context) {
 //	@Failure		404				{object}	dto.GenericResponse[any]							"Execution not found"
 //	@Failure		500				{object}	dto.GenericResponse[any]							"Internal server error"
 //	@Router			/api/v2/executions/{execution_id}/granularity_results [post]
-//	@x-api-type		{}
+//	@x-api-type		{"runtime":"true"}
 func (h *Handler) UploadGranularityResults(c *gin.Context) {
 	executionID, ok := httpx.ParsePositiveID(c, c.Param(consts.URLPathExecutionID), "execution ID")
 	if !ok {

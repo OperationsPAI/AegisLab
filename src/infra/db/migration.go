@@ -18,7 +18,7 @@ func migrate(db *gorm.DB) {
 		&model.Project{},
 		&model.Label{},
 		&model.User{},
-		&model.UserAccessKey{},
+		&model.APIKey{},
 		&model.Role{},
 		&model.Permission{},
 		&model.Resource{},

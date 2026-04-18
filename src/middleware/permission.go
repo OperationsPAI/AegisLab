@@ -14,15 +14,17 @@ import (
 )
 
 type permissionContext struct {
-	userID      int
-	isAdmin     bool
-	roles       []string
-	checker     permissionChecker
-	ctx         context.Context
-	teamID      *int
-	projectID   *int
-	containerID *int
-	datasetID   *int
+	userID       int
+	isAdmin      bool
+	roles        []string
+	authType     string
+	apiKeyScopes []string
+	checker      permissionChecker
+	ctx          context.Context
+	teamID       *int
+	projectID    *int
+	containerID  *int
+	datasetID    *int
 }
 
 // permissionCheckFunc is a function that checks permission given the context
@@ -62,11 +64,15 @@ func extractPermissionContext(c *gin.Context) (*permissionContext, string) {
 	}
 
 	ctx := &permissionContext{
-		userID:  userID,
-		isAdmin: isAdmin,
-		roles:   roles,
-		checker: permissionCheckerFromContext(c),
-		ctx:     c.Request.Context(),
+		userID:   userID,
+		isAdmin:  isAdmin,
+		roles:    roles,
+		checker:  permissionCheckerFromContext(c),
+		ctx:      c.Request.Context(),
+		authType: GetAuthType(c),
+	}
+	if scopes, ok := GetCurrentAPIKeyScopes(c); ok {
+		ctx.apiKeyScopes = append([]string(nil), scopes...)
 	}
 
 	// Extract optional IDs from URL parameters
@@ -95,6 +101,38 @@ func extractPermissionContext(c *gin.Context) (*permissionContext, string) {
 	}
 
 	return ctx, ""
+}
+
+func (ctx *permissionContext) isAPIKeyAuth() bool {
+	return ctx != nil && ctx.authType == "api_key"
+}
+
+func (ctx *permissionContext) scopeAllowsPermission(permission consts.PermissionRule) bool {
+	if !ctx.isAPIKeyAuth() {
+		return true
+	}
+	if len(ctx.apiKeyScopes) == 0 {
+		return false
+	}
+	for _, scope := range ctx.apiKeyScopes {
+		if apiKeyScopeMatchesPermission(scope, permission) {
+			return true
+		}
+	}
+	return false
+}
+
+func (ctx *permissionContext) scopeAllowsAnyPermission(permissions []consts.PermissionRule) bool {
+	for _, permission := range permissions {
+		if ctx.scopeAllowsPermission(permission) {
+			return true
+		}
+	}
+	return false
+}
+
+func apiKeyScopeMatchesPermission(scope string, permission consts.PermissionRule) bool {
+	return apiKeyScopeMatchesTarget(scope, permission.String())
 }
 
 // withPermissionCheck creates a middleware decorator that wraps permission check logic
@@ -147,6 +185,9 @@ func withPermissionCheck(checkFunc permissionCheckFunc) gin.HandlerFunc {
 // singlePermission creates a check for a single permission
 func singlePermission(permission consts.PermissionRule) permissionCheckFunc {
 	return func(ctx *permissionContext) (bool, error) {
+		if !ctx.scopeAllowsPermission(permission) {
+			return false, nil
+		}
 		return ctx.checker.CheckUserPermission(ctx.ctx, &dto.CheckPermissionParams{
 			UserID:       ctx.userID,
 			Action:       permission.Action,
@@ -165,6 +206,9 @@ func singlePermission(permission consts.PermissionRule) permissionCheckFunc {
 func anyPermission(permissions []consts.PermissionRule) permissionCheckFunc {
 	return func(ctx *permissionContext) (bool, error) {
 		for _, perm := range permissions {
+			if !ctx.scopeAllowsPermission(perm) {
+				continue
+			}
 			hasPermission, err := ctx.checker.CheckUserPermission(
 				ctx.ctx,
 				&dto.CheckPermissionParams{
@@ -194,6 +238,9 @@ func anyPermission(permissions []consts.PermissionRule) permissionCheckFunc {
 func allPermissions(permissions []consts.PermissionRule) permissionCheckFunc {
 	return func(ctx *permissionContext) (bool, error) {
 		for _, perm := range permissions {
+			if !ctx.scopeAllowsPermission(perm) {
+				return false, nil
+			}
 			hasPermission, err := ctx.checker.CheckUserPermission(
 				ctx.ctx,
 				&dto.CheckPermissionParams{
@@ -266,6 +313,14 @@ func teamAccessCheck(requireAdmin bool) permissionCheckFunc {
 			return false, fmt.Errorf("team_id is required")
 		}
 
+		requiredScopes := []consts.PermissionRule{consts.PermTeamReadAll, consts.PermTeamManageAll}
+		if requireAdmin {
+			requiredScopes = []consts.PermissionRule{consts.PermTeamManageAll}
+		}
+		if !ctx.scopeAllowsAnyPermission(requiredScopes) {
+			return false, nil
+		}
+
 		// Check if system admin (from JWT token, no DB query)
 		if ctx.isAdmin {
 			return true, nil
@@ -301,6 +356,14 @@ func projectAccessCheck(requireAdmin bool) permissionCheckFunc {
 	return func(ctx *permissionContext) (bool, error) {
 		if ctx.projectID == nil {
 			return false, fmt.Errorf("project_id is required")
+		}
+
+		requiredScopes := []consts.PermissionRule{consts.PermProjectReadAll, consts.PermProjectManageAll}
+		if requireAdmin {
+			requiredScopes = []consts.PermissionRule{consts.PermProjectManageAll}
+		}
+		if !ctx.scopeAllowsAnyPermission(requiredScopes) {
+			return false, nil
 		}
 
 		// Check if system admin (from JWT token, no DB query)

@@ -16,19 +16,20 @@ service IAMService {
   rpc Logout(LogoutRequest) returns (google.protobuf.Empty);
   rpc ChangePassword(UserBodyRequest) returns (google.protobuf.Empty);
   rpc GetProfile(UserIDRequest) returns (StructResponse);
-  rpc CreateAccessKey(UserBodyRequest) returns (StructResponse);
-  rpc ListAccessKeys(UserQueryRequest) returns (StructResponse);
-  rpc GetAccessKey(UserScopedIDRequest) returns (StructResponse);
-  rpc DeleteAccessKey(UserScopedIDRequest) returns (google.protobuf.Empty);
-  rpc DisableAccessKey(UserScopedIDRequest) returns (google.protobuf.Empty);
-  rpc EnableAccessKey(UserScopedIDRequest) returns (google.protobuf.Empty);
-  rpc RotateAccessKey(UserScopedIDRequest) returns (StructResponse);
+  rpc CreateAPIKey(UserBodyRequest) returns (StructResponse);
+  rpc ListAPIKeys(UserQueryRequest) returns (StructResponse);
+  rpc GetAPIKey(UserScopedIDRequest) returns (StructResponse);
+  rpc DeleteAPIKey(UserScopedIDRequest) returns (google.protobuf.Empty);
+  rpc DisableAPIKey(UserScopedIDRequest) returns (google.protobuf.Empty);
+  rpc EnableAPIKey(UserScopedIDRequest) returns (google.protobuf.Empty);
+  rpc RevokeAPIKey(UserScopedIDRequest) returns (google.protobuf.Empty);
+  rpc RotateAPIKey(UserScopedIDRequest) returns (StructResponse);
   rpc IsUserTeamAdmin(UserTeamRequest) returns (BoolResponse);
   rpc IsUserInTeam(UserTeamRequest) returns (BoolResponse);
   rpc IsTeamPublic(TeamRequest) returns (BoolResponse);
   rpc IsUserProjectAdmin(UserProjectRequest) returns (BoolResponse);
   rpc IsUserInProject(UserProjectRequest) returns (BoolResponse);
-  rpc ExchangeAccessKeyToken(ExchangeAccessKeyTokenRequest) returns (ExchangeAccessKeyTokenResponse);
+  rpc ExchangeAPIKeyToken(ExchangeAPIKeyTokenRequest) returns (ExchangeAPIKeyTokenResponse);
   rpc CreateUser(MutationRequest) returns (StructResponse);
   rpc DeleteUser(IDRequest) returns (google.protobuf.Empty);
   rpc GetUser(IDRequest) returns (StructResponse);
@@ -85,8 +86,9 @@ message VerifyTokenResponse {
   repeated string roles = 8;
   int64 expires_at_unix = 9;
   string auth_type = 10;
-  int64 access_key_id = 11;
+  int64 key_id = 11;
   string task_id = 12;
+  repeated string api_key_scopes = 13;
 }
 
 message CheckPermissionRequest {
@@ -122,8 +124,8 @@ message BoolResponse {
   bool value = 1;
 }
 
-message ExchangeAccessKeyTokenRequest {
-  string access_key = 1;
+message ExchangeAPIKeyTokenRequest {
+  string key_id = 1;
   string timestamp = 2;
   string nonce = 3;
   string signature = 4;
@@ -131,12 +133,12 @@ message ExchangeAccessKeyTokenRequest {
   string path = 6;
 }
 
-message ExchangeAccessKeyTokenResponse {
+message ExchangeAPIKeyTokenResponse {
   string token = 1;
   string token_type = 2;
   int64 expires_at_unix = 3;
   string auth_type = 4;
-  string access_key = 5;
+  string key_id = 5;
 }
 
 message MutationRequest {

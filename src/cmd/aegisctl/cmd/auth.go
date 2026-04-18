@@ -21,13 +21,13 @@ var authCmd = &cobra.Command{
 // --- auth login ---
 
 var authLoginServer string
-var authLoginAccessKey string
-var authLoginSecretKey string
+var authLoginKeyID string
+var authLoginKeySecret string
 var authLoginContext string
 
 var authLoginCmd = &cobra.Command{
 	Use:   "login",
-	Short: "Exchange AK/SK for a bearer token",
+	Short: "Exchange Key ID / Key Secret for a bearer token",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		server := authLoginServer
 		if server == "" {
@@ -37,25 +37,25 @@ var authLoginCmd = &cobra.Command{
 			return fmt.Errorf("--server is required for login")
 		}
 
-		accessKey := authLoginAccessKey
-		if accessKey == "" {
-			accessKey = os.Getenv("AEGIS_ACCESS_KEY")
+		keyID := authLoginKeyID
+		if keyID == "" {
+			keyID = os.Getenv("AEGIS_KEY_ID")
 		}
-		if accessKey == "" {
-			return fmt.Errorf("--access-key is required")
-		}
-
-		secretKey := authLoginSecretKey
-		if secretKey == "" {
-			secretKey = os.Getenv("AEGIS_SECRET_KEY")
-		}
-		if secretKey == "" {
-			return fmt.Errorf("--secret-key is required")
+		if keyID == "" {
+			return fmt.Errorf("--key-id is required")
 		}
 
-		output.PrintInfo(fmt.Sprintf("Exchanging access key token with %s using %s...", server, accessKey))
+		keySecret := authLoginKeySecret
+		if keySecret == "" {
+			keySecret = os.Getenv("AEGIS_KEY_SECRET")
+		}
+		if keySecret == "" {
+			return fmt.Errorf("--key-secret is required")
+		}
 
-		result, err := client.LoginWithAccessKey(server, accessKey, secretKey)
+		output.PrintInfo(fmt.Sprintf("Exchanging API key token with %s using %s...", server, keyID))
+
+		result, err := client.LoginWithAPIKey(server, keyID, keySecret)
 		if err != nil {
 			return err
 		}
@@ -71,7 +71,7 @@ var authLoginCmd = &cobra.Command{
 			Server:      server,
 			Token:       result.Token,
 			AuthType:    result.AuthType,
-			AccessKey:   result.AccessKey,
+			KeyID:       result.KeyID,
 			TokenExpiry: result.ExpiresAt,
 		}
 		cfg.CurrentContext = ctxName
@@ -85,11 +85,11 @@ var authLoginCmd = &cobra.Command{
 				"context":    ctxName,
 				"server":     server,
 				"auth_type":  result.AuthType,
-				"access_key": result.AccessKey,
+				"key_id":     result.KeyID,
 				"expires_at": result.ExpiresAt.Format(time.RFC3339),
 			})
 		} else {
-			output.PrintInfo(fmt.Sprintf("Token issued for access key %s (context: %s)", result.AccessKey, ctxName))
+			output.PrintInfo(fmt.Sprintf("Token issued for key id %s (context: %s)", result.KeyID, ctxName))
 			output.PrintInfo(fmt.Sprintf("Token expires at %s", result.ExpiresAt.Format(time.RFC3339)))
 		}
 		return nil
@@ -123,7 +123,7 @@ var authStatusCmd = &cobra.Command{
 				"server":     ctx.Server,
 				"status":     status,
 				"auth_type":  ctx.AuthType,
-				"access_key": ctx.AccessKey,
+				"key_id":     ctx.KeyID,
 				"expires_at": ctx.TokenExpiry.Format(time.RFC3339),
 			})
 			return nil
@@ -151,8 +151,8 @@ var authStatusCmd = &cobra.Command{
 		} else {
 			output.PrintInfo(fmt.Sprintf("Authenticated as: %s (id: %d)", profile.Username, profile.ID))
 		}
-		if ctx.AccessKey != "" {
-			output.PrintInfo(fmt.Sprintf("Issued via access key: %s", ctx.AccessKey))
+		if ctx.KeyID != "" {
+			output.PrintInfo(fmt.Sprintf("Issued via key id: %s", ctx.KeyID))
 		}
 
 		return nil
@@ -191,7 +191,7 @@ var authInspectCmd = &cobra.Command{
 				"context":       ctxName,
 				"server":        ctx.Server,
 				"auth_type":     ctx.AuthType,
-				"access_key":    ctx.AccessKey,
+				"key_id":        ctx.KeyID,
 				"token_present": ctx.Token != "",
 				"token_preview": tokenPreview,
 				"token_expired": expired,
@@ -201,12 +201,12 @@ var authInspectCmd = &cobra.Command{
 		}
 
 		output.PrintTable(
-			[]string{"Context", "Server", "AuthType", "AccessKey", "Token", "Expired", "Expires"},
+			[]string{"Context", "Server", "AuthType", "KeyID", "Token", "Expired", "Expires"},
 			[][]string{{
 				ctxName,
 				ctx.Server,
 				emptyOrValue(ctx.AuthType, "-"),
-				emptyOrValue(ctx.AccessKey, "-"),
+				emptyOrValue(ctx.KeyID, "-"),
 				emptyOrValue(tokenPreview, "-"),
 				fmt.Sprintf("%t", expired),
 				emptyOrValue(expiresAt, "-"),
@@ -218,8 +218,8 @@ var authInspectCmd = &cobra.Command{
 
 // --- auth sign-debug ---
 
-var authSignDebugAccessKey string
-var authSignDebugSecretKey string
+var authSignDebugKeyID string
+var authSignDebugKeySecret string
 var authSignDebugTimestamp int64
 var authSignDebugNonce string
 var authSignDebugExecute bool
@@ -227,22 +227,22 @@ var authSignDebugSaveContext bool
 
 var authSignDebugCmd = &cobra.Command{
 	Use:   "sign-debug",
-	Short: "Print canonical string and signature headers for AK/SK token exchange",
+	Short: "Print canonical string and signature headers for Key ID / Key Secret token exchange",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		accessKey := authSignDebugAccessKey
-		if accessKey == "" {
-			accessKey = os.Getenv("AEGIS_ACCESS_KEY")
+		keyID := authSignDebugKeyID
+		if keyID == "" {
+			keyID = os.Getenv("AEGIS_KEY_ID")
 		}
-		if accessKey == "" {
-			return fmt.Errorf("--access-key is required")
+		if keyID == "" {
+			return fmt.Errorf("--key-id is required")
 		}
 
-		secretKey := authSignDebugSecretKey
-		if secretKey == "" {
-			secretKey = os.Getenv("AEGIS_SECRET_KEY")
+		keySecret := authSignDebugKeySecret
+		if keySecret == "" {
+			keySecret = os.Getenv("AEGIS_KEY_SECRET")
 		}
-		if secretKey == "" {
-			return fmt.Errorf("--secret-key is required")
+		if keySecret == "" {
+			return fmt.Errorf("--key-secret is required")
 		}
 
 		signTime := time.Now().UTC()
@@ -250,7 +250,7 @@ var authSignDebugCmd = &cobra.Command{
 			signTime = time.Unix(authSignDebugTimestamp, 0).UTC()
 		}
 
-		debugInfo, err := client.PrepareAccessKeyTokenDebug(accessKey, secretKey, signTime, authSignDebugNonce)
+		debugInfo, err := client.PrepareAPIKeyTokenDebug(keyID, keySecret, signTime, authSignDebugNonce)
 		if err != nil {
 			return err
 		}
@@ -259,15 +259,15 @@ var authSignDebugCmd = &cobra.Command{
 		if authSignDebugExecute && (server == "" || strings.Contains(server, "HOST:8082")) {
 			return fmt.Errorf("--execute requires a real --server or configured AEGIS_SERVER/current context")
 		}
-		curlCommand := buildAccessKeyCurl(server, debugInfo)
+		curlCommand := buildAPIKeyCurl(server, debugInfo)
 		var executeResp map[string]any
 		if authSignDebugExecute {
-			executeResp, err = executeAccessKeyTokenExchange(server, debugInfo)
+			executeResp, err = executeAPIKeyTokenExchange(server, debugInfo)
 			if err != nil {
 				return err
 			}
 			if authSignDebugSaveContext {
-				if err := saveAccessKeyContext(server, executeResp); err != nil {
+				if err := saveAPIKeyContext(server, executeResp); err != nil {
 					return err
 				}
 			}
@@ -280,9 +280,10 @@ var authSignDebugCmd = &cobra.Command{
 				"server":           server,
 				"method":           debugInfo.Method,
 				"path":             debugInfo.Path,
-				"access_key":       debugInfo.AccessKey,
+				"key_id":           debugInfo.KeyID,
 				"timestamp":        debugInfo.Timestamp,
 				"nonce":            debugInfo.Nonce,
+				"body_sha256":      debugInfo.BodySHA256,
 				"canonical_string": debugInfo.CanonicalString,
 				"signature":        debugInfo.Signature,
 				"headers":          debugInfo.Headers(),
@@ -300,9 +301,10 @@ var authSignDebugCmd = &cobra.Command{
 		fmt.Printf("Server: %s\n", server)
 		fmt.Printf("Method: %s\n", debugInfo.Method)
 		fmt.Printf("Path: %s\n", debugInfo.Path)
-		fmt.Printf("Access-Key: %s\n", debugInfo.AccessKey)
+		fmt.Printf("Key-Id: %s\n", debugInfo.KeyID)
 		fmt.Printf("Timestamp: %s\n", debugInfo.Timestamp)
 		fmt.Printf("Nonce: %s\n", debugInfo.Nonce)
+		fmt.Printf("Body-SHA256: %s\n", debugInfo.BodySHA256)
 		fmt.Printf("Signature: %s\n\n", debugInfo.Signature)
 		fmt.Println("Canonical String:")
 		fmt.Println(debugInfo.CanonicalString)
@@ -354,7 +356,7 @@ var authTokenCmd = &cobra.Command{
 		ctx := cfg.Contexts[ctxName]
 		ctx.Token = authTokenSet
 		ctx.AuthType = "token"
-		ctx.AccessKey = ""
+		ctx.KeyID = ""
 		ctx.TokenExpiry = time.Time{}
 		cfg.Contexts[ctxName] = ctx
 		cfg.CurrentContext = ctxName
@@ -370,11 +372,11 @@ var authTokenCmd = &cobra.Command{
 
 func init() {
 	authLoginCmd.Flags().StringVar(&authLoginServer, "server", "", "Server URL")
-	authLoginCmd.Flags().StringVar(&authLoginAccessKey, "access-key", "", "Access key (env: AEGIS_ACCESS_KEY)")
-	authLoginCmd.Flags().StringVar(&authLoginSecretKey, "secret-key", "", "Secret key (env: AEGIS_SECRET_KEY)")
+	authLoginCmd.Flags().StringVar(&authLoginKeyID, "key-id", "", "Key ID (env: AEGIS_KEY_ID)")
+	authLoginCmd.Flags().StringVar(&authLoginKeySecret, "key-secret", "", "Key secret (env: AEGIS_KEY_SECRET)")
 	authLoginCmd.Flags().StringVar(&authLoginContext, "context", "", "Context name to save credentials under (default: \"default\")")
-	authSignDebugCmd.Flags().StringVar(&authSignDebugAccessKey, "access-key", "", "Access key (env: AEGIS_ACCESS_KEY)")
-	authSignDebugCmd.Flags().StringVar(&authSignDebugSecretKey, "secret-key", "", "Secret key (env: AEGIS_SECRET_KEY)")
+	authSignDebugCmd.Flags().StringVar(&authSignDebugKeyID, "key-id", "", "Key ID (env: AEGIS_KEY_ID)")
+	authSignDebugCmd.Flags().StringVar(&authSignDebugKeySecret, "key-secret", "", "Key secret (env: AEGIS_KEY_SECRET)")
 	authSignDebugCmd.Flags().Int64Var(&authSignDebugTimestamp, "timestamp", 0, "Override unix timestamp in seconds")
 	authSignDebugCmd.Flags().StringVar(&authSignDebugNonce, "nonce", "", "Override nonce for reproducible signature output")
 	authSignDebugCmd.Flags().BoolVar(&authSignDebugExecute, "execute", false, "Execute the signed token exchange request and print the response")
@@ -404,19 +406,19 @@ func resolveServerForAuthDebug() string {
 	return "http://HOST:8082"
 }
 
-func buildAccessKeyCurl(server string, debugInfo *client.AccessKeyTokenDebug) string {
+func buildAPIKeyCurl(server string, debugInfo *client.APIKeyTokenDebug) string {
 	return fmt.Sprintf(
-		"curl -X POST %s%s -H 'Accept: application/json' -H 'X-Access-Key: %s' -H 'X-Timestamp: %s' -H 'X-Nonce: %s' -H 'X-Signature: %s'",
+		"curl -X POST %s%s -H 'Accept: application/json' -H 'X-Key-Id: %s' -H 'X-Timestamp: %s' -H 'X-Nonce: %s' -H 'X-Signature: %s'",
 		server,
 		debugInfo.Path,
-		debugInfo.AccessKey,
+		debugInfo.KeyID,
 		debugInfo.Timestamp,
 		debugInfo.Nonce,
 		debugInfo.Signature,
 	)
 }
 
-func executeAccessKeyTokenExchange(server string, debugInfo *client.AccessKeyTokenDebug) (map[string]any, error) {
+func executeAPIKeyTokenExchange(server string, debugInfo *client.APIKeyTokenDebug) (map[string]any, error) {
 	httpClient := client.NewClient(server, "", 30*time.Second)
 	var response map[string]any
 	if err := httpClient.PostWithHeaders(debugInfo.Path, debugInfo.Headers(), &response); err != nil {
@@ -425,7 +427,7 @@ func executeAccessKeyTokenExchange(server string, debugInfo *client.AccessKeyTok
 	return response, nil
 }
 
-func saveAccessKeyContext(server string, executeResp map[string]any) error {
+func saveAPIKeyContext(server string, executeResp map[string]any) error {
 	ctxName := resolveContextNameForSave()
 	ctx := cfg.Contexts[ctxName]
 	ctx.Server = server
@@ -444,8 +446,8 @@ func saveAccessKeyContext(server string, executeResp map[string]any) error {
 	if authType, _ := data["auth_type"].(string); strings.TrimSpace(authType) != "" {
 		ctx.AuthType = authType
 	}
-	if accessKey, _ := data["access_key"].(string); strings.TrimSpace(accessKey) != "" {
-		ctx.AccessKey = accessKey
+	if keyID, _ := data["key_id"].(string); strings.TrimSpace(keyID) != "" {
+		ctx.KeyID = keyID
 	}
 	if expiresAt, _ := data["expires_at"].(string); strings.TrimSpace(expiresAt) != "" {
 		parsed, err := time.Parse(time.RFC3339, expiresAt)

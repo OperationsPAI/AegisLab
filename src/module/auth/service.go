@@ -20,18 +20,18 @@ import (
 const accessKeySignatureTTL = 5 * time.Minute
 
 type Service struct {
-	userRepo      *UserRepository
-	roleRepo      *RoleRepository
-	accessKeyRepo *AccessKeyRepository
-	tokenStore    *TokenStore
+	userRepo   *UserRepository
+	roleRepo   *RoleRepository
+	apiKeyRepo *APIKeyRepository
+	tokenStore *TokenStore
 }
 
-func NewService(userRepo *UserRepository, roleRepo *RoleRepository, accessKeyRepo *AccessKeyRepository, tokenStore *TokenStore) *Service {
+func NewService(userRepo *UserRepository, roleRepo *RoleRepository, apiKeyRepo *APIKeyRepository, tokenStore *TokenStore) *Service {
 	return &Service{
-		userRepo:      userRepo,
-		roleRepo:      roleRepo,
-		accessKeyRepo: accessKeyRepo,
-		tokenStore:    tokenStore,
+		userRepo:   userRepo,
+		roleRepo:   roleRepo,
+		apiKeyRepo: apiKeyRepo,
+		tokenStore: tokenStore,
 	}
 }
 
@@ -248,155 +248,184 @@ func (s *Service) GetProfile(ctx context.Context, userID int) (*UserProfileResp,
 	return resp, nil
 }
 
-func (s *Service) CreateAccessKey(ctx context.Context, userID int, req *CreateAccessKeyReq) (*AccessKeyWithSecretResp, error) {
+func (s *Service) CreateAPIKey(ctx context.Context, userID int, req *CreateAPIKeyReq) (*APIKeyWithSecretResp, error) {
 	if req == nil {
-		return nil, fmt.Errorf("access key create request is nil")
+		return nil, fmt.Errorf("api key create request is nil")
 	}
-
-	accessKeyValue, err := generateCredentialValue("ak_", 16)
+	normalizedScopes, err := normalizeAPIKeyScopes(req.Scopes)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate access key: %w", err)
-	}
-	secretKeyValue, err := generateCredentialValue("sk_", 24)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate secret key: %w", err)
-	}
-	secretHash, err := utils.HashPassword(secretKeyValue)
-	if err != nil {
-		return nil, fmt.Errorf("failed to hash secret key: %w", err)
-	}
-	secretCiphertext, err := utils.EncryptAccessKeySecret(secretKeyValue)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encrypt secret key: %w", err)
-	}
-
-	key := &model.UserAccessKey{
-		UserID:           userID,
-		Name:             req.Name,
-		Description:      req.Description,
-		AccessKey:        accessKeyValue,
-		SecretHash:       secretHash,
-		SecretCiphertext: secretCiphertext,
-		ExpiresAt:        req.ExpiresAt,
-		Status:           consts.CommonEnabled,
-	}
-	if err := s.accessKeyRepo.Create(key); err != nil {
 		return nil, err
 	}
 
-	resp := &AccessKeyWithSecretResp{
-		AccessKeyInfo: *NewAccessKeyInfo(key),
-		SecretKey:     secretKeyValue,
+	accessKeyValue, err := generateCredentialValue("pk_", 16)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate api key id: %w", err)
+	}
+	secretKeyValue, err := generateCredentialValue("ks_", 24)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate key secret: %w", err)
+	}
+	secretHash, err := utils.HashPassword(secretKeyValue)
+	if err != nil {
+		return nil, fmt.Errorf("failed to hash key secret: %w", err)
+	}
+	secretCiphertext, err := utils.EncryptAPIKeySecret(secretKeyValue)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encrypt key secret: %w", err)
+	}
+
+	key := &model.APIKey{
+		UserID:              userID,
+		Name:                req.Name,
+		Description:         req.Description,
+		KeyID:               accessKeyValue,
+		KeySecretHash:       secretHash,
+		KeySecretCiphertext: secretCiphertext,
+		Scopes:              normalizedScopes,
+		ExpiresAt:           req.ExpiresAt,
+		Status:              consts.CommonEnabled,
+	}
+	if err := s.apiKeyRepo.Create(key); err != nil {
+		return nil, err
+	}
+
+	resp := &APIKeyWithSecretResp{
+		APIKeyInfo: *NewAPIKeyInfo(key),
+		KeySecret:  secretKeyValue,
 	}
 	return resp, nil
 }
 
-func (s *Service) ListAccessKeys(ctx context.Context, userID int, req *ListAccessKeyReq) (*ListAccessKeyResp, error) {
+func (s *Service) ListAPIKeys(ctx context.Context, userID int, req *ListAPIKeyReq) (*ListAPIKeyResp, error) {
 	if req == nil {
-		return nil, fmt.Errorf("access key list request is nil")
+		return nil, fmt.Errorf("api key list request is nil")
 	}
 
 	limit, offset := req.ToGormParams()
-	keys, total, err := s.accessKeyRepo.ListByUserID(userID, limit, offset)
+	keys, total, err := s.apiKeyRepo.ListByUserID(userID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
 
-	items := make([]AccessKeyInfo, 0, len(keys))
+	items := make([]APIKeyInfo, 0, len(keys))
 	for i := range keys {
-		items = append(items, *NewAccessKeyInfo(&keys[i]))
+		items = append(items, *NewAPIKeyInfo(&keys[i]))
 	}
 
-	return &ListAccessKeyResp{
+	return &ListAPIKeyResp{
 		Items:      items,
 		Pagination: *req.ConvertToPaginationInfo(total),
 	}, nil
 }
 
-func (s *Service) GetAccessKey(ctx context.Context, userID, accessKeyID int) (*AccessKeyInfo, error) {
-	key, err := s.accessKeyRepo.GetByIDForUser(accessKeyID, userID)
+func (s *Service) GetAPIKey(ctx context.Context, userID, accessKeyID int) (*APIKeyInfo, error) {
+	key, err := s.apiKeyRepo.GetByIDForUser(accessKeyID, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("%w: access key not found", consts.ErrNotFound)
+			return nil, fmt.Errorf("%w: api key not found", consts.ErrNotFound)
 		}
 		return nil, err
 	}
-	return NewAccessKeyInfo(key), nil
+	return NewAPIKeyInfo(key), nil
 }
 
-func (s *Service) DeleteAccessKey(ctx context.Context, userID, accessKeyID int) error {
-	key, err := s.accessKeyRepo.GetByIDForUser(accessKeyID, userID)
+func (s *Service) DeleteAPIKey(ctx context.Context, userID, accessKeyID int) error {
+	key, err := s.apiKeyRepo.GetByIDForUser(accessKeyID, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return fmt.Errorf("%w: access key not found", consts.ErrNotFound)
+			return fmt.Errorf("%w: api key not found", consts.ErrNotFound)
 		}
 		return err
 	}
 
 	key.Status = consts.CommonDeleted
-	return s.accessKeyRepo.Update(key)
+	return s.apiKeyRepo.Update(key)
 }
 
-func (s *Service) DisableAccessKey(ctx context.Context, userID, accessKeyID int) error {
-	return s.setAccessKeyStatus(userID, accessKeyID, consts.CommonDisabled)
+func (s *Service) DisableAPIKey(ctx context.Context, userID, accessKeyID int) error {
+	return s.setAPIKeyStatus(userID, accessKeyID, consts.CommonDisabled)
 }
 
-func (s *Service) EnableAccessKey(ctx context.Context, userID, accessKeyID int) error {
-	return s.setAccessKeyStatus(userID, accessKeyID, consts.CommonEnabled)
+func (s *Service) EnableAPIKey(ctx context.Context, userID, accessKeyID int) error {
+	return s.setAPIKeyStatus(userID, accessKeyID, consts.CommonEnabled)
 }
 
-func (s *Service) RotateAccessKey(ctx context.Context, userID, accessKeyID int) (*AccessKeyWithSecretResp, error) {
-	key, err := s.accessKeyRepo.GetByIDForUser(accessKeyID, userID)
+func (s *Service) RevokeAPIKey(ctx context.Context, userID, accessKeyID int) error {
+	key, err := s.apiKeyRepo.GetByIDForUser(accessKeyID, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("%w: access key not found", consts.ErrNotFound)
+			return fmt.Errorf("%w: api key not found", consts.ErrNotFound)
+		}
+		return err
+	}
+	if key.RevokedAt != nil {
+		return nil
+	}
+
+	now := time.Now()
+	key.RevokedAt = &now
+	key.Status = consts.CommonDisabled
+	return s.apiKeyRepo.Update(key)
+}
+
+func (s *Service) RotateAPIKey(ctx context.Context, userID, accessKeyID int) (*APIKeyWithSecretResp, error) {
+	key, err := s.apiKeyRepo.GetByIDForUser(accessKeyID, userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("%w: api key not found", consts.ErrNotFound)
 		}
 		return nil, err
 	}
+	if key.RevokedAt != nil {
+		return nil, fmt.Errorf("%w: revoked api key cannot be rotated", consts.ErrBadRequest)
+	}
 
-	secretKeyValue, err := generateCredentialValue("sk_", 24)
+	secretKeyValue, err := generateCredentialValue("ks_", 24)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate secret key: %w", err)
+		return nil, fmt.Errorf("failed to generate key secret: %w", err)
 	}
 	secretHash, err := utils.HashPassword(secretKeyValue)
 	if err != nil {
-		return nil, fmt.Errorf("failed to hash secret key: %w", err)
+		return nil, fmt.Errorf("failed to hash key secret: %w", err)
 	}
-	secretCiphertext, err := utils.EncryptAccessKeySecret(secretKeyValue)
+	secretCiphertext, err := utils.EncryptAPIKeySecret(secretKeyValue)
 	if err != nil {
-		return nil, fmt.Errorf("failed to encrypt secret key: %w", err)
+		return nil, fmt.Errorf("failed to encrypt key secret: %w", err)
 	}
 
-	key.SecretHash = secretHash
-	key.SecretCiphertext = secretCiphertext
-	if err := s.accessKeyRepo.Update(key); err != nil {
+	key.KeySecretHash = secretHash
+	key.KeySecretCiphertext = secretCiphertext
+	if err := s.apiKeyRepo.Update(key); err != nil {
 		return nil, err
 	}
 
-	return &AccessKeyWithSecretResp{
-		AccessKeyInfo: *NewAccessKeyInfo(key),
-		SecretKey:     secretKeyValue,
+	return &APIKeyWithSecretResp{
+		APIKeyInfo: *NewAPIKeyInfo(key),
+		KeySecret:  secretKeyValue,
 	}, nil
 }
 
-func (s *Service) ExchangeAccessKeyToken(ctx context.Context, req *AccessKeyTokenReq, method, path string) (*AccessKeyTokenResp, error) {
+func (s *Service) ExchangeAPIKeyToken(ctx context.Context, req *APIKeyTokenReq, method, path string) (*APIKeyTokenResp, error) {
 	if req == nil {
-		return nil, fmt.Errorf("access key token request is nil")
+		return nil, fmt.Errorf("api key token request is nil")
 	}
 
-	key, err := s.accessKeyRepo.GetByAccessKey(req.AccessKey)
+	key, err := s.apiKeyRepo.GetByKeyID(req.KeyID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("%w: invalid access key or secret key", consts.ErrAuthenticationFailed)
+			return nil, fmt.Errorf("%w: invalid key id or key secret", consts.ErrAuthenticationFailed)
 		}
 		return nil, err
 	}
 
 	if key.Status != consts.CommonEnabled {
-		return nil, fmt.Errorf("%w: access key is disabled", consts.ErrAuthenticationFailed)
+		return nil, fmt.Errorf("%w: api key is disabled", consts.ErrAuthenticationFailed)
+	}
+	if key.RevokedAt != nil {
+		return nil, fmt.Errorf("%w: api key is revoked", consts.ErrAuthenticationFailed)
 	}
 	if key.ExpiresAt != nil && key.ExpiresAt.Before(time.Now()) {
-		return nil, fmt.Errorf("%w: access key is expired", consts.ErrAuthenticationFailed)
+		return nil, fmt.Errorf("%w: api key is expired", consts.ErrAuthenticationFailed)
 	}
 	timestampUnix, err := req.TimestampUnix()
 	if err != nil {
@@ -408,43 +437,43 @@ func (s *Service) ExchangeAccessKeyToken(ctx context.Context, req *AccessKeyToke
 		return nil, fmt.Errorf("%w: request timestamp is outside the allowed window", consts.ErrAuthenticationFailed)
 	}
 
-	secretKey, err := utils.DecryptAccessKeySecret(key.SecretCiphertext)
+	secretKey, err := utils.DecryptAPIKeySecret(key.KeySecretCiphertext)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decrypt access key secret: %w", err)
+		return nil, fmt.Errorf("failed to decrypt api key secret: %w", err)
 	}
-	if !utils.VerifyAccessKeyRequestSignature(secretKey, req.CanonicalString(method, path), req.Signature) {
-		return nil, fmt.Errorf("%w: invalid access key signature", consts.ErrAuthenticationFailed)
+	if !utils.VerifyAPIKeyRequestSignature(secretKey, req.CanonicalString(method, path), req.Signature) {
+		return nil, fmt.Errorf("%w: invalid api key signature", consts.ErrAuthenticationFailed)
 	}
-	if err := s.tokenStore.ReserveAccessKeyNonce(ctx, key.AccessKey, req.Nonce, accessKeySignatureTTL); err != nil {
+	if err := s.tokenStore.ReserveAPIKeyNonce(ctx, key.KeyID, req.Nonce, accessKeySignatureTTL); err != nil {
 		return nil, err
 	}
 
 	user, err := s.userRepo.GetByID(key.UserID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("%w: access key owner not found", consts.ErrAuthenticationFailed)
+			return nil, fmt.Errorf("%w: api key owner not found", consts.ErrAuthenticationFailed)
 		}
 		return nil, err
 	}
 	if !user.IsActive || user.Status != consts.CommonEnabled {
-		return nil, fmt.Errorf("%w: access key owner is inactive", consts.ErrAuthenticationFailed)
+		return nil, fmt.Errorf("%w: api key owner is inactive", consts.ErrAuthenticationFailed)
 	}
 
-	token, expiresAt, err := s.generateAccessKeyTokenWithRoles(s.roleRepo, user, key.ID)
+	token, expiresAt, err := s.generateAPIKeyTokenWithRoles(s.roleRepo, user, key.ID, key.Scopes)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := s.accessKeyRepo.UpdateLastUsedAt(key.ID, time.Now()); err != nil {
-		logrus.WithError(err).Warn("failed to update access key last used time")
+	if err := s.apiKeyRepo.UpdateLastUsedAt(key.ID, time.Now()); err != nil {
+		logrus.WithError(err).Warn("failed to update api key last used time")
 	}
 
-	return &AccessKeyTokenResp{
+	return &APIKeyTokenResp{
 		Token:     token,
 		TokenType: "Bearer",
 		ExpiresAt: expiresAt,
-		AuthType:  "access_key",
-		AccessKey: key.AccessKey,
+		AuthType:  "api_key",
+		KeyID:     key.KeyID,
 	}, nil
 }
 
@@ -471,7 +500,7 @@ func (s *Service) generateTokenWithRoles(roleRepo *RoleRepository, user *model.U
 	return token, expiresAt, nil
 }
 
-func (s *Service) generateAccessKeyTokenWithRoles(roleRepo *RoleRepository, user *model.User, accessKeyID int) (string, time.Time, error) {
+func (s *Service) generateAPIKeyTokenWithRoles(roleRepo *RoleRepository, user *model.User, apiKeyID int, apiKeyScopes []string) (string, time.Time, error) {
 	roles, err := roleRepo.ListByUserID(user.ID)
 	if err != nil {
 		return "", time.Time{}, fmt.Errorf("failed to get user roles: %w", err)
@@ -486,9 +515,9 @@ func (s *Service) generateAccessKeyTokenWithRoles(roleRepo *RoleRepository, user
 		}
 	}
 
-	token, expiresAt, err := utils.GenerateAccessKeyToken(user.ID, user.Username, user.Email, user.IsActive, isAdmin, roleNames, accessKeyID)
+	token, expiresAt, err := utils.GenerateAPIKeyToken(user.ID, user.Username, user.Email, user.IsActive, isAdmin, roleNames, apiKeyID, apiKeyScopes)
 	if err != nil {
-		return "", time.Time{}, fmt.Errorf("failed to generate access key token: %w", err)
+		return "", time.Time{}, fmt.Errorf("failed to generate api key token: %w", err)
 	}
 
 	return token, expiresAt, nil
@@ -525,17 +554,20 @@ func (s *Service) getAllUserResourceRoles(userID int) ([]usermodule.UserContaine
 	return containerRoles, datasetRoles, projectRoles, nil
 }
 
-func (s *Service) setAccessKeyStatus(userID, accessKeyID int, status consts.StatusType) error {
-	key, err := s.accessKeyRepo.GetByIDForUser(accessKeyID, userID)
+func (s *Service) setAPIKeyStatus(userID, accessKeyID int, status consts.StatusType) error {
+	key, err := s.apiKeyRepo.GetByIDForUser(accessKeyID, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return fmt.Errorf("%w: access key not found", consts.ErrNotFound)
+			return fmt.Errorf("%w: api key not found", consts.ErrNotFound)
 		}
 		return err
 	}
+	if status == consts.CommonEnabled && key.RevokedAt != nil {
+		return fmt.Errorf("%w: revoked api key cannot be re-enabled", consts.ErrBadRequest)
+	}
 
 	key.Status = status
-	return s.accessKeyRepo.Update(key)
+	return s.apiKeyRepo.Update(key)
 }
 
 func generateCredentialValue(prefix string, randomBytes int) (string, error) {

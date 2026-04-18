@@ -2,6 +2,7 @@ package grpciaminterface
 
 import (
 	"context"
+	"reflect"
 	"testing"
 	"time"
 
@@ -119,6 +120,27 @@ func TestIAMServerVerifyTokenUser(t *testing.T) {
 	}
 	if resp.ExpiresAtUnix != expiresAt.Unix() {
 		t.Fatalf("VerifyToken() expires_at_unix = %d, want %d", resp.ExpiresAtUnix, expiresAt.Unix())
+	}
+}
+
+func TestIAMServerVerifyTokenAPIKeyScopes(t *testing.T) {
+	token, _, err := utils.GenerateAPIKeyToken(7, "demo", "demo@example.com", true, false, []string{"user"}, 11, []string{"project:read", "execution:write"})
+	if err != nil {
+		t.Fatalf("GenerateAPIKeyToken() error = %v", err)
+	}
+
+	authSvc := authmodule.NewService(nil, nil, nil, nil)
+	server := newIAMServer(authSvc, authSvc, &teamHandlerStub{}, nil, nil, middlewareStub{allowed: true})
+	resp, err := server.VerifyToken(context.Background(), &iamv1.VerifyTokenRequest{Token: token})
+	if err != nil {
+		t.Fatalf("VerifyToken() error = %v", err)
+	}
+
+	if resp.AuthType != "api_key" || resp.KeyId != 11 {
+		t.Fatalf("VerifyToken() unexpected api-key response: %+v", resp)
+	}
+	if !reflect.DeepEqual(resp.ApiKeyScopes, []string{"project:read", "execution:write"}) {
+		t.Fatalf("VerifyToken() api_key_scopes = %v", resp.ApiKeyScopes)
 	}
 }
 

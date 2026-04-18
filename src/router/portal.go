@@ -57,8 +57,8 @@ func SetupPortalV2Routes(v2 *gin.RouterGroup, handlers *Handlers) {
 
 	teams := v2.Group("/teams", middleware.JWTAuth())
 	{
-		teams.POST("", handlers.Team.CreateTeam)
-		teams.GET("", handlers.Team.ListTeams)
+		teams.POST("", middleware.RequireTeamCreate, handlers.Team.CreateTeam)
+		teams.GET("", middleware.RequireTeamRead, handlers.Team.ListTeams)
 
 		teamAdmin := teams.Group("/:team_id", middleware.RequireTeamAdminAccess)
 		{
@@ -93,14 +93,15 @@ func SetupPortalV2Routes(v2 *gin.RouterGroup, handlers *Handlers) {
 		labels.POST("/batch-delete", middleware.RequireLabelDelete, handlers.Label.BatchDeleteLabels)
 	}
 
-	accessKeys := v2.Group("/access-keys", middleware.JWTAuth())
+	accessKeys := v2.Group("/api-keys", middleware.JWTAuth(), middleware.RequireHumanUserAuth())
 	{
-		accessKeys.GET("", handlers.Auth.ListAccessKeys)
-		accessKeys.POST("", handlers.Auth.CreateAccessKey)
-		accessKeys.GET("/:access_key_id", handlers.Auth.GetAccessKey)
-		accessKeys.DELETE("/:access_key_id", handlers.Auth.DeleteAccessKey)
-		accessKeys.POST("/:access_key_id/rotate", handlers.Auth.RotateAccessKey)
-		accessKeys.POST("/:access_key_id/disable", handlers.Auth.DisableAccessKey)
-		accessKeys.POST("/:access_key_id/enable", handlers.Auth.EnableAccessKey)
+		accessKeys.GET("", handlers.Auth.ListAPIKeys)
+		accessKeys.POST("", handlers.Auth.CreateAPIKey)
+		accessKeys.GET("/:id", handlers.Auth.GetAPIKey)
+		accessKeys.DELETE("/:id", handlers.Auth.DeleteAPIKey)
+		accessKeys.POST("/:id/rotate", handlers.Auth.RotateAPIKey)
+		accessKeys.POST("/:id/disable", handlers.Auth.DisableAPIKey)
+		accessKeys.POST("/:id/enable", handlers.Auth.EnableAPIKey)
+		accessKeys.POST("/:id/revoke", handlers.Auth.RevokeAPIKey)
 	}
 }

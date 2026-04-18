@@ -38,6 +38,9 @@ func JWTAuth() gin.HandlerFunc {
 			c.Set("is_active", claims.IsActive)
 			c.Set("is_admin", claims.IsAdmin)
 			c.Set("user_roles", claims.Roles)
+			c.Set("auth_type", claims.AuthType)
+			c.Set("api_key_id", claims.APIKeyID)
+			c.Set("api_key_scopes", append([]string(nil), claims.APIKeyScopes...))
 			c.Set("token_expires_at", claims.ExpiresAt.Time)
 			c.Set("token_type", "user")
 			c.Next()
@@ -94,6 +97,9 @@ func OptionalJWTAuth() gin.HandlerFunc {
 			c.Set("is_active", claims.IsActive)
 			c.Set("is_admin", claims.IsAdmin)
 			c.Set("user_roles", claims.Roles)
+			c.Set("auth_type", claims.AuthType)
+			c.Set("api_key_id", claims.APIKeyID)
+			c.Set("api_key_scopes", append([]string(nil), claims.APIKeyScopes...))
 			c.Set("token_expires_at", claims.ExpiresAt.Time)
 			c.Set("token_type", "user")
 			c.Next()
@@ -208,6 +214,32 @@ func GetCurrentUserRoles(c *gin.Context) ([]string, bool) {
 	return userRoles, ok
 }
 
+// GetCurrentAPIKeyScopes returns API key scopes when the current bearer token
+// was issued via Key ID / Key Secret exchange.
+func GetCurrentAPIKeyScopes(c *gin.Context) ([]string, bool) {
+	scopes, exists := c.Get("api_key_scopes")
+	if !exists {
+		return nil, false
+	}
+
+	apiKeyScopes, ok := scopes.([]string)
+	return apiKeyScopes, ok
+}
+
+// GetAuthType returns the auth_type claim of the current bearer token when present.
+func GetAuthType(c *gin.Context) string {
+	authType, exists := c.Get("auth_type")
+	if !exists {
+		return ""
+	}
+
+	value, ok := authType.(string)
+	if !ok {
+		return ""
+	}
+	return value
+}
+
 // GetServiceTaskID extracts task ID from service token context
 func GetServiceTaskID(c *gin.Context) (string, bool) {
 	taskID, exists := c.Get("task_id")
@@ -250,6 +282,22 @@ func RequireUserAuth(c *gin.Context) bool {
 	}
 
 	return RequireAuth(c)
+}
+
+// RequireServiceTokenAuth is a helper that ensures the current request uses a service token.
+func RequireServiceTokenAuth() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if !RequireAuth(c) {
+			c.Abort()
+			return
+		}
+		if !IsServiceToken(c) {
+			dto.ErrorResponse(c, http.StatusForbidden, "Service token required")
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
 }
 
 // RequireActiveUser ensures the current user exists and is active

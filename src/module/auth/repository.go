@@ -124,63 +124,63 @@ func (r *RoleRepository) ListByUserID(userID int) ([]model.Role, error) {
 	return roles, nil
 }
 
-type AccessKeyRepository struct {
+type APIKeyRepository struct {
 	db *gorm.DB
 }
 
-func NewAccessKeyRepository(db *gorm.DB) *AccessKeyRepository {
-	return &AccessKeyRepository{db: db}
+func NewAPIKeyRepository(db *gorm.DB) *APIKeyRepository {
+	return &APIKeyRepository{db: db}
 }
 
-func (r *AccessKeyRepository) Create(key *model.UserAccessKey) error {
+func (r *APIKeyRepository) Create(key *model.APIKey) error {
 	if err := r.db.Create(key).Error; err != nil {
-		return fmt.Errorf("failed to create access key: %w", err)
+		return fmt.Errorf("failed to create api key: %w", err)
 	}
 	return nil
 }
 
-func (r *AccessKeyRepository) ListByUserID(userID, limit, offset int) ([]model.UserAccessKey, int64, error) {
-	query := r.db.Model(&model.UserAccessKey{}).
+func (r *APIKeyRepository) ListByUserID(userID, limit, offset int) ([]model.APIKey, int64, error) {
+	query := r.db.Model(&model.APIKey{}).
 		Where("user_id = ? AND status != ?", userID, consts.CommonDeleted)
 
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
-		return nil, 0, fmt.Errorf("failed to count access keys: %w", err)
+		return nil, 0, fmt.Errorf("failed to count api keys: %w", err)
 	}
 
-	var keys []model.UserAccessKey
+	var keys []model.APIKey
 	if err := query.Order("id DESC").Limit(limit).Offset(offset).Find(&keys).Error; err != nil {
-		return nil, 0, fmt.Errorf("failed to list access keys: %w", err)
+		return nil, 0, fmt.Errorf("failed to list api keys: %w", err)
 	}
 	return keys, total, nil
 }
 
-func (r *AccessKeyRepository) GetByIDForUser(id, userID int) (*model.UserAccessKey, error) {
-	var key model.UserAccessKey
+func (r *APIKeyRepository) GetByIDForUser(id, userID int) (*model.APIKey, error) {
+	var key model.APIKey
 	if err := r.db.Where("id = ? AND user_id = ? AND status != ?", id, userID, consts.CommonDeleted).First(&key).Error; err != nil {
-		return nil, fmt.Errorf("failed to find access key: %w", err)
+		return nil, fmt.Errorf("failed to find api key: %w", err)
 	}
 	return &key, nil
 }
 
-func (r *AccessKeyRepository) GetByAccessKey(accessKey string) (*model.UserAccessKey, error) {
-	var key model.UserAccessKey
-	if err := r.db.Where("access_key = ? AND status != ?", accessKey, consts.CommonDeleted).First(&key).Error; err != nil {
-		return nil, fmt.Errorf("failed to find access key: %w", err)
+func (r *APIKeyRepository) GetByKeyID(keyID string) (*model.APIKey, error) {
+	var key model.APIKey
+	if err := r.db.Where("key_id = ? AND status != ?", keyID, consts.CommonDeleted).First(&key).Error; err != nil {
+		return nil, fmt.Errorf("failed to find api key: %w", err)
 	}
 	return &key, nil
 }
 
-func (r *AccessKeyRepository) Update(key *model.UserAccessKey) error {
+func (r *APIKeyRepository) Update(key *model.APIKey) error {
 	if err := r.db.Save(key).Error; err != nil {
-		return fmt.Errorf("failed to update access key: %w", err)
+		return fmt.Errorf("failed to update api key: %w", err)
 	}
 	return nil
 }
 
-func (r *AccessKeyRepository) UpdateLastUsedAt(id int, usedAt time.Time) error {
-	if err := r.db.Model(&model.UserAccessKey{}).Where("id = ?", id).Update("last_used_at", usedAt).Error; err != nil {
-		return fmt.Errorf("failed to update access key last used time: %w", err)
+func (r *APIKeyRepository) UpdateLastUsedAt(id int, usedAt time.Time) error {
+	if err := r.db.Model(&model.APIKey{}).Where("id = ?", id).Update("last_used_at", usedAt).Error; err != nil {
+		return fmt.Errorf("failed to update api key last used time: %w", err)
 	}
 	return nil
 }

@@ -26,7 +26,7 @@ The current backend architecture is a single repository with a single `go.mod`, 
 The main service boundaries are:
 
 - **`api-gateway`**: external HTTP/OpenAPI entrypoint
-- **`iam-service`**: auth, user, RBAC, team, access-key
+- **`iam-service`**: auth, user, RBAC, team, api-key
 - **`resource-service`**: project, label, container, dataset, evaluation metadata/query
 - **`orchestrator-service`**: submit, task, trace, retry, dead-letter, workflow control-plane
 - **`runtime-worker-service`**: Redis async consumption, K8s/BuildKit/Helm/Chaos runtime execution
@@ -70,7 +70,7 @@ It is the fastest option for local end-to-end debugging such as:
 | `consumer` | worker/controller/receiver side only | Yes, local runtime-side owners | Optional depending on config | queue/runtime/worker-only debugging |
 | `both` | HTTP + worker/controller/receiver | Yes, local owners for integrated debugging | Optional depending on config | full local async loop |
 | `api-gateway` | external HTTP gateway | No cross-owner local fallback as main path; service-specific remote wiring is expected | Yes | gateway boundary and remote-first debugging |
-| `iam-service` | IAM gRPC service | Yes, IAM-local owners only | Only if a specific cross-service read path needs it | auth/user/rbac/team/access-key |
+| `iam-service` | IAM gRPC service | Yes, IAM-local owners only | Only if a specific cross-service read path needs it | auth/user/rbac/team/api-key |
 | `resource-service` | Resource gRPC service | Yes, resource-local owners only | Yes for orchestrator-backed queries like some statistics/evaluation views | project/container/dataset/label/evaluation |
 | `orchestrator-service` | Orchestrator gRPC service | Yes, orchestrator-local owners only | Optional runtime/resource dependencies as needed | submit/task/trace/workflow |
 | `runtime-worker-service` | runtime worker + runtime gRPC | Yes, runtime-side execution infrastructure only | Yes, especially orchestrator target | Redis consumer, K8s/build/helm runtime |
@@ -176,6 +176,7 @@ make logs
 
 - **[Report Index](docs/report-index.md)**: Consolidated backend refactor, runtime, governance, SDK/auth, and validation notes
 - **[Refactor TODO](docs/todo.md)**: Source-of-truth task list and final acceptance checklist
+- **[API Key Auth TODO](docs/api-key-auth-execution-todo.md)**: Key ID / Key Secret auth execution checklist and signing contract
 - **[Frontend Redesign](docs/frontend-redesign.md)**: Frontend redesign plan and IA notes
 - **[Frontend UI Guidelines](docs/frontend-ui-guidelines.md)**: Frontend visual/system guidelines
 

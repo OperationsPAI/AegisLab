@@ -412,21 +412,23 @@ func (u *User) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
-type UserAccessKey struct {
-	ID               int    `gorm:"primaryKey;autoIncrement"`
-	UserID           int    `gorm:"not null;index:idx_user_access_key_owner_status"`
-	Name             string `gorm:"not null;size:128"`
-	Description      string `gorm:"type:text"`
-	AccessKey        string `gorm:"not null;size:64"`
-	SecretHash       string `gorm:"not null;size:255"`
-	SecretCiphertext string `gorm:"not null;type:text"`
-	LastUsedAt       *time.Time
-	ExpiresAt        *time.Time
-	Status           consts.StatusType `gorm:"not null;default:1;index:idx_user_access_key_owner_status"`
-	CreatedAt        time.Time         `gorm:"autoCreateTime"`
-	UpdatedAt        time.Time         `gorm:"autoUpdateTime"`
+type APIKey struct {
+	ID                  int      `gorm:"primaryKey;autoIncrement"`
+	UserID              int      `gorm:"not null;index:idx_api_key_owner_status"`
+	Name                string   `gorm:"not null;size:128"`
+	Description         string   `gorm:"type:text"`
+	KeyID               string   `gorm:"not null;size:64"`
+	KeySecretHash       string   `gorm:"not null;size:255"`
+	KeySecretCiphertext string   `gorm:"not null;type:text"`
+	Scopes              []string `gorm:"type:json;serializer:json"`
+	RevokedAt           *time.Time
+	LastUsedAt          *time.Time
+	ExpiresAt           *time.Time
+	Status              consts.StatusType `gorm:"not null;default:1;index:idx_api_key_owner_status"`
+	CreatedAt           time.Time         `gorm:"autoCreateTime"`
+	UpdatedAt           time.Time         `gorm:"autoUpdateTime"`
 
-	ActiveAccessKey string `gorm:"type:varchar(64) GENERATED ALWAYS AS (CASE WHEN status >= 0 THEN access_key ELSE NULL END) VIRTUAL;uniqueIndex:idx_active_user_access_key"`
+	ActiveKeyID string `gorm:"type:varchar(64) GENERATED ALWAYS AS (CASE WHEN status >= 0 THEN key_id ELSE NULL END) VIRTUAL;uniqueIndex:idx_active_api_key"`
 
 	User *User `gorm:"foreignKey:UserID"`
 }

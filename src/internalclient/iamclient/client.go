@@ -83,14 +83,15 @@ func (c *Client) VerifyToken(ctx context.Context, token string) (*utils.Claims, 
 		return nil, fmt.Errorf("token is not a user token")
 	}
 	return &utils.Claims{
-		UserID:      int(resp.GetUserId()),
-		Username:    resp.GetUsername(),
-		Email:       resp.GetEmail(),
-		IsActive:    resp.GetIsActive(),
-		IsAdmin:     resp.GetIsAdmin(),
-		Roles:       resp.GetRoles(),
-		AuthType:    resp.GetAuthType(),
-		AccessKeyID: int(resp.GetAccessKeyId()),
+		UserID:       int(resp.GetUserId()),
+		Username:     resp.GetUsername(),
+		Email:        resp.GetEmail(),
+		IsActive:     resp.GetIsActive(),
+		IsAdmin:      resp.GetIsAdmin(),
+		Roles:        resp.GetRoles(),
+		AuthType:     resp.GetAuthType(),
+		APIKeyID:     int(resp.GetKeyId()),
+		APIKeyScopes: resp.GetApiKeyScopes(),
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Unix(resp.GetExpiresAtUnix(), 0)),
 		},
@@ -309,109 +310,120 @@ func (c *Client) GetProfile(ctx context.Context, userID int) (*authmodule.UserPr
 	return decodeStruct[authmodule.UserProfileResp](resp.GetData())
 }
 
-func (c *Client) CreateAccessKey(ctx context.Context, userID int, req *authmodule.CreateAccessKeyReq) (*authmodule.AccessKeyWithSecretResp, error) {
+func (c *Client) CreateAPIKey(ctx context.Context, userID int, req *authmodule.CreateAPIKeyReq) (*authmodule.APIKeyWithSecretResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("iam grpc client is not configured")
 	}
 	body, err := toStructPB(req)
 	if err != nil {
-		return nil, fmt.Errorf("encode create access key request: %w", err)
+		return nil, fmt.Errorf("encode create api key request: %w", err)
 	}
-	resp, err := c.rpc.CreateAccessKey(ctx, &iamv1.UserBodyRequest{
+	resp, err := c.rpc.CreateAPIKey(ctx, &iamv1.UserBodyRequest{
 		UserId: int64(userID),
 		Body:   body,
 	})
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[authmodule.AccessKeyWithSecretResp](resp.GetData())
+	return decodeStruct[authmodule.APIKeyWithSecretResp](resp.GetData())
 }
 
-func (c *Client) ListAccessKeys(ctx context.Context, userID int, req *authmodule.ListAccessKeyReq) (*authmodule.ListAccessKeyResp, error) {
+func (c *Client) ListAPIKeys(ctx context.Context, userID int, req *authmodule.ListAPIKeyReq) (*authmodule.ListAPIKeyResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("iam grpc client is not configured")
 	}
 	query, err := toStructPB(req)
 	if err != nil {
-		return nil, fmt.Errorf("encode list access keys request: %w", err)
+		return nil, fmt.Errorf("encode list api keys request: %w", err)
 	}
-	resp, err := c.rpc.ListAccessKeys(ctx, &iamv1.UserQueryRequest{
+	resp, err := c.rpc.ListAPIKeys(ctx, &iamv1.UserQueryRequest{
 		UserId: int64(userID),
 		Query:  query,
 	})
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[authmodule.ListAccessKeyResp](resp.GetData())
+	return decodeStruct[authmodule.ListAPIKeyResp](resp.GetData())
 }
 
-func (c *Client) GetAccessKey(ctx context.Context, userID, accessKeyID int) (*authmodule.AccessKeyInfo, error) {
+func (c *Client) GetAPIKey(ctx context.Context, userID, accessKeyID int) (*authmodule.APIKeyInfo, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("iam grpc client is not configured")
 	}
-	resp, err := c.rpc.GetAccessKey(ctx, &iamv1.UserScopedIDRequest{
+	resp, err := c.rpc.GetAPIKey(ctx, &iamv1.UserScopedIDRequest{
 		UserId: int64(userID),
 		Id:     int64(accessKeyID),
 	})
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[authmodule.AccessKeyInfo](resp.GetData())
+	return decodeStruct[authmodule.APIKeyInfo](resp.GetData())
 }
 
-func (c *Client) DeleteAccessKey(ctx context.Context, userID, accessKeyID int) error {
+func (c *Client) DeleteAPIKey(ctx context.Context, userID, accessKeyID int) error {
 	if !c.Enabled() {
 		return fmt.Errorf("iam grpc client is not configured")
 	}
-	_, err := c.rpc.DeleteAccessKey(ctx, &iamv1.UserScopedIDRequest{
+	_, err := c.rpc.DeleteAPIKey(ctx, &iamv1.UserScopedIDRequest{
 		UserId: int64(userID),
 		Id:     int64(accessKeyID),
 	})
 	return mapRPCError(err)
 }
 
-func (c *Client) DisableAccessKey(ctx context.Context, userID, accessKeyID int) error {
+func (c *Client) DisableAPIKey(ctx context.Context, userID, accessKeyID int) error {
 	if !c.Enabled() {
 		return fmt.Errorf("iam grpc client is not configured")
 	}
-	_, err := c.rpc.DisableAccessKey(ctx, &iamv1.UserScopedIDRequest{
+	_, err := c.rpc.DisableAPIKey(ctx, &iamv1.UserScopedIDRequest{
 		UserId: int64(userID),
 		Id:     int64(accessKeyID),
 	})
 	return mapRPCError(err)
 }
 
-func (c *Client) EnableAccessKey(ctx context.Context, userID, accessKeyID int) error {
+func (c *Client) EnableAPIKey(ctx context.Context, userID, accessKeyID int) error {
 	if !c.Enabled() {
 		return fmt.Errorf("iam grpc client is not configured")
 	}
-	_, err := c.rpc.EnableAccessKey(ctx, &iamv1.UserScopedIDRequest{
+	_, err := c.rpc.EnableAPIKey(ctx, &iamv1.UserScopedIDRequest{
 		UserId: int64(userID),
 		Id:     int64(accessKeyID),
 	})
 	return mapRPCError(err)
 }
 
-func (c *Client) RotateAccessKey(ctx context.Context, userID, accessKeyID int) (*authmodule.AccessKeyWithSecretResp, error) {
+func (c *Client) RevokeAPIKey(ctx context.Context, userID, accessKeyID int) error {
+	if !c.Enabled() {
+		return fmt.Errorf("iam grpc client is not configured")
+	}
+	_, err := c.rpc.RevokeAPIKey(ctx, &iamv1.UserScopedIDRequest{
+		UserId: int64(userID),
+		Id:     int64(accessKeyID),
+	})
+	return mapRPCError(err)
+}
+
+func (c *Client) RotateAPIKey(ctx context.Context, userID, accessKeyID int) (*authmodule.APIKeyWithSecretResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("iam grpc client is not configured")
 	}
-	resp, err := c.rpc.RotateAccessKey(ctx, &iamv1.UserScopedIDRequest{
+	resp, err := c.rpc.RotateAPIKey(ctx, &iamv1.UserScopedIDRequest{
 		UserId: int64(userID),
 		Id:     int64(accessKeyID),
 	})
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[authmodule.AccessKeyWithSecretResp](resp.GetData())
+	return decodeStruct[authmodule.APIKeyWithSecretResp](resp.GetData())
 }
 
-func (c *Client) ExchangeAccessKeyToken(ctx context.Context, req *authmodule.AccessKeyTokenReq, method, path string) (*authmodule.AccessKeyTokenResp, error) {
+func (c *Client) ExchangeAPIKeyToken(ctx context.Context, req *authmodule.APIKeyTokenReq, method, path string) (*authmodule.APIKeyTokenResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("iam grpc client is not configured")
 	}
-	resp, err := c.rpc.ExchangeAccessKeyToken(ctx, &iamv1.ExchangeAccessKeyTokenRequest{
-		AccessKey: req.AccessKey,
+	resp, err := c.rpc.ExchangeAPIKeyToken(ctx, &iamv1.ExchangeAPIKeyTokenRequest{
+		KeyId:     req.KeyID,
 		Timestamp: req.Timestamp,
 		Nonce:     req.Nonce,
 		Signature: req.Signature,
@@ -421,12 +433,12 @@ func (c *Client) ExchangeAccessKeyToken(ctx context.Context, req *authmodule.Acc
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return &authmodule.AccessKeyTokenResp{
+	return &authmodule.APIKeyTokenResp{
 		Token:     resp.GetToken(),
 		TokenType: resp.GetTokenType(),
 		ExpiresAt: time.Unix(resp.GetExpiresAtUnix(), 0),
 		AuthType:  resp.GetAuthType(),
-		AccessKey: resp.GetAccessKey(),
+		KeyID:     resp.GetKeyId(),
 	}, nil
 }
 

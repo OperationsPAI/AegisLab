@@ -15,14 +15,15 @@ type authIAMClient interface {
 	Logout(context.Context, *utils.Claims) error
 	ChangePassword(context.Context, *authmodule.ChangePasswordReq, int) error
 	GetProfile(context.Context, int) (*authmodule.UserProfileResp, error)
-	CreateAccessKey(context.Context, int, *authmodule.CreateAccessKeyReq) (*authmodule.AccessKeyWithSecretResp, error)
-	ListAccessKeys(context.Context, int, *authmodule.ListAccessKeyReq) (*authmodule.ListAccessKeyResp, error)
-	GetAccessKey(context.Context, int, int) (*authmodule.AccessKeyInfo, error)
-	DeleteAccessKey(context.Context, int, int) error
-	DisableAccessKey(context.Context, int, int) error
-	EnableAccessKey(context.Context, int, int) error
-	RotateAccessKey(context.Context, int, int) (*authmodule.AccessKeyWithSecretResp, error)
-	ExchangeAccessKeyToken(context.Context, *authmodule.AccessKeyTokenReq, string, string) (*authmodule.AccessKeyTokenResp, error)
+	CreateAPIKey(context.Context, int, *authmodule.CreateAPIKeyReq) (*authmodule.APIKeyWithSecretResp, error)
+	ListAPIKeys(context.Context, int, *authmodule.ListAPIKeyReq) (*authmodule.ListAPIKeyResp, error)
+	GetAPIKey(context.Context, int, int) (*authmodule.APIKeyInfo, error)
+	DeleteAPIKey(context.Context, int, int) error
+	DisableAPIKey(context.Context, int, int) error
+	EnableAPIKey(context.Context, int, int) error
+	RevokeAPIKey(context.Context, int, int) error
+	RotateAPIKey(context.Context, int, int) (*authmodule.APIKeyWithSecretResp, error)
+	ExchangeAPIKeyToken(context.Context, *authmodule.APIKeyTokenReq, string, string) (*authmodule.APIKeyTokenResp, error)
 }
 
 type remoteAwareAuthService struct {
@@ -72,58 +73,65 @@ func (s remoteAwareAuthService) GetProfile(ctx context.Context, userID int) (*au
 	return nil, missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareAuthService) CreateAccessKey(ctx context.Context, userID int, req *authmodule.CreateAccessKeyReq) (*authmodule.AccessKeyWithSecretResp, error) {
+func (s remoteAwareAuthService) CreateAPIKey(ctx context.Context, userID int, req *authmodule.CreateAPIKeyReq) (*authmodule.APIKeyWithSecretResp, error) {
 	if s.iam != nil && s.iam.Enabled() {
-		return s.iam.CreateAccessKey(ctx, userID, req)
+		return s.iam.CreateAPIKey(ctx, userID, req)
 	}
 	return nil, missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareAuthService) ListAccessKeys(ctx context.Context, userID int, req *authmodule.ListAccessKeyReq) (*authmodule.ListAccessKeyResp, error) {
+func (s remoteAwareAuthService) ListAPIKeys(ctx context.Context, userID int, req *authmodule.ListAPIKeyReq) (*authmodule.ListAPIKeyResp, error) {
 	if s.iam != nil && s.iam.Enabled() {
-		return s.iam.ListAccessKeys(ctx, userID, req)
+		return s.iam.ListAPIKeys(ctx, userID, req)
 	}
 	return nil, missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareAuthService) GetAccessKey(ctx context.Context, userID, accessKeyID int) (*authmodule.AccessKeyInfo, error) {
+func (s remoteAwareAuthService) GetAPIKey(ctx context.Context, userID, accessKeyID int) (*authmodule.APIKeyInfo, error) {
 	if s.iam != nil && s.iam.Enabled() {
-		return s.iam.GetAccessKey(ctx, userID, accessKeyID)
+		return s.iam.GetAPIKey(ctx, userID, accessKeyID)
 	}
 	return nil, missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareAuthService) DeleteAccessKey(ctx context.Context, userID, accessKeyID int) error {
+func (s remoteAwareAuthService) DeleteAPIKey(ctx context.Context, userID, accessKeyID int) error {
 	if s.iam != nil && s.iam.Enabled() {
-		return s.iam.DeleteAccessKey(ctx, userID, accessKeyID)
+		return s.iam.DeleteAPIKey(ctx, userID, accessKeyID)
 	}
 	return missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareAuthService) DisableAccessKey(ctx context.Context, userID, accessKeyID int) error {
+func (s remoteAwareAuthService) DisableAPIKey(ctx context.Context, userID, accessKeyID int) error {
 	if s.iam != nil && s.iam.Enabled() {
-		return s.iam.DisableAccessKey(ctx, userID, accessKeyID)
+		return s.iam.DisableAPIKey(ctx, userID, accessKeyID)
 	}
 	return missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareAuthService) EnableAccessKey(ctx context.Context, userID, accessKeyID int) error {
+func (s remoteAwareAuthService) EnableAPIKey(ctx context.Context, userID, accessKeyID int) error {
 	if s.iam != nil && s.iam.Enabled() {
-		return s.iam.EnableAccessKey(ctx, userID, accessKeyID)
+		return s.iam.EnableAPIKey(ctx, userID, accessKeyID)
 	}
 	return missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareAuthService) RotateAccessKey(ctx context.Context, userID, accessKeyID int) (*authmodule.AccessKeyWithSecretResp, error) {
+func (s remoteAwareAuthService) RevokeAPIKey(ctx context.Context, userID, accessKeyID int) error {
 	if s.iam != nil && s.iam.Enabled() {
-		return s.iam.RotateAccessKey(ctx, userID, accessKeyID)
+		return s.iam.RevokeAPIKey(ctx, userID, accessKeyID)
+	}
+	return missingRemoteDependency("iam-service")
+}
+
+func (s remoteAwareAuthService) RotateAPIKey(ctx context.Context, userID, accessKeyID int) (*authmodule.APIKeyWithSecretResp, error) {
+	if s.iam != nil && s.iam.Enabled() {
+		return s.iam.RotateAPIKey(ctx, userID, accessKeyID)
 	}
 	return nil, missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareAuthService) ExchangeAccessKeyToken(ctx context.Context, req *authmodule.AccessKeyTokenReq, method, path string) (*authmodule.AccessKeyTokenResp, error) {
+func (s remoteAwareAuthService) ExchangeAPIKeyToken(ctx context.Context, req *authmodule.APIKeyTokenReq, method, path string) (*authmodule.APIKeyTokenResp, error) {
 	if s.iam != nil && s.iam.Enabled() {
-		return s.iam.ExchangeAccessKeyToken(ctx, req, method, path)
+		return s.iam.ExchangeAPIKeyToken(ctx, req, method, path)
 	}
 	return nil, missingRemoteDependency("iam-service")
 }

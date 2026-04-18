@@ -723,6 +723,7 @@ class SDKPostProcesser:
         """
         audience_keys_by_mode = {
             RunMode.SDK: {"sdk"},
+            RunMode.RUNTIME: {"runtime"},
             RunMode.PORTAL: {"portal"},
             RunMode.ADMIN: {"admin"},
         }
@@ -873,11 +874,13 @@ def init(version: str) -> None:
     post_input_file = OPENAPI3_DIR / "openapi.json"
     client_file = CONVERTED_DIR / "client.json"
     sdk_file = CONVERTED_DIR / "sdk.json"
+    runtime_file = CONVERTED_DIR / "runtime.json"
     portal_file = CONVERTED_DIR / "portal.json"
     admin_file = CONVERTED_DIR / "admin.json"
 
     shutil.copyfile(post_input_file, dst=client_file)
     shutil.copyfile(post_input_file, dst=sdk_file)
+    shutil.copyfile(post_input_file, dst=runtime_file)
     shutil.copyfile(post_input_file, dst=portal_file)
     shutil.copyfile(post_input_file, dst=admin_file)
 
@@ -890,6 +893,7 @@ def init(version: str) -> None:
 
     processor.output(client_file, RunMode.CLIENT)
     processor.output(sdk_file, RunMode.SDK)
+    processor.output(runtime_file, RunMode.RUNTIME)
     processor.output(portal_file, RunMode.PORTAL)
     processor.output(admin_file, RunMode.ADMIN)
 

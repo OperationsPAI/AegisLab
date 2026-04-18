@@ -40,7 +40,7 @@ func newAuthService(t *testing.T) (*Service, sqlmock.Sqlmock, func()) {
 	}), &gorm.Config{})
 	require.NoError(t, err)
 
-	service := NewService(NewUserRepository(db), NewRoleRepository(db), NewAccessKeyRepository(db), &TokenStore{})
+	service := NewService(NewUserRepository(db), NewRoleRepository(db), NewAPIKeyRepository(db), &TokenStore{})
 	return service, mock, func() {
 		_ = sqlDB.Close()
 	}
@@ -153,17 +153,17 @@ func TestAuthServiceRefreshTokenSuccess(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestAuthServiceCreateAccessKeySuccess(t *testing.T) {
+func TestAuthServiceCreateAPIKeySuccess(t *testing.T) {
 	service, mock, cleanup := newAuthService(t)
 	defer cleanup()
 
 	mock.ExpectBegin()
-	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO `user_access_keys` (`user_id`,`name`,`description`,`access_key`,`secret_hash`,`secret_ciphertext`,`last_used_at`,`expires_at`,`status`,`created_at`,`updated_at`,`active_access_key`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)")).
-		WithArgs(7, "ci-bot", "SDK credential", sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), nil, nil, consts.CommonEnabled, sqlmock.AnyArg(), sqlmock.AnyArg(), "").
+	mock.ExpectExec(regexp.QuoteMeta("INSERT INTO `api_keys` (`user_id`,`name`,`description`,`key_id`,`key_secret_hash`,`key_secret_ciphertext`,`scopes`,`revoked_at`,`last_used_at`,`expires_at`,`status`,`created_at`,`updated_at`,`active_key_id`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)")).
+		WithArgs(7, "ci-bot", "SDK credential", sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), nil, nil, nil, consts.CommonEnabled, sqlmock.AnyArg(), sqlmock.AnyArg(), "").
 		WillReturnResult(sqlmock.NewResult(11, 1))
 	mock.ExpectCommit()
 
-	resp, err := service.CreateAccessKey(t.Context(), 7, &CreateAccessKeyReq{
+	resp, err := service.CreateAPIKey(t.Context(), 7, &CreateAPIKeyReq{
 		Name:        "ci-bot",
 		Description: "SDK credential",
 	})
@@ -171,33 +171,34 @@ func TestAuthServiceCreateAccessKeySuccess(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 11, resp.ID)
 	require.Equal(t, "ci-bot", resp.Name)
-	require.NotEmpty(t, resp.AccessKey)
-	require.NotEmpty(t, resp.SecretKey)
+	require.NotEmpty(t, resp.KeyID)
+	require.NotEmpty(t, resp.KeySecret)
+	require.Equal(t, []string{"*"}, resp.Scopes)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestAuthServiceExchangeAccessKeyTokenSuccess(t *testing.T) {
+func TestAuthServiceExchangeAPIKeyTokenSuccess(t *testing.T) {
 	service, mock, cleanup := newAuthService(t)
 	defer cleanup()
 
 	now := time.Now()
-	secret := "sk_test_secret_123456"
+	secret := "ks_test_secret_123456"
 	secretHash, err := utils.HashPassword(secret)
 	require.NoError(t, err)
-	secretCiphertext, err := utils.EncryptAccessKeySecret(secret)
+	secretCiphertext, err := utils.EncryptAPIKeySecret(secret)
 	require.NoError(t, err)
-	req := &AccessKeyTokenReq{
-		AccessKey: "ak_test_credential",
+	req := &APIKeyTokenReq{
+		KeyID:     "pk_test_credential",
 		Timestamp: fmt.Sprintf("%d", now.Unix()),
 		Nonce:     "nonce_123",
 	}
-	req.Signature = utils.SignAccessKeyRequest(secret, req.CanonicalString("POST", "/api/v2/auth/access-key/token"))
+	req.Signature = utils.SignAPIKeyRequest(secret, req.CanonicalString("POST", "/api/v2/auth/api-key/token"))
 
-	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `user_access_keys` WHERE access_key = ? AND status != ? ORDER BY `user_access_keys`.`id` LIMIT ?")).
-		WithArgs("ak_test_credential", consts.CommonDeleted, 1).
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `api_keys` WHERE key_id = ? AND status != ? ORDER BY `api_keys`.`id` LIMIT ?")).
+		WithArgs("pk_test_credential", consts.CommonDeleted, 1).
 		WillReturnRows(sqlmock.NewRows([]string{
-			"id", "user_id", "name", "description", "access_key", "secret_hash", "secret_ciphertext", "last_used_at", "expires_at", "status", "created_at", "updated_at",
-		}).AddRow(5, 7, "ci-bot", "SDK credential", "ak_test_credential", secretHash, secretCiphertext, nil, nil, consts.CommonEnabled, now, now))
+			"id", "user_id", "name", "description", "key_id", "key_secret_hash", "key_secret_ciphertext", "scopes", "revoked_at", "last_used_at", "expires_at", "status", "created_at", "updated_at",
+		}).AddRow(5, 7, "ci-bot", "SDK credential", "pk_test_credential", secretHash, secretCiphertext, []byte(`["*"]`), nil, nil, nil, consts.CommonEnabled, now, now))
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE id = ? ORDER BY `users`.`id` LIMIT ?")).
 		WithArgs(7, 1).
 		WillReturnRows(sqlmock.NewRows([]string{
@@ -210,21 +211,54 @@ func TestAuthServiceExchangeAccessKeyTokenSuccess(t *testing.T) {
 			"id", "name", "display_name", "description", "is_system", "status", "created_at", "updated_at", "active_name",
 		}).AddRow(2, consts.RoleUser.String(), "User", "", true, consts.CommonEnabled, now, now, consts.RoleUser.String()))
 	mock.ExpectBegin()
-	mock.ExpectExec(regexp.QuoteMeta("UPDATE `user_access_keys` SET `last_used_at`=?,`updated_at`=? WHERE id = ?")).
+	mock.ExpectExec(regexp.QuoteMeta("UPDATE `api_keys` SET `last_used_at`=?,`updated_at`=? WHERE id = ?")).
 		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), 5).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
 
-	resp, err := service.ExchangeAccessKeyToken(t.Context(), req, "POST", "/api/v2/auth/access-key/token")
+	resp, err := service.ExchangeAPIKeyToken(t.Context(), req, "POST", "/api/v2/auth/api-key/token")
 
 	require.NoError(t, err)
 	require.Equal(t, "Bearer", resp.TokenType)
-	require.Equal(t, "access_key", resp.AuthType)
+	require.Equal(t, "api_key", resp.AuthType)
 
 	claims, err := utils.ValidateToken(resp.Token)
 	require.NoError(t, err)
 	require.Equal(t, 7, claims.UserID)
-	require.Equal(t, "access_key", claims.AuthType)
-	require.Equal(t, 5, claims.AccessKeyID)
+	require.Equal(t, "api_key", claims.AuthType)
+	require.Equal(t, 5, claims.APIKeyID)
+	require.Equal(t, []string{"*"}, claims.APIKeyScopes)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestAuthServiceExchangeAPIKeyTokenRevoked(t *testing.T) {
+	service, mock, cleanup := newAuthService(t)
+	defer cleanup()
+
+	now := time.Now()
+	revokedAt := now.Add(-time.Minute)
+	secret := "ks_test_secret_123456"
+	secretHash, err := utils.HashPassword(secret)
+	require.NoError(t, err)
+	secretCiphertext, err := utils.EncryptAPIKeySecret(secret)
+	require.NoError(t, err)
+	req := &APIKeyTokenReq{
+		KeyID:     "pk_test_credential",
+		Timestamp: fmt.Sprintf("%d", now.Unix()),
+		Nonce:     "nonce_123",
+	}
+	req.Signature = utils.SignAPIKeyRequest(secret, req.CanonicalString("POST", "/api/v2/auth/api-key/token"))
+
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `api_keys` WHERE key_id = ? AND status != ? ORDER BY `api_keys`.`id` LIMIT ?")).
+		WithArgs("pk_test_credential", consts.CommonDeleted, 1).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"id", "user_id", "name", "description", "key_id", "key_secret_hash", "key_secret_ciphertext", "scopes", "revoked_at", "last_used_at", "expires_at", "status", "created_at", "updated_at",
+		}).AddRow(5, 7, "ci-bot", "SDK credential", "pk_test_credential", secretHash, secretCiphertext, []byte(`["*"]`), revokedAt, nil, nil, consts.CommonEnabled, now, now))
+
+	resp, err := service.ExchangeAPIKeyToken(t.Context(), req, "POST", "/api/v2/auth/api-key/token")
+
+	require.Nil(t, resp)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "api key is revoked")
 	require.NoError(t, mock.ExpectationsWereMet())
 }

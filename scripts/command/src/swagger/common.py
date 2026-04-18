@@ -12,6 +12,7 @@ CONVERTED_DIR = SWAGGER_ROOT / "converted"
 class RunMode(str, Enum):
     CLIENT = "client"
     SDK = "sdk"
+    RUNTIME = "runtime"
     PORTAL = "portal"
     ADMIN = "admin"
 

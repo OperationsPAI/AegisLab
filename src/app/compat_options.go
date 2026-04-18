@@ -30,12 +30,12 @@ func ProducerHTTPEntryOptions(port string) fx.Option {
 	)
 }
 
-// CompatibilityRuntimeOptions centralizes the legacy runtime stack that still
-// needs local execution/injection owners for producer/consumer/both entrypoints.
+// CompatibilityRuntimeOptions centralizes the legacy runtime stack shared by
+// consumer/both entrypoints. Local execution/injection owner modules are added
+// explicitly by the caller when that entrypoint needs local owner fallback.
 func CompatibilityRuntimeOptions() fx.Option {
 	return fx.Options(
 		RuntimeWorkerStackOptions(),
-		ExecutionInjectionOwnerModules(),
 	)
 }
 

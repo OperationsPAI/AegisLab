@@ -33,8 +33,8 @@ var rootCmd = &cobra.Command{
 fault-injection and root-cause-analysis benchmarking platform.
 
 QUICK START:
-  # 1. Exchange AK/SK for a token (saves token to ~/.aegisctl/config.yaml)
-  aegisctl auth login --server http://HOST:8082 --access-key ak_xxx --secret-key sk_xxx
+  # 1. Exchange Key ID / Key Secret for a token (saves token to ~/.aegisctl/config.yaml)
+  aegisctl auth login --server http://HOST:8082 --key-id pk_xxx --key-secret ks_xxx
 
   # 2. Set default project so you don't need --project every time
   aegisctl context set --name default --default-project pair_diagnosis
@@ -70,8 +70,8 @@ OUTPUT:
 ENVIRONMENT VARIABLES:
   AEGIS_SERVER      - Server URL (overridden by --server flag)
   AEGIS_TOKEN       - Auth token (overridden by --token flag)
-  AEGIS_ACCESS_KEY  - Access key for 'aegisctl auth login'
-  AEGIS_SECRET_KEY  - Secret key for 'aegisctl auth login'
+  AEGIS_KEY_ID      - API key ID for 'aegisctl auth login'
+  AEGIS_KEY_SECRET  - API key secret for 'aegisctl auth login'
   AEGIS_PROJECT     - Default project name (overridden by --project flag)
   AEGIS_OUTPUT      - Output format: table|json (overridden by --output flag)
   AEGIS_TIMEOUT     - Request timeout in seconds (overridden by --request-timeout flag)

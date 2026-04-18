@@ -21,9 +21,33 @@ type Context struct {
 	Server         string    `yaml:"server"`
 	Token          string    `yaml:"token,omitempty"`
 	AuthType       string    `yaml:"auth-type,omitempty"`
-	AccessKey      string    `yaml:"access-key,omitempty"`
+	KeyID          string    `yaml:"key-id,omitempty"`
 	DefaultProject string    `yaml:"default-project,omitempty"`
 	TokenExpiry    time.Time `yaml:"token-expiry,omitempty"`
+}
+
+func (c *Context) UnmarshalYAML(value *yaml.Node) error {
+	type rawContext struct {
+		Server         string    `yaml:"server"`
+		Token          string    `yaml:"token,omitempty"`
+		AuthType       string    `yaml:"auth-type,omitempty"`
+		KeyID          string    `yaml:"key-id,omitempty"`
+		DefaultProject string    `yaml:"default-project,omitempty"`
+		TokenExpiry    time.Time `yaml:"token-expiry,omitempty"`
+	}
+
+	var raw rawContext
+	if err := value.Decode(&raw); err != nil {
+		return err
+	}
+
+	c.Server = raw.Server
+	c.Token = raw.Token
+	c.AuthType = raw.AuthType
+	c.KeyID = raw.KeyID
+	c.DefaultProject = raw.DefaultProject
+	c.TokenExpiry = raw.TokenExpiry
+	return nil
 }
 
 // Preferences holds user-level defaults.

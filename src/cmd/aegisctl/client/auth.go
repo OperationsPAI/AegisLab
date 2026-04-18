@@ -11,36 +11,37 @@ import (
 	"time"
 )
 
-const accessKeyTokenPath = "/api/v2/auth/access-key/token"
+const apiKeyTokenPath = "/api/v2/auth/api-key/token"
 
-// AccessKeyTokenDebug contains the fully materialized signed request data for
-// POST /api/v2/auth/access-key/token.
-type AccessKeyTokenDebug struct {
+// APIKeyTokenDebug contains the fully materialized signed request data for
+// POST /api/v2/auth/api-key/token.
+type APIKeyTokenDebug struct {
 	Method          string
 	Path            string
-	AccessKey       string
+	KeyID           string
 	Timestamp       string
 	Nonce           string
+	BodySHA256      string
 	CanonicalString string
 	Signature       string
 }
 
-func (d *AccessKeyTokenDebug) Headers() map[string]string {
+func (d *APIKeyTokenDebug) Headers() map[string]string {
 	return map[string]string{
-		"X-Access-Key": d.AccessKey,
-		"X-Timestamp":  d.Timestamp,
-		"X-Nonce":      d.Nonce,
-		"X-Signature":  d.Signature,
+		"X-Key-Id":    d.KeyID,
+		"X-Timestamp": d.Timestamp,
+		"X-Nonce":     d.Nonce,
+		"X-Signature": d.Signature,
 	}
 }
 
-// accessKeyTokenResponseData matches dto.AccessKeyTokenResp.
-type accessKeyTokenResponseData struct {
+// apiKeyTokenResponseData matches dto.APIKeyTokenResp.
+type apiKeyTokenResponseData struct {
 	Token     string    `json:"token"`
 	TokenType string    `json:"token_type"`
 	ExpiresAt time.Time `json:"expires_at"`
 	AuthType  string    `json:"auth_type"`
-	AccessKey string    `json:"access_key"`
+	KeyID     string    `json:"key_id"`
 }
 
 // tokenRefreshRequest matches dto.TokenRefreshReq.
@@ -59,36 +60,36 @@ type LoginResult struct {
 	Token     string
 	ExpiresAt time.Time
 	AuthType  string
-	AccessKey string
+	KeyID     string
 }
 
-// LoginWithAccessKey exchanges an access key signature for a bearer token.
-func LoginWithAccessKey(server, accessKey, secretKey string) (*LoginResult, error) {
-	accessKey = strings.TrimSpace(accessKey)
-	secretKey = strings.TrimSpace(secretKey)
-	if accessKey == "" {
-		return nil, fmt.Errorf("access key is required")
+// LoginWithAPIKey exchanges a Key ID / Key Secret signature for a bearer token.
+func LoginWithAPIKey(server, keyID, keySecret string) (*LoginResult, error) {
+	keyID = strings.TrimSpace(keyID)
+	keySecret = strings.TrimSpace(keySecret)
+	if keyID == "" {
+		return nil, fmt.Errorf("key id is required")
 	}
-	if secretKey == "" {
-		return nil, fmt.Errorf("secret key is required")
+	if keySecret == "" {
+		return nil, fmt.Errorf("key secret is required")
 	}
 
 	c := NewClient(server, "", 30*time.Second)
-	debugInfo, err := PrepareAccessKeyTokenDebug(accessKey, secretKey, time.Now().UTC(), "")
+	debugInfo, err := PrepareAPIKeyTokenDebug(keyID, keySecret, time.Now().UTC(), "")
 	if err != nil {
 		return nil, fmt.Errorf("prepare signed headers: %w", err)
 	}
 
-	var resp APIResponse[accessKeyTokenResponseData]
-	if err := c.PostWithHeaders(accessKeyTokenPath, debugInfo.Headers(), &resp); err != nil {
-		return nil, fmt.Errorf("exchange access key token failed: %w", err)
+	var resp APIResponse[apiKeyTokenResponseData]
+	if err := c.PostWithHeaders(apiKeyTokenPath, debugInfo.Headers(), &resp); err != nil {
+		return nil, fmt.Errorf("exchange api key token failed: %w", err)
 	}
 
 	return &LoginResult{
 		Token:     resp.Data.Token,
 		ExpiresAt: resp.Data.ExpiresAt,
 		AuthType:  resp.Data.AuthType,
-		AccessKey: resp.Data.AccessKey,
+		KeyID:     resp.Data.KeyID,
 	}, nil
 }
 
@@ -135,100 +136,109 @@ func IsTokenExpired(expiry time.Time) bool {
 	return time.Now().After(expiry)
 }
 
-// PrepareAccessKeyTokenDebug builds the canonical string, signature, and
-// headers for the access-key token exchange request.
-func PrepareAccessKeyTokenDebug(accessKey, secretKey string, now time.Time, nonce string) (*AccessKeyTokenDebug, error) {
-	accessKey = strings.TrimSpace(accessKey)
-	secretKey = strings.TrimSpace(secretKey)
+// PrepareAPIKeyTokenDebug builds the canonical string, signature, and
+// headers for the token exchange request.
+func PrepareAPIKeyTokenDebug(keyID, keySecret string, now time.Time, nonce string) (*APIKeyTokenDebug, error) {
+	keyID = strings.TrimSpace(keyID)
+	keySecret = strings.TrimSpace(keySecret)
 	nonce = strings.TrimSpace(nonce)
-	if accessKey == "" {
-		return nil, fmt.Errorf("access key is required")
+	if keyID == "" {
+		return nil, fmt.Errorf("key id is required")
 	}
-	if secretKey == "" {
-		return nil, fmt.Errorf("secret key is required")
+	if keySecret == "" {
+		return nil, fmt.Errorf("key secret is required")
 	}
 	var err error
 	if nonce == "" {
-		nonce, err = newAccessKeyNonce()
+		nonce, err = newAPIKeyNonce()
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	timestamp := strconv.FormatInt(now.Unix(), 10)
-	canonical := canonicalAccessKeyString("POST", accessKeyTokenPath, accessKey, timestamp, nonce)
+	bodySHA256 := sha256Hex("")
+	canonical := canonicalAPIKeyString("POST", apiKeyTokenPath, timestamp, nonce, bodySHA256)
 
-	return &AccessKeyTokenDebug{
+	return &APIKeyTokenDebug{
 		Method:          "POST",
-		Path:            accessKeyTokenPath,
-		AccessKey:       accessKey,
+		Path:            apiKeyTokenPath,
+		KeyID:           keyID,
 		Timestamp:       timestamp,
 		Nonce:           nonce,
+		BodySHA256:      bodySHA256,
 		CanonicalString: canonical,
-		Signature:       signAccessKeyRequest(secretKey, canonical),
+		Signature:       signAPIKeyRequest(keySecret, canonical),
 	}, nil
 }
 
-func buildAccessKeyHeaders(accessKey, secretKey string, now time.Time, path string) (map[string]string, error) {
-	debugInfo, err := prepareAccessKeyDebug(accessKey, secretKey, now, path, "")
+func buildAPIKeyHeaders(keyID, keySecret string, now time.Time, path string) (map[string]string, error) {
+	debugInfo, err := prepareAPIKeyDebug(keyID, keySecret, now, path, "")
 	if err != nil {
 		return nil, err
 	}
 	return debugInfo.Headers(), nil
 }
 
-func prepareAccessKeyDebug(accessKey, secretKey string, now time.Time, path, nonce string) (*AccessKeyTokenDebug, error) {
-	accessKey = strings.TrimSpace(accessKey)
-	secretKey = strings.TrimSpace(secretKey)
+func prepareAPIKeyDebug(keyID, keySecret string, now time.Time, path, nonce string) (*APIKeyTokenDebug, error) {
+	keyID = strings.TrimSpace(keyID)
+	keySecret = strings.TrimSpace(keySecret)
 	nonce = strings.TrimSpace(nonce)
-	if accessKey == "" {
-		return nil, fmt.Errorf("access key is required")
+	if keyID == "" {
+		return nil, fmt.Errorf("key id is required")
 	}
-	if secretKey == "" {
-		return nil, fmt.Errorf("secret key is required")
+	if keySecret == "" {
+		return nil, fmt.Errorf("key secret is required")
 	}
 	var err error
 	if nonce == "" {
-		nonce, err = newAccessKeyNonce()
+		nonce, err = newAPIKeyNonce()
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	timestamp := strconv.FormatInt(now.Unix(), 10)
-	canonical := canonicalAccessKeyString("POST", path, accessKey, timestamp, nonce)
+	bodySHA256 := sha256Hex("")
+	canonical := canonicalAPIKeyString("POST", path, timestamp, nonce, bodySHA256)
 
-	return &AccessKeyTokenDebug{
+	return &APIKeyTokenDebug{
 		Method:          "POST",
 		Path:            path,
-		AccessKey:       accessKey,
+		KeyID:           keyID,
 		Timestamp:       timestamp,
 		Nonce:           nonce,
+		BodySHA256:      bodySHA256,
 		CanonicalString: canonical,
-		Signature:       signAccessKeyRequest(secretKey, canonical),
+		Signature:       signAPIKeyRequest(keySecret, canonical),
 	}, nil
 }
 
-func canonicalAccessKeyString(method, path, accessKey, timestamp, nonce string) string {
+func canonicalAPIKeyString(method, path, timestamp, nonce, bodySHA256 string) string {
 	return strings.Join([]string{
 		strings.ToUpper(method),
 		path,
-		accessKey,
 		timestamp,
 		nonce,
+		bodySHA256,
 	}, "\n")
 }
 
-func signAccessKeyRequest(secretKey, payload string) string {
+func signAPIKeyRequest(secretKey, payload string) string {
 	mac := hmac.New(sha256.New, []byte(secretKey))
 	mac.Write([]byte(payload))
 	return hex.EncodeToString(mac.Sum(nil))
 }
 
-func newAccessKeyNonce() (string, error) {
+func newAPIKeyNonce() (string, error) {
 	nonce := make([]byte, 16)
 	if _, err := rand.Read(nonce); err != nil {
 		return "", fmt.Errorf("generate nonce: %w", err)
 	}
 	return hex.EncodeToString(nonce), nil
+}
+
+func sha256Hex(payload string) string {
+	sum := sha256.Sum256([]byte(payload))
+	return hex.EncodeToString(sum[:])
 }

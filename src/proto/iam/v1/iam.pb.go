@@ -79,8 +79,9 @@ type VerifyTokenResponse struct {
 	Roles         []string               `protobuf:"bytes,8,rep,name=roles,proto3" json:"roles,omitempty"`
 	ExpiresAtUnix int64                  `protobuf:"varint,9,opt,name=expires_at_unix,json=expiresAtUnix,proto3" json:"expires_at_unix,omitempty"`
 	AuthType      string                 `protobuf:"bytes,10,opt,name=auth_type,json=authType,proto3" json:"auth_type,omitempty"`
-	AccessKeyId   int64                  `protobuf:"varint,11,opt,name=access_key_id,json=accessKeyId,proto3" json:"access_key_id,omitempty"`
+	KeyId         int64                  `protobuf:"varint,11,opt,name=key_id,json=keyId,proto3" json:"key_id,omitempty"`
 	TaskId        string                 `protobuf:"bytes,12,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	ApiKeyScopes  []string               `protobuf:"bytes,13,rep,name=api_key_scopes,json=apiKeyScopes,proto3" json:"api_key_scopes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -185,9 +186,9 @@ func (x *VerifyTokenResponse) GetAuthType() string {
 	return ""
 }
 
-func (x *VerifyTokenResponse) GetAccessKeyId() int64 {
+func (x *VerifyTokenResponse) GetKeyId() int64 {
 	if x != nil {
-		return x.AccessKeyId
+		return x.KeyId
 	}
 	return 0
 }
@@ -197,6 +198,13 @@ func (x *VerifyTokenResponse) GetTaskId() string {
 		return x.TaskId
 	}
 	return ""
+}
+
+func (x *VerifyTokenResponse) GetApiKeyScopes() []string {
+	if x != nil {
+		return x.ApiKeyScopes
+	}
+	return nil
 }
 
 type CheckPermissionRequest struct {
@@ -535,9 +543,9 @@ func (x *BoolResponse) GetValue() bool {
 	return false
 }
 
-type ExchangeAccessKeyTokenRequest struct {
+type ExchangeAPIKeyTokenRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	AccessKey     string                 `protobuf:"bytes,1,opt,name=access_key,json=accessKey,proto3" json:"access_key,omitempty"`
+	KeyId         string                 `protobuf:"bytes,1,opt,name=key_id,json=keyId,proto3" json:"key_id,omitempty"`
 	Timestamp     string                 `protobuf:"bytes,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
 	Nonce         string                 `protobuf:"bytes,3,opt,name=nonce,proto3" json:"nonce,omitempty"`
 	Signature     string                 `protobuf:"bytes,4,opt,name=signature,proto3" json:"signature,omitempty"`
@@ -547,20 +555,20 @@ type ExchangeAccessKeyTokenRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ExchangeAccessKeyTokenRequest) Reset() {
-	*x = ExchangeAccessKeyTokenRequest{}
+func (x *ExchangeAPIKeyTokenRequest) Reset() {
+	*x = ExchangeAPIKeyTokenRequest{}
 	mi := &file_proto_iam_v1_iam_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ExchangeAccessKeyTokenRequest) String() string {
+func (x *ExchangeAPIKeyTokenRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ExchangeAccessKeyTokenRequest) ProtoMessage() {}
+func (*ExchangeAPIKeyTokenRequest) ProtoMessage() {}
 
-func (x *ExchangeAccessKeyTokenRequest) ProtoReflect() protoreflect.Message {
+func (x *ExchangeAPIKeyTokenRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_proto_iam_v1_iam_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -572,78 +580,78 @@ func (x *ExchangeAccessKeyTokenRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ExchangeAccessKeyTokenRequest.ProtoReflect.Descriptor instead.
-func (*ExchangeAccessKeyTokenRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ExchangeAPIKeyTokenRequest.ProtoReflect.Descriptor instead.
+func (*ExchangeAPIKeyTokenRequest) Descriptor() ([]byte, []int) {
 	return file_proto_iam_v1_iam_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *ExchangeAccessKeyTokenRequest) GetAccessKey() string {
+func (x *ExchangeAPIKeyTokenRequest) GetKeyId() string {
 	if x != nil {
-		return x.AccessKey
+		return x.KeyId
 	}
 	return ""
 }
 
-func (x *ExchangeAccessKeyTokenRequest) GetTimestamp() string {
+func (x *ExchangeAPIKeyTokenRequest) GetTimestamp() string {
 	if x != nil {
 		return x.Timestamp
 	}
 	return ""
 }
 
-func (x *ExchangeAccessKeyTokenRequest) GetNonce() string {
+func (x *ExchangeAPIKeyTokenRequest) GetNonce() string {
 	if x != nil {
 		return x.Nonce
 	}
 	return ""
 }
 
-func (x *ExchangeAccessKeyTokenRequest) GetSignature() string {
+func (x *ExchangeAPIKeyTokenRequest) GetSignature() string {
 	if x != nil {
 		return x.Signature
 	}
 	return ""
 }
 
-func (x *ExchangeAccessKeyTokenRequest) GetMethod() string {
+func (x *ExchangeAPIKeyTokenRequest) GetMethod() string {
 	if x != nil {
 		return x.Method
 	}
 	return ""
 }
 
-func (x *ExchangeAccessKeyTokenRequest) GetPath() string {
+func (x *ExchangeAPIKeyTokenRequest) GetPath() string {
 	if x != nil {
 		return x.Path
 	}
 	return ""
 }
 
-type ExchangeAccessKeyTokenResponse struct {
+type ExchangeAPIKeyTokenResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
 	TokenType     string                 `protobuf:"bytes,2,opt,name=token_type,json=tokenType,proto3" json:"token_type,omitempty"`
 	ExpiresAtUnix int64                  `protobuf:"varint,3,opt,name=expires_at_unix,json=expiresAtUnix,proto3" json:"expires_at_unix,omitempty"`
 	AuthType      string                 `protobuf:"bytes,4,opt,name=auth_type,json=authType,proto3" json:"auth_type,omitempty"`
-	AccessKey     string                 `protobuf:"bytes,5,opt,name=access_key,json=accessKey,proto3" json:"access_key,omitempty"`
+	KeyId         string                 `protobuf:"bytes,5,opt,name=key_id,json=keyId,proto3" json:"key_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ExchangeAccessKeyTokenResponse) Reset() {
-	*x = ExchangeAccessKeyTokenResponse{}
+func (x *ExchangeAPIKeyTokenResponse) Reset() {
+	*x = ExchangeAPIKeyTokenResponse{}
 	mi := &file_proto_iam_v1_iam_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ExchangeAccessKeyTokenResponse) String() string {
+func (x *ExchangeAPIKeyTokenResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ExchangeAccessKeyTokenResponse) ProtoMessage() {}
+func (*ExchangeAPIKeyTokenResponse) ProtoMessage() {}
 
-func (x *ExchangeAccessKeyTokenResponse) ProtoReflect() protoreflect.Message {
+func (x *ExchangeAPIKeyTokenResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_proto_iam_v1_iam_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -655,42 +663,42 @@ func (x *ExchangeAccessKeyTokenResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ExchangeAccessKeyTokenResponse.ProtoReflect.Descriptor instead.
-func (*ExchangeAccessKeyTokenResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ExchangeAPIKeyTokenResponse.ProtoReflect.Descriptor instead.
+func (*ExchangeAPIKeyTokenResponse) Descriptor() ([]byte, []int) {
 	return file_proto_iam_v1_iam_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *ExchangeAccessKeyTokenResponse) GetToken() string {
+func (x *ExchangeAPIKeyTokenResponse) GetToken() string {
 	if x != nil {
 		return x.Token
 	}
 	return ""
 }
 
-func (x *ExchangeAccessKeyTokenResponse) GetTokenType() string {
+func (x *ExchangeAPIKeyTokenResponse) GetTokenType() string {
 	if x != nil {
 		return x.TokenType
 	}
 	return ""
 }
 
-func (x *ExchangeAccessKeyTokenResponse) GetExpiresAtUnix() int64 {
+func (x *ExchangeAPIKeyTokenResponse) GetExpiresAtUnix() int64 {
 	if x != nil {
 		return x.ExpiresAtUnix
 	}
 	return 0
 }
 
-func (x *ExchangeAccessKeyTokenResponse) GetAuthType() string {
+func (x *ExchangeAPIKeyTokenResponse) GetAuthType() string {
 	if x != nil {
 		return x.AuthType
 	}
 	return ""
 }
 
-func (x *ExchangeAccessKeyTokenResponse) GetAccessKey() string {
+func (x *ExchangeAPIKeyTokenResponse) GetKeyId() string {
 	if x != nil {
-		return x.AccessKey
+		return x.KeyId
 	}
 	return ""
 }
@@ -1801,7 +1809,7 @@ const file_proto_iam_v1_iam_proto_rawDesc = "" +
 	"\n" +
 	"\x16proto/iam/v1/iam.proto\x12\x06iam.v1\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1cgoogle/protobuf/struct.proto\"*\n" +
 	"\x12VerifyTokenRequest\x12\x14\n" +
-	"\x05token\x18\x01 \x01(\tR\x05token\"\xe5\x02\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token\"\xfe\x02\n" +
 	"\x13VerifyTokenResponse\x12\x14\n" +
 	"\x05valid\x18\x01 \x01(\bR\x05valid\x12\x1d\n" +
 	"\n" +
@@ -1814,9 +1822,10 @@ const file_proto_iam_v1_iam_proto_rawDesc = "" +
 	"\x05roles\x18\b \x03(\tR\x05roles\x12&\n" +
 	"\x0fexpires_at_unix\x18\t \x01(\x03R\rexpiresAtUnix\x12\x1b\n" +
 	"\tauth_type\x18\n" +
-	" \x01(\tR\bauthType\x12\"\n" +
-	"\raccess_key_id\x18\v \x01(\x03R\vaccessKeyId\x12\x17\n" +
-	"\atask_id\x18\f \x01(\tR\x06taskId\"\xfe\x01\n" +
+	" \x01(\tR\bauthType\x12\x15\n" +
+	"\x06key_id\x18\v \x01(\x03R\x05keyId\x12\x17\n" +
+	"\atask_id\x18\f \x01(\tR\x06taskId\x12$\n" +
+	"\x0eapi_key_scopes\x18\r \x03(\tR\fapiKeyScopes\"\xfe\x01\n" +
 	"\x16CheckPermissionRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x16\n" +
 	"\x06action\x18\x02 \x01(\tR\x06action\x12\x14\n" +
@@ -1840,23 +1849,21 @@ const file_proto_iam_v1_iam_proto_rawDesc = "" +
 	"\n" +
 	"project_id\x18\x02 \x01(\x03R\tprojectId\"$\n" +
 	"\fBoolResponse\x12\x14\n" +
-	"\x05value\x18\x01 \x01(\bR\x05value\"\xbc\x01\n" +
-	"\x1dExchangeAccessKeyTokenRequest\x12\x1d\n" +
-	"\n" +
-	"access_key\x18\x01 \x01(\tR\taccessKey\x12\x1c\n" +
+	"\x05value\x18\x01 \x01(\bR\x05value\"\xb1\x01\n" +
+	"\x1aExchangeAPIKeyTokenRequest\x12\x15\n" +
+	"\x06key_id\x18\x01 \x01(\tR\x05keyId\x12\x1c\n" +
 	"\ttimestamp\x18\x02 \x01(\tR\ttimestamp\x12\x14\n" +
 	"\x05nonce\x18\x03 \x01(\tR\x05nonce\x12\x1c\n" +
 	"\tsignature\x18\x04 \x01(\tR\tsignature\x12\x16\n" +
 	"\x06method\x18\x05 \x01(\tR\x06method\x12\x12\n" +
-	"\x04path\x18\x06 \x01(\tR\x04path\"\xb9\x01\n" +
-	"\x1eExchangeAccessKeyTokenResponse\x12\x14\n" +
+	"\x04path\x18\x06 \x01(\tR\x04path\"\xae\x01\n" +
+	"\x1bExchangeAPIKeyTokenResponse\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12\x1d\n" +
 	"\n" +
 	"token_type\x18\x02 \x01(\tR\ttokenType\x12&\n" +
 	"\x0fexpires_at_unix\x18\x03 \x01(\x03R\rexpiresAtUnix\x12\x1b\n" +
-	"\tauth_type\x18\x04 \x01(\tR\bauthType\x12\x1d\n" +
-	"\n" +
-	"access_key\x18\x05 \x01(\tR\taccessKey\">\n" +
+	"\tauth_type\x18\x04 \x01(\tR\bauthType\x12\x15\n" +
+	"\x06key_id\x18\x05 \x01(\tR\x05keyId\">\n" +
 	"\x0fMutationRequest\x12+\n" +
 	"\x04body\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x04body\"=\n" +
 	"\fQueryRequest\x12-\n" +
@@ -1921,7 +1928,7 @@ const file_proto_iam_v1_iam_proto_rawDesc = "" +
 	"\ateam_id\x18\x01 \x01(\x03R\x06teamId\x12-\n" +
 	"\x05query\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x05query\"=\n" +
 	"\x0eStructResponse\x12+\n" +
-	"\x04data\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x04data2\xa3 \n" +
+	"\x04data\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x04data2\xca \n" +
 	"\n" +
 	"IAMService\x12F\n" +
 	"\vVerifyToken\x12\x1a.iam.v1.VerifyTokenRequest\x1a\x1b.iam.v1.VerifyTokenResponse\x12R\n" +
@@ -1932,20 +1939,21 @@ const file_proto_iam_v1_iam_proto_rawDesc = "" +
 	"\x06Logout\x12\x15.iam.v1.LogoutRequest\x1a\x16.google.protobuf.Empty\x12A\n" +
 	"\x0eChangePassword\x12\x17.iam.v1.UserBodyRequest\x1a\x16.google.protobuf.Empty\x12;\n" +
 	"\n" +
-	"GetProfile\x12\x15.iam.v1.UserIDRequest\x1a\x16.iam.v1.StructResponse\x12B\n" +
-	"\x0fCreateAccessKey\x12\x17.iam.v1.UserBodyRequest\x1a\x16.iam.v1.StructResponse\x12B\n" +
-	"\x0eListAccessKeys\x12\x18.iam.v1.UserQueryRequest\x1a\x16.iam.v1.StructResponse\x12C\n" +
-	"\fGetAccessKey\x12\x1b.iam.v1.UserScopedIDRequest\x1a\x16.iam.v1.StructResponse\x12F\n" +
-	"\x0fDeleteAccessKey\x12\x1b.iam.v1.UserScopedIDRequest\x1a\x16.google.protobuf.Empty\x12G\n" +
-	"\x10DisableAccessKey\x12\x1b.iam.v1.UserScopedIDRequest\x1a\x16.google.protobuf.Empty\x12F\n" +
-	"\x0fEnableAccessKey\x12\x1b.iam.v1.UserScopedIDRequest\x1a\x16.google.protobuf.Empty\x12F\n" +
-	"\x0fRotateAccessKey\x12\x1b.iam.v1.UserScopedIDRequest\x1a\x16.iam.v1.StructResponse\x12@\n" +
+	"GetProfile\x12\x15.iam.v1.UserIDRequest\x1a\x16.iam.v1.StructResponse\x12?\n" +
+	"\fCreateAPIKey\x12\x17.iam.v1.UserBodyRequest\x1a\x16.iam.v1.StructResponse\x12?\n" +
+	"\vListAPIKeys\x12\x18.iam.v1.UserQueryRequest\x1a\x16.iam.v1.StructResponse\x12@\n" +
+	"\tGetAPIKey\x12\x1b.iam.v1.UserScopedIDRequest\x1a\x16.iam.v1.StructResponse\x12C\n" +
+	"\fDeleteAPIKey\x12\x1b.iam.v1.UserScopedIDRequest\x1a\x16.google.protobuf.Empty\x12D\n" +
+	"\rDisableAPIKey\x12\x1b.iam.v1.UserScopedIDRequest\x1a\x16.google.protobuf.Empty\x12C\n" +
+	"\fEnableAPIKey\x12\x1b.iam.v1.UserScopedIDRequest\x1a\x16.google.protobuf.Empty\x12C\n" +
+	"\fRevokeAPIKey\x12\x1b.iam.v1.UserScopedIDRequest\x1a\x16.google.protobuf.Empty\x12C\n" +
+	"\fRotateAPIKey\x12\x1b.iam.v1.UserScopedIDRequest\x1a\x16.iam.v1.StructResponse\x12@\n" +
 	"\x0fIsUserTeamAdmin\x12\x17.iam.v1.UserTeamRequest\x1a\x14.iam.v1.BoolResponse\x12=\n" +
 	"\fIsUserInTeam\x12\x17.iam.v1.UserTeamRequest\x1a\x14.iam.v1.BoolResponse\x129\n" +
 	"\fIsTeamPublic\x12\x13.iam.v1.TeamRequest\x1a\x14.iam.v1.BoolResponse\x12F\n" +
 	"\x12IsUserProjectAdmin\x12\x1a.iam.v1.UserProjectRequest\x1a\x14.iam.v1.BoolResponse\x12C\n" +
-	"\x0fIsUserInProject\x12\x1a.iam.v1.UserProjectRequest\x1a\x14.iam.v1.BoolResponse\x12g\n" +
-	"\x16ExchangeAccessKeyToken\x12%.iam.v1.ExchangeAccessKeyTokenRequest\x1a&.iam.v1.ExchangeAccessKeyTokenResponse\x12=\n" +
+	"\x0fIsUserInProject\x12\x1a.iam.v1.UserProjectRequest\x1a\x14.iam.v1.BoolResponse\x12^\n" +
+	"\x13ExchangeAPIKeyToken\x12\".iam.v1.ExchangeAPIKeyTokenRequest\x1a#.iam.v1.ExchangeAPIKeyTokenResponse\x12=\n" +
 	"\n" +
 	"CreateUser\x12\x17.iam.v1.MutationRequest\x1a\x16.iam.v1.StructResponse\x127\n" +
 	"\n" +
@@ -2009,39 +2017,39 @@ func file_proto_iam_v1_iam_proto_rawDescGZIP() []byte {
 
 var file_proto_iam_v1_iam_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
 var file_proto_iam_v1_iam_proto_goTypes = []any{
-	(*VerifyTokenRequest)(nil),             // 0: iam.v1.VerifyTokenRequest
-	(*VerifyTokenResponse)(nil),            // 1: iam.v1.VerifyTokenResponse
-	(*CheckPermissionRequest)(nil),         // 2: iam.v1.CheckPermissionRequest
-	(*CheckPermissionResponse)(nil),        // 3: iam.v1.CheckPermissionResponse
-	(*UserTeamRequest)(nil),                // 4: iam.v1.UserTeamRequest
-	(*TeamRequest)(nil),                    // 5: iam.v1.TeamRequest
-	(*UserProjectRequest)(nil),             // 6: iam.v1.UserProjectRequest
-	(*BoolResponse)(nil),                   // 7: iam.v1.BoolResponse
-	(*ExchangeAccessKeyTokenRequest)(nil),  // 8: iam.v1.ExchangeAccessKeyTokenRequest
-	(*ExchangeAccessKeyTokenResponse)(nil), // 9: iam.v1.ExchangeAccessKeyTokenResponse
-	(*MutationRequest)(nil),                // 10: iam.v1.MutationRequest
-	(*QueryRequest)(nil),                   // 11: iam.v1.QueryRequest
-	(*IDRequest)(nil),                      // 12: iam.v1.IDRequest
-	(*UpdateByIDRequest)(nil),              // 13: iam.v1.UpdateByIDRequest
-	(*UserIDRequest)(nil),                  // 14: iam.v1.UserIDRequest
-	(*UserQueryRequest)(nil),               // 15: iam.v1.UserQueryRequest
-	(*UserBodyRequest)(nil),                // 16: iam.v1.UserBodyRequest
-	(*UserScopedIDRequest)(nil),            // 17: iam.v1.UserScopedIDRequest
-	(*UserRoleBindingRequest)(nil),         // 18: iam.v1.UserRoleBindingRequest
-	(*UserResourceBindingRequest)(nil),     // 19: iam.v1.UserResourceBindingRequest
-	(*LogoutRequest)(nil),                  // 20: iam.v1.LogoutRequest
-	(*RolePermissionsRequest)(nil),         // 21: iam.v1.RolePermissionsRequest
-	(*CreateTeamRequest)(nil),              // 22: iam.v1.CreateTeamRequest
-	(*ListTeamsRequest)(nil),               // 23: iam.v1.ListTeamsRequest
-	(*UpdateTeamRequest)(nil),              // 24: iam.v1.UpdateTeamRequest
-	(*ListTeamProjectsRequest)(nil),        // 25: iam.v1.ListTeamProjectsRequest
-	(*AddTeamMemberRequest)(nil),           // 26: iam.v1.AddTeamMemberRequest
-	(*RemoveTeamMemberRequest)(nil),        // 27: iam.v1.RemoveTeamMemberRequest
-	(*UpdateTeamMemberRoleRequest)(nil),    // 28: iam.v1.UpdateTeamMemberRoleRequest
-	(*ListTeamMembersRequest)(nil),         // 29: iam.v1.ListTeamMembersRequest
-	(*StructResponse)(nil),                 // 30: iam.v1.StructResponse
-	(*structpb.Struct)(nil),                // 31: google.protobuf.Struct
-	(*emptypb.Empty)(nil),                  // 32: google.protobuf.Empty
+	(*VerifyTokenRequest)(nil),          // 0: iam.v1.VerifyTokenRequest
+	(*VerifyTokenResponse)(nil),         // 1: iam.v1.VerifyTokenResponse
+	(*CheckPermissionRequest)(nil),      // 2: iam.v1.CheckPermissionRequest
+	(*CheckPermissionResponse)(nil),     // 3: iam.v1.CheckPermissionResponse
+	(*UserTeamRequest)(nil),             // 4: iam.v1.UserTeamRequest
+	(*TeamRequest)(nil),                 // 5: iam.v1.TeamRequest
+	(*UserProjectRequest)(nil),          // 6: iam.v1.UserProjectRequest
+	(*BoolResponse)(nil),                // 7: iam.v1.BoolResponse
+	(*ExchangeAPIKeyTokenRequest)(nil),  // 8: iam.v1.ExchangeAPIKeyTokenRequest
+	(*ExchangeAPIKeyTokenResponse)(nil), // 9: iam.v1.ExchangeAPIKeyTokenResponse
+	(*MutationRequest)(nil),             // 10: iam.v1.MutationRequest
+	(*QueryRequest)(nil),                // 11: iam.v1.QueryRequest
+	(*IDRequest)(nil),                   // 12: iam.v1.IDRequest
+	(*UpdateByIDRequest)(nil),           // 13: iam.v1.UpdateByIDRequest
+	(*UserIDRequest)(nil),               // 14: iam.v1.UserIDRequest
+	(*UserQueryRequest)(nil),            // 15: iam.v1.UserQueryRequest
+	(*UserBodyRequest)(nil),             // 16: iam.v1.UserBodyRequest
+	(*UserScopedIDRequest)(nil),         // 17: iam.v1.UserScopedIDRequest
+	(*UserRoleBindingRequest)(nil),      // 18: iam.v1.UserRoleBindingRequest
+	(*UserResourceBindingRequest)(nil),  // 19: iam.v1.UserResourceBindingRequest
+	(*LogoutRequest)(nil),               // 20: iam.v1.LogoutRequest
+	(*RolePermissionsRequest)(nil),      // 21: iam.v1.RolePermissionsRequest
+	(*CreateTeamRequest)(nil),           // 22: iam.v1.CreateTeamRequest
+	(*ListTeamsRequest)(nil),            // 23: iam.v1.ListTeamsRequest
+	(*UpdateTeamRequest)(nil),           // 24: iam.v1.UpdateTeamRequest
+	(*ListTeamProjectsRequest)(nil),     // 25: iam.v1.ListTeamProjectsRequest
+	(*AddTeamMemberRequest)(nil),        // 26: iam.v1.AddTeamMemberRequest
+	(*RemoveTeamMemberRequest)(nil),     // 27: iam.v1.RemoveTeamMemberRequest
+	(*UpdateTeamMemberRoleRequest)(nil), // 28: iam.v1.UpdateTeamMemberRoleRequest
+	(*ListTeamMembersRequest)(nil),      // 29: iam.v1.ListTeamMembersRequest
+	(*StructResponse)(nil),              // 30: iam.v1.StructResponse
+	(*structpb.Struct)(nil),             // 31: google.protobuf.Struct
+	(*emptypb.Empty)(nil),               // 32: google.protobuf.Empty
 }
 var file_proto_iam_v1_iam_proto_depIdxs = []int32{
 	31, // 0: iam.v1.MutationRequest.body:type_name -> google.protobuf.Struct
@@ -2065,120 +2073,122 @@ var file_proto_iam_v1_iam_proto_depIdxs = []int32{
 	20, // 18: iam.v1.IAMService.Logout:input_type -> iam.v1.LogoutRequest
 	16, // 19: iam.v1.IAMService.ChangePassword:input_type -> iam.v1.UserBodyRequest
 	14, // 20: iam.v1.IAMService.GetProfile:input_type -> iam.v1.UserIDRequest
-	16, // 21: iam.v1.IAMService.CreateAccessKey:input_type -> iam.v1.UserBodyRequest
-	15, // 22: iam.v1.IAMService.ListAccessKeys:input_type -> iam.v1.UserQueryRequest
-	17, // 23: iam.v1.IAMService.GetAccessKey:input_type -> iam.v1.UserScopedIDRequest
-	17, // 24: iam.v1.IAMService.DeleteAccessKey:input_type -> iam.v1.UserScopedIDRequest
-	17, // 25: iam.v1.IAMService.DisableAccessKey:input_type -> iam.v1.UserScopedIDRequest
-	17, // 26: iam.v1.IAMService.EnableAccessKey:input_type -> iam.v1.UserScopedIDRequest
-	17, // 27: iam.v1.IAMService.RotateAccessKey:input_type -> iam.v1.UserScopedIDRequest
-	4,  // 28: iam.v1.IAMService.IsUserTeamAdmin:input_type -> iam.v1.UserTeamRequest
-	4,  // 29: iam.v1.IAMService.IsUserInTeam:input_type -> iam.v1.UserTeamRequest
-	5,  // 30: iam.v1.IAMService.IsTeamPublic:input_type -> iam.v1.TeamRequest
-	6,  // 31: iam.v1.IAMService.IsUserProjectAdmin:input_type -> iam.v1.UserProjectRequest
-	6,  // 32: iam.v1.IAMService.IsUserInProject:input_type -> iam.v1.UserProjectRequest
-	8,  // 33: iam.v1.IAMService.ExchangeAccessKeyToken:input_type -> iam.v1.ExchangeAccessKeyTokenRequest
-	10, // 34: iam.v1.IAMService.CreateUser:input_type -> iam.v1.MutationRequest
-	12, // 35: iam.v1.IAMService.DeleteUser:input_type -> iam.v1.IDRequest
-	12, // 36: iam.v1.IAMService.GetUser:input_type -> iam.v1.IDRequest
-	11, // 37: iam.v1.IAMService.ListUsers:input_type -> iam.v1.QueryRequest
-	13, // 38: iam.v1.IAMService.UpdateUser:input_type -> iam.v1.UpdateByIDRequest
-	18, // 39: iam.v1.IAMService.AssignUserRole:input_type -> iam.v1.UserRoleBindingRequest
-	18, // 40: iam.v1.IAMService.RemoveUserRole:input_type -> iam.v1.UserRoleBindingRequest
-	16, // 41: iam.v1.IAMService.AssignUserPermissions:input_type -> iam.v1.UserBodyRequest
-	16, // 42: iam.v1.IAMService.RemoveUserPermissions:input_type -> iam.v1.UserBodyRequest
-	19, // 43: iam.v1.IAMService.AssignUserContainer:input_type -> iam.v1.UserResourceBindingRequest
-	17, // 44: iam.v1.IAMService.RemoveUserContainer:input_type -> iam.v1.UserScopedIDRequest
-	19, // 45: iam.v1.IAMService.AssignUserDataset:input_type -> iam.v1.UserResourceBindingRequest
-	17, // 46: iam.v1.IAMService.RemoveUserDataset:input_type -> iam.v1.UserScopedIDRequest
-	19, // 47: iam.v1.IAMService.AssignUserProject:input_type -> iam.v1.UserResourceBindingRequest
-	17, // 48: iam.v1.IAMService.RemoveUserProject:input_type -> iam.v1.UserScopedIDRequest
-	10, // 49: iam.v1.IAMService.CreateRole:input_type -> iam.v1.MutationRequest
-	12, // 50: iam.v1.IAMService.DeleteRole:input_type -> iam.v1.IDRequest
-	12, // 51: iam.v1.IAMService.GetRole:input_type -> iam.v1.IDRequest
-	11, // 52: iam.v1.IAMService.ListRoles:input_type -> iam.v1.QueryRequest
-	13, // 53: iam.v1.IAMService.UpdateRole:input_type -> iam.v1.UpdateByIDRequest
-	21, // 54: iam.v1.IAMService.AssignRolePermissions:input_type -> iam.v1.RolePermissionsRequest
-	21, // 55: iam.v1.IAMService.RemoveRolePermissions:input_type -> iam.v1.RolePermissionsRequest
-	12, // 56: iam.v1.IAMService.ListUsersFromRole:input_type -> iam.v1.IDRequest
-	12, // 57: iam.v1.IAMService.GetPermission:input_type -> iam.v1.IDRequest
-	11, // 58: iam.v1.IAMService.ListPermissions:input_type -> iam.v1.QueryRequest
-	12, // 59: iam.v1.IAMService.ListRolesFromPermission:input_type -> iam.v1.IDRequest
-	12, // 60: iam.v1.IAMService.GetResource:input_type -> iam.v1.IDRequest
-	11, // 61: iam.v1.IAMService.ListResources:input_type -> iam.v1.QueryRequest
-	12, // 62: iam.v1.IAMService.ListResourcePermissions:input_type -> iam.v1.IDRequest
-	22, // 63: iam.v1.IAMService.CreateTeam:input_type -> iam.v1.CreateTeamRequest
-	5,  // 64: iam.v1.IAMService.DeleteTeam:input_type -> iam.v1.TeamRequest
-	5,  // 65: iam.v1.IAMService.GetTeam:input_type -> iam.v1.TeamRequest
-	23, // 66: iam.v1.IAMService.ListTeams:input_type -> iam.v1.ListTeamsRequest
-	24, // 67: iam.v1.IAMService.UpdateTeam:input_type -> iam.v1.UpdateTeamRequest
-	25, // 68: iam.v1.IAMService.ListTeamProjects:input_type -> iam.v1.ListTeamProjectsRequest
-	26, // 69: iam.v1.IAMService.AddTeamMember:input_type -> iam.v1.AddTeamMemberRequest
-	27, // 70: iam.v1.IAMService.RemoveTeamMember:input_type -> iam.v1.RemoveTeamMemberRequest
-	28, // 71: iam.v1.IAMService.UpdateTeamMemberRole:input_type -> iam.v1.UpdateTeamMemberRoleRequest
-	29, // 72: iam.v1.IAMService.ListTeamMembers:input_type -> iam.v1.ListTeamMembersRequest
-	1,  // 73: iam.v1.IAMService.VerifyToken:output_type -> iam.v1.VerifyTokenResponse
-	3,  // 74: iam.v1.IAMService.CheckPermission:output_type -> iam.v1.CheckPermissionResponse
-	30, // 75: iam.v1.IAMService.Login:output_type -> iam.v1.StructResponse
-	30, // 76: iam.v1.IAMService.Register:output_type -> iam.v1.StructResponse
-	30, // 77: iam.v1.IAMService.RefreshToken:output_type -> iam.v1.StructResponse
-	32, // 78: iam.v1.IAMService.Logout:output_type -> google.protobuf.Empty
-	32, // 79: iam.v1.IAMService.ChangePassword:output_type -> google.protobuf.Empty
-	30, // 80: iam.v1.IAMService.GetProfile:output_type -> iam.v1.StructResponse
-	30, // 81: iam.v1.IAMService.CreateAccessKey:output_type -> iam.v1.StructResponse
-	30, // 82: iam.v1.IAMService.ListAccessKeys:output_type -> iam.v1.StructResponse
-	30, // 83: iam.v1.IAMService.GetAccessKey:output_type -> iam.v1.StructResponse
-	32, // 84: iam.v1.IAMService.DeleteAccessKey:output_type -> google.protobuf.Empty
-	32, // 85: iam.v1.IAMService.DisableAccessKey:output_type -> google.protobuf.Empty
-	32, // 86: iam.v1.IAMService.EnableAccessKey:output_type -> google.protobuf.Empty
-	30, // 87: iam.v1.IAMService.RotateAccessKey:output_type -> iam.v1.StructResponse
-	7,  // 88: iam.v1.IAMService.IsUserTeamAdmin:output_type -> iam.v1.BoolResponse
-	7,  // 89: iam.v1.IAMService.IsUserInTeam:output_type -> iam.v1.BoolResponse
-	7,  // 90: iam.v1.IAMService.IsTeamPublic:output_type -> iam.v1.BoolResponse
-	7,  // 91: iam.v1.IAMService.IsUserProjectAdmin:output_type -> iam.v1.BoolResponse
-	7,  // 92: iam.v1.IAMService.IsUserInProject:output_type -> iam.v1.BoolResponse
-	9,  // 93: iam.v1.IAMService.ExchangeAccessKeyToken:output_type -> iam.v1.ExchangeAccessKeyTokenResponse
-	30, // 94: iam.v1.IAMService.CreateUser:output_type -> iam.v1.StructResponse
-	32, // 95: iam.v1.IAMService.DeleteUser:output_type -> google.protobuf.Empty
-	30, // 96: iam.v1.IAMService.GetUser:output_type -> iam.v1.StructResponse
-	30, // 97: iam.v1.IAMService.ListUsers:output_type -> iam.v1.StructResponse
-	30, // 98: iam.v1.IAMService.UpdateUser:output_type -> iam.v1.StructResponse
-	32, // 99: iam.v1.IAMService.AssignUserRole:output_type -> google.protobuf.Empty
-	32, // 100: iam.v1.IAMService.RemoveUserRole:output_type -> google.protobuf.Empty
-	32, // 101: iam.v1.IAMService.AssignUserPermissions:output_type -> google.protobuf.Empty
-	32, // 102: iam.v1.IAMService.RemoveUserPermissions:output_type -> google.protobuf.Empty
-	32, // 103: iam.v1.IAMService.AssignUserContainer:output_type -> google.protobuf.Empty
-	32, // 104: iam.v1.IAMService.RemoveUserContainer:output_type -> google.protobuf.Empty
-	32, // 105: iam.v1.IAMService.AssignUserDataset:output_type -> google.protobuf.Empty
-	32, // 106: iam.v1.IAMService.RemoveUserDataset:output_type -> google.protobuf.Empty
-	32, // 107: iam.v1.IAMService.AssignUserProject:output_type -> google.protobuf.Empty
-	32, // 108: iam.v1.IAMService.RemoveUserProject:output_type -> google.protobuf.Empty
-	30, // 109: iam.v1.IAMService.CreateRole:output_type -> iam.v1.StructResponse
-	32, // 110: iam.v1.IAMService.DeleteRole:output_type -> google.protobuf.Empty
-	30, // 111: iam.v1.IAMService.GetRole:output_type -> iam.v1.StructResponse
-	30, // 112: iam.v1.IAMService.ListRoles:output_type -> iam.v1.StructResponse
-	30, // 113: iam.v1.IAMService.UpdateRole:output_type -> iam.v1.StructResponse
-	32, // 114: iam.v1.IAMService.AssignRolePermissions:output_type -> google.protobuf.Empty
-	32, // 115: iam.v1.IAMService.RemoveRolePermissions:output_type -> google.protobuf.Empty
-	30, // 116: iam.v1.IAMService.ListUsersFromRole:output_type -> iam.v1.StructResponse
-	30, // 117: iam.v1.IAMService.GetPermission:output_type -> iam.v1.StructResponse
-	30, // 118: iam.v1.IAMService.ListPermissions:output_type -> iam.v1.StructResponse
-	30, // 119: iam.v1.IAMService.ListRolesFromPermission:output_type -> iam.v1.StructResponse
-	30, // 120: iam.v1.IAMService.GetResource:output_type -> iam.v1.StructResponse
-	30, // 121: iam.v1.IAMService.ListResources:output_type -> iam.v1.StructResponse
-	30, // 122: iam.v1.IAMService.ListResourcePermissions:output_type -> iam.v1.StructResponse
-	30, // 123: iam.v1.IAMService.CreateTeam:output_type -> iam.v1.StructResponse
-	32, // 124: iam.v1.IAMService.DeleteTeam:output_type -> google.protobuf.Empty
-	30, // 125: iam.v1.IAMService.GetTeam:output_type -> iam.v1.StructResponse
-	30, // 126: iam.v1.IAMService.ListTeams:output_type -> iam.v1.StructResponse
-	30, // 127: iam.v1.IAMService.UpdateTeam:output_type -> iam.v1.StructResponse
-	30, // 128: iam.v1.IAMService.ListTeamProjects:output_type -> iam.v1.StructResponse
-	32, // 129: iam.v1.IAMService.AddTeamMember:output_type -> google.protobuf.Empty
-	32, // 130: iam.v1.IAMService.RemoveTeamMember:output_type -> google.protobuf.Empty
-	32, // 131: iam.v1.IAMService.UpdateTeamMemberRole:output_type -> google.protobuf.Empty
-	30, // 132: iam.v1.IAMService.ListTeamMembers:output_type -> iam.v1.StructResponse
-	73, // [73:133] is the sub-list for method output_type
-	13, // [13:73] is the sub-list for method input_type
+	16, // 21: iam.v1.IAMService.CreateAPIKey:input_type -> iam.v1.UserBodyRequest
+	15, // 22: iam.v1.IAMService.ListAPIKeys:input_type -> iam.v1.UserQueryRequest
+	17, // 23: iam.v1.IAMService.GetAPIKey:input_type -> iam.v1.UserScopedIDRequest
+	17, // 24: iam.v1.IAMService.DeleteAPIKey:input_type -> iam.v1.UserScopedIDRequest
+	17, // 25: iam.v1.IAMService.DisableAPIKey:input_type -> iam.v1.UserScopedIDRequest
+	17, // 26: iam.v1.IAMService.EnableAPIKey:input_type -> iam.v1.UserScopedIDRequest
+	17, // 27: iam.v1.IAMService.RevokeAPIKey:input_type -> iam.v1.UserScopedIDRequest
+	17, // 28: iam.v1.IAMService.RotateAPIKey:input_type -> iam.v1.UserScopedIDRequest
+	4,  // 29: iam.v1.IAMService.IsUserTeamAdmin:input_type -> iam.v1.UserTeamRequest
+	4,  // 30: iam.v1.IAMService.IsUserInTeam:input_type -> iam.v1.UserTeamRequest
+	5,  // 31: iam.v1.IAMService.IsTeamPublic:input_type -> iam.v1.TeamRequest
+	6,  // 32: iam.v1.IAMService.IsUserProjectAdmin:input_type -> iam.v1.UserProjectRequest
+	6,  // 33: iam.v1.IAMService.IsUserInProject:input_type -> iam.v1.UserProjectRequest
+	8,  // 34: iam.v1.IAMService.ExchangeAPIKeyToken:input_type -> iam.v1.ExchangeAPIKeyTokenRequest
+	10, // 35: iam.v1.IAMService.CreateUser:input_type -> iam.v1.MutationRequest
+	12, // 36: iam.v1.IAMService.DeleteUser:input_type -> iam.v1.IDRequest
+	12, // 37: iam.v1.IAMService.GetUser:input_type -> iam.v1.IDRequest
+	11, // 38: iam.v1.IAMService.ListUsers:input_type -> iam.v1.QueryRequest
+	13, // 39: iam.v1.IAMService.UpdateUser:input_type -> iam.v1.UpdateByIDRequest
+	18, // 40: iam.v1.IAMService.AssignUserRole:input_type -> iam.v1.UserRoleBindingRequest
+	18, // 41: iam.v1.IAMService.RemoveUserRole:input_type -> iam.v1.UserRoleBindingRequest
+	16, // 42: iam.v1.IAMService.AssignUserPermissions:input_type -> iam.v1.UserBodyRequest
+	16, // 43: iam.v1.IAMService.RemoveUserPermissions:input_type -> iam.v1.UserBodyRequest
+	19, // 44: iam.v1.IAMService.AssignUserContainer:input_type -> iam.v1.UserResourceBindingRequest
+	17, // 45: iam.v1.IAMService.RemoveUserContainer:input_type -> iam.v1.UserScopedIDRequest
+	19, // 46: iam.v1.IAMService.AssignUserDataset:input_type -> iam.v1.UserResourceBindingRequest
+	17, // 47: iam.v1.IAMService.RemoveUserDataset:input_type -> iam.v1.UserScopedIDRequest
+	19, // 48: iam.v1.IAMService.AssignUserProject:input_type -> iam.v1.UserResourceBindingRequest
+	17, // 49: iam.v1.IAMService.RemoveUserProject:input_type -> iam.v1.UserScopedIDRequest
+	10, // 50: iam.v1.IAMService.CreateRole:input_type -> iam.v1.MutationRequest
+	12, // 51: iam.v1.IAMService.DeleteRole:input_type -> iam.v1.IDRequest
+	12, // 52: iam.v1.IAMService.GetRole:input_type -> iam.v1.IDRequest
+	11, // 53: iam.v1.IAMService.ListRoles:input_type -> iam.v1.QueryRequest
+	13, // 54: iam.v1.IAMService.UpdateRole:input_type -> iam.v1.UpdateByIDRequest
+	21, // 55: iam.v1.IAMService.AssignRolePermissions:input_type -> iam.v1.RolePermissionsRequest
+	21, // 56: iam.v1.IAMService.RemoveRolePermissions:input_type -> iam.v1.RolePermissionsRequest
+	12, // 57: iam.v1.IAMService.ListUsersFromRole:input_type -> iam.v1.IDRequest
+	12, // 58: iam.v1.IAMService.GetPermission:input_type -> iam.v1.IDRequest
+	11, // 59: iam.v1.IAMService.ListPermissions:input_type -> iam.v1.QueryRequest
+	12, // 60: iam.v1.IAMService.ListRolesFromPermission:input_type -> iam.v1.IDRequest
+	12, // 61: iam.v1.IAMService.GetResource:input_type -> iam.v1.IDRequest
+	11, // 62: iam.v1.IAMService.ListResources:input_type -> iam.v1.QueryRequest
+	12, // 63: iam.v1.IAMService.ListResourcePermissions:input_type -> iam.v1.IDRequest
+	22, // 64: iam.v1.IAMService.CreateTeam:input_type -> iam.v1.CreateTeamRequest
+	5,  // 65: iam.v1.IAMService.DeleteTeam:input_type -> iam.v1.TeamRequest
+	5,  // 66: iam.v1.IAMService.GetTeam:input_type -> iam.v1.TeamRequest
+	23, // 67: iam.v1.IAMService.ListTeams:input_type -> iam.v1.ListTeamsRequest
+	24, // 68: iam.v1.IAMService.UpdateTeam:input_type -> iam.v1.UpdateTeamRequest
+	25, // 69: iam.v1.IAMService.ListTeamProjects:input_type -> iam.v1.ListTeamProjectsRequest
+	26, // 70: iam.v1.IAMService.AddTeamMember:input_type -> iam.v1.AddTeamMemberRequest
+	27, // 71: iam.v1.IAMService.RemoveTeamMember:input_type -> iam.v1.RemoveTeamMemberRequest
+	28, // 72: iam.v1.IAMService.UpdateTeamMemberRole:input_type -> iam.v1.UpdateTeamMemberRoleRequest
+	29, // 73: iam.v1.IAMService.ListTeamMembers:input_type -> iam.v1.ListTeamMembersRequest
+	1,  // 74: iam.v1.IAMService.VerifyToken:output_type -> iam.v1.VerifyTokenResponse
+	3,  // 75: iam.v1.IAMService.CheckPermission:output_type -> iam.v1.CheckPermissionResponse
+	30, // 76: iam.v1.IAMService.Login:output_type -> iam.v1.StructResponse
+	30, // 77: iam.v1.IAMService.Register:output_type -> iam.v1.StructResponse
+	30, // 78: iam.v1.IAMService.RefreshToken:output_type -> iam.v1.StructResponse
+	32, // 79: iam.v1.IAMService.Logout:output_type -> google.protobuf.Empty
+	32, // 80: iam.v1.IAMService.ChangePassword:output_type -> google.protobuf.Empty
+	30, // 81: iam.v1.IAMService.GetProfile:output_type -> iam.v1.StructResponse
+	30, // 82: iam.v1.IAMService.CreateAPIKey:output_type -> iam.v1.StructResponse
+	30, // 83: iam.v1.IAMService.ListAPIKeys:output_type -> iam.v1.StructResponse
+	30, // 84: iam.v1.IAMService.GetAPIKey:output_type -> iam.v1.StructResponse
+	32, // 85: iam.v1.IAMService.DeleteAPIKey:output_type -> google.protobuf.Empty
+	32, // 86: iam.v1.IAMService.DisableAPIKey:output_type -> google.protobuf.Empty
+	32, // 87: iam.v1.IAMService.EnableAPIKey:output_type -> google.protobuf.Empty
+	32, // 88: iam.v1.IAMService.RevokeAPIKey:output_type -> google.protobuf.Empty
+	30, // 89: iam.v1.IAMService.RotateAPIKey:output_type -> iam.v1.StructResponse
+	7,  // 90: iam.v1.IAMService.IsUserTeamAdmin:output_type -> iam.v1.BoolResponse
+	7,  // 91: iam.v1.IAMService.IsUserInTeam:output_type -> iam.v1.BoolResponse
+	7,  // 92: iam.v1.IAMService.IsTeamPublic:output_type -> iam.v1.BoolResponse
+	7,  // 93: iam.v1.IAMService.IsUserProjectAdmin:output_type -> iam.v1.BoolResponse
+	7,  // 94: iam.v1.IAMService.IsUserInProject:output_type -> iam.v1.BoolResponse
+	9,  // 95: iam.v1.IAMService.ExchangeAPIKeyToken:output_type -> iam.v1.ExchangeAPIKeyTokenResponse
+	30, // 96: iam.v1.IAMService.CreateUser:output_type -> iam.v1.StructResponse
+	32, // 97: iam.v1.IAMService.DeleteUser:output_type -> google.protobuf.Empty
+	30, // 98: iam.v1.IAMService.GetUser:output_type -> iam.v1.StructResponse
+	30, // 99: iam.v1.IAMService.ListUsers:output_type -> iam.v1.StructResponse
+	30, // 100: iam.v1.IAMService.UpdateUser:output_type -> iam.v1.StructResponse
+	32, // 101: iam.v1.IAMService.AssignUserRole:output_type -> google.protobuf.Empty
+	32, // 102: iam.v1.IAMService.RemoveUserRole:output_type -> google.protobuf.Empty
+	32, // 103: iam.v1.IAMService.AssignUserPermissions:output_type -> google.protobuf.Empty
+	32, // 104: iam.v1.IAMService.RemoveUserPermissions:output_type -> google.protobuf.Empty
+	32, // 105: iam.v1.IAMService.AssignUserContainer:output_type -> google.protobuf.Empty
+	32, // 106: iam.v1.IAMService.RemoveUserContainer:output_type -> google.protobuf.Empty
+	32, // 107: iam.v1.IAMService.AssignUserDataset:output_type -> google.protobuf.Empty
+	32, // 108: iam.v1.IAMService.RemoveUserDataset:output_type -> google.protobuf.Empty
+	32, // 109: iam.v1.IAMService.AssignUserProject:output_type -> google.protobuf.Empty
+	32, // 110: iam.v1.IAMService.RemoveUserProject:output_type -> google.protobuf.Empty
+	30, // 111: iam.v1.IAMService.CreateRole:output_type -> iam.v1.StructResponse
+	32, // 112: iam.v1.IAMService.DeleteRole:output_type -> google.protobuf.Empty
+	30, // 113: iam.v1.IAMService.GetRole:output_type -> iam.v1.StructResponse
+	30, // 114: iam.v1.IAMService.ListRoles:output_type -> iam.v1.StructResponse
+	30, // 115: iam.v1.IAMService.UpdateRole:output_type -> iam.v1.StructResponse
+	32, // 116: iam.v1.IAMService.AssignRolePermissions:output_type -> google.protobuf.Empty
+	32, // 117: iam.v1.IAMService.RemoveRolePermissions:output_type -> google.protobuf.Empty
+	30, // 118: iam.v1.IAMService.ListUsersFromRole:output_type -> iam.v1.StructResponse
+	30, // 119: iam.v1.IAMService.GetPermission:output_type -> iam.v1.StructResponse
+	30, // 120: iam.v1.IAMService.ListPermissions:output_type -> iam.v1.StructResponse
+	30, // 121: iam.v1.IAMService.ListRolesFromPermission:output_type -> iam.v1.StructResponse
+	30, // 122: iam.v1.IAMService.GetResource:output_type -> iam.v1.StructResponse
+	30, // 123: iam.v1.IAMService.ListResources:output_type -> iam.v1.StructResponse
+	30, // 124: iam.v1.IAMService.ListResourcePermissions:output_type -> iam.v1.StructResponse
+	30, // 125: iam.v1.IAMService.CreateTeam:output_type -> iam.v1.StructResponse
+	32, // 126: iam.v1.IAMService.DeleteTeam:output_type -> google.protobuf.Empty
+	30, // 127: iam.v1.IAMService.GetTeam:output_type -> iam.v1.StructResponse
+	30, // 128: iam.v1.IAMService.ListTeams:output_type -> iam.v1.StructResponse
+	30, // 129: iam.v1.IAMService.UpdateTeam:output_type -> iam.v1.StructResponse
+	30, // 130: iam.v1.IAMService.ListTeamProjects:output_type -> iam.v1.StructResponse
+	32, // 131: iam.v1.IAMService.AddTeamMember:output_type -> google.protobuf.Empty
+	32, // 132: iam.v1.IAMService.RemoveTeamMember:output_type -> google.protobuf.Empty
+	32, // 133: iam.v1.IAMService.UpdateTeamMemberRole:output_type -> google.protobuf.Empty
+	30, // 134: iam.v1.IAMService.ListTeamMembers:output_type -> iam.v1.StructResponse
+	74, // [74:135] is the sub-list for method output_type
+	13, // [13:74] is the sub-list for method input_type
 	13, // [13:13] is the sub-list for extension type_name
 	13, // [13:13] is the sub-list for extension extendee
 	0,  // [0:13] is the sub-list for field type_name

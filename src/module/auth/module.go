@@ -7,7 +7,7 @@ import (
 var Module = fx.Module("auth",
 	fx.Provide(NewUserRepository),
 	fx.Provide(NewRoleRepository),
-	fx.Provide(NewAccessKeyRepository),
+	fx.Provide(NewAPIKeyRepository),
 	fx.Provide(NewTokenStore),
 	fx.Provide(NewService),
 	fx.Provide(AsHandlerService),

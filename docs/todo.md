@@ -415,31 +415,49 @@ Task：
 - 同一个 operation 可以同时落入多个 audience。
 - Python SDK 只消费 `sdk.json`；TypeScript SDK 不再消费共享并集视图，而是分别按 `portal.json` / `admin.json` 生成独立 Portal SDK 与 Admin SDK。
 - SDK audience 改为显式白名单；默认不再把通用登录、Portal/Admin 控制面接口顺手放进 `sdk.json`。
-- SDK / CLI 认证主线改为 `AK/SK -> access token`；`username/password login` 仅保留给 Portal / Admin 等人类交互入口。
-- `AK/SK -> token` 进一步改为 header 签名模式：`X-Access-Key`、`X-Timestamp`、`X-Nonce`、`X-Signature`，业务接口仍继续走 Bearer token。
+- SDK / CLI 认证主线改为 `Key ID / Key Secret -> access token`；`username/password login` 仅保留给 Portal / Admin 等人类交互入口。
+- `Key ID / Key Secret -> token` 进一步改为 header 签名模式：`X-Key-Id`、`X-Timestamp`、`X-Nonce`、`X-Signature`，业务接口仍继续走 Bearer token。
 
 本轮执行清单：
 
 - [x] 收缩 `sdk` audience 到最小可维护白名单
-  - 已继续把剩余误标的 `sdk` audience 收回，只保留 `POST /api/v2/auth/access-key/token` 与 `src/router/sdk.go` 下 4 个 SDK 样例接口；当前 `sdk.json` 已收缩到 `5 paths / 5 operations`。
+  - 已继续把剩余误标的 `sdk` audience 收回，只保留 `POST /api/v2/auth/api-key/token` 与 `src/router/sdk.go` 下 4 个 SDK 样例接口；当前 `sdk.json` 已收缩到 `5 paths / 5 operations`。
 - [x] 从 Swagger audience 中移除 `POST /api/v2/auth/register` 的 `sdk`
 - [x] 从 Swagger audience 中移除 `POST /api/v2/auth/login` 的 `sdk`
-- [x] 盘点并设计 AK/SK 数据模型
-  - 已新增 `database.UserAccessKey`，覆盖 `owner`、`enabled/disabled/deleted`、`expires_at`、`last_used_at`、`name/description`、`secret_hash`，并纳入 `AutoMigrate`。
-- [x] 增加 AK/SK 管理接口
-  - 已补 `portal` 路由：`GET/POST /api/v2/access-keys`、`GET/DELETE /api/v2/access-keys/{access_key_id}`、`POST /api/v2/access-keys/{access_key_id}/rotate|disable|enable`。
-- [x] 增加 `AK/SK -> token` 接口并标为 `sdk`
-  - 已补 `POST /api/v2/auth/access-key/token`，返回 Bearer token，并在 JWT claims 中标记 `auth_type=access_key` 与 `access_key_id`；当前入口改为 `X-Access-Key` / `X-Timestamp` / `X-Nonce` / `X-Signature` 头签名校验，服务端会校验 5 分钟时间窗并用 Redis 做 nonce 防重放。
-- [x] 将 Python SDK 的鉴权入口切到 AK/SK
-  - `sdk/python/src/rcabench/client/http_client.py` 已改为优先使用 `token` 或 `access_key + secret_key`；SDK 不再依赖 username/password login，环境变量同步切到 `RCABENCH_ACCESS_KEY` / `RCABENCH_SECRET_KEY`，并在换 token 时自动按 `METHOD\\nPATH\\nACCESS_KEY\\nTIMESTAMP\\nNONCE` 规范计算 HMAC-SHA256 签名头。
-- [x] 将 `aegisctl` 的鉴权入口切到 AK/SK
-  - `src/cmd/aegisctl/cmd/auth.go` / `src/cmd/aegisctl/client/auth.go` 已切到 `--access-key` + `--secret-key` 签名换取 `POST /api/v2/auth/access-key/token`；签名规范与 Python SDK 保持一致，登录结果继续只落盘 Bearer token，不保存 `secret_key`。
+- [x] 盘点并设计 API key / Key ID / Key Secret 数据模型
+  - 已新增 `model.APIKey`，并把物理 schema 一并改到 `api_keys` / `key_id` / `key_secret_hash` / `key_secret_ciphertext` / `active_key_id`，覆盖 `owner`、`enabled/disabled/deleted`、`expires_at`、`last_used_at`、`name/description` 等字段，并纳入 `AutoMigrate`。
+- [x] 增加 API key 管理接口
+  - 已补 `portal` 路由：`GET/POST /api/v2/api-keys`、`GET/DELETE /api/v2/api-keys/{id}`、`POST /api/v2/api-keys/{id}/rotate|disable|enable`。
+- [x] 增加 `Key ID / Key Secret -> token` 接口并标为 `sdk`
+  - 已补 `POST /api/v2/auth/api-key/token`，返回 Bearer token，并在 JWT claims 中标记 `auth_type=api_key` 与 `api_key_id`；当前入口统一使用 `X-Key-Id` / `X-Timestamp` / `X-Nonce` / `X-Signature` 头签名校验，canonical string 已收敛为 `METHOD\\nPATH\\nTIMESTAMP\\nNONCE\\nSHA256(BODY)`，服务端会校验 5 分钟时间窗并用 Redis 做 nonce 防重放；`iam.proto` / `src/interface/grpciam` / `src/internalclient/iamclient` 这条内部链也已统一到 `key_id` 字段名。
+- [x] 将 Python SDK 的鉴权入口切到 Key ID / Key Secret
+  - `sdk/python/src/rcabench/client/http_client.py` 已改为优先使用 `token` 或 `key_id + key_secret`；SDK 不再依赖 username/password login，环境变量主入口切到 `RCABENCH_KEY_ID` / `RCABENCH_KEY_SECRET`，并按 `METHOD\\nPATH\\nTIMESTAMP\\nNONCE\\nSHA256(BODY)` 规范计算 HMAC-SHA256 签名头；重生成后的 `sdk/python/src/rcabench/openapi/*` 也已切到 `X-Key-Id`、`key_id`、`key_secret` schema，不再暴露旧 `X-Access-Key` / `access_key` / `secret_key` 鉴权字段。
+- [x] 将 `aegisctl` 的鉴权入口切到 Key ID / Key Secret
+  - `src/cmd/aegisctl/cmd/auth.go` / `src/cmd/aegisctl/client/auth.go` 已切到 `--key-id` + `--key-secret` 签名换取 `POST /api/v2/auth/api-key/token`；环境变量主入口改为 `AEGIS_KEY_ID` / `AEGIS_KEY_SECRET`，登录结果继续只落盘 Bearer token 与 `key_id`，不保存 `key_secret`；旧 flag/env 与响应字段兼容读取已删除。
 - [x] 给 `aegisctl` 增加本地签名排障命令
-  - 已补 `aegisctl auth inspect` 与 `aegisctl auth sign-debug`；前者可检查当前 context 的 token / auth_type / access_key / expiry，后者可直接打印 canonical string、签名头与 curl 样例，并可通过 `--execute` 直接发起换 token 请求回显响应，或通过 `--save-context` 直接把成功返回的 Bearer token 落盘到当前 CLI context，便于排查 SDK / CLI / 服务端签名不一致问题。
-- [x] 补充 AK/SK 头签名规范文档
-  - 相关说明现已并入 `docs/report-index.md`：明确 canonical string、Header 约定、HMAC 规则、时间窗与 nonce 防重放语义，并补了 Portal 上 access key 的使用说明与 `aegisctl` 排障命令说明；同时已回填 `src/handlers/v2/access_keys.go` / `src/dto/auth.go` 的 Swagger/OpenAPI 注释与 schema example，前端与文档站可直接消费。
-- [x] 补 Portal access key 前端文案与表单提示
-  - `../AegisLab-frontend/src/pages/settings/Settings.tsx` 已新增 Access Keys 管理页签，覆盖创建 / 轮换 / 启停 / 删除与一次性 secret 提示；`../AegisLab-frontend/src/api/auth.ts` 也已补齐 access key API 封装，页面文案与 OpenAPI 说明保持一致。
+  - 已补 `aegisctl auth inspect` 与 `aegisctl auth sign-debug`；前者可检查当前 context 的 token / auth_type / key_id / expiry，后者可直接打印 canonical string、签名头与 curl 样例，并可通过 `--execute` 直接发起换 token 请求回显响应，或通过 `--save-context` 直接把成功返回的 Bearer token 落盘到当前 CLI context，便于排查 SDK / CLI / 服务端签名不一致问题。
+- [x] 补充 Key ID / Key Secret 头签名规范文档
+  - 相关说明现已并入 `docs/report-index.md`：明确 canonical string、Header 约定、HMAC 规则、时间窗与 nonce 防重放语义，并补了 Portal 上 API key 的使用说明与 `aegisctl` 排障命令说明；Swagger 注释与生成文档也已统一到 `X-Key-Id`、`key_id`、`key_secret` 口径，可直接供文档站与 SDK 生成消费。
+- [x] 收口 API key 命名与样例前缀
+  - auth handler / service / gRPC / internal client / CLI / Swagger / Python SDK 现已统一使用 `API key`、`key_id`、`key_secret`；公开样例前缀也统一为 `pk_...` / `ks_...`。Go 存储模型与物理 schema 现都已统一到 `APIKey` / `api_keys` / `key_id` 口径，不再保留旧 `user_access_keys` / `access_key` 兼容层。
+- [x] 补 API key 的 `scopes` / `revoked_at` 语义
+  - `model.APIKey` 已新增 `scopes` 与 `revoked_at`；创建接口支持提交 `scopes`，默认会归一化为 `["*"]`；列表/详情/创建/轮换响应会返回 scopes 与 revoked_at；同时新增 `POST /api/v2/api-keys/{id}/revoke`，被 revoke 的 API key 会被永久拒绝换 token，且不能再 re-enable / rotate。
+- [x] 把 API key scopes 继续推进到 bearer token / gRPC verify / middleware 上下文
+  - `utils.Claims` 已补 `api_key_scopes`，`Key ID / Key Secret -> token` 成功后签发的 JWT 会携带 scopes；`iam.proto` / `src/interface/grpciam` / `src/internalclient/iamclient` 的 verify 响应链也已同步透传，HTTP middleware 现会把 `auth_type` / `api_key_id` / `api_key_scopes` 一并放入请求上下文，后续做 scope enforcement 不用再回查 API key 表。
+- [x] 给 API key scopes 接上首版运行时拦截
+  - `src/middleware/permission.go` 现已在 permission middleware 里先按 `api_key_scopes` 做匹配，再落 DB 权限校验；当前支持 `*`、`resource`、`resource:action`、`resource:action:scope` 以及各段 `*` 通配，先覆盖所有基于 `RequirePermission/RequireAnyPermission/RequireAllPermissions` 的路由。
+- [x] 把 team/project 成员关系型中间件也接上 API key scopes 预过滤
+  - `RequireTeamMemberAccess` / `RequireTeamAdminAccess` / `RequireProjectAccess(...)` 现在会先按 API key scope 做 read/manage 级别过滤，再执行成员/管理员关系判断，避免 API key bearer token 绕过非 permission 型访问守卫。
+- [x] 再扫一轮 JWTAuth-only 路由，把明显漏掉的敏感守卫补齐
+  - 已补上 `team list/create`、`/api/v2/resources*`、`/api/v2/systems*`、`/api/v2/system/metrics*` 这批原先只有 `JWTAuth()` 的敏感入口；当前剩余仅 `auth profile/logout/change-password`、`/api/v2/api-keys/*` 自助凭证管理，以及 `sdk` 样例查询这几类刻意保留的 JWTAuth-only 路由，后两者若要继续收紧可再单独引入更明确的 API key/self-service scope 语义。
+- [x] 给 `sdk/*` 和 `/api/v2/api-keys/*` 落一版明确语义
+  - `src/router/sdk.go` 已引入显式 API key scope gate：`/api/v2/sdk/evaluations*` 需要 `sdk:*` / `sdk:evaluations:*` / `sdk:evaluations:read`，`/api/v2/sdk/datasets` 需要 `sdk:*` / `sdk:datasets:*` / `sdk:datasets:read`；同时 `src/router/portal.go` 的 `/api/v2/api-keys/*` 已统一挂 `RequireHumanUserAuth()`，明确只允许人类用户 session 管理 API key，禁止“API key 再管理 API key”。
+- [x] 把 auth 自助接口也限制为 human session
+  - `src/router/public.go` 的 `/api/v2/auth/profile`、`/logout`、`/change-password` 现已统一挂 `RequireHumanUserAuth()`；当前 API key bearer token 只保留给显式允许的 SDK/业务 API，不再可进入用户账号自助管理接口。
+- [x] 启动 Python SDK / runtime wrapper 分层主线第一批落地
+  - 已新增 `docs/python-runtime-wrapper-design.md` 与 `docs/python-runtime-wrapper-todo.md`；Swagger `x-api-type` 现支持 `runtime` audience，并新增 `src/docs/converted/runtime.json`；`module/execution` 的 detector/granularity upload 已标为 `runtime:"true"`，`src/router/runtime.go` 也已把这两条 `/api/v2/executions/{execution_id}/*_results` 路由挂到 `JWTAuth() + RequireServiceTokenAuth()`；同时 `sdk/python/src/rcabench/client/runtime_client.py` 已新增 `RCABenchRuntimeClient`，并从 Python 包根导出，作为后续 `rcabench-platform` wrapper 的 service-token-only 基础客户端。
+- [x] 收紧 hand-written Python client 边界：public client 只保留 API key，runtime client 只保留 service token
+  - `sdk/python/src/rcabench/client/base.py` 已新增 `BaseRCABenchClient` 抽出共享 session/api-client 生命周期；`RCABenchClient` 已删除直接 bearer token 模式，仅保留 `key_id + key_secret`；`RCABenchRuntimeClient` 现改成与 public client 同结构的 service-token-only connector，不再承载 detector/granularity upload 调度语义，后续 heartbeat / status / artifact/result 的调用时机统一留给外仓 `rcabench-platform` wrapper 控制。
 - [x] 重新生成 `openapi3` / `sdk.json` 并回填最新统计
   - 当前生成结果为：`openapi3/openapi.json` `138 paths / 173 operations`，`sdk.json` `5 / 5`，`portal.json` `31 / 43`，`admin.json` `48 / 58`；Python SDK 已按最新 `sdk.json` 重新生成，TypeScript 侧改为分别消费 `portal.json` 与 `admin.json`。
 
@@ -592,7 +610,7 @@ Task：
 - [x] 在 `src/app/` 建立第一批服务边界分组：`gateway / runtime / iam / resource / orchestrator / system`
 - [x] 新增第一批可运行服务入口：`src/cmd/api-gateway`、`src/cmd/runtime-worker-service`、`src/cmd/iam-service`
 - [x] Runtime Worker Service：补 `runtime.proto` 与 gRPC control-plane（`Ping / GetRuntimeStatus / GetQueueStatus / GetLimiterStatus`）
-- [x] IAM Service：补 `iam.proto` 与 token verify / permission check / access-key exchange gRPC
+- [x] IAM Service：补 `iam.proto` 与 token verify / permission check / API key exchange gRPC
 - [x] Orchestrator Service：补 `orchestrator.proto`、`src/interface/grpcorchestrator/*` 与 `src/cmd/orchestrator-service`
 - [x] Orchestrator Service：首批 submit / cancel RPC 已收口（`Ping / SubmitExecution / SubmitFaultInjection / SubmitDatapackBuilding / CancelTask`）
 - [x] Gateway -> Orchestrator：execution / injection submit 主路径已支持通过 `clients.orchestrator.target` 或 `orchestrator.grpc.target` 切到内部 gRPC
@@ -626,7 +644,7 @@ Task：
 - 当前 `api-gateway` 语义上对应既有 producer HTTP 栈，`runtime-worker-service` 语义上对应既有 consumer 栈；其余服务的核心内部 RPC 与独立启动入口已落地，后续再按边界细化 owner 职责。
 - 本轮已落地 `src/proto/runtime/v1/runtime.proto`、`src/interface/grpcruntime/*` 与 queue/limiter/runtime snapshot 聚合能力，并把 gRPC lifecycle 接入 `ConsumerOptions` / `BothOptions`；默认监听 `:9094`，可通过 `runtime_worker.grpc.addr` 覆盖。
 - 本轮继续扩展 `runtime-worker-service` control-plane：当前额外提供 `GetNamespaceLocks / GetQueuedTasks`，用于承接 runtime Redis 运行态对内查询。
-- 本轮继续落地 `src/proto/iam/v1/iam.proto`、`src/interface/grpciam/*` 与 `src/cmd/iam-service`，当前 IAM 内部 RPC 已覆盖鉴权、access key、team、user、rbac 五组主路径：除 `VerifyToken / CheckPermission / ExchangeAccessKeyToken` 与 team membership 判定外，也已补齐 `Login / Register / RefreshToken / Logout / ChangePassword / GetProfile / access key CRUD`、`Create/Get/List/Update/Delete user`、user role/permission/resource 绑定、`Create/Get/List/Update/Delete role`、role-permission 绑定以及 permission/resource 查询；默认监听 `:9091`，可通过 `iam.grpc.addr` 覆盖。
+- 本轮继续落地 `src/proto/iam/v1/iam.proto`、`src/interface/grpciam/*` 与 `src/cmd/iam-service`，当前 IAM 内部 RPC 已覆盖鉴权、API key、team、user、rbac 五组主路径：除 `VerifyToken / CheckPermission / ExchangeAPIKeyToken` 与 team membership 判定外，也已补齐 `Login / Register / RefreshToken / Logout / ChangePassword / GetProfile / API key CRUD`、`Create/Get/List/Update/Delete user`、user role/permission/resource 绑定、`Create/Get/List/Update/Delete role`、role-permission 绑定以及 permission/resource 查询；默认监听 `:9091`，可通过 `iam.grpc.addr` 覆盖。
 - 本轮继续补上 `src/proto/orchestrator/v1/orchestrator.proto`、`src/interface/grpcorchestrator/*` 与 `src/cmd/orchestrator-service`，当前 Orchestrator 内部 RPC 已提供 `Ping / SubmitExecution / SubmitFaultInjection / SubmitDatapackBuilding / CancelTask` 五个入口；默认监听 `:9092`，可通过 `orchestrator.grpc.addr` 覆盖。
 - 本轮继续扩展 `orchestrator-service` 控制面：当前额外已提供 `GetTask / ListTasks / GetTrace / ListTraces / ListDeadLetterTasks / RetryTask` 六个入口，用于 workflow state 查询、dead-letter 补偿与手动 retry；同时执行/消费异步仍保持 Redis queue/event 主链不变。
 - 本轮继续扩展 `orchestrator-service` owner facade：当前又额外提供 `CreateExecution / CreateInjection / UpdateExecutionState / UpdateInjectionState / UpdateInjectionTimestamps / GetExecution / ListEvaluationExecutionsByDatapack / ListEvaluationExecutionsByDataset` 八个入口，分别承接 runtime 状态回写与 evaluation 执行结果查询。
@@ -656,7 +674,7 @@ Task：
 - 这一轮又继续把兼容入口装配层压实到单点：新增 `src/app/compat_options.go`，把 producer 侧 HTTP/K8s/chaos 与 producer init/http server 装配收成 `ProducerCompatibilityOptions / ProducerHTTPEntryOptions`，把 consumer/both 共享的本地 owner runtime 组合继续收成 `CompatibilityRuntimeOptions()`；`src/app/producer.go`、`consumer.go`、`both.go`、`gateway/options.go` 现在不再各自重复拼 `Base/Observe/Data/Coordination/Build + modules + init + http`，同时已删掉 `NormalizeAddr(...)` 与 gateway 专用 `NewProducerInitializerForGateway / RegisterProducerInitializationForGateway` 这类多余壳函数。
 - 这一轮继续把 dedicated `api-gateway` 的 metrics 边界收紧：`src/module/metric` 已补 `HandlerService`，`src/app/gateway/metric_services.go` 新增 remote-aware metrics wrapper，gateway 上的 `/api/v2/metrics/injections|executions|algorithms` 不再直接落本地 `fault_injections / executions / containers` 表；其中 injection/execution metrics 已走新增的 orchestrator RPC `GetInjectionMetrics / GetExecutionMetrics`，algorithm metrics 则由 gateway 经 `resource-service` 拉 algorithm 列表后再按算法向 orchestrator 聚合执行指标，先把 dedicated gateway 这块跨 owner 直查面收掉。
 - 这一轮继续把 dedicated `api-gateway` 的 team 主路径切到 IAM：`src/module/team` 已补 `HandlerService`，`src/app/gateway/team_services.go` 新增 remote-aware team wrapper，gateway 上的 `/api/v2/teams/*` 现在统一经 `iamclient` 转发 `Create/Get/List/Update/Delete`、member 管理、team project/member 列表，而不再直接吃本地 team owner 实现；对应地 `src/proto/iam/v1/iam.proto`、`src/interface/grpciam/service.go`、`src/internalclient/iamclient/client.go` 已补齐 team RPC 面。同时 `src/module/team/project_reader.go` 又新增 `RemoteProjectReaderOption()`，`src/app/iam/options.go` 已把 dedicated `iam-service` 上的 team->project 视图继续收成 resource RPC-only。
-- 这一轮再把 dedicated `api-gateway` 的 IAM 剩余主路径继续收口：`src/module/{auth,user,rbac}` 已补 `HandlerService`，`src/app/gateway/{auth,user,rbac}_services.go` 新增 remote-aware wrapper，gateway 上的 `/api/v2/auth/*`、`/api/v2/access-keys/*`、`/api/v2/users/*`、`/api/v2/roles|permissions|resources/*` 已统一经 `iamclient` 转发，不再在 dedicated `api-gateway` 入口直接吃本地 IAM owner 实现；对应地 `src/proto/iam/v1/iam.proto`、`src/interface/grpciam/service.go`、`src/internalclient/iamclient/client.go` 也已补齐 auth/user/rbac RPC 面。
+- 这一轮再把 dedicated `api-gateway` 的 IAM 剩余主路径继续收口：`src/module/{auth,user,rbac}` 已补 `HandlerService`，`src/app/gateway/{auth,user,rbac}_services.go` 新增 remote-aware wrapper，gateway 上的 `/api/v2/auth/*`、`/api/v2/api-keys/*`、`/api/v2/users/*`、`/api/v2/roles|permissions|resources/*` 已统一经 `iamclient` 转发，不再在 dedicated `api-gateway` 入口直接吃本地 IAM owner 实现；对应地 `src/proto/iam/v1/iam.proto`、`src/interface/grpciam/service.go`、`src/internalclient/iamclient/client.go` 也已补齐 auth/user/rbac RPC 面。
 - `src/app/app.go` 已开始按服务边界拆装配层：当前新增 `BaseOptions / ObserveOptions / DataOptions / CoordinationOptions / BuildInfraOptions`，独立服务启动链不再统一吃满所有 infra。
 - `src/app/resource/options.go` 这一轮继续把 standalone 边界推进到 `project / label / container / dataset / evaluation`；`resource-service` 已接入 `orchestratorclient.Module` 承接 evaluation -> orchestrator 的远程查询，gateway 对 `evaluation` handler 也已补上 remote-aware 装饰。
 - 这一轮继续把 dedicated `api-gateway` 的 label 主路径切到 Resource：`src/module/label` 已补 `HandlerService`，`src/proto/resource/v1/resource.proto` / `src/interface/grpcresource/service.go` / `src/internalclient/resourceclient/client.go` 已补齐 `Create/Get/List/Update/Delete/BatchDelete label` 对内 RPC；同时 `src/app/gateway/resource_services.go` 与 `src/app/gateway/options.go` 已把 `/api/v2/labels/*` 改成统一经 `resource-service` 转发，dedicated gateway 不再直接承载 label owner 读写。

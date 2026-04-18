@@ -28,19 +28,20 @@ const (
 	IAMService_Logout_FullMethodName                  = "/iam.v1.IAMService/Logout"
 	IAMService_ChangePassword_FullMethodName          = "/iam.v1.IAMService/ChangePassword"
 	IAMService_GetProfile_FullMethodName              = "/iam.v1.IAMService/GetProfile"
-	IAMService_CreateAccessKey_FullMethodName         = "/iam.v1.IAMService/CreateAccessKey"
-	IAMService_ListAccessKeys_FullMethodName          = "/iam.v1.IAMService/ListAccessKeys"
-	IAMService_GetAccessKey_FullMethodName            = "/iam.v1.IAMService/GetAccessKey"
-	IAMService_DeleteAccessKey_FullMethodName         = "/iam.v1.IAMService/DeleteAccessKey"
-	IAMService_DisableAccessKey_FullMethodName        = "/iam.v1.IAMService/DisableAccessKey"
-	IAMService_EnableAccessKey_FullMethodName         = "/iam.v1.IAMService/EnableAccessKey"
-	IAMService_RotateAccessKey_FullMethodName         = "/iam.v1.IAMService/RotateAccessKey"
+	IAMService_CreateAPIKey_FullMethodName            = "/iam.v1.IAMService/CreateAPIKey"
+	IAMService_ListAPIKeys_FullMethodName             = "/iam.v1.IAMService/ListAPIKeys"
+	IAMService_GetAPIKey_FullMethodName               = "/iam.v1.IAMService/GetAPIKey"
+	IAMService_DeleteAPIKey_FullMethodName            = "/iam.v1.IAMService/DeleteAPIKey"
+	IAMService_DisableAPIKey_FullMethodName           = "/iam.v1.IAMService/DisableAPIKey"
+	IAMService_EnableAPIKey_FullMethodName            = "/iam.v1.IAMService/EnableAPIKey"
+	IAMService_RevokeAPIKey_FullMethodName            = "/iam.v1.IAMService/RevokeAPIKey"
+	IAMService_RotateAPIKey_FullMethodName            = "/iam.v1.IAMService/RotateAPIKey"
 	IAMService_IsUserTeamAdmin_FullMethodName         = "/iam.v1.IAMService/IsUserTeamAdmin"
 	IAMService_IsUserInTeam_FullMethodName            = "/iam.v1.IAMService/IsUserInTeam"
 	IAMService_IsTeamPublic_FullMethodName            = "/iam.v1.IAMService/IsTeamPublic"
 	IAMService_IsUserProjectAdmin_FullMethodName      = "/iam.v1.IAMService/IsUserProjectAdmin"
 	IAMService_IsUserInProject_FullMethodName         = "/iam.v1.IAMService/IsUserInProject"
-	IAMService_ExchangeAccessKeyToken_FullMethodName  = "/iam.v1.IAMService/ExchangeAccessKeyToken"
+	IAMService_ExchangeAPIKeyToken_FullMethodName     = "/iam.v1.IAMService/ExchangeAPIKeyToken"
 	IAMService_CreateUser_FullMethodName              = "/iam.v1.IAMService/CreateUser"
 	IAMService_DeleteUser_FullMethodName              = "/iam.v1.IAMService/DeleteUser"
 	IAMService_GetUser_FullMethodName                 = "/iam.v1.IAMService/GetUser"
@@ -94,19 +95,20 @@ type IAMServiceClient interface {
 	Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	ChangePassword(ctx context.Context, in *UserBodyRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	GetProfile(ctx context.Context, in *UserIDRequest, opts ...grpc.CallOption) (*StructResponse, error)
-	CreateAccessKey(ctx context.Context, in *UserBodyRequest, opts ...grpc.CallOption) (*StructResponse, error)
-	ListAccessKeys(ctx context.Context, in *UserQueryRequest, opts ...grpc.CallOption) (*StructResponse, error)
-	GetAccessKey(ctx context.Context, in *UserScopedIDRequest, opts ...grpc.CallOption) (*StructResponse, error)
-	DeleteAccessKey(ctx context.Context, in *UserScopedIDRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	DisableAccessKey(ctx context.Context, in *UserScopedIDRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	EnableAccessKey(ctx context.Context, in *UserScopedIDRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	RotateAccessKey(ctx context.Context, in *UserScopedIDRequest, opts ...grpc.CallOption) (*StructResponse, error)
+	CreateAPIKey(ctx context.Context, in *UserBodyRequest, opts ...grpc.CallOption) (*StructResponse, error)
+	ListAPIKeys(ctx context.Context, in *UserQueryRequest, opts ...grpc.CallOption) (*StructResponse, error)
+	GetAPIKey(ctx context.Context, in *UserScopedIDRequest, opts ...grpc.CallOption) (*StructResponse, error)
+	DeleteAPIKey(ctx context.Context, in *UserScopedIDRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	DisableAPIKey(ctx context.Context, in *UserScopedIDRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	EnableAPIKey(ctx context.Context, in *UserScopedIDRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	RevokeAPIKey(ctx context.Context, in *UserScopedIDRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	RotateAPIKey(ctx context.Context, in *UserScopedIDRequest, opts ...grpc.CallOption) (*StructResponse, error)
 	IsUserTeamAdmin(ctx context.Context, in *UserTeamRequest, opts ...grpc.CallOption) (*BoolResponse, error)
 	IsUserInTeam(ctx context.Context, in *UserTeamRequest, opts ...grpc.CallOption) (*BoolResponse, error)
 	IsTeamPublic(ctx context.Context, in *TeamRequest, opts ...grpc.CallOption) (*BoolResponse, error)
 	IsUserProjectAdmin(ctx context.Context, in *UserProjectRequest, opts ...grpc.CallOption) (*BoolResponse, error)
 	IsUserInProject(ctx context.Context, in *UserProjectRequest, opts ...grpc.CallOption) (*BoolResponse, error)
-	ExchangeAccessKeyToken(ctx context.Context, in *ExchangeAccessKeyTokenRequest, opts ...grpc.CallOption) (*ExchangeAccessKeyTokenResponse, error)
+	ExchangeAPIKeyToken(ctx context.Context, in *ExchangeAPIKeyTokenRequest, opts ...grpc.CallOption) (*ExchangeAPIKeyTokenResponse, error)
 	CreateUser(ctx context.Context, in *MutationRequest, opts ...grpc.CallOption) (*StructResponse, error)
 	DeleteUser(ctx context.Context, in *IDRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	GetUser(ctx context.Context, in *IDRequest, opts ...grpc.CallOption) (*StructResponse, error)
@@ -236,70 +238,80 @@ func (c *iAMServiceClient) GetProfile(ctx context.Context, in *UserIDRequest, op
 	return out, nil
 }
 
-func (c *iAMServiceClient) CreateAccessKey(ctx context.Context, in *UserBodyRequest, opts ...grpc.CallOption) (*StructResponse, error) {
+func (c *iAMServiceClient) CreateAPIKey(ctx context.Context, in *UserBodyRequest, opts ...grpc.CallOption) (*StructResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(StructResponse)
-	err := c.cc.Invoke(ctx, IAMService_CreateAccessKey_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, IAMService_CreateAPIKey_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *iAMServiceClient) ListAccessKeys(ctx context.Context, in *UserQueryRequest, opts ...grpc.CallOption) (*StructResponse, error) {
+func (c *iAMServiceClient) ListAPIKeys(ctx context.Context, in *UserQueryRequest, opts ...grpc.CallOption) (*StructResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(StructResponse)
-	err := c.cc.Invoke(ctx, IAMService_ListAccessKeys_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, IAMService_ListAPIKeys_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *iAMServiceClient) GetAccessKey(ctx context.Context, in *UserScopedIDRequest, opts ...grpc.CallOption) (*StructResponse, error) {
+func (c *iAMServiceClient) GetAPIKey(ctx context.Context, in *UserScopedIDRequest, opts ...grpc.CallOption) (*StructResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(StructResponse)
-	err := c.cc.Invoke(ctx, IAMService_GetAccessKey_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, IAMService_GetAPIKey_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *iAMServiceClient) DeleteAccessKey(ctx context.Context, in *UserScopedIDRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *iAMServiceClient) DeleteAPIKey(ctx context.Context, in *UserScopedIDRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, IAMService_DeleteAccessKey_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, IAMService_DeleteAPIKey_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *iAMServiceClient) DisableAccessKey(ctx context.Context, in *UserScopedIDRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *iAMServiceClient) DisableAPIKey(ctx context.Context, in *UserScopedIDRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, IAMService_DisableAccessKey_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, IAMService_DisableAPIKey_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *iAMServiceClient) EnableAccessKey(ctx context.Context, in *UserScopedIDRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *iAMServiceClient) EnableAPIKey(ctx context.Context, in *UserScopedIDRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, IAMService_EnableAccessKey_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, IAMService_EnableAPIKey_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *iAMServiceClient) RotateAccessKey(ctx context.Context, in *UserScopedIDRequest, opts ...grpc.CallOption) (*StructResponse, error) {
+func (c *iAMServiceClient) RevokeAPIKey(ctx context.Context, in *UserScopedIDRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, IAMService_RevokeAPIKey_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *iAMServiceClient) RotateAPIKey(ctx context.Context, in *UserScopedIDRequest, opts ...grpc.CallOption) (*StructResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(StructResponse)
-	err := c.cc.Invoke(ctx, IAMService_RotateAccessKey_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, IAMService_RotateAPIKey_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -356,10 +368,10 @@ func (c *iAMServiceClient) IsUserInProject(ctx context.Context, in *UserProjectR
 	return out, nil
 }
 
-func (c *iAMServiceClient) ExchangeAccessKeyToken(ctx context.Context, in *ExchangeAccessKeyTokenRequest, opts ...grpc.CallOption) (*ExchangeAccessKeyTokenResponse, error) {
+func (c *iAMServiceClient) ExchangeAPIKeyToken(ctx context.Context, in *ExchangeAPIKeyTokenRequest, opts ...grpc.CallOption) (*ExchangeAPIKeyTokenResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ExchangeAccessKeyTokenResponse)
-	err := c.cc.Invoke(ctx, IAMService_ExchangeAccessKeyToken_FullMethodName, in, out, cOpts...)
+	out := new(ExchangeAPIKeyTokenResponse)
+	err := c.cc.Invoke(ctx, IAMService_ExchangeAPIKeyToken_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -768,19 +780,20 @@ type IAMServiceServer interface {
 	Logout(context.Context, *LogoutRequest) (*emptypb.Empty, error)
 	ChangePassword(context.Context, *UserBodyRequest) (*emptypb.Empty, error)
 	GetProfile(context.Context, *UserIDRequest) (*StructResponse, error)
-	CreateAccessKey(context.Context, *UserBodyRequest) (*StructResponse, error)
-	ListAccessKeys(context.Context, *UserQueryRequest) (*StructResponse, error)
-	GetAccessKey(context.Context, *UserScopedIDRequest) (*StructResponse, error)
-	DeleteAccessKey(context.Context, *UserScopedIDRequest) (*emptypb.Empty, error)
-	DisableAccessKey(context.Context, *UserScopedIDRequest) (*emptypb.Empty, error)
-	EnableAccessKey(context.Context, *UserScopedIDRequest) (*emptypb.Empty, error)
-	RotateAccessKey(context.Context, *UserScopedIDRequest) (*StructResponse, error)
+	CreateAPIKey(context.Context, *UserBodyRequest) (*StructResponse, error)
+	ListAPIKeys(context.Context, *UserQueryRequest) (*StructResponse, error)
+	GetAPIKey(context.Context, *UserScopedIDRequest) (*StructResponse, error)
+	DeleteAPIKey(context.Context, *UserScopedIDRequest) (*emptypb.Empty, error)
+	DisableAPIKey(context.Context, *UserScopedIDRequest) (*emptypb.Empty, error)
+	EnableAPIKey(context.Context, *UserScopedIDRequest) (*emptypb.Empty, error)
+	RevokeAPIKey(context.Context, *UserScopedIDRequest) (*emptypb.Empty, error)
+	RotateAPIKey(context.Context, *UserScopedIDRequest) (*StructResponse, error)
 	IsUserTeamAdmin(context.Context, *UserTeamRequest) (*BoolResponse, error)
 	IsUserInTeam(context.Context, *UserTeamRequest) (*BoolResponse, error)
 	IsTeamPublic(context.Context, *TeamRequest) (*BoolResponse, error)
 	IsUserProjectAdmin(context.Context, *UserProjectRequest) (*BoolResponse, error)
 	IsUserInProject(context.Context, *UserProjectRequest) (*BoolResponse, error)
-	ExchangeAccessKeyToken(context.Context, *ExchangeAccessKeyTokenRequest) (*ExchangeAccessKeyTokenResponse, error)
+	ExchangeAPIKeyToken(context.Context, *ExchangeAPIKeyTokenRequest) (*ExchangeAPIKeyTokenResponse, error)
 	CreateUser(context.Context, *MutationRequest) (*StructResponse, error)
 	DeleteUser(context.Context, *IDRequest) (*emptypb.Empty, error)
 	GetUser(context.Context, *IDRequest) (*StructResponse, error)
@@ -854,26 +867,29 @@ func (UnimplementedIAMServiceServer) ChangePassword(context.Context, *UserBodyRe
 func (UnimplementedIAMServiceServer) GetProfile(context.Context, *UserIDRequest) (*StructResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetProfile not implemented")
 }
-func (UnimplementedIAMServiceServer) CreateAccessKey(context.Context, *UserBodyRequest) (*StructResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method CreateAccessKey not implemented")
+func (UnimplementedIAMServiceServer) CreateAPIKey(context.Context, *UserBodyRequest) (*StructResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateAPIKey not implemented")
 }
-func (UnimplementedIAMServiceServer) ListAccessKeys(context.Context, *UserQueryRequest) (*StructResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method ListAccessKeys not implemented")
+func (UnimplementedIAMServiceServer) ListAPIKeys(context.Context, *UserQueryRequest) (*StructResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListAPIKeys not implemented")
 }
-func (UnimplementedIAMServiceServer) GetAccessKey(context.Context, *UserScopedIDRequest) (*StructResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetAccessKey not implemented")
+func (UnimplementedIAMServiceServer) GetAPIKey(context.Context, *UserScopedIDRequest) (*StructResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetAPIKey not implemented")
 }
-func (UnimplementedIAMServiceServer) DeleteAccessKey(context.Context, *UserScopedIDRequest) (*emptypb.Empty, error) {
-	return nil, status.Error(codes.Unimplemented, "method DeleteAccessKey not implemented")
+func (UnimplementedIAMServiceServer) DeleteAPIKey(context.Context, *UserScopedIDRequest) (*emptypb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteAPIKey not implemented")
 }
-func (UnimplementedIAMServiceServer) DisableAccessKey(context.Context, *UserScopedIDRequest) (*emptypb.Empty, error) {
-	return nil, status.Error(codes.Unimplemented, "method DisableAccessKey not implemented")
+func (UnimplementedIAMServiceServer) DisableAPIKey(context.Context, *UserScopedIDRequest) (*emptypb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method DisableAPIKey not implemented")
 }
-func (UnimplementedIAMServiceServer) EnableAccessKey(context.Context, *UserScopedIDRequest) (*emptypb.Empty, error) {
-	return nil, status.Error(codes.Unimplemented, "method EnableAccessKey not implemented")
+func (UnimplementedIAMServiceServer) EnableAPIKey(context.Context, *UserScopedIDRequest) (*emptypb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method EnableAPIKey not implemented")
 }
-func (UnimplementedIAMServiceServer) RotateAccessKey(context.Context, *UserScopedIDRequest) (*StructResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method RotateAccessKey not implemented")
+func (UnimplementedIAMServiceServer) RevokeAPIKey(context.Context, *UserScopedIDRequest) (*emptypb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method RevokeAPIKey not implemented")
+}
+func (UnimplementedIAMServiceServer) RotateAPIKey(context.Context, *UserScopedIDRequest) (*StructResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RotateAPIKey not implemented")
 }
 func (UnimplementedIAMServiceServer) IsUserTeamAdmin(context.Context, *UserTeamRequest) (*BoolResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method IsUserTeamAdmin not implemented")
@@ -890,8 +906,8 @@ func (UnimplementedIAMServiceServer) IsUserProjectAdmin(context.Context, *UserPr
 func (UnimplementedIAMServiceServer) IsUserInProject(context.Context, *UserProjectRequest) (*BoolResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method IsUserInProject not implemented")
 }
-func (UnimplementedIAMServiceServer) ExchangeAccessKeyToken(context.Context, *ExchangeAccessKeyTokenRequest) (*ExchangeAccessKeyTokenResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method ExchangeAccessKeyToken not implemented")
+func (UnimplementedIAMServiceServer) ExchangeAPIKeyToken(context.Context, *ExchangeAPIKeyTokenRequest) (*ExchangeAPIKeyTokenResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ExchangeAPIKeyToken not implemented")
 }
 func (UnimplementedIAMServiceServer) CreateUser(context.Context, *MutationRequest) (*StructResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateUser not implemented")
@@ -1175,128 +1191,146 @@ func _IAMService_GetProfile_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
-func _IAMService_CreateAccessKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _IAMService_CreateAPIKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(UserBodyRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(IAMServiceServer).CreateAccessKey(ctx, in)
+		return srv.(IAMServiceServer).CreateAPIKey(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: IAMService_CreateAccessKey_FullMethodName,
+		FullMethod: IAMService_CreateAPIKey_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(IAMServiceServer).CreateAccessKey(ctx, req.(*UserBodyRequest))
+		return srv.(IAMServiceServer).CreateAPIKey(ctx, req.(*UserBodyRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _IAMService_ListAccessKeys_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _IAMService_ListAPIKeys_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(UserQueryRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(IAMServiceServer).ListAccessKeys(ctx, in)
+		return srv.(IAMServiceServer).ListAPIKeys(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: IAMService_ListAccessKeys_FullMethodName,
+		FullMethod: IAMService_ListAPIKeys_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(IAMServiceServer).ListAccessKeys(ctx, req.(*UserQueryRequest))
+		return srv.(IAMServiceServer).ListAPIKeys(ctx, req.(*UserQueryRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _IAMService_GetAccessKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _IAMService_GetAPIKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(UserScopedIDRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(IAMServiceServer).GetAccessKey(ctx, in)
+		return srv.(IAMServiceServer).GetAPIKey(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: IAMService_GetAccessKey_FullMethodName,
+		FullMethod: IAMService_GetAPIKey_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(IAMServiceServer).GetAccessKey(ctx, req.(*UserScopedIDRequest))
+		return srv.(IAMServiceServer).GetAPIKey(ctx, req.(*UserScopedIDRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _IAMService_DeleteAccessKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _IAMService_DeleteAPIKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(UserScopedIDRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(IAMServiceServer).DeleteAccessKey(ctx, in)
+		return srv.(IAMServiceServer).DeleteAPIKey(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: IAMService_DeleteAccessKey_FullMethodName,
+		FullMethod: IAMService_DeleteAPIKey_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(IAMServiceServer).DeleteAccessKey(ctx, req.(*UserScopedIDRequest))
+		return srv.(IAMServiceServer).DeleteAPIKey(ctx, req.(*UserScopedIDRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _IAMService_DisableAccessKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _IAMService_DisableAPIKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(UserScopedIDRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(IAMServiceServer).DisableAccessKey(ctx, in)
+		return srv.(IAMServiceServer).DisableAPIKey(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: IAMService_DisableAccessKey_FullMethodName,
+		FullMethod: IAMService_DisableAPIKey_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(IAMServiceServer).DisableAccessKey(ctx, req.(*UserScopedIDRequest))
+		return srv.(IAMServiceServer).DisableAPIKey(ctx, req.(*UserScopedIDRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _IAMService_EnableAccessKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _IAMService_EnableAPIKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(UserScopedIDRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(IAMServiceServer).EnableAccessKey(ctx, in)
+		return srv.(IAMServiceServer).EnableAPIKey(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: IAMService_EnableAccessKey_FullMethodName,
+		FullMethod: IAMService_EnableAPIKey_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(IAMServiceServer).EnableAccessKey(ctx, req.(*UserScopedIDRequest))
+		return srv.(IAMServiceServer).EnableAPIKey(ctx, req.(*UserScopedIDRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _IAMService_RotateAccessKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _IAMService_RevokeAPIKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(UserScopedIDRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(IAMServiceServer).RotateAccessKey(ctx, in)
+		return srv.(IAMServiceServer).RevokeAPIKey(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: IAMService_RotateAccessKey_FullMethodName,
+		FullMethod: IAMService_RevokeAPIKey_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(IAMServiceServer).RotateAccessKey(ctx, req.(*UserScopedIDRequest))
+		return srv.(IAMServiceServer).RevokeAPIKey(ctx, req.(*UserScopedIDRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _IAMService_RotateAPIKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UserScopedIDRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IAMServiceServer).RotateAPIKey(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IAMService_RotateAPIKey_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IAMServiceServer).RotateAPIKey(ctx, req.(*UserScopedIDRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1391,20 +1425,20 @@ func _IAMService_IsUserInProject_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
-func _IAMService_ExchangeAccessKeyToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ExchangeAccessKeyTokenRequest)
+func _IAMService_ExchangeAPIKeyToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ExchangeAPIKeyTokenRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(IAMServiceServer).ExchangeAccessKeyToken(ctx, in)
+		return srv.(IAMServiceServer).ExchangeAPIKeyToken(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: IAMService_ExchangeAccessKeyToken_FullMethodName,
+		FullMethod: IAMService_ExchangeAPIKeyToken_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(IAMServiceServer).ExchangeAccessKeyToken(ctx, req.(*ExchangeAccessKeyTokenRequest))
+		return srv.(IAMServiceServer).ExchangeAPIKeyToken(ctx, req.(*ExchangeAPIKeyTokenRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2151,32 +2185,36 @@ var IAMService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _IAMService_GetProfile_Handler,
 		},
 		{
-			MethodName: "CreateAccessKey",
-			Handler:    _IAMService_CreateAccessKey_Handler,
+			MethodName: "CreateAPIKey",
+			Handler:    _IAMService_CreateAPIKey_Handler,
 		},
 		{
-			MethodName: "ListAccessKeys",
-			Handler:    _IAMService_ListAccessKeys_Handler,
+			MethodName: "ListAPIKeys",
+			Handler:    _IAMService_ListAPIKeys_Handler,
 		},
 		{
-			MethodName: "GetAccessKey",
-			Handler:    _IAMService_GetAccessKey_Handler,
+			MethodName: "GetAPIKey",
+			Handler:    _IAMService_GetAPIKey_Handler,
 		},
 		{
-			MethodName: "DeleteAccessKey",
-			Handler:    _IAMService_DeleteAccessKey_Handler,
+			MethodName: "DeleteAPIKey",
+			Handler:    _IAMService_DeleteAPIKey_Handler,
 		},
 		{
-			MethodName: "DisableAccessKey",
-			Handler:    _IAMService_DisableAccessKey_Handler,
+			MethodName: "DisableAPIKey",
+			Handler:    _IAMService_DisableAPIKey_Handler,
 		},
 		{
-			MethodName: "EnableAccessKey",
-			Handler:    _IAMService_EnableAccessKey_Handler,
+			MethodName: "EnableAPIKey",
+			Handler:    _IAMService_EnableAPIKey_Handler,
 		},
 		{
-			MethodName: "RotateAccessKey",
-			Handler:    _IAMService_RotateAccessKey_Handler,
+			MethodName: "RevokeAPIKey",
+			Handler:    _IAMService_RevokeAPIKey_Handler,
+		},
+		{
+			MethodName: "RotateAPIKey",
+			Handler:    _IAMService_RotateAPIKey_Handler,
 		},
 		{
 			MethodName: "IsUserTeamAdmin",
@@ -2199,8 +2237,8 @@ var IAMService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _IAMService_IsUserInProject_Handler,
 		},
 		{
-			MethodName: "ExchangeAccessKeyToken",
-			Handler:    _IAMService_ExchangeAccessKeyToken_Handler,
+			MethodName: "ExchangeAPIKeyToken",
+			Handler:    _IAMService_ExchangeAPIKeyToken_Handler,
 		},
 		{
 			MethodName: "CreateUser",

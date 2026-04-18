@@ -14,14 +14,15 @@ type HandlerService interface {
 	Logout(context.Context, *utils.Claims) error
 	ChangePassword(context.Context, *ChangePasswordReq, int) error
 	GetProfile(context.Context, int) (*UserProfileResp, error)
-	CreateAccessKey(context.Context, int, *CreateAccessKeyReq) (*AccessKeyWithSecretResp, error)
-	ListAccessKeys(context.Context, int, *ListAccessKeyReq) (*ListAccessKeyResp, error)
-	GetAccessKey(context.Context, int, int) (*AccessKeyInfo, error)
-	DeleteAccessKey(context.Context, int, int) error
-	DisableAccessKey(context.Context, int, int) error
-	EnableAccessKey(context.Context, int, int) error
-	RotateAccessKey(context.Context, int, int) (*AccessKeyWithSecretResp, error)
-	ExchangeAccessKeyToken(context.Context, *AccessKeyTokenReq, string, string) (*AccessKeyTokenResp, error)
+	CreateAPIKey(context.Context, int, *CreateAPIKeyReq) (*APIKeyWithSecretResp, error)
+	ListAPIKeys(context.Context, int, *ListAPIKeyReq) (*ListAPIKeyResp, error)
+	GetAPIKey(context.Context, int, int) (*APIKeyInfo, error)
+	DeleteAPIKey(context.Context, int, int) error
+	DisableAPIKey(context.Context, int, int) error
+	EnableAPIKey(context.Context, int, int) error
+	RevokeAPIKey(context.Context, int, int) error
+	RotateAPIKey(context.Context, int, int) (*APIKeyWithSecretResp, error)
+	ExchangeAPIKeyToken(context.Context, *APIKeyTokenReq, string, string) (*APIKeyTokenResp, error)
 }
 
 func AsHandlerService(service *Service) HandlerService {

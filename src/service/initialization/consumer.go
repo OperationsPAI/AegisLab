@@ -49,28 +49,35 @@ func InitializeConsumer(
 		return err
 	}
 
-	// Initialize namespaces on startup - critical after restart to re-initialize CRD informers
-	logrus.Info("Initializing namespaces on startup...")
+	// Namespace/bootstrap informer initialization can take noticeably longer than
+	// the Fx startup deadline when the local cluster is cold or slow. Run it in
+	// the background so consumer/both startup does not fail with
+	// "context deadline exceeded" during local debugging.
 	if monitor == nil {
 		logrus.Warn("Monitor not initialized, skipping namespace initialization")
 		return nil
-	} else {
-		monitor.SetContext(ctx)
+	}
+
+	monitor.SetContext(ctx)
+	go func() {
+		logrus.Info("Initializing namespaces on startup...")
+
 		initialized, err := monitor.InitializeNamespaces()
 		if err != nil {
-			return fmt.Errorf("failed to initialize namespaces: %w", err)
+			logrus.Errorf("Failed to initialize namespaces: %v", err)
+			return
 		}
 
 		if len(initialized) == 0 {
 			logrus.Warn("No namespaces to initialize on startup")
-			return nil
+			return
 		}
 
 		logrus.Infof("Initialized namespaces on startup: %v", initialized)
 		if err := consumer.UpdateK8sController(controller, initialized, []string{}); err != nil {
-			return fmt.Errorf("failed to update k8s controller: %w", err)
+			logrus.Errorf("Failed to update k8s controller: %v", err)
 		}
-	}
+	}()
 
 	return nil
 }

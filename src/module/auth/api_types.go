@@ -11,6 +11,7 @@ import (
 	"aegis/dto"
 	"aegis/model"
 	usermodule "aegis/module/user"
+	"aegis/utils"
 )
 
 const usernamePattern = `^[a-zA-Z0-9_]{3,20}$`
@@ -83,13 +84,14 @@ func (req *ChangePasswordReq) Validate() error {
 	return nil
 }
 
-type CreateAccessKeyReq struct {
+type CreateAPIKeyReq struct {
 	Name        string     `json:"name" binding:"required" example:"ci-bot"`
 	Description string     `json:"description,omitempty" example:"SDK credential for CI pipeline"`
+	Scopes      []string   `json:"scopes,omitempty" example:"[\"*\"]"`
 	ExpiresAt   *time.Time `json:"expires_at,omitempty" example:"2026-12-31T23:59:59Z"`
 }
 
-func (req *CreateAccessKeyReq) Validate() error {
+func (req *CreateAPIKeyReq) Validate() error {
 	if req == nil {
 		return fmt.Errorf("request is required")
 	}
@@ -99,40 +101,45 @@ func (req *CreateAccessKeyReq) Validate() error {
 	if len(req.Name) > 128 {
 		return fmt.Errorf("name must be no more than 128 characters long")
 	}
+	normalizedScopes, err := normalizeAPIKeyScopes(req.Scopes)
+	if err != nil {
+		return err
+	}
+	req.Scopes = normalizedScopes
 	if req.ExpiresAt != nil && req.ExpiresAt.Before(time.Now()) {
 		return fmt.Errorf("expires_at must be in the future")
 	}
 	return nil
 }
 
-type ListAccessKeyReq struct {
+type ListAPIKeyReq struct {
 	dto.PaginationReq
 }
 
-func (req *ListAccessKeyReq) Validate() error {
+func (req *ListAPIKeyReq) Validate() error {
 	if req == nil {
 		return fmt.Errorf("request is required")
 	}
 	return req.PaginationReq.Validate()
 }
 
-type AccessKeyTokenReq struct {
-	AccessKey string `header:"X-Access-Key" example:"ak_1234567890abcdef"`
+type APIKeyTokenReq struct {
+	KeyID     string `header:"X-Key-Id" example:"pk_1234567890abcdef"`
 	Timestamp string `header:"X-Timestamp" example:"1713333333"`
 	Nonce     string `header:"X-Nonce" example:"abc123"`
 	Signature string `header:"X-Signature" example:"4cf2f2cbb93d..."`
 }
 
-func (req *AccessKeyTokenReq) Validate() error {
+func (req *APIKeyTokenReq) Validate() error {
 	if req == nil {
 		return fmt.Errorf("request is required")
 	}
-	req.AccessKey = strings.TrimSpace(req.AccessKey)
+	req.KeyID = strings.TrimSpace(req.KeyID)
 	req.Timestamp = strings.TrimSpace(req.Timestamp)
 	req.Nonce = strings.TrimSpace(req.Nonce)
 	req.Signature = strings.ToLower(strings.TrimSpace(req.Signature))
-	if req.AccessKey == "" || req.Timestamp == "" || req.Nonce == "" || req.Signature == "" {
-		return fmt.Errorf("X-Access-Key, X-Timestamp, X-Nonce and X-Signature are required")
+	if req.KeyID == "" || req.Timestamp == "" || req.Nonce == "" || req.Signature == "" {
+		return fmt.Errorf("X-Key-Id, X-Timestamp, X-Nonce and X-Signature are required")
 	}
 	if _, err := strconv.ParseInt(req.Timestamp, 10, 64); err != nil {
 		return fmt.Errorf("X-Timestamp must be a unix timestamp in seconds")
@@ -143,17 +150,17 @@ func (req *AccessKeyTokenReq) Validate() error {
 	return nil
 }
 
-func (req *AccessKeyTokenReq) TimestampUnix() (int64, error) {
+func (req *APIKeyTokenReq) TimestampUnix() (int64, error) {
 	return strconv.ParseInt(req.Timestamp, 10, 64)
 }
 
-func (req *AccessKeyTokenReq) CanonicalString(method, path string) string {
+func (req *APIKeyTokenReq) CanonicalString(method, path string) string {
 	return strings.Join([]string{
 		strings.ToUpper(method),
 		path,
-		req.AccessKey,
 		req.Timestamp,
 		req.Nonce,
+		utils.SHA256Hex(nil),
 	}, "\n")
 }
 
@@ -168,28 +175,32 @@ type TokenRefreshResp struct {
 	ExpiresAt time.Time `json:"expires_at" example:"2024-12-31T23:59:59Z"`
 }
 
-type AccessKeyInfo struct {
+type APIKeyInfo struct {
 	ID          int               `json:"id" example:"12"`
 	Name        string            `json:"name" example:"ci-bot"`
 	Description string            `json:"description,omitempty" example:"SDK credential for CI pipeline"`
-	AccessKey   string            `json:"access_key" example:"ak_1234567890abcdef"`
+	KeyID       string            `json:"key_id" example:"pk_1234567890abcdef"`
+	Scopes      []string          `json:"scopes,omitempty" example:"[\"*\"]"`
 	Status      consts.StatusType `json:"status" example:"1"`
+	RevokedAt   *time.Time        `json:"revoked_at,omitempty" example:"2026-04-17T12:30:00Z"`
 	LastUsedAt  *time.Time        `json:"last_used_at,omitempty" example:"2026-04-17T12:00:00Z"`
 	ExpiresAt   *time.Time        `json:"expires_at,omitempty" example:"2026-12-31T23:59:59Z"`
 	CreatedAt   time.Time         `json:"created_at" example:"2026-04-17T11:00:00Z"`
 	UpdatedAt   time.Time         `json:"updated_at" example:"2026-04-17T11:00:00Z"`
 }
 
-func NewAccessKeyInfo(key *model.UserAccessKey) *AccessKeyInfo {
+func NewAPIKeyInfo(key *model.APIKey) *APIKeyInfo {
 	if key == nil {
 		return nil
 	}
-	return &AccessKeyInfo{
+	return &APIKeyInfo{
 		ID:          key.ID,
 		Name:        key.Name,
 		Description: key.Description,
-		AccessKey:   key.AccessKey,
+		KeyID:       key.KeyID,
+		Scopes:      append([]string(nil), key.Scopes...),
 		Status:      key.Status,
+		RevokedAt:   key.RevokedAt,
 		LastUsedAt:  key.LastUsedAt,
 		ExpiresAt:   key.ExpiresAt,
 		CreatedAt:   key.CreatedAt,
@@ -197,22 +208,51 @@ func NewAccessKeyInfo(key *model.UserAccessKey) *AccessKeyInfo {
 	}
 }
 
-type AccessKeyWithSecretResp struct {
-	AccessKeyInfo
-	SecretKey string `json:"secret_key" example:"sk_abcdefghijklmnopqrstuvwxyz123456"`
+type APIKeyWithSecretResp struct {
+	APIKeyInfo
+	KeySecret string `json:"key_secret" example:"ks_abcdefghijklmnopqrstuvwxyz123456"`
 }
 
-type ListAccessKeyResp struct {
-	Items      []AccessKeyInfo    `json:"items"`
+type ListAPIKeyResp struct {
+	Items      []APIKeyInfo       `json:"items"`
 	Pagination dto.PaginationInfo `json:"pagination"`
 }
 
-type AccessKeyTokenResp struct {
-	Token     string    `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.access_key.jwt"`
+type APIKeyTokenResp struct {
+	Token     string    `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.api_key.jwt"`
 	TokenType string    `json:"token_type" example:"Bearer"`
 	ExpiresAt time.Time `json:"expires_at" example:"2026-04-17T12:00:00Z"`
-	AuthType  string    `json:"auth_type" example:"access_key"`
-	AccessKey string    `json:"access_key" example:"ak_1234567890abcdef"`
+	AuthType  string    `json:"auth_type" example:"api_key"`
+	KeyID     string    `json:"key_id" example:"pk_1234567890abcdef"`
+}
+
+const defaultAPIKeyScope = "*"
+
+func normalizeAPIKeyScopes(scopes []string) ([]string, error) {
+	if len(scopes) == 0 {
+		return []string{defaultAPIKeyScope}, nil
+	}
+
+	normalized := make([]string, 0, len(scopes))
+	seen := make(map[string]struct{}, len(scopes))
+	for _, scope := range scopes {
+		scope = strings.TrimSpace(scope)
+		if scope == "" {
+			return nil, fmt.Errorf("scopes cannot contain empty items")
+		}
+		if len(scope) > 128 {
+			return nil, fmt.Errorf("scope %q must be no more than 128 characters long", scope)
+		}
+		if _, exists := seen[scope]; exists {
+			continue
+		}
+		seen[scope] = struct{}{}
+		normalized = append(normalized, scope)
+	}
+	if len(normalized) == 0 {
+		return []string{defaultAPIKeyScope}, nil
+	}
+	return normalized, nil
 }
 
 type UserProfileResp struct {

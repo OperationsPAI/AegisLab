@@ -22,7 +22,7 @@ func NewHandler(service *Service) *Handler {
 //
 //	@Summary		List SDK evaluation samples
 //	@Description	Get a paginated list of SDK evaluation samples, optionally filtered by exp_id and stage
-//	@Tags			SDK Evaluations
+//	@Tags			Evaluations
 //	@ID				list_sdk_evaluations
 //	@Produce		json
 //	@Security		BearerAuth
@@ -56,7 +56,7 @@ func (h *Handler) ListEvaluations(c *gin.Context) {
 //
 //	@Summary		Get SDK evaluation sample by ID
 //	@Description	Get detailed information about a specific SDK evaluation sample
-//	@Tags			SDK Evaluations
+//	@Tags			Evaluations
 //	@ID				get_sdk_evaluation
 //	@Produce		json
 //	@Security		BearerAuth
@@ -83,7 +83,7 @@ func (h *Handler) GetEvaluation(c *gin.Context) {
 //
 //	@Summary		List SDK experiment IDs
 //	@Description	Get all distinct experiment IDs from SDK evaluation data
-//	@Tags			SDK Evaluations
+//	@Tags			Evaluations
 //	@ID				list_sdk_experiments
 //	@Produce		json
 //	@Security		BearerAuth
@@ -103,7 +103,7 @@ func (h *Handler) ListExperiments(c *gin.Context) {
 //
 //	@Summary		List SDK dataset samples
 //	@Description	Get a paginated list of SDK dataset samples, optionally filtered by dataset name
-//	@Tags			SDK Datasets
+//	@Tags			Datasets
 //	@ID				list_sdk_dataset_samples
 //	@Produce		json
 //	@Security		BearerAuth

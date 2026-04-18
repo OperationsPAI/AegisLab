@@ -48,7 +48,7 @@ func SetupSystemRoutes(router *gin.Engine, handlers *Handlers) {
 }
 
 func SetupSystemV2Routes(v2 *gin.RouterGroup, handlers *Handlers) {
-	system := v2.Group("/system", middleware.JWTAuth())
+	system := v2.Group("/system", middleware.JWTAuth(), middleware.RequireSystemRead)
 	{
 		system.GET("/metrics", handlers.SystemMetric.GetSystemMetrics)                // Get current system metrics
 		system.GET("/metrics/history", handlers.SystemMetric.GetSystemMetricsHistory) // Get historical system metrics
