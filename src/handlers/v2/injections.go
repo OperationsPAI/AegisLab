@@ -131,11 +131,11 @@ func GetInjectionMetadata(c *gin.Context) {
 	ctx := context.Background()
 	system := chaos.SystemType(systemStr)
 
-	confNode, err := chaos.StructToNode[chaos.InjectionConf](string(system))
-	if err != nil {
-		// K8s namespace/pods may not exist in dev environment — return partial metadata
-		logrus.Warnf("Failed to build injection config node: %v, continuing with nil config", err)
-	}
+	// Config-node introspection is superseded by `aegisctl inject submit --spec`
+	// driving /api/v2/injections/translate, so we no longer pre-build a sample
+	// node here. The field in the response stays nil for backward compatibility
+	// with any client still reading InjectionMetadataResp.
+	var confNode *chaos.Node
 
 	faultResourceMap, err := chaos.GetChaosTypeResourceMappings()
 	if err != nil {
