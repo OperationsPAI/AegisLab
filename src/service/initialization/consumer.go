@@ -10,6 +10,7 @@ import (
 	k8s "aegis/infra/k8s"
 	redis "aegis/infra/redis"
 	"aegis/model"
+	ratelimiter "aegis/module/ratelimiter"
 	"aegis/service/common"
 	"aegis/service/consumer"
 
@@ -47,6 +48,15 @@ func InitializeConsumer(
 	consumer.RegisterConsumerHandlers(controller, monitor, publisher, restartLimiter, buildLimiter, algoLimiter)
 	if err := activateConfigScope(consumerData.scope, listener); err != nil {
 		return err
+	}
+
+	// Auto-GC leaked rate-limiter tokens on startup (OperationsPAI/aegis#21).
+	rlSvc := ratelimiter.NewService(publisher, db)
+	if released, buckets, err := rlSvc.GC(ctx); err != nil {
+		logrus.WithError(err).Warn("rate-limiter startup GC failed")
+	} else if released > 0 {
+		logrus.WithFields(logrus.Fields{"released": released, "buckets": buckets}).
+			Info("rate-limiter startup GC completed")
 	}
 
 	// Namespace/bootstrap informer initialization can take noticeably longer than

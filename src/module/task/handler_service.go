@@ -16,6 +16,7 @@ type HandlerService interface {
 	List(context.Context, *ListTaskReq) (*dto.ListResp[TaskResp], error)
 	GetForLogStream(context.Context, string) (*model.Task, error)
 	StreamLogs(context.Context, *websocket.Conn, *model.Task)
+	Expedite(context.Context, string) (*TaskResp, error)
 }
 
 func AsHandlerService(service *Service) HandlerService {

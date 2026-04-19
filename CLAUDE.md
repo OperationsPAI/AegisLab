@@ -41,6 +41,14 @@ AegisLab (RCABench) is a comprehensive Root Cause Analysis (RCA) benchmarking pl
 
 > **重要**: 编译必须加 `-tags duckdb_arrow`，因为 `duckdb-go/v2` 的 Arrow 接口使用了 `//go:build duckdb_arrow` 构建标签。不加此 tag 会报 `undefined: duckdb.NewArrowFromConn`。
 
+### aegisctl CLI
+
+- `just build-aegisctl` - Build the aegisctl CLI binary (output: `/tmp/aegisctl`)
+- `just build-aegisctl output=./aegisctl` - Build with custom output path
+- `cd src && go build -o /tmp/aegisctl ./cmd/aegisctl` - Build manually (no `-tags duckdb_arrow` needed)
+
+aegisctl is the command-line client for the AegisLab platform. See `src/cmd/aegisctl/README.md` for usage and `docs/aegisctl-cli-spec.md` for the full specification.
+
 ### Testing
 
 - `cd src && go test ./utils/... -v` - Run unit tests (requires infrastructure services)

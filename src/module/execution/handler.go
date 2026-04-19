@@ -56,7 +56,7 @@ func (h *Handler) ListProjectExecutions(c *gin.Context) {
 	}
 
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 
@@ -109,7 +109,7 @@ func (h *Handler) SubmitAlgorithmExecution(c *gin.Context) {
 
 	if err := req.Validate(); err != nil {
 		span.SetStatus(codes.Error, "validation error in SubmitAlgorithmExecution: "+err.Error())
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 
@@ -206,7 +206,7 @@ func (h *Handler) ManageExecutionCustomLabels(c *gin.Context) {
 		return
 	}
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 	resp, err := h.service.ManageLabels(c.Request.Context(), &req, id)
@@ -240,7 +240,7 @@ func (h *Handler) BatchDeleteExecutions(c *gin.Context) {
 		return
 	}
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 	if httpx.HandleServiceError(c, h.service.BatchDelete(c.Request.Context(), &req)) {
@@ -279,7 +279,7 @@ func (h *Handler) UploadDetectorResults(c *gin.Context) {
 		return
 	}
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 	resp, err := h.service.UploadDetectorResults(c.Request.Context(), &req, executionID)
@@ -319,7 +319,7 @@ func (h *Handler) UploadGranularityResults(c *gin.Context) {
 		return
 	}
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 	resp, err := h.service.UploadGranularityResults(c.Request.Context(), &req, executionID)
@@ -333,7 +333,7 @@ func spanFromGin(c *gin.Context) (context.Context, trace.Span, bool) {
 	ctx, ok := c.Get(middleware.SpanContextKey)
 	if !ok {
 		logrus.Error("failed to get span context from gin.Context")
-		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to get span context")
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Internal server error")
 		return nil, nil, false
 	}
 

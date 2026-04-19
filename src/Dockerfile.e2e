@@ -1,0 +1,30 @@
+FROM golang:1.24-bookworm AS builder
+
+ARG GO_BUILD_TAGS
+ARG GOPROXY="https://proxy.golang.org,direct"
+
+ENV TZ=Asia/Shanghai
+WORKDIR /build
+
+RUN apt-get update && apt-get install -y g++ gcc
+
+# Build context is aegis/ (parent of AegisLab and chaos-experiment)
+# Copy chaos-experiment so the replace directive in go.mod resolves.
+COPY chaos-experiment/ /build/chaos-experiment/
+COPY AegisLab/src/ /build/AegisLab/src/
+
+WORKDIR /build/AegisLab/src
+ENV GOPROXY=$GOPROXY
+RUN go mod download || true
+RUN CGO_ENABLED=1 go build -tags="${GO_BUILD_TAGS}" -ldflags="-s -w" -o /app/exp
+
+FROM debian:bookworm AS runner
+
+ENV TZ=Asia/Shanghai
+WORKDIR /app
+
+COPY --from=builder /app/exp /app/exp
+COPY AegisLab/src/entrypoint.sh ./entrypoint.sh
+
+RUN chmod +x ./entrypoint.sh
+ENTRYPOINT ["./entrypoint.sh"]

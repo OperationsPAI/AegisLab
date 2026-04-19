@@ -12,7 +12,9 @@ import (
 	label "aegis/module/label"
 	metric "aegis/module/metric"
 	notification "aegis/module/notification"
+	pedestal "aegis/module/pedestal"
 	project "aegis/module/project"
+	ratelimiter "aegis/module/ratelimiter"
 	rbac "aegis/module/rbac"
 	sdk "aegis/module/sdk"
 	system "aegis/module/system"
@@ -40,6 +42,8 @@ type Handlers struct {
 	SDK          *sdk.Handler
 	System       *system.Handler
 	Notification *notification.Handler
+	Pedestal     *pedestal.Handler
+	RateLimiter  *ratelimiter.Handler
 	ChaosSystem  *chaossystem.Handler
 	Team         *team.Handler
 	Label        *label.Handler
@@ -63,6 +67,8 @@ func NewHandlers(
 	sdk *sdk.Handler,
 	system *system.Handler,
 	notification *notification.Handler,
+	pedestal *pedestal.Handler,
+	rateLimiter *ratelimiter.Handler,
 	chaosSystem *chaossystem.Handler,
 	team *team.Handler,
 	label *label.Handler,
@@ -85,6 +91,8 @@ func NewHandlers(
 		SDK:          sdk,
 		System:       system,
 		Notification: notification,
+		Pedestal:     pedestal,
+		RateLimiter:  rateLimiter,
 		ChaosSystem:  chaosSystem,
 		Team:         team,
 		Label:        label,

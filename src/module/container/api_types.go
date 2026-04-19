@@ -560,6 +560,56 @@ type ContainerVersionResp struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+// SetContainerVersionImageReq is the request body for
+// PATCH /api/v2/container-versions/:id/image. It rewrites the four image
+// reference columns on a container_versions row.
+type SetContainerVersionImageReq struct {
+	Registry   string `json:"registry"`
+	Namespace  string `json:"namespace"`
+	Repository string `json:"repository" binding:"required"`
+	Tag        string `json:"tag" binding:"required"`
+}
+
+func (req *SetContainerVersionImageReq) Validate() error {
+	req.Registry = strings.TrimSpace(req.Registry)
+	req.Namespace = strings.TrimSpace(req.Namespace)
+	req.Repository = strings.TrimSpace(req.Repository)
+	req.Tag = strings.TrimSpace(req.Tag)
+	if req.Registry == "" {
+		req.Registry = "docker.io"
+	}
+	if req.Repository == "" {
+		return fmt.Errorf("repository is required")
+	}
+	if req.Tag == "" {
+		return fmt.Errorf("tag is required")
+	}
+	return nil
+}
+
+// SetContainerVersionImageResp is returned after a successful image rewrite.
+type SetContainerVersionImageResp struct {
+	ID         int    `json:"id"`
+	Name       string `json:"name"`
+	Registry   string `json:"registry"`
+	Namespace  string `json:"namespace"`
+	Repository string `json:"repository"`
+	Tag        string `json:"tag"`
+	ImageRef   string `json:"image_ref"`
+}
+
+func NewSetContainerVersionImageResp(version *model.ContainerVersion) *SetContainerVersionImageResp {
+	return &SetContainerVersionImageResp{
+		ID:         version.ID,
+		Name:       version.Name,
+		Registry:   version.Registry,
+		Namespace:  version.Namespace,
+		Repository: version.Repository,
+		Tag:        version.Tag,
+		ImageRef:   version.ImageRef,
+	}
+}
+
 func NewContainerVersionResp(version *model.ContainerVersion) *ContainerVersionResp {
 	return &ContainerVersionResp{
 		ID:        version.ID,

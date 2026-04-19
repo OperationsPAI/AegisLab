@@ -166,6 +166,7 @@ bin
 log
 input
 output
+!src/cmd/aegisctl/output/
 *.db
 .idea
 scripts/gen/dataset/output/

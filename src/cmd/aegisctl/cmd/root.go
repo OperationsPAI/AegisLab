@@ -176,6 +176,7 @@ func init() {
 	rootCmd.AddCommand(waitCmd)
 	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(completionCmd)
+	rootCmd.AddCommand(pedestalCmd)
 }
 
 // Execute runs the root command.

@@ -129,7 +129,7 @@ func (h *Handler) GetRole(c *gin.Context) {
 func (h *Handler) ListRoles(c *gin.Context) {
 	var req ListRoleReq
 	if err := c.ShouldBindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 	resp, err := h.service.ListRoles(c.Request.Context(), &req)
@@ -169,7 +169,7 @@ func (h *Handler) UpdateRole(c *gin.Context) {
 		return
 	}
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 	resp, err := h.service.UpdateRole(c.Request.Context(), &req, roleID)
@@ -334,7 +334,7 @@ func (h *Handler) ListPermissions(c *gin.Context) {
 		return
 	}
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 	resp, err := h.service.ListPermissions(c.Request.Context(), &req)
@@ -428,7 +428,7 @@ func (h *Handler) ListResources(c *gin.Context) {
 		return
 	}
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 	resp, err := h.service.ListResources(c.Request.Context(), &req)

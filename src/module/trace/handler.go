@@ -88,7 +88,7 @@ func (h *Handler) ListTraces(c *gin.Context) {
 	}
 
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 
@@ -127,12 +127,12 @@ func (h *Handler) GetTraceStream(c *gin.Context) {
 
 	var req GetTraceStreamReq
 	if err := c.ShouldBindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format")
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
 		return
 	}
 
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 
@@ -159,7 +159,7 @@ func (h *Handler) GetTraceStream(c *gin.Context) {
 	historicalMessages, err := h.service.ReadTraceStreamMessages(ctx, streamKey, req.LastID, 100, 0)
 	if err != nil {
 		logEntry.Errorf("failed to read historical events from redis: %v", err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to read event history")
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to read event history")
 		return
 	}
 
@@ -167,7 +167,7 @@ func (h *Handler) GetTraceStream(c *gin.Context) {
 		lastID, completed, err := sendTraceSSEEvents(c, processor, historicalMessages)
 		if err != nil {
 			logEntry.Errorf("failed to send historical stream events of ID %s: %v", req.LastID, err)
-			dto.ErrorResponse(c, http.StatusInternalServerError, "failed to send stream events")
+			dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to send stream events")
 			return
 		}
 
@@ -190,7 +190,7 @@ func (h *Handler) GetTraceStream(c *gin.Context) {
 				}
 
 				logEntry.Errorf("Error reading stream: %v", err)
-				dto.ErrorResponse(c, http.StatusInternalServerError, "failed to read stream events")
+				dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to read stream events")
 				return
 			}
 

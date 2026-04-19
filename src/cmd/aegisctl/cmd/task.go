@@ -44,6 +44,7 @@ var taskListState string
 var taskListType string
 var taskListPage int
 var taskListSize int
+var taskListOverdue bool
 
 var taskListCmd = &cobra.Command{
 	Use:   "list",
@@ -67,18 +68,43 @@ var taskListCmd = &cobra.Command{
 			return err
 		}
 
+		// Apply --overdue filter client-side: only keep Pending tasks whose
+		// execute_time is in the past. This avoids a new backend filter and
+		// works even when the server doesn't know about WAIT semantics.
+		items := resp.Data.Items
+		if taskListOverdue {
+			nowEpoch := time.Now().Unix()
+			filtered := items[:0]
+			for _, item := range items {
+				if stringField(item, "state") != "Pending" {
+					continue
+				}
+				if execTimeField(item) <= nowEpoch {
+					filtered = append(filtered, item)
+				}
+			}
+			items = filtered
+		}
+
 		if output.OutputFormat(flagOutput) == output.FormatJSON {
-			output.PrintJSON(resp.Data)
+			output.PrintJSON(items)
 			return nil
 		}
 
-		headers := []string{"TASK-ID", "TYPE", "STATE", "TRACE-ID", "PROJECT-ID", "CREATED"}
+		headers := []string{"TASK-ID", "TYPE", "STATE", "WAIT", "TRACE-ID", "PROJECT-ID", "CREATED"}
 		var rows [][]string
-		for _, item := range resp.Data.Items {
+		nowEpoch := time.Now().Unix()
+		for _, item := range items {
+			state := stringField(item, "state")
+			wait := "-"
+			if state == "Pending" {
+				wait = formatWait(execTimeField(item) - nowEpoch)
+			}
 			rows = append(rows, []string{
-				stringField(item, "task_id"),
+				stringField(item, "id"),
 				stringField(item, "type"),
-				stringField(item, "state"),
+				state,
+				wait,
 				stringField(item, "trace_id"),
 				stringField(item, "project_id"),
 				stringField(item, "created_at"),
@@ -90,6 +116,68 @@ var taskListCmd = &cobra.Command{
 		output.PrintInfo(fmt.Sprintf("Page %d/%d (total: %d)", p.Page, p.TotalPages, p.Total))
 		return nil
 	},
+}
+
+// --- task expedite ---
+
+var taskExpediteCmd = &cobra.Command{
+	Use:   "expedite <task-id>",
+	Short: "Expedite a Pending task so it runs on the next scheduler tick",
+	Long: `Expedite a Pending task.
+
+Resets execute_time to now in both MySQL and the Redis delayed queue, so the
+scheduler picks the task up on its next tick. Rejects the call if the task is
+in any state other than Pending. Idempotent: expediting an already-due task
+succeeds silently.`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		c := newClient()
+		path := fmt.Sprintf("/api/v2/tasks/%s/expedite", args[0])
+
+		var resp client.APIResponse[map[string]any]
+		if err := c.Post(path, nil, &resp); err != nil {
+			return err
+		}
+
+		if output.OutputFormat(flagOutput) == output.FormatJSON {
+			output.PrintJSON(resp.Data)
+			return nil
+		}
+
+		output.PrintInfo(fmt.Sprintf("Task %s expedited", args[0]))
+		return nil
+	},
+}
+
+// formatWait renders a remaining-time int64 second count as "+MM:SS" or
+// "-MM:SS" (overdue). Used only for Pending rows.
+func formatWait(deltaSec int64) string {
+	sign := "+"
+	abs := deltaSec
+	if deltaSec < 0 {
+		sign = "-"
+		abs = -deltaSec
+	}
+	return fmt.Sprintf("%s%02d:%02d", sign, abs/60, abs%60)
+}
+
+// execTimeField extracts execute_time from a task response map. JSON numbers
+// decode as float64 through encoding/json, so handle that plus a couple of
+// fallback numeric types defensively.
+func execTimeField(m map[string]any) int64 {
+	v, ok := m["execute_time"]
+	if !ok || v == nil {
+		return 0
+	}
+	switch n := v.(type) {
+	case float64:
+		return int64(n)
+	case int64:
+		return n
+	case int:
+		return int64(n)
+	}
+	return 0
 }
 
 // --- task get ---
@@ -228,10 +316,12 @@ func init() {
 	taskListCmd.Flags().StringVar(&taskListType, "type", "", "Filter by type (BuildContainer, RestartPedestal, FaultInjection, RunAlgorithm, BuildDatapack, CollectResult, CronJob)")
 	taskListCmd.Flags().IntVar(&taskListPage, "page", 0, "Page number")
 	taskListCmd.Flags().IntVar(&taskListSize, "size", 0, "Page size")
+	taskListCmd.Flags().BoolVar(&taskListOverdue, "overdue", false, "Show only Pending tasks whose execute_time has passed (WAIT < 0)")
 
 	taskLogsCmd.Flags().BoolVarP(&taskLogsFollow, "follow", "f", false, "Follow log output")
 
 	taskCmd.AddCommand(taskListCmd)
 	taskCmd.AddCommand(taskGetCmd)
 	taskCmd.AddCommand(taskLogsCmd)
+	taskCmd.AddCommand(taskExpediteCmd)
 }

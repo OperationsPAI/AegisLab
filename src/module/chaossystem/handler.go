@@ -41,7 +41,7 @@ func (h *Handler) ListSystems(c *gin.Context) {
 		return
 	}
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 	resp, err := h.service.ListSystems(c.Request.Context(), &req)

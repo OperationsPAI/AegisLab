@@ -42,7 +42,7 @@ func (h *Handler) ListEvaluations(c *gin.Context) {
 		return
 	}
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 	resp, err := h.service.ListEvaluations(c.Request.Context(), &req)
@@ -122,7 +122,7 @@ func (h *Handler) ListDatasetSamples(c *gin.Context) {
 		return
 	}
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 	resp, err := h.service.ListDatasetSamples(c.Request.Context(), &req)

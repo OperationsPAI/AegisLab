@@ -93,6 +93,8 @@ func SetupSDKV2Routes(v2 *gin.RouterGroup, handlers *Handlers) {
 	injections := v2.Group("/injections", middleware.JWTAuth())
 	{
 		injections.GET("/metadata", handlers.Injection.GetInjectionMetadata)
+		injections.GET("/systems", handlers.Injection.GetSystemMapping)
+		injections.POST("/translate", handlers.Injection.TranslateFaultSpecs)
 		injections.GET("/:id", handlers.Injection.GetInjection)
 		injections.POST("/:id/clone", handlers.Injection.CloneInjection)
 		injections.GET("/:id/download", handlers.Injection.DownloadDatapack)

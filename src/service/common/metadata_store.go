@@ -157,6 +157,13 @@ func (s *DBMetadataStore) GetNetworkPairs(system string) ([]chaos.NetworkPairDat
 	return result, nil
 }
 
+// GetRuntimeMutatorTargets returns runtime mutator targets for the given system.
+// Not yet backed by persisted metadata; returns empty so chaos-experiment's
+// routing layer falls back to bundled defaults.
+func (s *DBMetadataStore) GetRuntimeMutatorTargets(system string) ([]chaos.RuntimeMutatorTargetData, error) {
+	return nil, nil
+}
+
 // InvalidateCache clears the entire cache. Call after metadata updates.
 func (s *DBMetadataStore) InvalidateCache() {
 	s.cache.Range(func(key, _ interface{}) bool {

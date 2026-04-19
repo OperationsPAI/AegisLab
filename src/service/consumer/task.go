@@ -204,7 +204,8 @@ func processDelayedTasks(ctx context.Context, redisGateway *redisinfra.Gateway) 
 				if err != nil {
 					logrus.Errorf("failed to handle cron reschedule failure: %v", err)
 				}
-
+			} else {
+				common.EmitTaskScheduled(ctx, redisGateway, &task, task.ExecuteTime, dto.TaskScheduledReasonCronNext)
 			}
 		}
 	}

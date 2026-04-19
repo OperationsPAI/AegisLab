@@ -1,10 +1,15 @@
 package cmd
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"os/signal"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,6 +19,11 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
+
+// Note: the legacy Node/translate round-trip has been removed. The backend's
+// SubmitInjectionReq auto-detects human-readable FaultSpec entries and converts
+// them to the internal chaos.Node DSL via FriendlySpecToNode. aegisctl now
+// submits the FaultSpec YAML shape directly.
 
 // ---------- spec types ----------
 
@@ -42,7 +52,7 @@ type FaultSpec struct {
 	Namespace string         `yaml:"namespace" json:"namespace"`
 	Target    string         `yaml:"target"    json:"target"`
 	Duration  string         `yaml:"duration"  json:"duration"`
-	Extra     map[string]any `yaml:",inline"   json:"-"` // catch-all for flexibility
+	Params    map[string]any `yaml:"params,omitempty" json:"params,omitempty"` // Additional spec-specific parameters (e.g., cpu_load, cpu_worker)
 }
 
 // LabelItem is a key-value label.
@@ -120,25 +130,65 @@ SPEC FILE FORMAT (injection.yaml):
     - - type: CPUStress
         namespace: exp
         target: frontend
-        duration: "60s"
+        duration: "5m"
+        params:
+          cpu_load: 80
+          cpu_worker: 2
   labels:
     - key: experiment
       value: cpu-stress-test
 
+SUPPORTED FAULT TYPES:
+  Run 'aegisctl inject metadata' to see all available fault types and their parameters.
+  Common types: CPUStress, MemoryStress, PodKill, PodFailure, ContainerKill,
+  HTTPRequestAbort, HTTPResponseDelay, NetworkDelay, NetworkLoss, DNSError, etc.
+
 NOTE: --project is required for submit, list, and search commands.
-      It accepts project names (resolved to IDs automatically).`,
+      It accepts project names (resolved to IDs automatically).
+      The 'target' field accepts container names (resolved to indices automatically).
+      Duration accepts Go time strings: "60s", "5m", "1h", etc.`,
 }
 
 // ---------- inject submit ----------
 
-var injectSubmitSpec string
+var (
+	injectSubmitSpec      string
+	injectSubmitWait      bool
+	injectSubmitWaitUntil string
+	injectSubmitTimeout   time.Duration
+)
+
+// injectSubmitResponse captures the fields we care about from the server's
+// SubmitInjectionResp envelope (see src/dto/injection.go).
+type injectSubmitResponse struct {
+	GroupID string `json:"group_id"`
+	Items   []struct {
+		Index   int    `json:"index"`
+		TraceID string `json:"trace_id"`
+		TaskID  string `json:"task_id"`
+	} `json:"items"`
+}
 
 var injectSubmitCmd = &cobra.Command{
 	Use:   "submit",
 	Short: "Submit a fault injection from a YAML spec",
+	Long: `Submit a fault injection from a YAML spec.
+
+With --wait, the command blocks on the trace SSE stream until the pipeline
+reaches a terminal state (or --timeout elapses). Emits a JSON summary on
+stdout, including the resolved injection_name once the consumer fills it in.
+
+EXIT CODES (--wait mode):
+  0 — Succeeded
+  2 — Failed (reason on stderr)
+  3 — --timeout exceeded (stage + trace_id on stderr)
+  1 — other CLI error (network, auth, spec parse)`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if injectSubmitSpec == "" {
 			return fmt.Errorf("--spec is required")
+		}
+		if !validWaitUntil(injectSubmitWaitUntil) {
+			return fmt.Errorf("invalid --wait-until %q (one of: injection_created, fault_injection_started, datapack_ready, finished)", injectSubmitWaitUntil)
 		}
 
 		data, err := os.ReadFile(injectSubmitSpec)
@@ -157,16 +207,124 @@ var injectSubmitCmd = &cobra.Command{
 		}
 
 		c := newClient()
+
+		// Submit the FaultSpec YAML as-is. The backend auto-detects the
+		// FriendlyFaultSpec shape and converts it internally.
 		path := fmt.Sprintf("/api/v2/projects/%d/injections/inject", pid)
 
-		var resp client.APIResponse[any]
-		if err := c.Post(path, spec, &resp); err != nil {
-			return err
+		// Preserve existing non-wait behavior: print raw response data.
+		if !injectSubmitWait {
+			var resp client.APIResponse[any]
+			if err := c.Post(path, &spec, &resp); err != nil {
+				return err
+			}
+			output.PrintJSON(resp.Data)
+			return nil
 		}
 
-		output.PrintJSON(resp.Data)
-		return nil
+		// --wait path: decode response into a typed struct so we can pull trace_id.
+		var resp client.APIResponse[injectSubmitResponse]
+		if err := c.Post(path, &spec, &resp); err != nil {
+			return err
+		}
+		if len(resp.Data.Items) == 0 {
+			return fmt.Errorf("server accepted submission but returned no items")
+		}
+		// For --wait, we monitor the first item's trace. Multi-batch submissions
+		// beyond one item are out of scope (see docs/aegisctl-cli-spec.md).
+		traceID := resp.Data.Items[0].TraceID
+		if traceID == "" {
+			return fmt.Errorf("server response missing trace_id")
+		}
+
+		return runInjectSubmitWait(cmd.Context(), traceID)
 	},
+}
+
+// runInjectSubmitWait subscribes to the trace SSE stream and blocks until a
+// terminal state or --timeout. Emits the JSON summary on stdout and exits with
+// the appropriate code via os.Exit (so Cobra doesn't wrap the error).
+func runInjectSubmitWait(parentCtx context.Context, traceID string) error {
+	if parentCtx == nil {
+		parentCtx = context.Background()
+	}
+	timeout := injectSubmitTimeout
+	if timeout <= 0 {
+		timeout = 600 * time.Second
+	}
+
+	ctx, cancel := context.WithTimeout(parentCtx, timeout)
+	defer cancel()
+
+	// Forward Ctrl+C as cancellation.
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt)
+	defer signal.Stop(sigCh)
+	go func() {
+		select {
+		case <-sigCh:
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
+
+	ssePath := fmt.Sprintf("/api/v2/traces/%s/stream", traceID)
+	reader := client.NewSSEReader(flagServer, ssePath, flagToken)
+	rawEvents, rawErrs := reader.Stream(ctx)
+
+	// Translate raw SSE events into injectWaitEvents for the wait loop.
+	out := make(chan injectWaitEvent, 64)
+	go func() {
+		defer close(out)
+		for e := range rawEvents {
+			select {
+			case out <- parseTraceSSEEvent(e):
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	start := time.Now()
+	result, code, err := runInjectWait(ctx, out, rawErrs, traceID, injectSubmitWaitUntil, start)
+
+	// Resolve injection_id if we learned the name.
+	if result.InjectionName != "" {
+		if id, resolveErr := newResolver().InjectionID(result.InjectionName); resolveErr == nil {
+			result.InjectionID = id
+		}
+	}
+
+	// Emit JSON summary on stdout regardless of exit code.
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	_ = enc.Encode(result)
+
+	switch code {
+	case 0:
+		return nil
+	case 2:
+		fmt.Fprintf(os.Stderr, "fault injection failed: %s (trace_id=%s)\n",
+			nonEmpty(result.failureReason, "unknown reason"), traceID)
+		os.Exit(2)
+	case 3:
+		fmt.Fprintf(os.Stderr, "timeout exceeded at stage %q (trace_id=%s); check progress with: aegisctl trace watch %s\n",
+			nonEmpty(result.currentStage, "waiting"), traceID, traceID)
+		os.Exit(3)
+	default:
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "inject wait error: %v\n", err)
+		}
+		os.Exit(1)
+	}
+	return nil
+}
+
+func nonEmpty(s, fallback string) string {
+	if s == "" {
+		return fallback
+	}
+	return s
 }
 
 // ---------- inject list ----------
@@ -428,24 +586,191 @@ var injectDownloadCmd = &cobra.Command{
 
 // ---------- inject metadata ----------
 
+var injectMetadataSystem string
+
 var injectMetadataCmd = &cobra.Command{
 	Use:   "metadata",
-	Short: "Show injection metadata (fault types, etc.)",
+	Short: "Show injection metadata (fault types, system mappings, field descriptions)",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		c := newClient()
-		var resp client.APIResponse[any]
+		path := "/api/v2/injections/metadata"
+		if injectMetadataSystem != "" {
+			path += "?system=" + injectMetadataSystem
+		}
+
+		var resp client.APIResponse[json.RawMessage]
+		if err := c.Get(path, &resp); err != nil {
+			return err
+		}
+
+		if output.OutputFormat(flagOutput) == output.FormatJSON {
+			output.PrintJSON(resp.Data)
+			return nil
+		}
+
+		// Parse into a map for table rendering
+		var meta map[string]json.RawMessage
+		if err := json.Unmarshal(resp.Data, &meta); err != nil {
+			output.PrintJSON(resp.Data)
+			return nil
+		}
+
+		// Fault type table
+		if raw, ok := meta["fault_type_map"]; ok {
+			var ftMap map[string]string
+			if err := json.Unmarshal(raw, &ftMap); err == nil {
+				output.PrintInfo("=== Fault Types ===")
+				headers := []string{"INDEX", "NAME"}
+				var rows [][]string
+				// Sort by index
+				type ftEntry struct {
+					idx  int
+					name string
+				}
+				var entries []ftEntry
+				for idxStr, name := range ftMap {
+					idx, _ := strconv.Atoi(idxStr)
+					entries = append(entries, ftEntry{idx, name})
+				}
+				sort.Slice(entries, func(i, j int) bool { return entries[i].idx < entries[j].idx })
+				for _, e := range entries {
+					rows = append(rows, []string{strconv.Itoa(e.idx), e.name})
+				}
+				output.PrintTable(headers, rows)
+				fmt.Println()
+			}
+		}
+
+		// System mapping table
+		if raw, ok := meta["system_map"]; ok {
+			var sysMap map[string]int
+			if err := json.Unmarshal(raw, &sysMap); err == nil && len(sysMap) > 0 {
+				output.PrintInfo("=== System Types ===")
+				headers := []string{"INDEX", "NAME"}
+				type sysEntry struct {
+					idx  int
+					name string
+				}
+				var entries []sysEntry
+				for name, idx := range sysMap {
+					entries = append(entries, sysEntry{idx, name})
+				}
+				sort.Slice(entries, func(i, j int) bool { return entries[i].idx < entries[j].idx })
+				var rows [][]string
+				for _, e := range entries {
+					rows = append(rows, []string{strconv.Itoa(e.idx), e.name})
+				}
+				output.PrintTable(headers, rows)
+				fmt.Println()
+			}
+		}
+
+		return nil
+	},
+}
+
+// ---------- inject describe ----------
+
+var injectDescribeCmd = &cobra.Command{
+	Use:   "describe <fault-type-name>",
+	Short: "Describe a fault type with field details and YAML template",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		faultTypeName := args[0]
+
+		c := newClient()
+		var resp client.APIResponse[json.RawMessage]
 		if err := c.Get("/api/v2/injections/metadata", &resp); err != nil {
 			return err
 		}
-		output.PrintJSON(resp.Data)
+
+		var meta struct {
+			FaultTypeReverseMap    map[string]int                       `json:"fault_type_reverse_map"`
+			FaultFieldDescriptions map[string][]fieldDescriptionCLI     `json:"fault_field_descriptions"`
+		}
+		if err := json.Unmarshal(resp.Data, &meta); err != nil {
+			return fmt.Errorf("failed to parse metadata: %w", err)
+		}
+
+		// Look up the fault type index
+		ftIdx, ok := meta.FaultTypeReverseMap[faultTypeName]
+		if !ok {
+			// Try case-insensitive
+			for name, idx := range meta.FaultTypeReverseMap {
+				if strings.EqualFold(name, faultTypeName) {
+					faultTypeName = name
+					ftIdx = idx
+					ok = true
+					break
+				}
+			}
+			if !ok {
+				return fmt.Errorf("unknown fault type: %q", faultTypeName)
+			}
+		}
+
+		if output.OutputFormat(flagOutput) == output.FormatJSON {
+			result := map[string]any{
+				"name":   faultTypeName,
+				"index":  ftIdx,
+				"fields": meta.FaultFieldDescriptions[faultTypeName],
+			}
+			output.PrintJSON(result)
+			return nil
+		}
+
+		// Print fault type header
+		fmt.Printf("Fault Type: %s (index: %d)\n\n", faultTypeName, ftIdx)
+
+		// Field table
+		fields := meta.FaultFieldDescriptions[faultTypeName]
+		if len(fields) > 0 {
+			headers := []string{"INDEX", "FIELD", "RANGE", "DYNAMIC", "DESCRIPTION"}
+			var rows [][]string
+			for _, f := range fields {
+				dynStr := ""
+				if f.IsDynamic {
+					dynStr = "yes"
+				}
+				rows = append(rows, []string{
+					strconv.Itoa(f.Index),
+					f.Name,
+					fmt.Sprintf("%d-%d", f.RangeMin, f.RangeMax),
+					dynStr,
+					f.Description,
+				})
+			}
+			output.PrintTable(headers, rows)
+		}
+
+		// YAML template
+		fmt.Printf("\nYAML Template:\n")
+		fmt.Printf("  - type: %s\n", faultTypeName)
+		fmt.Printf("    namespace: <namespace>\n")
+		fmt.Printf("    target: <target-service>\n")
+		fmt.Printf("    duration: \"60s\"\n")
+
 		return nil
 	},
+}
+
+// fieldDescriptionCLI mirrors utils.FieldDescription for CLI JSON parsing.
+type fieldDescriptionCLI struct {
+	Index       int    `json:"index"`
+	Name        string `json:"name"`
+	RangeMin    int    `json:"range_min"`
+	RangeMax    int    `json:"range_max"`
+	IsDynamic   bool   `json:"is_dynamic"`
+	Description string `json:"description"`
 }
 
 // ---------- init ----------
 
 func init() {
 	injectSubmitCmd.Flags().StringVar(&injectSubmitSpec, "spec", "", "Path to injection spec YAML file")
+	injectSubmitCmd.Flags().BoolVar(&injectSubmitWait, "wait", false, "Block until the trace reaches a terminal state (or --wait-until event)")
+	injectSubmitCmd.Flags().StringVar(&injectSubmitWaitUntil, "wait-until", "", "Return early on event: injection_created | fault_injection_started | datapack_ready | finished (default: finished)")
+	injectSubmitCmd.Flags().DurationVar(&injectSubmitTimeout, "timeout", 600*time.Second, "Maximum time to wait when --wait is set (e.g. 600s, 10m)")
 
 	injectListCmd.Flags().StringVar(&injectListState, "state", "", "Filter by state")
 	injectListCmd.Flags().StringVar(&injectListFaultType, "fault-type", "", "Filter by fault type")
@@ -458,6 +783,8 @@ func init() {
 
 	injectDownloadCmd.Flags().StringVarP(&injectDownloadOutput, "output-file", "O", "", "Output file path")
 
+	injectMetadataCmd.Flags().StringVar(&injectMetadataSystem, "system", "", "System type for config and resources metadata")
+
 	injectCmd.AddCommand(injectSubmitCmd)
 	injectCmd.AddCommand(injectListCmd)
 	injectCmd.AddCommand(injectGetCmd)
@@ -466,4 +793,5 @@ func init() {
 	injectCmd.AddCommand(injectFilesCmd)
 	injectCmd.AddCommand(injectDownloadCmd)
 	injectCmd.AddCommand(injectMetadataCmd)
+	injectCmd.AddCommand(injectDescribeCmd)
 }

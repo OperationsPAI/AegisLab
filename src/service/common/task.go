@@ -12,9 +12,16 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/robfig/cron/v3"
+	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
+
+// logEmitScheduledErr logs a failed task.scheduled event emission.
+func logEmitScheduledErr(taskID string, err error) {
+	logrus.WithField("task_id", taskID).
+		Warnf("failed to emit task.scheduled event: %v", err)
+}
 
 // cronNextTime calculates the next execution time from a cron expression
 func CronNextTime(expr string) (time.Time, error) {
@@ -127,6 +134,13 @@ func SubmitTaskWithDB(ctx context.Context, db *gorm.DB, redisGateway *redis.Gate
 		err = redisGateway.SubmitImmediateTask(ctx, taskData, t.TaskID)
 	} else {
 		err = redisGateway.SubmitDelayedTask(ctx, taskData, t.TaskID, t.ExecuteTime)
+		if err == nil {
+			reason := dto.TaskScheduledReasonPreDurationWait
+			if t.Type == consts.TaskTypeCronJob {
+				reason = dto.TaskScheduledReasonCronNext
+			}
+			EmitTaskScheduled(ctx, redisGateway, t, t.ExecuteTime, reason)
+		}
 	}
 
 	if err != nil {
@@ -134,6 +148,27 @@ func SubmitTaskWithDB(ctx context.Context, db *gorm.DB, redisGateway *redis.Gate
 	}
 
 	return nil
+}
+
+// EmitTaskScheduled publishes a task.scheduled trace event to the task's
+// trace stream. Best-effort — failures are logged but not propagated.
+func EmitTaskScheduled(ctx context.Context, gateway *redis.Gateway, t *dto.UnifiedTask, executeTime int64, reason string) {
+	if t == nil || t.TraceID == "" || gateway == nil {
+		return
+	}
+	event := dto.TraceStreamEvent{
+		TaskID:    t.TaskID,
+		TaskType:  t.Type,
+		EventName: consts.EventTaskScheduled,
+		Payload: dto.TaskScheduledPayload{
+			ExecuteTime: executeTime,
+			Reason:      reason,
+		},
+	}
+	stream := fmt.Sprintf(consts.StreamTraceLogKey, t.TraceID)
+	if err := gateway.XAdd(ctx, stream, event.ToRedisStream()); err != nil {
+		logEmitScheduledErr(t.TaskID, err)
+	}
 }
 
 // calculateExecuteTime calculates the execution time for a task

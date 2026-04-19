@@ -21,6 +21,7 @@ type HandlerService interface {
 	GetContainerVersion(context.Context, int, int) (*ContainerVersionDetailResp, error)
 	ListContainerVersions(context.Context, *ListContainerVersionReq, int) (*dto.ListResp[ContainerVersionResp], error)
 	UpdateContainerVersion(context.Context, *UpdateContainerVersionReq, int, int) (*ContainerVersionResp, error)
+	SetContainerVersionImage(context.Context, *SetContainerVersionImageReq, int) (*SetContainerVersionImageResp, error)
 	SubmitContainerBuilding(context.Context, *SubmitBuildContainerReq, string, int) (*SubmitContainerBuildResp, error)
 	UploadHelmChart(context.Context, *multipart.FileHeader, int, int, int) (*UploadHelmChartResp, error)
 	UploadHelmValueFile(context.Context, *multipart.FileHeader, int, int, int) (*UploadHelmValueFileResp, error)

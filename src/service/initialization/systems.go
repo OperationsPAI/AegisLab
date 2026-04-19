@@ -63,5 +63,16 @@ func InitializeSystems(db *gorm.DB) error {
 	store := common.NewDBMetadataStore(db)
 	chaos.SetMetadataStore(store)
 	logrus.Info("Set global DBMetadataStore for chaos-experiment")
+
+	// Force ChaosSystemConfigManager to (re)load from the System table now that
+	// the DB reference is wired and builtins are seeded. Without this, the
+	// singleton may have been initialized earlier with an empty config (when
+	// chaosConfigDB was still nil), leaving Get(<system>) permanently empty
+	// until a config-update event fires Reload.
+	if err := config.GetChaosSystemConfigManager().Reload(func() error { return nil }); err != nil {
+		logrus.Warnf("Failed to reload chaos system config: %v", err)
+	} else {
+		logrus.Infof("Chaos system config manager loaded %d systems", len(config.GetChaosSystemConfigManager().GetAll()))
+	}
 	return nil
 }

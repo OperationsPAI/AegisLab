@@ -6,6 +6,7 @@ import (
 	"aegis/dto"
 
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 )
 
 type Handler struct {
@@ -32,7 +33,8 @@ func NewHandler(service HandlerService) *Handler {
 func (h *Handler) GetSystemMetrics(c *gin.Context) {
 	resp, err := h.service.GetSystemMetrics(c.Request.Context())
 	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get system metrics: "+err.Error())
+		logrus.WithError(err).Error("Failed to get system metrics")
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Internal server error")
 		return
 	}
 
@@ -55,7 +57,8 @@ func (h *Handler) GetSystemMetrics(c *gin.Context) {
 func (h *Handler) GetSystemMetricsHistory(c *gin.Context) {
 	resp, err := h.service.GetSystemMetricsHistory(c.Request.Context())
 	if err != nil {
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get system metrics history: "+err.Error())
+		logrus.WithError(err).Error("Failed to get system metrics history")
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Internal server error")
 		return
 	}
 

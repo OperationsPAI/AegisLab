@@ -50,7 +50,7 @@ func (h *Handler) CreateTeam(c *gin.Context) {
 		return
 	}
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 	resp, err := h.service.CreateTeam(c.Request.Context(), &req, userID)
@@ -148,7 +148,7 @@ func (h *Handler) ListTeams(c *gin.Context) {
 		return
 	}
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 	resp, err := h.service.ListTeams(c.Request.Context(), &req, userID, middleware.IsCurrentUserAdmin(c))
@@ -188,7 +188,7 @@ func (h *Handler) UpdateTeam(c *gin.Context) {
 		return
 	}
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 	resp, err := h.service.UpdateTeam(c.Request.Context(), &req, teamID)
@@ -230,7 +230,7 @@ func (h *Handler) ListTeamProjects(c *gin.Context) {
 		return
 	}
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 	resp, err := h.service.ListTeamProjects(c.Request.Context(), &req, teamID)
@@ -271,7 +271,7 @@ func (h *Handler) AddTeamMember(c *gin.Context) {
 		return
 	}
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 	if httpx.HandleServiceError(c, h.service.AddMember(c.Request.Context(), &req, teamID)) {
@@ -362,7 +362,7 @@ func (h *Handler) UpdateTeamMemberRole(c *gin.Context) {
 		return
 	}
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 	if httpx.HandleServiceError(c, h.service.UpdateMemberRole(c.Request.Context(), &req, teamID, userID, currentUserID)) {
@@ -401,7 +401,7 @@ func (h *Handler) ListTeamMembers(c *gin.Context) {
 		return
 	}
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 	resp, err := h.service.ListMembers(c.Request.Context(), &req, teamID)

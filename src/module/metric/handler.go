@@ -37,7 +37,7 @@ func NewHandler(service HandlerService) *Handler {
 func (h *Handler) GetInjectionMetrics(c *gin.Context) {
 	var req GetMetricsReq
 	if err := c.ShouldBindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
 		return
 	}
 
@@ -69,7 +69,7 @@ func (h *Handler) GetInjectionMetrics(c *gin.Context) {
 func (h *Handler) GetExecutionMetrics(c *gin.Context) {
 	var req GetMetricsReq
 	if err := c.ShouldBindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
 		return
 	}
 
@@ -101,7 +101,7 @@ func (h *Handler) GetExecutionMetrics(c *gin.Context) {
 func (h *Handler) GetAlgorithmMetrics(c *gin.Context) {
 	var req GetMetricsReq
 	if err := c.ShouldBindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
 		return
 	}
 

@@ -143,7 +143,7 @@ func (r *Repository) batchGetContainerVersions(containerType consts.ContainerTyp
 func (r *Repository) checkContainerExistsWithDifferentType(containerName string, requestedType consts.ContainerType, userID int) (bool, consts.ContainerType, error) {
 	var container model.Container
 	query := r.db.Table("containers").
-		Where("name = ? AND type != ? AND status = ?", containerName, requestedType, consts.CommonEnabled)
+		Where("containers.name = ? AND containers.type != ? AND containers.status = ?", containerName, requestedType, consts.CommonEnabled)
 
 	if userID > 0 {
 		query = query.Joins(
@@ -413,6 +413,24 @@ func (r *Repository) listContainerVersions(limit, offset int, containerID int, s
 		return nil, 0, fmt.Errorf("failed to list container versions: %v", err)
 	}
 	return versions, total, nil
+}
+
+// updateContainerVersionImageColumns atomically rewrites the four image
+// reference columns on a container_versions row. Used by PATCH
+// /api/v2/container-versions/:id/image.
+func (r *Repository) updateContainerVersionImageColumns(versionID int, registry, namespace, repository, tag string) (int64, error) {
+	result := r.db.Model(&model.ContainerVersion{}).
+		Where("id = ?", versionID).
+		Updates(map[string]any{
+			"registry":   registry,
+			"namespace":  namespace,
+			"repository": repository,
+			"tag":        tag,
+		})
+	if err := result.Error; err != nil {
+		return 0, fmt.Errorf("failed to update container version image columns: %w", err)
+	}
+	return result.RowsAffected, nil
 }
 
 func (r *Repository) updateContainerVersion(version *model.ContainerVersion) error {

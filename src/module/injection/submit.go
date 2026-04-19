@@ -3,6 +3,7 @@ package injection
 import (
 	"aegis/consts"
 	"aegis/dto"
+	"context"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -10,13 +11,17 @@ import (
 	"time"
 
 	chaos "github.com/OperationsPAI/chaos-experiment/handler"
+	"github.com/OperationsPAI/chaos-experiment/pkg/guidedcli"
 	"github.com/sirupsen/logrus"
 )
 
 type injectionProcessItem struct {
 	index         int
 	faultDuration int
-	nodes         []chaos.Node
+	nodes         []chaos.Node // legacy Node-DSL batch
+	// guidedConfigs is populated when the submission came through the guided
+	// CLI path. Mutually exclusive with nodes: exactly one is set per item.
+	guidedConfigs []guidedcli.GuidedConfig
 	executeTime   time.Time
 }
 
@@ -52,13 +57,14 @@ func parseBatchInjectionSpecs(pedestal string, batchIndex int, specs []chaos.Nod
 
 	uniqueServices := make(map[string]int, len(nodes))
 	var duplicateServiceWarnings []string
+	ctx := context.Background()
 	for idx, node := range nodes {
-		conf, err := chaos.NodeToStruct[chaos.InjectionConf](&node)
+		conf, err := chaos.NodeToStruct[chaos.InjectionConf](ctx, &node)
 		if err != nil {
 			return nil, "", fmt.Errorf("failed to convert node to InjectionConf at index %d: %w", idx, err)
 		}
 
-		groundtruth, err := conf.GetGroundtruth()
+		groundtruth, err := conf.GetGroundtruth(ctx)
 		if err != nil {
 			return nil, "", fmt.Errorf("failed to get groundtruth from InjectionConf at index %d: %w", idx, err)
 		}
@@ -117,11 +123,17 @@ func flattenYAMLToParameters(data map[string]any, prefix string) []dto.Parameter
 func (s *Service) removeDuplicated(items []injectionProcessItem) ([]injectionProcessItem, []int, []int, error) {
 	engineConfigStrs := make([]string, len(items))
 	for i, item := range items {
-		if len(item.nodes) == 0 {
+		var payload any
+		switch {
+		case len(item.guidedConfigs) > 0:
+			payload = item.guidedConfigs
+		case len(item.nodes) > 0:
+			payload = item.nodes
+		default:
 			continue
 		}
 
-		b, err := json.Marshal(item.nodes)
+		b, err := json.Marshal(payload)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("failed to marshal engine config at batch index %d: %w", i, err)
 		}
@@ -202,4 +214,66 @@ func sortNodes(nodes []chaos.Node) []chaos.Node {
 		}
 	}
 	return sortedNodes
+}
+
+// parseBatchGuidedSpecs parses a single batch of GuidedConfig specs for
+// parallel execution. Each GuidedConfig is resolved to an InjectionConf via
+// guidedcli.BuildInjection solely to compute duration, system-type sanity
+// check, and groundtruth-service dedup warnings. The returned item carries
+// the original GuidedConfigs; the actual BuildInjection call at execute-time
+// lives in the consumer.
+func parseBatchGuidedSpecs(ctx context.Context, pedestal string, batchIndex int, configs []guidedcli.GuidedConfig) (*injectionProcessItem, string, error) {
+	if len(configs) == 0 {
+		return nil, "", fmt.Errorf("empty guided fault batch at index %d", batchIndex)
+	}
+
+	maxDuration := 0
+	uniqueServices := make(map[string]int, len(configs))
+	var duplicateServiceWarnings []string
+
+	for idx, cfg := range configs {
+		conf, systemType, err := guidedcli.BuildInjection(ctx, cfg)
+		if err != nil {
+			return nil, "", fmt.Errorf("failed to build injection from guided config at index %d: %w", idx, err)
+		}
+		if pedestal != systemType.String() {
+			return nil, "", fmt.Errorf("mismatched system type %s for pedestal %s at index %d", systemType.String(), pedestal, idx)
+		}
+
+		duration := 0
+		if cfg.Duration != nil {
+			duration = *cfg.Duration
+		}
+		if duration > maxDuration {
+			maxDuration = duration
+		}
+
+		groundtruth, err := conf.GetGroundtruth(ctx)
+		if err != nil {
+			return nil, "", fmt.Errorf("failed to get groundtruth from guided config at index %d: %w", idx, err)
+		}
+		for _, service := range groundtruth.Service {
+			if service == "" {
+				continue
+			}
+			if oldIdx, exists := uniqueServices[service]; exists {
+				duplicateServiceWarnings = append(duplicateServiceWarnings,
+					fmt.Sprintf("service '%s' at positions %d and %d", service, oldIdx, idx))
+				continue
+			}
+			uniqueServices[service] = idx
+		}
+	}
+
+	var warning string
+	if len(duplicateServiceWarnings) > 0 {
+		warning = fmt.Sprintf("Batch %d contains duplicate service injections: %s",
+			batchIndex, strings.Join(duplicateServiceWarnings, "; "))
+	}
+
+	return &injectionProcessItem{
+		index:         batchIndex,
+		faultDuration: maxDuration,
+		guidedConfigs: configs,
+	}, warning, nil
 }

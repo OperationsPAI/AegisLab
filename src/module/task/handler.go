@@ -55,7 +55,7 @@ func (h *Handler) BatchDelete(c *gin.Context) {
 	}
 
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters"+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 
@@ -99,6 +99,41 @@ func (h *Handler) GetTask(c *gin.Context) {
 	dto.SuccessResponse(c, resp)
 }
 
+// ExpediteTask handles expediting a Pending task to execute immediately.
+//
+//	@Summary		Expedite a pending task
+//	@Description	Moves a Pending task's execute_time to now, rescoring it in the
+//	@Description	Redis delayed queue so the scheduler picks it up on its next tick.
+//	@Description	Rejects the call with 400 if the task is in any state other than
+//	@Description	Pending. Idempotent: expediting an already-due task succeeds.
+//	@Tags			Tasks
+//	@ID				expedite_task
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			task_id	path		string							true	"Task ID"
+//	@Success		200		{object}	dto.GenericResponse[TaskResp]	"Task expedited"
+//	@Failure		400		{object}	dto.GenericResponse[any]		"Invalid task ID or task not in Pending state"
+//	@Failure		401		{object}	dto.GenericResponse[any]		"Authentication required"
+//	@Failure		403		{object}	dto.GenericResponse[any]		"Permission denied"
+//	@Failure		404		{object}	dto.GenericResponse[any]		"Task not found"
+//	@Failure		500		{object}	dto.GenericResponse[any]		"Internal server error"
+//	@Router			/api/v2/tasks/{task_id}/expedite [post]
+//	@x-api-type		{"sdk":"true"}
+func (h *Handler) ExpediteTask(c *gin.Context) {
+	taskID := c.Param(consts.URLPathTaskID)
+	if !utils.IsValidUUID(taskID) {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid task ID")
+		return
+	}
+
+	resp, err := h.service.Expedite(c.Request.Context(), taskID)
+	if httpx.HandleServiceError(c, err) {
+		return
+	}
+
+	dto.SuccessResponse(c, resp)
+}
+
 // ListTasks handles simple task listing
 //
 //	@Summary		List tasks
@@ -126,12 +161,12 @@ func (h *Handler) GetTask(c *gin.Context) {
 func (h *Handler) ListTasks(c *gin.Context) {
 	var req ListTaskReq
 	if err := c.ShouldBindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format : "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
 		return
 	}
 
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 
@@ -161,13 +196,13 @@ func (h *Handler) ListTasks(c *gin.Context) {
 func (h *Handler) GetTaskLogsWS(c *gin.Context) {
 	taskID := c.Param(consts.URLPathTaskID)
 	if taskID == "" {
-		dto.ErrorResponse(c, http.StatusBadRequest, "task_id is required")
+		dto.ErrorResponse(c, http.StatusBadRequest, "Task ID is required")
 		return
 	}
 
 	token := c.Query("token")
 	if token == "" {
-		dto.ErrorResponse(c, http.StatusUnauthorized, "token query parameter is required")
+		dto.ErrorResponse(c, http.StatusUnauthorized, "Token query parameter is required")
 		return
 	}
 
@@ -179,11 +214,11 @@ func (h *Handler) GetTaskLogsWS(c *gin.Context) {
 	task, err := h.service.GetForLogStream(c.Request.Context(), taskID)
 	if err != nil {
 		if errors.Is(err, consts.ErrNotFound) {
-			dto.ErrorResponse(c, http.StatusNotFound, "task not found")
+			dto.ErrorResponse(c, http.StatusNotFound, "Task not found")
 			return
 		}
 
-		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to retrieve task: "+err.Error())
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to retrieve task: "+err.Error())
 		return
 	}
 

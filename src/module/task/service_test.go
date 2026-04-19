@@ -36,7 +36,7 @@ func newTaskService(t *testing.T, gateway *LokiGateway) (*Service, sqlmock.Sqlmo
 		gateway = NewLokiGateway(&lokiinfra.Client{})
 	}
 
-	service := NewService(NewRepository(db), NewTaskLogService(NewRepository(db), nil, gateway), gateway)
+	service := NewService(NewRepository(db), NewTaskLogService(NewRepository(db), nil, gateway), gateway, nil)
 	return service, mock, func() {
 		_ = sqlDB.Close()
 	}

@@ -44,6 +44,13 @@ func (r *Repository) GetByID(taskID string) (*model.Task, error) {
 	return &task, nil
 }
 
+// UpdateExecuteTime updates the execute_time column of a task row.
+func (r *Repository) UpdateExecuteTime(taskID string, executeTime int64) error {
+	return r.db.Model(&model.Task{}).
+		Where("id = ?", taskID).
+		Update("execute_time", executeTime).Error
+}
+
 func (r *Repository) List(limit, offset int, filters *ListTaskFilters) ([]model.Task, int64, error) {
 	var (
 		tasks []model.Task

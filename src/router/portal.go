@@ -37,6 +37,14 @@ func SetupPortalV2Routes(v2 *gin.RouterGroup, handlers *Handlers) {
 		}
 	}
 
+	// Flat container-versions group — operations keyed by version id alone
+	// (no parent container id in the URL). Used by `aegisctl container version
+	// set-image` to rewrite image reference columns.
+	flatContainerVersions := v2.Group("/container-versions", middleware.JWTAuth())
+	{
+		flatContainerVersions.PATCH("/:id/image", middleware.RequireContainerVersionUpdate, handlers.Container.SetContainerVersionImage)
+	}
+
 	datasets := v2.Group("/datasets", middleware.JWTAuth())
 	{
 		datasetRead := datasets.Group("", middleware.RequireDatasetRead)
@@ -153,6 +161,27 @@ func SetupPortalV2Routes(v2 *gin.RouterGroup, handlers *Handlers) {
 		}
 
 		tasks.POST("/batch-delete", middleware.RequireTaskDelete, handlers.Task.BatchDelete)
+		tasks.POST("/:task_id/expedite", middleware.RequireTaskExecute, handlers.Task.ExpediteTask)
+	}
+
+	pedestal := v2.Group("/pedestal", middleware.JWTAuth())
+	{
+		helm := pedestal.Group("/helm")
+		{
+			helm.GET("/:container_version_id", handlers.Pedestal.GetPedestalHelmConfig)
+			helm.POST("/:container_version_id/verify", handlers.Pedestal.VerifyPedestalHelmConfig)
+			helm.PUT("/:container_version_id", middleware.RequireContainerVersionUpload, handlers.Pedestal.UpsertPedestalHelmConfig)
+		}
+	}
+
+	rateLimiters := v2.Group("/rate-limiters", middleware.JWTAuth())
+	{
+		rateLimiters.GET("", handlers.RateLimiter.ListRateLimiters)
+		rateLimiterAdmin := rateLimiters.Group("", middleware.RequireSystemAdmin())
+		{
+			rateLimiterAdmin.DELETE("/:bucket", handlers.RateLimiter.ResetRateLimiter)
+			rateLimiterAdmin.POST("/gc", handlers.RateLimiter.GCRateLimiters)
+		}
 	}
 
 	groups := v2.Group("/groups", middleware.JWTAuth(), middleware.RequireTraceRead)

@@ -87,7 +87,7 @@ EXAMPLES:
 			}
 
 			if time.Now().After(deadline) {
-				output.PrintError(fmt.Errorf("timeout after %ds waiting for %s %s (last state: %s)", waitTimeout, resourceType, id, state))
+				output.PrintError(fmt.Sprintf("timeout after %ds waiting for %s %s (last state: %s)", waitTimeout, resourceType, id, state))
 				os.Exit(3)
 			}
 

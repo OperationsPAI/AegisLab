@@ -26,7 +26,7 @@ func ParsePositiveID(c *gin.Context, idStr, fieldName string) (int, bool) {
 			"fieldName": fieldName,
 			"error":     err.Error(),
 		}).Warn("ParsePositiveID: failed to parse ID as integer")
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid "+fieldName)
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid "+fieldName+": "+idStr)
 		return 0, false
 	}
 
@@ -35,7 +35,7 @@ func ParsePositiveID(c *gin.Context, idStr, fieldName string) (int, bool) {
 			"id":        id,
 			"fieldName": fieldName,
 		}).Warn("ParsePositiveID: ID is not positive")
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid "+fieldName)
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid "+fieldName+": "+idStr)
 		return 0, false
 	}
 
@@ -74,13 +74,20 @@ func HandleServiceError(c *gin.Context, err error) bool {
 		dto.ErrorResponse(c, http.StatusNotFound, msg)
 	case consts.ErrAlreadyExists:
 		dto.ErrorResponse(c, http.StatusConflict, msg)
+	case consts.ErrInternal:
+		logrus.WithFields(logrus.Fields{
+			"path":   c.Request.URL.Path,
+			"method": c.Request.Method,
+			"error":  err.Error(),
+		}).Error("Internal server error")
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Internal server error")
 	default:
 		logrus.WithFields(logrus.Fields{
 			"path":   c.Request.URL.Path,
 			"method": c.Request.Method,
 			"error":  err.Error(),
-		}).Error("Service error")
-		dto.ErrorResponse(c, http.StatusInternalServerError, msg)
+		}).Error("Unhandled service error")
+		dto.ErrorResponse(c, http.StatusInternalServerError, "An unexpected error occurred")
 	}
 
 	return true

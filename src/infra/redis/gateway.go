@@ -106,6 +106,28 @@ func (g *Gateway) ListLength(ctx context.Context, key string) (int64, error) {
 	return result, nil
 }
 
+// ScanKeys iterates through keys matching the given pattern and returns all of them.
+func (g *Gateway) ScanKeys(ctx context.Context, pattern string) ([]string, error) {
+	iter := g.clientOrInit().Scan(ctx, 0, pattern, 0).Iterator()
+	var keys []string
+	for iter.Next(ctx) {
+		keys = append(keys, iter.Val())
+	}
+	if err := iter.Err(); err != nil {
+		return nil, fmt.Errorf("failed to scan keys %q: %w", pattern, err)
+	}
+	return keys, nil
+}
+
+// DeleteKey removes a single key; returns 1 if it existed, 0 otherwise.
+func (g *Gateway) DeleteKey(ctx context.Context, key string) (int64, error) {
+	n, err := g.clientOrInit().Del(ctx, key).Result()
+	if err != nil {
+		return 0, fmt.Errorf("failed to del key %q: %w", key, err)
+	}
+	return n, nil
+}
+
 func (g *Gateway) SetMembers(ctx context.Context, key string) ([]string, error) {
 	result, err := g.clientOrInit().SMembers(ctx, key).Result()
 	if err != nil {

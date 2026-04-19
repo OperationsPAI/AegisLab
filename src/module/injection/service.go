@@ -211,17 +211,43 @@ func (s *Service) SubmitFaultInjection(ctx context.Context, req *SubmitInjection
 	}
 	benchmarkVersionItem.EnvVars = envVars
 
-	processedItems := make([]injectionProcessItem, 0, len(req.Specs))
+	// Use resolved fields (populated by handler-level ResolveSpecs).
+	// Exactly one of ResolvedSpecs or ResolvedGuidedConfigs is populated.
+	legacySpecs := req.ResolvedSpecs
+	guidedSpecs := req.ResolvedGuidedConfigs
+	if len(legacySpecs) == 0 && len(guidedSpecs) == 0 {
+		return nil, fmt.Errorf("no resolved specs available; call ResolveSpecs before SubmitFaultInjection")
+	}
+
+	capacity := len(legacySpecs)
+	if len(guidedSpecs) > capacity {
+		capacity = len(guidedSpecs)
+	}
+	processedItems := make([]injectionProcessItem, 0, capacity)
 	var parseWarnings []string
-	for i := range req.Specs {
-		item, warning, err := parseBatchInjectionSpecs(pedestalItem.ContainerName, i, req.Specs[i])
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse injection spec batch %d: %w", i, err)
+	if len(guidedSpecs) > 0 {
+		for i := range guidedSpecs {
+			item, warning, err := parseBatchGuidedSpecs(ctx, pedestalItem.ContainerName, i, guidedSpecs[i])
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse guided spec batch %d: %w", i, err)
+			}
+			if warning != "" {
+				parseWarnings = append(parseWarnings, warning)
+			} else {
+				processedItems = append(processedItems, *item)
+			}
 		}
-		if warning != "" {
-			parseWarnings = append(parseWarnings, warning)
-		} else {
-			processedItems = append(processedItems, *item)
+	} else {
+		for i := range legacySpecs {
+			item, warning, err := parseBatchInjectionSpecs(pedestalItem.ContainerName, i, legacySpecs[i])
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse injection spec batch %d: %w", i, err)
+			}
+			if warning != "" {
+				parseWarnings = append(parseWarnings, warning)
+			} else {
+				processedItems = append(processedItems, *item)
+			}
 		}
 	}
 
@@ -277,18 +303,24 @@ func (s *Service) SubmitFaultInjection(ctx context.Context, req *SubmitInjection
 
 	injectionItems := make([]SubmitInjectionItem, 0, len(uniqueItems))
 	for _, item := range uniqueItems {
+		injectPayload := map[string]any{
+			consts.InjectBenchmark:   benchmarkVersionItem,
+			consts.InjectPreDuration: req.PreDuration,
+			consts.InjectLabels:      req.Labels,
+			consts.InjectSystem:      chaos.SystemType(pedestalItem.ContainerName),
+		}
+		// Exactly one of nodes / guidedConfigs is populated on item.
+		if len(item.guidedConfigs) > 0 {
+			injectPayload[consts.InjectGuidedConfigs] = item.guidedConfigs
+		} else {
+			injectPayload[consts.InjectNodes] = item.nodes
+		}
 		payload := map[string]any{
 			consts.RestartPedestal:      pedestalItem,
 			consts.RestartHelmConfig:    helmConfig,
 			consts.RestartIntarval:      req.Interval,
 			consts.RestartFaultDuration: item.faultDuration,
-			consts.RestartInjectPayload: map[string]any{
-				consts.InjectBenchmark:   benchmarkVersionItem,
-				consts.InjectPreDuration: req.PreDuration,
-				consts.InjectNodes:       item.nodes,
-				consts.InjectLabels:      req.Labels,
-				consts.InjectSystem:      chaos.SystemType(pedestalItem.ContainerName),
-			},
+			consts.RestartInjectPayload: injectPayload,
 		}
 
 		task := &dto.UnifiedTask{

@@ -354,6 +354,41 @@ func (s *Service) UpdateContainerVersion(_ context.Context, req *UpdateContainer
 	return NewContainerVersionResp(updatedVersion), nil
 }
 
+// SetContainerVersionImage atomically rewrites the four image reference
+// columns (registry, namespace, repository, tag) on a container_versions row.
+func (s *Service) SetContainerVersionImage(_ context.Context, req *SetContainerVersionImageReq, versionID int) (*SetContainerVersionImageResp, error) {
+	var updated *model.ContainerVersion
+	err := s.repo.db.Transaction(func(tx *gorm.DB) error {
+		repo := NewRepository(tx)
+		if _, err := repo.getContainerVersionByID(versionID); err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return fmt.Errorf("%w: version id: %d", consts.ErrNotFound, versionID)
+			}
+			return fmt.Errorf("failed to get container version: %w", err)
+		}
+
+		rows, err := repo.updateContainerVersionImageColumns(versionID, req.Registry, req.Namespace, req.Repository, req.Tag)
+		if err != nil {
+			return err
+		}
+		if rows == 0 {
+			return fmt.Errorf("%w: version id: %d", consts.ErrNotFound, versionID)
+		}
+
+		refreshed, err := repo.getContainerVersionByID(versionID)
+		if err != nil {
+			return fmt.Errorf("failed to reload container version: %w", err)
+		}
+		updated = refreshed
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return NewSetContainerVersionImageResp(updated), nil
+}
+
 func (s *Service) SubmitContainerBuilding(ctx context.Context, req *SubmitBuildContainerReq, groupID string, userID int) (*SubmitContainerBuildResp, error) {
 	if req == nil {
 		return nil, fmt.Errorf("build container request is nil")

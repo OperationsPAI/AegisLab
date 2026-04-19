@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -63,7 +64,7 @@ func (h *Handler) ListProjectInjections(c *gin.Context) {
 	}
 
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 
@@ -102,7 +103,7 @@ func (h *Handler) SearchProjectInjections(c *gin.Context) {
 
 	var req SearchInjectionReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
 		return
 	}
 
@@ -282,33 +283,56 @@ func (h *Handler) GetInjection(c *gin.Context) {
 //	@Router			/api/v2/injections/metadata [get]
 //	@x-api-type		{"portal":"true","sdk":"true"}
 func (h *Handler) GetInjectionMetadata(c *gin.Context) {
-	systemStr := c.Query("system")
-	ctx := c.Request.Context()
-	system := chaos.SystemType(systemStr)
+	c.JSON(http.StatusGone, gin.H{"error": "endpoint removed; migrate to /inject with GuidedConfig"})
+}
 
-	confNode, err := chaos.StructToNode[chaos.InjectionConf](string(system))
-	if err != nil {
-		logrus.Warnf("Failed to build injection config node: %v, continuing with nil config", err)
+// GetSystemMapping returns a mapping of system type names to integer indices.
+//
+//	@Summary		Get system type mapping
+//	@Description	Returns all registered system types with their integer indices, sorted alphabetically
+//	@Tags			Injections
+//	@ID				get_system_mapping
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{object}	dto.GenericResponse[SystemMappingResp]	"System mapping retrieved successfully"
+//	@Failure		401	{object}	dto.GenericResponse[any]				"Authentication required"
+//	@Failure		500	{object}	dto.GenericResponse[any]				"Internal server error"
+//	@Router			/api/v2/injections/systems [get]
+func (h *Handler) GetSystemMapping(c *gin.Context) {
+	allSystems := chaos.GetAllSystemTypes()
+	systemMap := utils.BuildSystemIndexMap(allSystems)
+
+	details := make([]SystemDetail, 0, len(systemMap))
+	for name, idx := range systemMap {
+		details = append(details, SystemDetail{Name: name, Index: idx})
 	}
-
-	faultResourceMap, err := chaos.GetChaosTypeResourceMappings()
-	if err != nil {
-		httpx.HandleServiceError(c, err)
-		return
-	}
-
-	resourceMap, err := chaos.GetSystemResourceMap(ctx)
-	if err != nil {
-		logrus.Warnf("Failed to get system resource map: %v, using empty map", err)
-		resourceMap = make(map[chaos.SystemType]chaos.SystemResource)
-	}
-
-	dto.SuccessResponse(c, &InjectionMetadataResp{
-		Config:           confNode,
-		FaultTypeMap:     chaos.ChaosTypeMap,
-		FaultResourceMap: faultResourceMap,
-		SystemResource:   resourceMap[system],
+	sort.Slice(details, func(i, j int) bool {
+		return details[i].Index < details[j].Index
 	})
+
+	dto.SuccessResponse(c, &SystemMappingResp{
+		Systems:       systemMap,
+		SystemDetails: details,
+	})
+}
+
+// TranslateFaultSpecs translates human-readable fault specs into chaos.Node trees.
+//
+//	@Summary		Translate fault specs to Nodes
+//	@Description	Converts human-readable fault specifications (type names, durations, etc.) into the integer-indexed Node AST used by the injection engine
+//	@Tags			Injections
+//	@ID				translate_fault_specs
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body		TranslateFaultSpecsReq							true	"Fault specs to translate"
+//	@Success		200		{object}	dto.GenericResponse[TranslateFaultSpecsResp]	"Translation successful"
+//	@Failure		400		{object}	dto.GenericResponse[any]						"Invalid request"
+//	@Failure		401		{object}	dto.GenericResponse[any]						"Authentication required"
+//	@Failure		500		{object}	dto.GenericResponse[any]						"Internal server error"
+//	@Router			/api/v2/injections/translate [post]
+func (h *Handler) TranslateFaultSpecs(c *gin.Context) {
+	c.JSON(http.StatusGone, gin.H{"error": "endpoint removed; migrate to /inject with GuidedConfig"})
 }
 
 // ManageInjectionCustomLabels manages injection custom labels (key-value pairs)
@@ -341,7 +365,7 @@ func (h *Handler) ManageInjectionCustomLabels(c *gin.Context) {
 		return
 	}
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 	resp, err := h.service.ManageLabels(c.Request.Context(), &req, id)
@@ -371,7 +395,7 @@ func (h *Handler) ManageInjectionCustomLabels(c *gin.Context) {
 func (h *Handler) BatchManageInjectionLabels(c *gin.Context) {
 	var req BatchManageInjectionLabelReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
 		return
 	}
 	if err := req.Validate(); err != nil {
@@ -405,7 +429,7 @@ func (h *Handler) BatchManageInjectionLabels(c *gin.Context) {
 func (h *Handler) BatchDeleteInjections(c *gin.Context) {
 	var req BatchDeleteInjectionReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
 		return
 	}
 	if err := req.Validate(); err != nil {
@@ -443,7 +467,7 @@ func (h *Handler) CloneInjection(c *gin.Context) {
 	}
 	var req CloneInjectionReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
 		return
 	}
 	resp, err := h.service.Clone(c.Request.Context(), id, &req)
@@ -550,7 +574,7 @@ func (h *Handler) DownloadDatapackFile(c *gin.Context) {
 	}
 	filePath := c.Query("path")
 	if filePath == "" {
-		dto.ErrorResponse(c, http.StatusBadRequest, "file path is required")
+		dto.ErrorResponse(c, http.StatusBadRequest, "File path is required")
 		return
 	}
 	fileName, contentType, fileSize, fileReader, err := h.service.DownloadDatapackFile(c.Request.Context(), id, filePath)
@@ -604,7 +628,7 @@ func (h *Handler) QueryDatapackFile(c *gin.Context) {
 	}
 	filePath := c.Query("path")
 	if filePath == "" {
-		dto.ErrorResponse(c, http.StatusBadRequest, "file path is required")
+		dto.ErrorResponse(c, http.StatusBadRequest, "File path is required")
 		return
 	}
 	fileName, totalRows, reader, err := h.service.QueryDatapackFile(c.Request.Context(), id, filePath)
@@ -650,7 +674,7 @@ func (h *Handler) UpdateGroundtruth(c *gin.Context) {
 		return
 	}
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 	if httpx.HandleServiceError(c, h.service.UpdateGroundtruth(c.Request.Context(), id, &req)) {
@@ -701,7 +725,7 @@ func (h *Handler) UploadDatapack(c *gin.Context) {
 		Groundtruths: c.PostForm("groundtruths"),
 	}
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 	resp, err := h.service.UploadDatapack(c.Request.Context(), req, file, fileHeader.Size)
@@ -777,7 +801,14 @@ func (h *Handler) submitFaultInjection(c *gin.Context, projectID *int) {
 
 	if err := req.Validate(); err != nil {
 		span.SetStatus(codes.Error, "validation error in SubmitFaultInjection: "+err.Error())
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
+		return
+	}
+
+	// Resolve specs: auto-detect friendly YAML vs chaos.Node DSL and convert all to chaos.Node
+	if err := req.ResolveSpecs(FriendlySpecToNode); err != nil {
+		span.SetStatus(codes.Error, "spec conversion error in SubmitFaultInjection: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid fault spec: "+err.Error())
 		return
 	}
 
@@ -821,7 +852,7 @@ func (h *Handler) submitDatapackBuilding(c *gin.Context, projectID *int) {
 
 	if err := req.Validate(); err != nil {
 		span.SetStatus(codes.Error, "validation error in SubmitDatapackBuilding: "+err.Error())
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 
@@ -847,7 +878,7 @@ func spanFromGin(c *gin.Context, operation string) (context.Context, trace.Span,
 	ctx, ok := c.Get(middleware.SpanContextKey)
 	if !ok {
 		logrus.Errorf("Failed to get span context from gin.Context in %s", operation)
-		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to get span context")
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Internal server error")
 		return nil, nil, false
 	}
 
@@ -863,17 +894,17 @@ func parsePositiveID(c *gin.Context, key, label string) (int, bool) {
 func serveRangeRequest(c *gin.Context, reader io.ReadSeeker, fileSize int64, rangeHeader string) {
 	const prefix = "bytes="
 	if !strings.HasPrefix(rangeHeader, prefix) {
-		dto.ErrorResponse(c, http.StatusRequestedRangeNotSatisfiable, "invalid range format")
+		dto.ErrorResponse(c, http.StatusRequestedRangeNotSatisfiable, "Invalid range format")
 		return
 	}
 	rangeSpec := strings.TrimPrefix(rangeHeader, prefix)
 	if strings.Contains(rangeSpec, ",") {
-		dto.ErrorResponse(c, http.StatusRequestedRangeNotSatisfiable, "multi-range not supported")
+		dto.ErrorResponse(c, http.StatusRequestedRangeNotSatisfiable, "Multi-range not supported")
 		return
 	}
 	parts := strings.SplitN(rangeSpec, "-", 2)
 	if len(parts) != 2 {
-		dto.ErrorResponse(c, http.StatusRequestedRangeNotSatisfiable, "invalid range format")
+		dto.ErrorResponse(c, http.StatusRequestedRangeNotSatisfiable, "Invalid range format")
 		return
 	}
 	var start, end int64
@@ -882,7 +913,7 @@ func serveRangeRequest(c *gin.Context, reader io.ReadSeeker, fileSize int64, ran
 		suffix, err := strconv.ParseInt(parts[1], 10, 64)
 		if err != nil || suffix <= 0 || suffix > fileSize {
 			c.Header("Content-Range", fmt.Sprintf("bytes */%d", fileSize))
-			dto.ErrorResponse(c, http.StatusRequestedRangeNotSatisfiable, "invalid range")
+			dto.ErrorResponse(c, http.StatusRequestedRangeNotSatisfiable, "Invalid range")
 			return
 		}
 		start = fileSize - suffix
@@ -891,7 +922,7 @@ func serveRangeRequest(c *gin.Context, reader io.ReadSeeker, fileSize int64, ran
 		start, err = strconv.ParseInt(parts[0], 10, 64)
 		if err != nil || start < 0 || start >= fileSize {
 			c.Header("Content-Range", fmt.Sprintf("bytes */%d", fileSize))
-			dto.ErrorResponse(c, http.StatusRequestedRangeNotSatisfiable, "invalid range start")
+			dto.ErrorResponse(c, http.StatusRequestedRangeNotSatisfiable, "Invalid range start")
 			return
 		}
 		if parts[1] == "" {
@@ -900,7 +931,7 @@ func serveRangeRequest(c *gin.Context, reader io.ReadSeeker, fileSize int64, ran
 			end, err = strconv.ParseInt(parts[1], 10, 64)
 			if err != nil || end < start || end >= fileSize {
 				c.Header("Content-Range", fmt.Sprintf("bytes */%d", fileSize))
-				dto.ErrorResponse(c, http.StatusRequestedRangeNotSatisfiable, "invalid range end")
+				dto.ErrorResponse(c, http.StatusRequestedRangeNotSatisfiable, "Invalid range end")
 				return
 			}
 		}
@@ -908,7 +939,7 @@ func serveRangeRequest(c *gin.Context, reader io.ReadSeeker, fileSize int64, ran
 	contentLength := end - start + 1
 	if _, err := reader.Seek(start, io.SeekStart); err != nil {
 		logrus.Errorf("failed to seek to range start: %v", err)
-		dto.ErrorResponse(c, http.StatusInternalServerError, "failed to seek to range start")
+		dto.ErrorResponse(c, http.StatusInternalServerError, "Failed to seek to range start")
 		return
 	}
 	c.Header("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, fileSize))

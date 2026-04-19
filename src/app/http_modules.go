@@ -12,7 +12,9 @@ import (
 	label "aegis/module/label"
 	metric "aegis/module/metric"
 	notification "aegis/module/notification"
+	pedestal "aegis/module/pedestal"
 	project "aegis/module/project"
+	ratelimiter "aegis/module/ratelimiter"
 	rbac "aegis/module/rbac"
 	sdk "aegis/module/sdk"
 	system "aegis/module/system"
@@ -45,7 +47,9 @@ func ProducerHTTPModules() fx.Option {
 		label.Module,
 		metric.Module,
 		notification.Module,
+		pedestal.Module,
 		project.Module,
+		ratelimiter.Module,
 		rbac.Module,
 		sdk.Module,
 		system.Module,

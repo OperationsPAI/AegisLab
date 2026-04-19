@@ -43,7 +43,7 @@ func (h *Handler) CreateUser(c *gin.Context) {
 	}
 
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 
@@ -140,7 +140,7 @@ func (h *Handler) ListUsers(c *gin.Context) {
 		return
 	}
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 	resp, err := h.service.ListUsers(c.Request.Context(), &req)
@@ -274,7 +274,7 @@ func (h *Handler) AssignPermissions(c *gin.Context) {
 		return
 	}
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 	if httpx.HandleServiceError(c, h.service.AssignPermissions(c.Request.Context(), &req, userID)) {
@@ -313,13 +313,13 @@ func (h *Handler) RemovePermissions(c *gin.Context) {
 		return
 	}
 	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
 		return
 	}
 	if httpx.HandleServiceError(c, h.service.RemovePermissions(c.Request.Context(), &req, userID)) {
 		return
 	}
-	dto.JSONResponse[any](c, http.StatusOK, "Permissions assigned successfully", nil)
+	dto.JSONResponse[any](c, http.StatusOK, "Permissions removed successfully", nil)
 }
 
 // AssignUserContainer handles user-container assignment

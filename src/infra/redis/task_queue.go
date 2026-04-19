@@ -75,6 +75,52 @@ func (g *Gateway) SubmitDelayedTask(ctx context.Context, taskData []byte, taskID
 	return redisCli.HSet(ctx, TaskIndexKey, taskID, DelayedQueueKey).Err()
 }
 
+// ExpediteDelayedTask finds the delayed-queue member for taskID, rewrites its
+// embedded execute_time, and re-scores the sorted-set entry to newExecuteTime.
+// Returns (found, err). If the task is not present (e.g. scheduler already
+// promoted it to ready queue) returns (false, nil).
+func (g *Gateway) ExpediteDelayedTask(ctx context.Context, taskID string, newExecuteTime int64) (bool, error) {
+	cli := g.clientOrInit()
+	members, err := cli.ZRangeByScore(ctx, DelayedQueueKey, &redis.ZRangeBy{
+		Min: "-inf",
+		Max: "+inf",
+	}).Result()
+	if err != nil {
+		return false, fmt.Errorf("failed to scan delayed queue: %w", err)
+	}
+
+	for _, member := range members {
+		var parsed map[string]any
+		if err := json.Unmarshal([]byte(member), &parsed); err != nil {
+			continue
+		}
+		id, _ := parsed["task_id"].(string)
+		if id != taskID {
+			continue
+		}
+
+		parsed["execute_time"] = newExecuteTime
+		updated, err := json.Marshal(parsed)
+		if err != nil {
+			return false, fmt.Errorf("failed to re-marshal task payload: %w", err)
+		}
+
+		pipe := cli.TxPipeline()
+		pipe.ZRem(ctx, DelayedQueueKey, member)
+		pipe.ZAdd(ctx, DelayedQueueKey, redis.Z{
+			Score:  float64(newExecuteTime),
+			Member: updated,
+		})
+		pipe.HSet(ctx, TaskIndexKey, taskID, DelayedQueueKey)
+		if _, err := pipe.Exec(ctx); err != nil {
+			return false, fmt.Errorf("failed to rescore delayed task: %w", err)
+		}
+		return true, nil
+	}
+
+	return false, nil
+}
+
 func (g *Gateway) ProcessDelayedTasks(ctx context.Context) ([]string, error) {
 	redisCli := g.clientOrInit()
 	now := time.Now().Unix()

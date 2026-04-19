@@ -13,6 +13,7 @@ import (
 	"aegis/utils"
 
 	chaos "github.com/OperationsPAI/chaos-experiment/handler"
+	"github.com/OperationsPAI/chaos-experiment/pkg/guidedcli"
 )
 
 // BatchDeleteInjectionReq represents the request to batch delete injections
@@ -332,17 +333,124 @@ func (req *SearchInjectionReq) ConvertToSearchReq() *dto.SearchReq[consts.Inject
 	return sr
 }
 
-// SubmitInjectionReq represents a request to submit fault injection tasks with parallel fault support
-// Each element in Specs represents a batch of faults to be injected in parallel within a single experiment
+// FriendlyFaultSpec is a human-readable fault specification format used by CLI tools.
+// It is automatically converted to chaos.Node DSL on the server side via FriendlySpecToNode.
+type FriendlyFaultSpec struct {
+	Type      string         `json:"type"`             // Fault type name (e.g., "CPUStress", "MemoryStress")
+	Namespace string         `json:"namespace"`        // Namespace prefix (e.g., "exp")
+	Target    string         `json:"target"`           // Target container/app name or numeric index
+	Duration  string         `json:"duration"`         // Duration as Go duration string (e.g., "60s", "5m") or integer minutes
+	Params    map[string]any `json:"params,omitempty"` // Additional spec-specific parameters (e.g., cpu_load, cpu_worker)
+}
+
+// SubmitInjectionReq represents a request to submit fault injection tasks with parallel fault support.
+// Each element in Specs represents a batch of faults to be injected in parallel within a single experiment.
+// Specs accepts BOTH chaos.Node DSL (numeric tree) and FriendlyFaultSpec (human-readable YAML) formats.
+// Mixed formats within a single request are supported — each element is auto-detected.
 type SubmitInjectionReq struct {
 	ProjectName string              `json:"project_name" binding:"omitempty"`      // Project name
 	Pedestal    *dto.ContainerSpec  `json:"pedestal" binding:"required"`           // Pedestal (workload) configuration
 	Benchmark   *dto.ContainerSpec  `json:"benchmark" binding:"required"`          // Benchmark (detector) configuration
 	Interval    int                 `json:"interval" binding:"required,min=1"`     // Total experiment interval in minutes
 	PreDuration int                 `json:"pre_duration" binding:"required,min=1"` // Normal data collection duration before fault injection
-	Specs       [][]chaos.Node      `json:"specs" binding:"required"`              // Fault injection specs - 2D array where each sub-array is a batch of parallel faults
+	Specs       [][]json.RawMessage `json:"specs" binding:"required"`              // Fault injection specs - accepts both chaos.Node DSL and FriendlyFaultSpec
 	Algorithms  []dto.ContainerSpec `json:"algorithms" binding:"omitempty"`        // RCA algorithms to execute (optional)
 	Labels      []dto.LabelItem     `json:"labels" binding:"omitempty"`            // Labels to attach to the injection
+
+	// ResolvedSpecs holds the converted [][]chaos.Node after calling ResolveSpecs.
+	// Not serialized — populated server-side only.
+	// Mutually exclusive with ResolvedGuidedConfigs; legacy Node/Friendly path only.
+	ResolvedSpecs [][]chaos.Node `json:"-"`
+
+	// ResolvedGuidedConfigs holds the parsed GuidedConfig specs when the request
+	// carries chaos-experiment guided configs (detected by top-level chaos_type).
+	// Mutually exclusive with ResolvedSpecs.
+	ResolvedGuidedConfigs [][]guidedcli.GuidedConfig `json:"-"`
+}
+
+// ResolveSpecs auto-detects the format of each spec element and routes it:
+//  1. Top-level "chaos_type" string → guidedcli.GuidedConfig
+//  2. Otherwise "type" string → FriendlyFaultSpec via converter
+//  3. Otherwise chaos.Node DSL
+//
+// A request must be homogeneous in shape: guided configs cannot be mixed with
+// legacy Node/Friendly specs.
+func (req *SubmitInjectionReq) ResolveSpecs(converter func(*FriendlyFaultSpec) (chaos.Node, error)) error {
+	// First pass: detect guided vs legacy.
+	guidedCount := 0
+	legacyCount := 0
+	for i, batch := range req.Specs {
+		for j, raw := range batch {
+			var probe map[string]json.RawMessage
+			if err := json.Unmarshal(raw, &probe); err != nil {
+				return fmt.Errorf("specs[%d][%d]: invalid JSON: %w", i, j, err)
+			}
+			if _, hasChaosType := probe["chaos_type"]; hasChaosType {
+				guidedCount++
+			} else {
+				legacyCount++
+			}
+		}
+	}
+	if guidedCount > 0 && legacyCount > 0 {
+		return fmt.Errorf("specs mix guided (chaos_type) and legacy (type/value) entries; please submit them in separate requests")
+	}
+
+	if guidedCount > 0 {
+		result := make([][]guidedcli.GuidedConfig, len(req.Specs))
+		for i, batch := range req.Specs {
+			cfgs := make([]guidedcli.GuidedConfig, len(batch))
+			for j, raw := range batch {
+				var cfg guidedcli.GuidedConfig
+				if err := json.Unmarshal(raw, &cfg); err != nil {
+					return fmt.Errorf("specs[%d][%d]: failed to parse guided config: %w", i, j, err)
+				}
+				cfgs[j] = cfg
+			}
+			result[i] = cfgs
+		}
+		req.ResolvedGuidedConfigs = result
+		req.ResolvedSpecs = nil
+		return nil
+	}
+
+	// Legacy path.
+	result := make([][]chaos.Node, len(req.Specs))
+	for i, batch := range req.Specs {
+		nodes := make([]chaos.Node, len(batch))
+		for j, raw := range batch {
+			var probe map[string]json.RawMessage
+			if err := json.Unmarshal(raw, &probe); err != nil {
+				return fmt.Errorf("specs[%d][%d]: invalid JSON: %w", i, j, err)
+			}
+
+			if typeRaw, hasType := probe["type"]; hasType {
+				var typeStr string
+				if err := json.Unmarshal(typeRaw, &typeStr); err == nil {
+					var friendly FriendlyFaultSpec
+					if err := json.Unmarshal(raw, &friendly); err != nil {
+						return fmt.Errorf("specs[%d][%d]: failed to parse friendly spec: %w", i, j, err)
+					}
+					node, err := converter(&friendly)
+					if err != nil {
+						return fmt.Errorf("specs[%d][%d]: failed to convert friendly spec: %w", i, j, err)
+					}
+					nodes[j] = node
+					continue
+				}
+			}
+
+			var node chaos.Node
+			if err := json.Unmarshal(raw, &node); err != nil {
+				return fmt.Errorf("specs[%d][%d]: failed to parse node spec: %w", i, j, err)
+			}
+			nodes[j] = node
+		}
+		result[i] = nodes
+	}
+	req.ResolvedSpecs = result
+	req.ResolvedGuidedConfigs = nil
+	return nil
 }
 
 func (req *SubmitInjectionReq) Validate() error {
@@ -518,10 +626,45 @@ func NewInjectionDetailResp(injection *model.FaultInjection) *InjectionDetailRes
 
 // InjectionMetadataResp represents the metadata response for injections
 type InjectionMetadataResp struct {
-	Config           *chaos.Node                           `json:"config"`
-	FaultTypeMap     map[chaos.ChaosType]string            `json:"fault_type_map"`
-	FaultResourceMap map[string]chaos.ChaosResourceMapping `json:"fault_resource_map"`
-	SystemResource   chaos.SystemResource                  `json:"ns_resources"`
+	Config                 *chaos.Node                           `json:"config"`
+	FaultTypeMap           map[chaos.ChaosType]string            `json:"fault_type_map"`
+	FaultResourceMap       map[string]chaos.ChaosResourceMapping `json:"fault_resource_map"`
+	SystemResource         chaos.SystemResource                  `json:"ns_resources"`
+	SystemMap              map[string]int                        `json:"system_map"`
+	FaultTypeReverseMap    map[string]int                        `json:"fault_type_reverse_map"`
+	FaultFieldDescriptions map[string][]utils.FieldDescription   `json:"fault_field_descriptions"`
+}
+
+// SystemDetail represents a named system with its index.
+type SystemDetail struct {
+	Name  string `json:"name"`
+	Index int    `json:"index"`
+}
+
+// SystemMappingResp is the response for the system mapping endpoint.
+type SystemMappingResp struct {
+	Systems       map[string]int `json:"systems"`
+	SystemDetails []SystemDetail `json:"system_details"`
+}
+
+// FaultSpecInput represents a human-readable fault specification for translation.
+type FaultSpecInput struct {
+	Type      string         `json:"type"`
+	Namespace string         `json:"namespace"`
+	Target    string         `json:"target"`
+	Duration  string         `json:"duration"`
+	Extra     map[string]any `json:"extra,omitempty"`
+}
+
+// TranslateFaultSpecsReq is the request body for the translate endpoint.
+type TranslateFaultSpecsReq struct {
+	Specs [][]FaultSpecInput `json:"specs" binding:"required"`
+}
+
+// TranslateFaultSpecsResp is the response for the translate endpoint.
+type TranslateFaultSpecsResp struct {
+	Nodes    [][]chaos.Node `json:"nodes"`
+	Warnings []string       `json:"warnings"`
 }
 
 type SubmitInjectionItem struct {
