@@ -1,4 +1,4 @@
-package authmodule
+package auth
 
 import (
 	"database/sql/driver"

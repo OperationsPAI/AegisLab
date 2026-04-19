@@ -6,7 +6,7 @@ import (
 
 	"aegis/consts"
 	"aegis/dto"
-	redisinfra "aegis/infra/redis"
+	redis "aegis/infra/redis"
 )
 
 func consumerDetachedContext() context.Context {
@@ -17,7 +17,7 @@ type redisStreamEvent interface {
 	ToRedisStream() map[string]any
 }
 
-func publishRedisStreamEvent(gateway *redisinfra.Gateway, ctx context.Context, stream string, event redisStreamEvent) error {
+func publishRedisStreamEvent(gateway *redis.Gateway, ctx context.Context, stream string, event redisStreamEvent) error {
 	if gateway == nil {
 		return fmt.Errorf("redis gateway is nil")
 	}
@@ -27,14 +27,14 @@ func publishRedisStreamEvent(gateway *redisinfra.Gateway, ctx context.Context, s
 	return nil
 }
 
-func publishTraceStreamEvent(gateway *redisinfra.Gateway, ctx context.Context, stream string, event *dto.TraceStreamEvent) error {
+func publishTraceStreamEvent(gateway *redis.Gateway, ctx context.Context, stream string, event *dto.TraceStreamEvent) error {
 	if event == nil {
 		return nil
 	}
 	return publishRedisStreamEvent(gateway, ctx, stream, event)
 }
 
-func loadCachedInjectionAlgorithms(gateway *redisinfra.Gateway, ctx context.Context, groupID string) ([]dto.ContainerVersionItem, bool, error) {
+func loadCachedInjectionAlgorithms(gateway *redis.Gateway, ctx context.Context, groupID string) ([]dto.ContainerVersionItem, bool, error) {
 	if gateway == nil {
 		return nil, false, fmt.Errorf("redis gateway is nil")
 	}

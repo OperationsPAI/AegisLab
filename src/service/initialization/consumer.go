@@ -7,8 +7,8 @@ import (
 
 	"aegis/config"
 	"aegis/consts"
-	k8sinfra "aegis/infra/k8s"
-	redisinfra "aegis/infra/redis"
+	k8s "aegis/infra/k8s"
+	redis "aegis/infra/redis"
 	"aegis/model"
 	"aegis/service/common"
 	"aegis/service/consumer"
@@ -20,9 +20,9 @@ import (
 func InitializeConsumer(
 	ctx context.Context,
 	db *gorm.DB,
-	controller *k8sinfra.Controller,
+	controller *k8s.Controller,
 	monitor consumer.NamespaceMonitor,
-	publisher *redisinfra.Gateway,
+	publisher *redis.Gateway,
 	listener *common.ConfigUpdateListener,
 	restartLimiter *consumer.TokenBucketRateLimiter,
 	buildLimiter *consumer.TokenBucketRateLimiter,

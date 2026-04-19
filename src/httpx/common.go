@@ -66,6 +66,8 @@ func HandleServiceError(c *gin.Context, err error) bool {
 	switch innermostErr {
 	case consts.ErrAuthenticationFailed:
 		dto.ErrorResponse(c, http.StatusUnauthorized, msg)
+	case consts.ErrPermissionDenied:
+		dto.ErrorResponse(c, http.StatusForbidden, msg)
 	case consts.ErrBadRequest:
 		dto.ErrorResponse(c, http.StatusBadRequest, msg)
 	case consts.ErrNotFound:

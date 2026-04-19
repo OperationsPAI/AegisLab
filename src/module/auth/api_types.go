@@ -1,4 +1,4 @@
-package authmodule
+package auth
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	"aegis/consts"
 	"aegis/dto"
 	"aegis/model"
-	usermodule "aegis/module/user"
+	user "aegis/module/user"
 	"aegis/utils"
 )
 
@@ -265,9 +265,9 @@ type UserProfileResp struct {
 	LastLoginAt *time.Time `json:"last_login_at,omitempty"`
 	CreatedAt   time.Time  `json:"created_at"`
 
-	ContainerRoles []usermodule.UserContainerInfo `json:"container_roles,omitempty"`
-	DatasetRoles   []usermodule.UserDatasetInfo   `json:"dataset_roles,omitempty"`
-	ProjectRoles   []usermodule.UserProjectInfo   `json:"project_roles,omitempty"`
+	ContainerRoles []user.UserContainerInfo `json:"container_roles,omitempty"`
+	DatasetRoles   []user.UserDatasetInfo   `json:"dataset_roles,omitempty"`
+	ProjectRoles   []user.UserProjectInfo   `json:"project_roles,omitempty"`
 }
 
 func NewUserProfileResp(user *model.User) *UserProfileResp {

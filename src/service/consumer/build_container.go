@@ -10,8 +10,8 @@ import (
 
 	"aegis/consts"
 	"aegis/dto"
-	buildkitinfra "aegis/infra/buildkit"
-	redisinfra "aegis/infra/redis"
+	buildkit "aegis/infra/buildkit"
+	redis "aegis/infra/redis"
 	"aegis/service/common"
 	"aegis/tracing"
 	"aegis/utils"
@@ -120,7 +120,7 @@ func executeBuildContainer(ctx context.Context, task *dto.UnifiedTask, deps Runt
 }
 
 // rescheduleContainerBuildingTask reschedules a container building task with a random delay between 1 to 5 minutes
-func rescheduleContainerBuildingTask(ctx context.Context, db *gorm.DB, redisGateway *redisinfra.Gateway, task *dto.UnifiedTask, reason string) error {
+func rescheduleContainerBuildingTask(ctx context.Context, db *gorm.DB, redisGateway *redis.Gateway, task *dto.UnifiedTask, reason string) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		span := trace.SpanFromContext(childCtx)
 
@@ -185,7 +185,7 @@ func parseContainerPayload(payload map[string]any) (*containerPayload, error) {
 }
 
 // buildImageAndPush builds the container image using BuildKit and pushes it to the registry
-func buildImageAndPush(ctx context.Context, buildKitGateway *buildkitinfra.Gateway, payload *containerPayload, logEntry *logrus.Entry) error {
+func buildImageAndPush(ctx context.Context, buildKitGateway *buildkit.Gateway, payload *containerPayload, logEntry *logrus.Entry) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		span := trace.SpanFromContext(childCtx)
 

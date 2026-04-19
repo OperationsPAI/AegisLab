@@ -3,7 +3,7 @@ package common
 import (
 	"aegis/consts"
 	"aegis/dto"
-	redisinfra "aegis/infra/redis"
+	redis "aegis/infra/redis"
 	"aegis/model"
 	"context"
 	"encoding/json"
@@ -46,7 +46,7 @@ func CronNextTime(expr string) (time.Time, error) {
 //	               -> Task 3
 //	               -> Task 4
 //	               -> Task 5
-func SubmitTaskWithDB(ctx context.Context, db *gorm.DB, redisGateway *redisinfra.Gateway, t *dto.UnifiedTask) error {
+func SubmitTaskWithDB(ctx context.Context, db *gorm.DB, redisGateway *redis.Gateway, t *dto.UnifiedTask) error {
 	if db == nil {
 		return fmt.Errorf("task db is nil")
 	}

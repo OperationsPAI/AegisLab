@@ -1,4 +1,4 @@
-package labelmodule
+package label
 
 import (
 	"aegis/consts"

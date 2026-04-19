@@ -1,4 +1,4 @@
-package taskmodule
+package task
 
 import (
 	"context"
@@ -20,7 +20,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func newTaskService(t *testing.T, loki *LokiGateway) (*Service, sqlmock.Sqlmock, func()) {
+func newTaskService(t *testing.T, gateway *LokiGateway) (*Service, sqlmock.Sqlmock, func()) {
 	t.Helper()
 
 	sqlDB, mock, err := sqlmock.New()
@@ -32,11 +32,11 @@ func newTaskService(t *testing.T, loki *LokiGateway) (*Service, sqlmock.Sqlmock,
 	}), &gorm.Config{})
 	require.NoError(t, err)
 
-	if loki == nil {
-		loki = NewLokiGateway(&lokiinfra.Client{})
+	if gateway == nil {
+		gateway = NewLokiGateway(&lokiinfra.Client{})
 	}
 
-	service := NewService(NewRepository(db), NewTaskLogService(NewRepository(db), nil, loki), loki)
+	service := NewService(NewRepository(db), NewTaskLogService(NewRepository(db), nil, gateway), gateway)
 	return service, mock, func() {
 		_ = sqlDB.Close()
 	}
@@ -92,8 +92,8 @@ func TestTaskServiceQueryHistoricalLogsSuccess(t *testing.T) {
 	viper.Set("loki.address", server.URL)
 	viper.Set("loki.max_entries", 100)
 
-	loki := NewLokiGateway(lokiinfra.NewClient())
-	service, _, cleanup := newTaskService(t, loki)
+	gateway := NewLokiGateway(lokiinfra.NewClient())
+	service, _, cleanup := newTaskService(t, gateway)
 	defer cleanup()
 
 	logs := service.queryHistoricalLogs(context.Background(), &model.Task{

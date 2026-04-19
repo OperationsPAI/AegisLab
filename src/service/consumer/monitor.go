@@ -14,7 +14,7 @@ import (
 	redisinfra "aegis/infra/redis"
 	"aegis/utils"
 
-	"github.com/redis/go-redis/v9"
+	goredis "github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 )
 
@@ -170,7 +170,7 @@ func (m *monitor) AcquireLock(namespace string, endTime time.Time, traceID strin
 
 	if err == nil {
 		logEntry.Info("acquired namespace lock")
-	} else if err != redis.TxFailedErr {
+	} else if err != goredis.TxFailedErr {
 		logEntry.Warn("failed to acquire namespace lock")
 	}
 
@@ -232,7 +232,7 @@ func (m *monitor) CheckNamespaceToInject(namespace string, executeTime time.Time
 	// Try to acquire the lock - all availability checking is done inside acquireNamespaceLock
 	err := m.AcquireLock(namespace, proposedEndTime, traceID, consts.TaskTypeFaultInjection)
 	if err != nil {
-		if err == redis.TxFailedErr {
+		if err == goredis.TxFailedErr {
 			return fmt.Errorf("cannot inject fault: namespace %s was concurrently acquired by another client", namespace)
 		}
 		return fmt.Errorf("cannot inject fault: %v", err)

@@ -19,7 +19,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"github.com/redis/go-redis/v9"
+	goredis "github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -169,7 +169,7 @@ func StartScheduler(ctx context.Context, redisGateway *redisinfra.Gateway) {
 func processDelayedTasks(ctx context.Context, redisGateway *redisinfra.Gateway) {
 	result, err := redisGateway.ProcessDelayedTasks(ctx)
 
-	if err != nil && err != redis.Nil {
+	if err != nil && err != goredis.Nil {
 		logrus.Errorf("scheduler error: %v", err)
 		return
 	}
@@ -232,7 +232,7 @@ func ConsumeTasks(ctx context.Context, deps RuntimeDeps) {
 		taskData, err := deps.RedisGateway.GetTask(ctx, 30*time.Second)
 		if err != nil {
 			deps.RedisGateway.ReleaseConcurrencyLock(ctx)
-			if err == redis.Nil {
+			if err == goredis.Nil {
 				continue
 			}
 			logrus.Errorf("BRPop error: %v", err)
@@ -443,16 +443,16 @@ func CancelTask(redisGateway *redisinfra.Gateway, taskID string) error {
 	queueType, err := redisGateway.GetTaskQueue(ctx, taskID)
 	if err == nil {
 		switch queueType {
-		case redisinfra.ReadyQueueKey:
-			if _, err := redisGateway.RemoveFromList(ctx, redisinfra.ReadyQueueKey, taskID); err != nil {
+		case ReadyQueueKey:
+			if _, err := redisGateway.RemoveFromList(ctx, ReadyQueueKey, taskID); err != nil {
 				logrus.Warnf("failed to remove from list: %v", err)
 			}
-		case redisinfra.DelayedQueueKey:
-			if s := redisGateway.RemoveFromZSet(ctx, redisinfra.DelayedQueueKey, taskID); !s {
+		case DelayedQueueKey:
+			if s := redisGateway.RemoveFromZSet(ctx, DelayedQueueKey, taskID); !s {
 				logrus.Warnf("failed to remove from delayed queue: %v", err)
 			}
-		case redisinfra.DeadLetterKey:
-			if s := redisGateway.RemoveFromZSet(ctx, redisinfra.DeadLetterKey, taskID); !s {
+		case DeadLetterKey:
+			if s := redisGateway.RemoveFromZSet(ctx, DeadLetterKey, taskID); !s {
 				logrus.Warnf("failed to remove from dead letter queue: %v", err)
 			}
 		}
@@ -490,7 +490,7 @@ func publishEvent(gateway *redisinfra.Gateway, ctx context.Context, stream strin
 
 	// Call repository layer for data access
 	if err := publishTraceStreamEvent(gateway, ctx, stream, &event); err != nil {
-		if err == redis.Nil {
+		if err == goredis.Nil {
 			logrus.Warnf("No new messages to publish to Redis stream %s", stream)
 			return
 		}

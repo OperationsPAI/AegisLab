@@ -5,6 +5,7 @@ import "go.uber.org/fx"
 func BothOptions(confPath string, port string) fx.Option {
 	return fx.Options(
 		CommonOptions(confPath),
-		BothCompatibilityOptions(port),
+		RuntimeWorkerStackOptions(),
+		ProducerHTTPOptions(port),
 	)
 }

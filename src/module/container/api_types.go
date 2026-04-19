@@ -1,4 +1,4 @@
-package containermodule
+package container
 
 import (
 	"fmt"

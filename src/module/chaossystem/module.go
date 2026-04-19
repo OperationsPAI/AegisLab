@@ -1,4 +1,4 @@
-package chaossystemmodule
+package chaossystem
 
 import "go.uber.org/fx"
 

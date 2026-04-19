@@ -1,4 +1,4 @@
-package executionmodule
+package execution
 
 import (
 	"regexp"
@@ -7,7 +7,7 @@ import (
 
 	"aegis/consts"
 	"aegis/dto"
-	redisinfra "aegis/infra/redis"
+	redis "aegis/infra/redis"
 	"aegis/testutil"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -32,7 +32,7 @@ func newExecutionService(t *testing.T) (*Service, sqlmock.Sqlmock, func()) {
 	}), &gorm.Config{})
 	require.NoError(t, err)
 
-	return NewService(NewRepository(db), redisinfra.NewGateway(nil)), mock, func() {
+	return NewService(NewRepository(db), redis.NewGateway(nil)), mock, func() {
 		cleanupRedis()
 		_ = sqlDB.Close()
 	}

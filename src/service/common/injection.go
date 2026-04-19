@@ -3,7 +3,7 @@ package common
 import (
 	"aegis/consts"
 	"aegis/dto"
-	redisinfra "aegis/infra/redis"
+	redis "aegis/infra/redis"
 	"aegis/utils"
 	"context"
 	"fmt"
@@ -12,7 +12,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func ProduceFaultInjectionTasksWithDB(ctx context.Context, db *gorm.DB, redisGateway *redisinfra.Gateway, task *dto.UnifiedTask, injectTime time.Time, payload map[string]any) error {
+func ProduceFaultInjectionTasksWithDB(ctx context.Context, db *gorm.DB, redisGateway *redis.Gateway, task *dto.UnifiedTask, injectTime time.Time, payload map[string]any) error {
 	newTask := &dto.UnifiedTask{
 		Type:         consts.TaskTypeFaultInjection,
 		Immediate:    false,

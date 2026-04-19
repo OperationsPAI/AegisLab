@@ -1,12 +1,12 @@
-package docsmodule
+package docs
 
 import (
-	groupmodule "aegis/module/group"
+	group "aegis/module/group"
 
 	"github.com/gin-gonic/gin"
 )
 
-type GroupStreamEvent = groupmodule.GroupStreamEvent
+type GroupStreamEvent = group.GroupStreamEvent
 
 // SwaggerModelsDoc is a documentation-only endpoint that ensures all DTO models are included in Swagger.
 // This endpoint should NEVER be registered in the actual router.
@@ -38,5 +38,5 @@ type GroupStreamEvent = groupmodule.GroupStreamEvent
 //	@Success		200	{object}	consts.TaskType				"Task type constants"
 //	@Success		200	{object}	consts.SSEEventName			"SSE event name constants"
 //	@Router			/api/_docs/models [get]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true","sdk":"true"}
 func SwaggerModelsDoc(c *gin.Context) {}

@@ -8,8 +8,8 @@ import (
 	"aegis/config"
 	"aegis/consts"
 	"aegis/httpx"
-	systemmetricmodule "aegis/module/systemmetric"
-	taskmodule "aegis/module/task"
+	systemmetric "aegis/module/systemmetric"
+	task "aegis/module/task"
 	runtimev1 "aegis/proto/runtime/v1"
 
 	"go.uber.org/fx"
@@ -63,7 +63,7 @@ func (c *Client) Enabled() bool {
 	return c != nil && c.rpc != nil
 }
 
-func (c *Client) GetNamespaceLocks(ctx context.Context) (*systemmetricmodule.ListNamespaceLockResp, error) {
+func (c *Client) GetNamespaceLocks(ctx context.Context) (*systemmetric.ListNamespaceLockResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("runtime grpc client is not configured")
 	}
@@ -71,10 +71,10 @@ func (c *Client) GetNamespaceLocks(ctx context.Context) (*systemmetricmodule.Lis
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[systemmetricmodule.ListNamespaceLockResp](resp.GetData())
+	return decodeStruct[systemmetric.ListNamespaceLockResp](resp.GetData())
 }
 
-func (c *Client) GetQueuedTasks(ctx context.Context) (*taskmodule.QueuedTasksResp, error) {
+func (c *Client) GetQueuedTasks(ctx context.Context) (*task.QueuedTasksResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("runtime grpc client is not configured")
 	}
@@ -82,7 +82,7 @@ func (c *Client) GetQueuedTasks(ctx context.Context) (*taskmodule.QueuedTasksRes
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[taskmodule.QueuedTasksResp](resp.GetData())
+	return decodeStruct[task.QueuedTasksResp](resp.GetData())
 }
 
 func decodeStruct[T any](payload *structpb.Struct) (*T, error) {

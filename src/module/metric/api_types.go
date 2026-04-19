@@ -1,4 +1,4 @@
-package metricmodule
+package metric
 
 import (
 	"fmt"

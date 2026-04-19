@@ -51,11 +51,11 @@ def rcabench_local_deploy(
         "\n[bold yellow]You can start the application manually later: [/bold yellow]"
     )
     console.print(
-        f"[gray]cd {PROJECT_ROOT / 'src'} && go run main.go both --port 8082 [/gray]"
+        f"[gray]cd {PROJECT_ROOT / 'src'} && go run . both --port 8082 [/gray]"
     )
 
 
-@app.command(name="update-version")
+@app.command(name="version-update")
 def rcabench_update_version(
     version: str = typer.Option(
         ...,
@@ -64,5 +64,5 @@ def rcabench_update_version(
         help="The new version to set in project files (e.g., 1.2.3).",
     ),
 ):
-    """Updates the version information in project files."""
+    """Update project version markers in source and Helm files."""
     update_version(version)

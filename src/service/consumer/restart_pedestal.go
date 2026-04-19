@@ -4,8 +4,8 @@ import (
 	"aegis/config"
 	"aegis/consts"
 	"aegis/dto"
-	helminfra "aegis/infra/helm"
-	redisinfra "aegis/infra/redis"
+	helm "aegis/infra/helm"
+	redis "aegis/infra/redis"
 	"aegis/service/common"
 	"aegis/tracing"
 	"aegis/utils"
@@ -199,7 +199,7 @@ func executeRestartPedestal(ctx context.Context, task *dto.UnifiedTask, deps Run
 }
 
 // rescheduleRestartPedestalTask reschedules a pedestal restart task with exponential backoff and jitter
-func rescheduleRestartPedestalTask(ctx context.Context, db *gorm.DB, redisGateway *redisinfra.Gateway, task *dto.UnifiedTask, reason string) error {
+func rescheduleRestartPedestalTask(ctx context.Context, db *gorm.DB, redisGateway *redis.Gateway, task *dto.UnifiedTask, reason string) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		span := trace.SpanFromContext(ctx)
 
@@ -274,7 +274,7 @@ func parseRestartPayload(payload map[string]any) (*restartPayload, error) {
 
 // installPedestal installs or upgrades the pedestal using Helm
 // Priority: Remote (if configured) -> Local fallback (if remote fails and LocalPath is set)
-func installPedestal(ctx context.Context, gateway *helminfra.Gateway, releaseName string, namespaceIdx int, item *dto.HelmConfigItem) error {
+func installPedestal(ctx context.Context, gateway *helm.Gateway, releaseName string, namespaceIdx int, item *dto.HelmConfigItem) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		span := trace.SpanFromContext(childCtx)
 		logEntry := logrus.WithFields(logrus.Fields{

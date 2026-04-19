@@ -1,4 +1,4 @@
-package notificationmodule
+package notification
 
 import "go.uber.org/fx"
 

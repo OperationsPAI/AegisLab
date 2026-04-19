@@ -1,4 +1,4 @@
-package usermodule
+package user
 
 import (
 	"aegis/httpx"
@@ -28,11 +28,11 @@ func NewHandler(service HandlerService) *Handler {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			request	body		CreateUserReq						true	"User creation request"
-//	@Success		201		{object}	dto.GenericResponse[UserResp]		"User created successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]			"Invalid request format or parameters"
-//	@Failure		409		{object}	dto.GenericResponse[any]			"User already exists"
-//	@Failure		500		{object}	dto.GenericResponse[any]			"Internal server error"
+//	@Param			request	body		CreateUserReq					true	"User creation request"
+//	@Success		201		{object}	dto.GenericResponse[UserResp]	"User created successfully"
+//	@Failure		400		{object}	dto.GenericResponse[any]		"Invalid request format or parameters"
+//	@Failure		409		{object}	dto.GenericResponse[any]		"User already exists"
+//	@Failure		500		{object}	dto.GenericResponse[any]		"Internal server error"
 //	@Router			/api/v2/users [post]
 //	@x-api-type		{"admin":"true"}
 func (h *Handler) CreateUser(c *gin.Context) {
@@ -91,13 +91,13 @@ func (h *Handler) DeleteUser(c *gin.Context) {
 //	@ID				get_user_by_id
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			id	path		int										true	"User ID"
+//	@Param			id	path		int									true	"User ID"
 //	@Success		200	{object}	dto.GenericResponse[UserDetailResp]	"User retrieved successfully"
-//	@Failure		400	{object}	dto.GenericResponse[any]				"Invalid user ID"
-//	@Failure		401	{object}	dto.GenericResponse[any]				"Authentication required"
-//	@Failure		403	{object}	dto.GenericResponse[any]				"Permission denied"
-//	@Failure		404	{object}	dto.GenericResponse[any]				"User not found"
-//	@Failure		500	{object}	dto.GenericResponse[any]				"Internal server error"
+//	@Failure		400	{object}	dto.GenericResponse[any]			"Invalid user ID"
+//	@Failure		401	{object}	dto.GenericResponse[any]			"Authentication required"
+//	@Failure		403	{object}	dto.GenericResponse[any]			"Permission denied"
+//	@Failure		404	{object}	dto.GenericResponse[any]			"User not found"
+//	@Failure		500	{object}	dto.GenericResponse[any]			"Internal server error"
 //	@Router			/api/v2/users/{id}/detail [get]
 //	@x-api-type		{"admin":"true"}
 func (h *Handler) GetUserDetail(c *gin.Context) {
@@ -120,17 +120,17 @@ func (h *Handler) GetUserDetail(c *gin.Context) {
 //	@ID				list_users
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			page		query		int												false	"Page number"	default(1)
-//	@Param			size		query		int												false	"Page size"		default(20)
-//	@Param			username	query		string											false	"Filter by username"
-//	@Param			email		query		string											false	"Filter by email"
-//	@Param			is_active	query		bool											false	"Filter by active status"
-//	@Param			status		query		consts.StatusType								false	"Filter by status"
+//	@Param			page		query		int											false	"Page number"	default(1)
+//	@Param			size		query		int											false	"Page size"		default(20)
+//	@Param			username	query		string										false	"Filter by username"
+//	@Param			email		query		string										false	"Filter by email"
+//	@Param			is_active	query		bool										false	"Filter by active status"
+//	@Param			status		query		consts.StatusType							false	"Filter by status"
 //	@Success		200			{object}	dto.GenericResponse[dto.ListResp[UserResp]]	"Users retrieved successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]						"Invalid request format or parameters"
-//	@Failure		401			{object}	dto.GenericResponse[any]						"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]						"Permission denied"
-//	@Failure		500			{object}	dto.GenericResponse[any]						"Internal server error"
+//	@Failure		400			{object}	dto.GenericResponse[any]					"Invalid request format or parameters"
+//	@Failure		401			{object}	dto.GenericResponse[any]					"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]					"Permission denied"
+//	@Failure		500			{object}	dto.GenericResponse[any]					"Internal server error"
 //	@Router			/api/v2/users [get]
 //	@x-api-type		{"admin":"true"}
 func (h *Handler) ListUsers(c *gin.Context) {
@@ -159,14 +159,14 @@ func (h *Handler) ListUsers(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			id		path		int									true	"User ID"
-//	@Param			request	body		UpdateUserReq						true	"User update request"
-//	@Success		202		{object}	dto.GenericResponse[UserResp]		"User updated successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]			"Invalid user ID/request"
-//	@Failure		401		{object}	dto.GenericResponse[any]			"Authentication required"
-//	@Failure		403		{object}	dto.GenericResponse[any]			"Permission denied"
-//	@Failure		404		{object}	dto.GenericResponse[any]			"User not found"
-//	@Failure		500		{object}	dto.GenericResponse[any]			"Internal server error"
+//	@Param			id		path		int								true	"User ID"
+//	@Param			request	body		UpdateUserReq					true	"User update request"
+//	@Success		202		{object}	dto.GenericResponse[UserResp]	"User updated successfully"
+//	@Failure		400		{object}	dto.GenericResponse[any]		"Invalid user ID/request"
+//	@Failure		401		{object}	dto.GenericResponse[any]		"Authentication required"
+//	@Failure		403		{object}	dto.GenericResponse[any]		"Permission denied"
+//	@Failure		404		{object}	dto.GenericResponse[any]		"User not found"
+//	@Failure		500		{object}	dto.GenericResponse[any]		"Internal server error"
 //	@Router			/api/v2/users/{id} [patch]
 //	@x-api-type		{"admin":"true"}
 func (h *Handler) UpdateUser(c *gin.Context) {
@@ -254,7 +254,7 @@ func (h *Handler) RemoveRole(c *gin.Context) {
 //	@Produce		json
 //	@Security		BearerAuth
 //	@Param			user_id	path		int							true	"User ID"
-//	@Param			request	body		AssignUserPermissionReq	true	"User permission assignment request"
+//	@Param			request	body		AssignUserPermissionReq		true	"User permission assignment request"
 //	@Success		200		{object}	dto.GenericResponse[any]	"Permission assigned successfully"
 //	@Failure		400		{object}	dto.GenericResponse[any]	"Invalid user ID or invalid request format or parameters"
 //	@Failure		401		{object}	dto.GenericResponse[any]	"Authentication required"
@@ -293,7 +293,7 @@ func (h *Handler) AssignPermissions(c *gin.Context) {
 //	@Produce		json
 //	@Security		BearerAuth
 //	@Param			user_id	path		int							true	"User ID"
-//	@Param			request	body		RemoveUserPermissionReq	true	"User permission removal request"
+//	@Param			request	body		RemoveUserPermissionReq		true	"User permission removal request"
 //	@Success		200		{object}	dto.GenericResponse[any]	"Permission removed successfully"
 //	@Failure		400		{object}	dto.GenericResponse[any]	"Invalid user or permission ID"
 //	@Failure		401		{object}	dto.GenericResponse[any]	"Authentication required"

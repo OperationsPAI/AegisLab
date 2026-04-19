@@ -1,4 +1,4 @@
-package usermodule
+package user
 
 import (
 	"context"

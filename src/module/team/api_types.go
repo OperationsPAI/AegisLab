@@ -1,4 +1,4 @@
-package teammodule
+package team
 
 import (
 	"fmt"
@@ -8,11 +8,11 @@ import (
 	"aegis/consts"
 	"aegis/dto"
 	"aegis/model"
-	projectmodule "aegis/module/project"
+	project "aegis/module/project"
 )
 
-type TeamProjectListReq = projectmodule.ListProjectReq
-type TeamProjectItem = projectmodule.ProjectResp
+type TeamProjectListReq = project.ListProjectReq
+type TeamProjectItem = project.ProjectResp
 
 // CreateTeamReq represents team creation request.
 type CreateTeamReq struct {

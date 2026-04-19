@@ -9,7 +9,7 @@ import (
 	"aegis/consts"
 	redisinfra "aegis/infra/redis"
 
-	"github.com/redis/go-redis/v9"
+	goredis "github.com/redis/go-redis/v9"
 )
 
 type namespaceLockState struct {
@@ -31,12 +31,12 @@ func (s namespaceLockStore) key(namespace string) string {
 
 func (s namespaceLockStore) read(ctx context.Context, namespace string) (*namespaceLockState, error) {
 	endTimeStr, err := s.client.HashGet(ctx, s.key(namespace), "end_time")
-	if err != nil && err != redis.Nil {
+	if err != nil && err != goredis.Nil {
 		return nil, err
 	}
 
 	traceID, err := s.client.HashGet(ctx, s.key(namespace), "trace_id")
-	if err != nil && err != redis.Nil {
+	if err != nil && err != goredis.Nil {
 		return nil, err
 	}
 
@@ -52,14 +52,14 @@ func (s namespaceLockStore) read(ctx context.Context, namespace string) (*namesp
 	return &namespaceLockState{EndTime: endTime, TraceID: traceID}, nil
 }
 
-func (s namespaceLockStore) readFromHash(reader redis.HashCmdable, ctx context.Context, namespace string) (*namespaceLockState, error) {
+func (s namespaceLockStore) readFromHash(reader goredis.HashCmdable, ctx context.Context, namespace string) (*namespaceLockState, error) {
 	endTimeStr, err := reader.HGet(ctx, s.key(namespace), "end_time").Result()
-	if err != nil && err != redis.Nil {
+	if err != nil && err != goredis.Nil {
 		return nil, err
 	}
 
 	traceID, err := reader.HGet(ctx, s.key(namespace), "trace_id").Result()
-	if err != nil && err != redis.Nil {
+	if err != nil && err != goredis.Nil {
 		return nil, err
 	}
 
@@ -83,7 +83,7 @@ func (s namespaceLockStore) write(ctx context.Context, namespace string, endTime
 }
 
 func (s namespaceLockStore) acquire(ctx context.Context, namespace string, endTime time.Time, traceID string, now time.Time) error {
-	return s.client.Watch(ctx, func(tx *redis.Tx) error {
+	return s.client.Watch(ctx, func(tx *goredis.Tx) error {
 		state, err := s.readFromHash(tx, ctx, namespace)
 		if err != nil {
 			return err
@@ -92,7 +92,7 @@ func (s namespaceLockStore) acquire(ctx context.Context, namespace string, endTi
 			return fmt.Errorf("namespace %s is locked by %s until %v",
 				namespace, state.TraceID, time.Unix(state.EndTime, 0).Format(time.RFC3339))
 		}
-		_, err = tx.TxPipelined(ctx, func(pipe redis.Pipeliner) error {
+		_, err = tx.TxPipelined(ctx, func(pipe goredis.Pipeliner) error {
 			pipe.HSet(ctx, s.key(namespace), "end_time", endTime.Unix())
 			pipe.HSet(ctx, s.key(namespace), "trace_id", traceID)
 			return nil
@@ -103,7 +103,7 @@ func (s namespaceLockStore) acquire(ctx context.Context, namespace string, endTi
 
 func (s namespaceLockStore) release(ctx context.Context, namespace, traceID string, releasedAt time.Time) error {
 	state, err := s.read(ctx, namespace)
-	if err != nil && err != redis.Nil {
+	if err != nil && err != goredis.Nil {
 		return fmt.Errorf("failed to get current trace_id: %v", err)
 	}
 	if state != nil && state.TraceID != traceID && state.TraceID != "" {
@@ -115,7 +115,7 @@ func (s namespaceLockStore) release(ctx context.Context, namespace, traceID stri
 
 func (s namespaceLockStore) isActive(ctx context.Context, namespace string, now time.Time) (bool, error) {
 	state, err := s.read(ctx, namespace)
-	if err == redis.Nil {
+	if err == goredis.Nil {
 		return false, nil
 	}
 	if err != nil {

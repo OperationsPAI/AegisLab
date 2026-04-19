@@ -1,4 +1,4 @@
-package gatewayapp
+package gateway
 
 import (
 	"context"

@@ -1,4 +1,4 @@
-package systemmetricmodule
+package systemmetric
 
 import (
 	"net/http"
@@ -25,8 +25,8 @@ func NewHandler(service HandlerService) *Handler {
 //	@Produce		json
 //	@Security		BearerAuth
 //	@Success		200	{object}	dto.GenericResponse[SystemMetricsResp]	"System metrics retrieved successfully"
-//	@Failure		401	{object}	dto.GenericResponse[any]					"Authentication required"
-//	@Failure		500	{object}	dto.GenericResponse[any]					"Internal server error"
+//	@Failure		401	{object}	dto.GenericResponse[any]				"Authentication required"
+//	@Failure		500	{object}	dto.GenericResponse[any]				"Internal server error"
 //	@Router			/api/v2/system/metrics [get]
 //	@x-api-type		{"admin":"true"}
 func (h *Handler) GetSystemMetrics(c *gin.Context) {
@@ -48,8 +48,8 @@ func (h *Handler) GetSystemMetrics(c *gin.Context) {
 //	@Produce		json
 //	@Security		BearerAuth
 //	@Success		200	{object}	dto.GenericResponse[SystemMetricsHistoryResp]	"System metrics history retrieved successfully"
-//	@Failure		401	{object}	dto.GenericResponse[any]							"Authentication required"
-//	@Failure		500	{object}	dto.GenericResponse[any]							"Internal server error"
+//	@Failure		401	{object}	dto.GenericResponse[any]						"Authentication required"
+//	@Failure		500	{object}	dto.GenericResponse[any]						"Internal server error"
 //	@Router			/api/v2/system/metrics/history [get]
 //	@x-api-type		{"admin":"true"}
 func (h *Handler) GetSystemMetricsHistory(c *gin.Context) {

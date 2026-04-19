@@ -1,6 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from src.common.common import ENV, PROJECT_ROOT, console
+from src.common.common import ENV, PROJECT_ROOT, console, settings
 from src.common.helm_cli import HelmCLI, HelmRelease
 from src.common.kubernetes_manager import (
     KubernetesManager,
@@ -77,9 +77,7 @@ def _install_helm_releases(env: ENV, k8s_manager: KubernetesManager, is_ci: bool
 
     # Install cert-manager (prerequisite for otel-kube-stack)
     console.print("[bold blue]📦 Installing cert-manager...[/bold blue]")
-    kubectl_apply(
-        "https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml"
-    )
+    kubectl_apply(settings.command_urls.cert_manager_manifest_url)
 
     if not k8s_manager.watch_deployments_ready(
         ["cert-manager"], namespace="cert-manager", timeout_seconds=300
@@ -203,6 +201,7 @@ def teardown_env(
 
 def _get_helm_releases() -> list[HelmRelease]:
     """Define all Helm releases for test development."""
+    helm_repo_urls = settings.command_urls.helm_repo_urls
     return [
         # Chaos Mesh
         HelmRelease(
@@ -210,7 +209,7 @@ def _get_helm_releases() -> list[HelmRelease]:
             chart="chaos-mesh/chaos-mesh",
             namespace="chaos-mesh",
             repo_name="chaos-mesh",
-            repo_url="https://charts.chaos-mesh.org",
+            repo_url=helm_repo_urls.chaos_mesh,
             version="2.8.0",
             create_namespace=True,
         ),
@@ -220,7 +219,7 @@ def _get_helm_releases() -> list[HelmRelease]:
             chart="cilium/cilium",
             namespace="kube-system",
             repo_name="cilium",
-            repo_url="https://helm.cilium.io/",
+            repo_url=helm_repo_urls.cilium,
             version="1.18.4",
         ),
         # OpenTelemetry Kube Stack
@@ -229,7 +228,7 @@ def _get_helm_releases() -> list[HelmRelease]:
             chart="open-telemetry/opentelemetry-kube-stack",
             namespace="monitoring",
             repo_name="open-telemetry",
-            repo_url="https://open-telemetry.github.io/opentelemetry-helm-charts",
+            repo_url=helm_repo_urls.open_telemetry,
             values_file=LOCAL_DEV_DIR / "otel-kube-stack.yaml",
             create_namespace=True,
         ),
@@ -239,7 +238,7 @@ def _get_helm_releases() -> list[HelmRelease]:
             chart="clickstack/clickstack",
             namespace="monitoring",
             repo_name="clickstack",
-            repo_url="https://hyperdxio.github.io/helm-charts",
+            repo_url=helm_repo_urls.clickstack,
             values_file=LOCAL_DEV_DIR / "click-stack.yaml",
         ),
         # OpenTelemetry Demo

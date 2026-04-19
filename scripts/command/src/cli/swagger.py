@@ -1,64 +1,22 @@
 import typer
 
-from src.common.common import LanguageType, console, settings
-from src.swagger import Generator, init
+from src.common.common import settings
+from src.swagger import init
+from src.swagger.apifox import ApifoxTarget
 
-app = typer.Typer()
+app = typer.Typer(help="Swagger/OpenAPI generation utilities.")
 
 
 @app.command(name="init")
 def swagger_init(
     version: str = typer.Option(..., "--version", "-v", help="API version."),
-):
-    """Initializes Swagger documentation setup."""
-    init(version)
-
-
-@app.command()
-def generate_client(
-    language: LanguageType = typer.Option(
-        LanguageType.TYPESCRIPT,
-        "--language",
-        "-l",
-        help="SDK language.",
-    ),
-    version: str = typer.Option(
-        "1.0.0",
-        "--version",
-        "-v",
-        help="API version.",
+    apifox_targets: list[ApifoxTarget] | None = typer.Option(
+        None,
+        "--apifox-target",
+        "-t",
+        help="Optional Apifox upload targets: sdk, portal, admin, or all. Omit to skip upload.",
     ),
 ):
-    """Generates Swagger client documentation."""
-
+    """Generate normalized OpenAPI artifacts from Go Swagger annotations."""
     settings.reload()
-
-    if language != LanguageType.TYPESCRIPT:
-        console.print(
-            f"[bold red]❌ Client generation for {language} is not supported yet.[/bold red]"
-        )
-        raise typer.Exit(code=1)
-
-    Generator.get_client_generator(language, version).generate()
-
-
-@app.command()
-def generate_sdk(
-    language: LanguageType = typer.Option(
-        LanguageType.PYTHON,
-        "--language",
-        "-l",
-        help="SDK language.",
-    ),
-    version: str = typer.Option(
-        "1.0.0",
-        "--version",
-        "-v",
-        help="API version.",
-    ),
-):
-    """Generates SDK Swagger documentation."""
-
-    settings.reload()
-
-    Generator.get_sdk_generator(language, version).generate()
+    init(version, apifox_targets=apifox_targets)

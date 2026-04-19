@@ -7,7 +7,7 @@ import (
 
 	"aegis/config"
 	"aegis/consts"
-	k8sinfra "aegis/infra/k8s"
+	k8s "aegis/infra/k8s"
 	"aegis/service/common"
 
 	"github.com/sirupsen/logrus"
@@ -16,7 +16,7 @@ import (
 // RegisterConsumerHandlers registers all consumer-scoped configuration handlers.
 // Should be called during consumer initialization, after RegisterGlobalHandlers.
 func RegisterConsumerHandlers(
-	controller *k8sinfra.Controller,
+	controller *k8s.Controller,
 	monitor NamespaceMonitor,
 	publisher common.ConfigPublisher,
 	restartLimiter *TokenBucketRateLimiter,
@@ -35,7 +35,7 @@ func RegisterConsumerHandlers(
 }
 
 // UpdateK8sController updates K8s controller informers based on namespace changes.
-func UpdateK8sController(controller *k8sinfra.Controller, toAdd, toRemove []string) error {
+func UpdateK8sController(controller *k8s.Controller, toAdd, toRemove []string) error {
 	if controller == nil {
 		logrus.Warn("Controller not initialized, skipping informer update")
 		return nil
@@ -62,11 +62,11 @@ func UpdateK8sController(controller *k8sinfra.Controller, toAdd, toRemove []stri
 
 type chaosSystemCountHandler struct {
 	monitor    NamespaceMonitor
-	controller *k8sinfra.Controller
+	controller *k8s.Controller
 	publisher  common.ConfigPublisher
 }
 
-func newChaosSystemCountHandler(m NamespaceMonitor, c *k8sinfra.Controller, publisher common.ConfigPublisher) *chaosSystemCountHandler {
+func newChaosSystemCountHandler(m NamespaceMonitor, c *k8s.Controller, publisher common.ConfigPublisher) *chaosSystemCountHandler {
 	return &chaosSystemCountHandler{monitor: m, controller: c, publisher: publisher}
 }
 

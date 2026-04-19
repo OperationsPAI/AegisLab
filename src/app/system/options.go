@@ -1,12 +1,12 @@
-package systemapp
+package system
 
 import (
 	"aegis/app"
-	k8sinfra "aegis/infra/k8s"
-	grpcsysteminterface "aegis/interface/grpcsystem"
+	k8s "aegis/infra/k8s"
+	grpcsystem "aegis/interface/grpc/system"
 	"aegis/internalclient/runtimeclient"
-	systemmodule "aegis/module/system"
-	systemmetricmodule "aegis/module/systemmetric"
+	system "aegis/module/system"
+	systemmetric "aegis/module/systemmetric"
 
 	"go.uber.org/fx"
 )
@@ -23,11 +23,11 @@ func Options(confPath string) fx.Option {
 			"system-service",
 			app.RequiredConfigTarget{Name: "runtime-worker-service", PrimaryKey: "clients.runtime.target", LegacyKey: "runtime_worker.grpc.target"},
 		),
-		systemmodule.RemoteRuntimeQueryOption(),
-		k8sinfra.Module,
+		system.RemoteRuntimeQueryOption(),
+		k8s.Module,
 		runtimeclient.Module,
-		systemmodule.Module,
-		systemmetricmodule.Module,
-		grpcsysteminterface.Module,
+		system.Module,
+		systemmetric.Module,
+		grpcsystem.Module,
 	)
 }

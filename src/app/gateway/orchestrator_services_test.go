@@ -1,4 +1,4 @@
-package gatewayapp
+package gateway
 
 import (
 	"context"
@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"aegis/dto"
-	groupmodule "aegis/module/group"
-	taskmodule "aegis/module/task"
-	tracemodule "aegis/module/trace"
+	group "aegis/module/group"
+	task "aegis/module/task"
+	trace "aegis/module/trace"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -19,12 +19,12 @@ type orchestratorTaskClientStub struct {
 
 func (s *orchestratorTaskClientStub) Enabled() bool { return s.enabled }
 
-func (s *orchestratorTaskClientStub) GetTask(context.Context, string) (*taskmodule.TaskDetailResp, error) {
-	return &taskmodule.TaskDetailResp{TaskResp: taskmodule.TaskResp{ID: "task-1"}}, nil
+func (s *orchestratorTaskClientStub) GetTask(context.Context, string) (*task.TaskDetailResp, error) {
+	return &task.TaskDetailResp{TaskResp: task.TaskResp{ID: "task-1"}}, nil
 }
 
-func (s *orchestratorTaskClientStub) PollTaskLogs(context.Context, string, time.Time) (*taskmodule.TaskLogPollResp, error) {
-	return &taskmodule.TaskLogPollResp{
+func (s *orchestratorTaskClientStub) PollTaskLogs(context.Context, string, time.Time) (*task.TaskLogPollResp, error) {
+	return &task.TaskLogPollResp{
 		Logs:      []dto.LogEntry{{TaskID: "task-1", Line: "hello"}},
 		Terminal:  true,
 		State:     "completed",
@@ -32,8 +32,8 @@ func (s *orchestratorTaskClientStub) PollTaskLogs(context.Context, string, time.
 	}, nil
 }
 
-func (s *orchestratorTaskClientStub) ListTasks(context.Context, *taskmodule.ListTaskReq) (*dto.ListResp[taskmodule.TaskResp], error) {
-	return &dto.ListResp[taskmodule.TaskResp]{Items: []taskmodule.TaskResp{{ID: "task-1"}}}, nil
+func (s *orchestratorTaskClientStub) ListTasks(context.Context, *task.ListTaskReq) (*dto.ListResp[task.TaskResp], error) {
+	return &dto.ListResp[task.TaskResp]{Items: []task.TaskResp{{ID: "task-1"}}}, nil
 }
 
 type orchestratorTraceClientStub struct {
@@ -42,12 +42,12 @@ type orchestratorTraceClientStub struct {
 
 func (s *orchestratorTraceClientStub) Enabled() bool { return s.enabled }
 
-func (s *orchestratorTraceClientStub) GetTrace(context.Context, string) (*tracemodule.TraceDetailResp, error) {
-	return &tracemodule.TraceDetailResp{TraceResp: tracemodule.TraceResp{ID: "trace-1"}}, nil
+func (s *orchestratorTraceClientStub) GetTrace(context.Context, string) (*trace.TraceDetailResp, error) {
+	return &trace.TraceDetailResp{TraceResp: trace.TraceResp{ID: "trace-1"}}, nil
 }
 
-func (s *orchestratorTraceClientStub) ListTraces(context.Context, *tracemodule.ListTraceReq) (*dto.ListResp[tracemodule.TraceResp], error) {
-	return &dto.ListResp[tracemodule.TraceResp]{Items: []tracemodule.TraceResp{{ID: "trace-1"}}}, nil
+func (s *orchestratorTraceClientStub) ListTraces(context.Context, *trace.ListTraceReq) (*dto.ListResp[trace.TraceResp], error) {
+	return &dto.ListResp[trace.TraceResp]{Items: []trace.TraceResp{{ID: "trace-1"}}}, nil
 }
 
 func (s *orchestratorTraceClientStub) GetTraceStreamAlgorithms(context.Context, string) ([]dto.ContainerVersionItem, error) {
@@ -64,8 +64,8 @@ type orchestratorGroupClientStub struct {
 
 func (s *orchestratorGroupClientStub) Enabled() bool { return s.enabled }
 
-func (s *orchestratorGroupClientStub) GetGroupStats(context.Context, string) (*groupmodule.GroupStats, error) {
-	return &groupmodule.GroupStats{TotalTraces: 2}, nil
+func (s *orchestratorGroupClientStub) GetGroupStats(context.Context, string) (*group.GroupStats, error) {
+	return &group.GroupStats{TotalTraces: 2}, nil
 }
 
 func (s *orchestratorGroupClientStub) GetGroupTraceCount(context.Context, string) (int, error) {
@@ -88,7 +88,7 @@ func (s *orchestratorNotificationClientStub) ReadNotificationStreamMessages(cont
 
 func TestRemoteAwareTaskServiceRequiresOrchestrator(t *testing.T) {
 	service := remoteAwareTaskService{}
-	if _, err := service.List(context.Background(), &taskmodule.ListTaskReq{}); err == nil {
+	if _, err := service.List(context.Background(), &task.ListTaskReq{}); err == nil {
 		t.Fatal("List() error = nil, want missing dependency")
 	}
 }
@@ -114,7 +114,7 @@ func TestRemoteAwareTaskServiceUsesOrchestratorClient(t *testing.T) {
 
 func TestRemoteAwareTraceServiceRequiresOrchestrator(t *testing.T) {
 	service := remoteAwareTraceService{}
-	if _, err := service.ListTraces(context.Background(), &tracemodule.ListTraceReq{}); err == nil {
+	if _, err := service.ListTraces(context.Background(), &trace.ListTraceReq{}); err == nil {
 		t.Fatal("ListTraces() error = nil, want missing dependency")
 	}
 }
@@ -140,7 +140,7 @@ func TestRemoteAwareTraceServiceUsesOrchestratorClient(t *testing.T) {
 
 func TestRemoteAwareGroupServiceRequiresOrchestrator(t *testing.T) {
 	service := remoteAwareGroupService{}
-	if _, err := service.GetGroupStats(context.Background(), &groupmodule.GetGroupStatsReq{
+	if _, err := service.GetGroupStats(context.Background(), &group.GetGroupStatsReq{
 		GroupID: "d7a4ed4b-1c91-4cdb-8af8-5520fa8d0ce0",
 	}); err == nil {
 		t.Fatal("GetGroupStats() error = nil, want missing dependency")
@@ -149,7 +149,7 @@ func TestRemoteAwareGroupServiceRequiresOrchestrator(t *testing.T) {
 
 func TestRemoteAwareGroupServiceUsesOrchestratorClient(t *testing.T) {
 	service := remoteAwareGroupService{orchestrator: &orchestratorGroupClientStub{enabled: true}}
-	resp, err := service.GetGroupStats(context.Background(), &groupmodule.GetGroupStatsReq{
+	resp, err := service.GetGroupStats(context.Background(), &group.GetGroupStatsReq{
 		GroupID: "d7a4ed4b-1c91-4cdb-8af8-5520fa8d0ce0",
 	})
 	if err != nil {

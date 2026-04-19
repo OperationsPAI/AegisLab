@@ -1,4 +1,4 @@
-package authmodule
+package auth
 
 import (
 	"aegis/consts"

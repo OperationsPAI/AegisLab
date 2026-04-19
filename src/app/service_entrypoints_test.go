@@ -9,29 +9,29 @@ import (
 	"time"
 
 	"aegis/app"
-	gatewayapp "aegis/app/gateway"
-	iamapp "aegis/app/iam"
-	orchestratorapp "aegis/app/orchestrator"
-	resourceapp "aegis/app/resource"
+	gateway "aegis/app/gateway"
+	iam "aegis/app/iam"
+	orchestrator "aegis/app/orchestrator"
+	resource "aegis/app/resource"
 	runtimeapp "aegis/app/runtime"
-	systemapp "aegis/app/system"
-	buildkitinfra "aegis/infra/buildkit"
-	etcdinfra "aegis/infra/etcd"
-	harborinfra "aegis/infra/harbor"
-	helminfra "aegis/infra/helm"
-	k8sinfra "aegis/infra/k8s"
-	lokiinfra "aegis/infra/loki"
+	system "aegis/app/system"
+	buildkit "aegis/infra/buildkit"
+	etcd "aegis/infra/etcd"
+	harbor "aegis/infra/harbor"
+	helm "aegis/infra/helm"
+	k8s "aegis/infra/k8s"
+	loki "aegis/infra/loki"
 	redisinfra "aegis/infra/redis"
-	controllerinterface "aegis/interface/controller"
-	httpinterface "aegis/interface/http"
-	receiverinterface "aegis/interface/receiver"
-	workerinterface "aegis/interface/worker"
+	controllerapi "aegis/interface/controller"
+	httpapi "aegis/interface/http"
+	receiverapi "aegis/interface/receiver"
+	workerapi "aegis/interface/worker"
 	resourcev1 "aegis/proto/resource/v1"
 	runtimev1 "aegis/proto/runtime/v1"
 	systemv1 "aegis/proto/system/v1"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/redis/go-redis/v9"
+	goredis "github.com/redis/go-redis/v9"
 	"github.com/spf13/viper"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.opentelemetry.io/otel/sdk/trace"
@@ -69,13 +69,13 @@ func newDedicatedServiceReplacements(t *testing.T) (fx.Option, func()) {
 	t.Helper()
 
 	db, cleanupDB := newSmokeDB(t)
-	redisClient := redis.NewClient(&redis.Options{Addr: "127.0.0.1:0"})
+	redisClient := goredis.NewClient(&goredis.Options{Addr: "127.0.0.1:0"})
 	redisGateway := redisinfra.NewGateway(redisClient)
 	etcdClient := &clientv3.Client{}
-	etcdGateway := etcdinfra.NewGateway(etcdClient)
+	etcdGateway := etcd.NewGateway(etcdClient)
 	traceProvider := trace.NewTracerProvider()
-	controller := &k8sinfra.Controller{}
-	k8sGateway := k8sinfra.NewGateway(controller)
+	controller := &k8s.Controller{}
+	k8sGateway := k8s.NewGateway(controller)
 
 	return fx.Replace(
 			db,
@@ -83,18 +83,18 @@ func newDedicatedServiceReplacements(t *testing.T) (fx.Option, func()) {
 			redisClient,
 			etcdGateway,
 			etcdClient,
-			&lokiinfra.Client{},
+			&loki.Client{},
 			traceProvider,
 			&rest.Config{},
 			controller,
 			k8sGateway,
-			harborinfra.NewGateway(),
-			helminfra.NewGateway(),
-			buildkitinfra.NewGateway(),
+			harbor.NewGateway(),
+			helm.NewGateway(),
+			buildkit.NewGateway(),
 			&app.ProducerInitializer{StartFunc: func(context.Context) error { return nil }},
-			&workerinterface.Lifecycle{StartFunc: func(context.Context) error { return nil }},
-			&controllerinterface.Lifecycle{RunFunc: func(context.Context, context.CancelFunc) error { return nil }},
-			&receiverinterface.Lifecycle{StartFunc: func(context.Context) error { return nil }},
+			&workerapi.Lifecycle{StartFunc: func(context.Context) error { return nil }},
+			&controllerapi.Lifecycle{RunFunc: func(context.Context, context.CancelFunc) error { return nil }},
+			&receiverapi.Lifecycle{StartFunc: func(context.Context) error { return nil }},
 		), func() {
 			_ = redisClient.Close()
 			_ = traceProvider.Shutdown(context.Background())
@@ -252,12 +252,12 @@ func TestDedicatedServiceOptionsValidate(t *testing.T) {
 		name   string
 		option fx.Option
 	}{
-		{name: "gateway", option: gatewayapp.Options("..", "0")},
+		{name: "gateway", option: gateway.Options("..", "0")},
 		{name: "runtime", option: runtimeapp.Options("..")},
-		{name: "resource", option: resourceapp.Options("..")},
-		{name: "system", option: systemapp.Options("..")},
-		{name: "iam", option: iamapp.Options("..")},
-		{name: "orchestrator", option: orchestratorapp.Options("..")},
+		{name: "resource", option: resource.Options("..")},
+		{name: "system", option: system.Options("..")},
+		{name: "iam", option: iam.Options("..")},
+		{name: "orchestrator", option: orchestrator.Options("..")},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if err := fx.ValidateApp(tc.option); err != nil {
@@ -278,9 +278,9 @@ func TestAPIGatewayStandaloneHTTPIntegrationSmoke(t *testing.T) {
 
 	addr := reserveLoopbackAddr(t)
 	appInstance := fx.New(
-		gatewayapp.Options("..", "0"),
+		gateway.Options("..", "0"),
 		replacements,
-		fx.Replace(httpinterface.ServerConfig{Addr: addr}),
+		fx.Replace(httpapi.ServerConfig{Addr: addr}),
 	)
 
 	startCtx, startCancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -299,7 +299,7 @@ func TestAPIGatewayStandaloneHTTPIntegrationSmoke(t *testing.T) {
 	client := &http.Client{Timeout: time.Second}
 	baseURL := fmt.Sprintf("http://%s", addr)
 	waitForHTTPStatus(t, client, http.MethodGet, baseURL+"/docs/doc.json", http.StatusOK)
-	waitForHTTPStatus(t, client, http.MethodGet, baseURL+"/system/configs/abc", http.StatusUnauthorized)
+	waitForHTTPStatus(t, client, http.MethodGet, baseURL+"/api/v2/system/configs/abc", http.StatusUnauthorized)
 }
 
 func TestRuntimeWorkerStandaloneGRPCIntegrationSmoke(t *testing.T) {
@@ -340,7 +340,7 @@ func TestResourceServiceStandaloneGRPCIntegrationSmoke(t *testing.T) {
 	setConfigValue(t, "resource.grpc.addr", addr)
 
 	appInstance := fx.New(
-		resourceapp.Options(".."),
+		resource.Options(".."),
 		replacements,
 	)
 
@@ -369,7 +369,7 @@ func TestSystemServiceStandaloneGRPCIntegrationSmoke(t *testing.T) {
 	setConfigValue(t, "system.grpc.addr", addr)
 
 	appInstance := fx.New(
-		systemapp.Options(".."),
+		system.Options(".."),
 		replacements,
 	)
 

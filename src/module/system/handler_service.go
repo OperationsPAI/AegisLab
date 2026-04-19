@@ -1,4 +1,4 @@
-package systemmodule
+package system
 
 import (
 	"context"

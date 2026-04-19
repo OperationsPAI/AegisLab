@@ -1,4 +1,4 @@
-package datasetmodule
+package dataset
 
 import (
 	"aegis/httpx"
@@ -32,15 +32,15 @@ func NewHandler(service HandlerService) *Handler {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			request	body		CreateDatasetReq						true	"Dataset creation request"
-//	@Success		201		{object}	dto.GenericResponse[DatasetResp]		"Dataset created successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]				"Invalid request"
-//	@Failure		401		{object}	dto.GenericResponse[any]				"Authentication required"
-//	@Failure		403		{object}	dto.GenericResponse[any]				"Permission denied"
-//	@Failure		409		{object}	dto.GenericResponse[any]				"Conflict error"
-//	@Failure		500		{object}	dto.GenericResponse[any]				"Internal server error"
+//	@Param			request	body		CreateDatasetReq					true	"Dataset creation request"
+//	@Success		201		{object}	dto.GenericResponse[DatasetResp]	"Dataset created successfully"
+//	@Failure		400		{object}	dto.GenericResponse[any]			"Invalid request"
+//	@Failure		401		{object}	dto.GenericResponse[any]			"Authentication required"
+//	@Failure		403		{object}	dto.GenericResponse[any]			"Permission denied"
+//	@Failure		409		{object}	dto.GenericResponse[any]			"Conflict error"
+//	@Failure		500		{object}	dto.GenericResponse[any]			"Internal server error"
 //	@Router			/api/v2/datasets [post]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) CreateDataset(c *gin.Context) {
 	userID, exists := middleware.GetCurrentUserID(c)
 	if !exists {
@@ -83,7 +83,7 @@ func (h *Handler) CreateDataset(c *gin.Context) {
 //	@Failure		404			{object}	dto.GenericResponse[any]	"Dataset not found"
 //	@Failure		500			{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v2/datasets/{dataset_id} [delete]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) DeleteDataset(c *gin.Context) {
 	datasetID, ok := parseDatasetID(c)
 	if !ok {
@@ -105,15 +105,15 @@ func (h *Handler) DeleteDataset(c *gin.Context) {
 //	@ID				get_dataset_by_id
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			dataset_id	path		int											true	"Dataset ID"
+//	@Param			dataset_id	path		int										true	"Dataset ID"
 //	@Success		200			{object}	dto.GenericResponse[DatasetDetailResp]	"Dataset retrieved successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]					"Invalid dataset ID"
-//	@Failure		401			{object}	dto.GenericResponse[any]					"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]					"Permission denied"
-//	@Failure		404			{object}	dto.GenericResponse[any]					"Dataset not found"
-//	@Failure		500			{object}	dto.GenericResponse[any]					"Internal server error"
+//	@Failure		400			{object}	dto.GenericResponse[any]				"Invalid dataset ID"
+//	@Failure		401			{object}	dto.GenericResponse[any]				"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]				"Permission denied"
+//	@Failure		404			{object}	dto.GenericResponse[any]				"Dataset not found"
+//	@Failure		500			{object}	dto.GenericResponse[any]				"Internal server error"
 //	@Router			/api/v2/datasets/{dataset_id} [get]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) GetDataset(c *gin.Context) {
 	datasetID, ok := parseDatasetID(c)
 	if !ok {
@@ -136,18 +136,18 @@ func (h *Handler) GetDataset(c *gin.Context) {
 //	@ID				list_datasets
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			page		query		int													false	"Page number"	default(1)
-//	@Param			size		query		int													false	"Page size"		default(20)
-//	@Param			type		query		string												false	"Dataset type filter"
-//	@Param			is_public	query		bool												false	"Dataset public visibility filter"
-//	@Param			status		query		consts.StatusType									false	"Dataset status filter"
+//	@Param			page		query		int												false	"Page number"	default(1)
+//	@Param			size		query		int												false	"Page size"		default(20)
+//	@Param			type		query		string											false	"Dataset type filter"
+//	@Param			is_public	query		bool											false	"Dataset public visibility filter"
+//	@Param			status		query		consts.StatusType								false	"Dataset status filter"
 //	@Success		200			{object}	dto.GenericResponse[dto.ListResp[DatasetResp]]	"Datasets retrieved successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]							"Invalid request format or parameters"
-//	@Failure		401			{object}	dto.GenericResponse[any]							"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]							"Permission denied"
-//	@Failure		500			{object}	dto.GenericResponse[any]							"Internal server error"
+//	@Failure		400			{object}	dto.GenericResponse[any]						"Invalid request format or parameters"
+//	@Failure		401			{object}	dto.GenericResponse[any]						"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]						"Permission denied"
+//	@Failure		500			{object}	dto.GenericResponse[any]						"Internal server error"
 //	@Router			/api/v2/datasets [get]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) ListDatasets(c *gin.Context) {
 	var req ListDatasetReq
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -179,12 +179,12 @@ func (h *Handler) ListDatasets(c *gin.Context) {
 //	@Security		BearerAuth
 //	@Param			request	body		SearchDatasetReq										true	"Dataset search request"
 //	@Success		200		{object}	dto.GenericResponse[dto.ListResp[DatasetDetailResp]]	"Datasets retrieved successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]									"Invalid request format or parameters"
-//	@Failure		401		{object}	dto.GenericResponse[any]									"Authentication required"
-//	@Failure		403		{object}	dto.GenericResponse[any]									"Permission denied"
-//	@Failure		500		{object}	dto.GenericResponse[any]									"Internal server error"
+//	@Failure		400		{object}	dto.GenericResponse[any]								"Invalid request format or parameters"
+//	@Failure		401		{object}	dto.GenericResponse[any]								"Authentication required"
+//	@Failure		403		{object}	dto.GenericResponse[any]								"Permission denied"
+//	@Failure		500		{object}	dto.GenericResponse[any]								"Internal server error"
 //	@Router			/api/v2/datasets/search [post]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) SearchDataset(c *gin.Context) {
 	var req SearchDatasetReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -214,16 +214,16 @@ func (h *Handler) SearchDataset(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			dataset_id	path		int										true	"Dataset ID"
-//	@Param			request		body		UpdateDatasetReq						true	"Dataset update request"
-//	@Success		202			{object}	dto.GenericResponse[DatasetResp]		"Dataset updated successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]				"Invalid dataset ID/request"
-//	@Failure		401			{object}	dto.GenericResponse[any]				"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]				"Permission denied"
-//	@Failure		404			{object}	dto.GenericResponse[any]				"Dataset not found"
-//	@Failure		500			{object}	dto.GenericResponse[any]				"Internal server error"
+//	@Param			dataset_id	path		int									true	"Dataset ID"
+//	@Param			request		body		UpdateDatasetReq					true	"Dataset update request"
+//	@Success		202			{object}	dto.GenericResponse[DatasetResp]	"Dataset updated successfully"
+//	@Failure		400			{object}	dto.GenericResponse[any]			"Invalid dataset ID/request"
+//	@Failure		401			{object}	dto.GenericResponse[any]			"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]			"Permission denied"
+//	@Failure		404			{object}	dto.GenericResponse[any]			"Dataset not found"
+//	@Failure		500			{object}	dto.GenericResponse[any]			"Internal server error"
 //	@Router			/api/v2/datasets/{dataset_id} [patch]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) UpdateDataset(c *gin.Context) {
 	datasetID, ok := parseDatasetID(c)
 	if !ok {
@@ -258,16 +258,16 @@ func (h *Handler) UpdateDataset(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			dataset_id	path		int										true	"Dataset ID"
-//	@Param			manage		body		ManageDatasetLabelReq					true	"Label management request"
-//	@Success		200			{object}	dto.GenericResponse[DatasetResp]		"Labels managed successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]				"Invalid dataset ID or invalid request format/parameters"
-//	@Failure		401			{object}	dto.GenericResponse[any]				"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]				"Permission denied"
-//	@Failure		404			{object}	dto.GenericResponse[any]				"Dataset not found"
-//	@Failure		500			{object}	dto.GenericResponse[any]				"Internal server error"
+//	@Param			dataset_id	path		int									true	"Dataset ID"
+//	@Param			manage		body		ManageDatasetLabelReq				true	"Label management request"
+//	@Success		200			{object}	dto.GenericResponse[DatasetResp]	"Labels managed successfully"
+//	@Failure		400			{object}	dto.GenericResponse[any]			"Invalid dataset ID or invalid request format/parameters"
+//	@Failure		401			{object}	dto.GenericResponse[any]			"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]			"Permission denied"
+//	@Failure		404			{object}	dto.GenericResponse[any]			"Dataset not found"
+//	@Failure		500			{object}	dto.GenericResponse[any]			"Internal server error"
 //	@Router			/api/v2/datasets/{dataset_id}/labels [patch]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) ManageDatasetCustomLabels(c *gin.Context) {
 	datasetID, ok := parseDatasetID(c)
 	if !ok {
@@ -302,16 +302,16 @@ func (h *Handler) ManageDatasetCustomLabels(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			dataset_id	path		int											true	"Dataset ID"
+//	@Param			dataset_id	path		int										true	"Dataset ID"
 //	@Param			request		body		CreateDatasetVersionReq					true	"Dataset version creation request"
 //	@Success		201			{object}	dto.GenericResponse[DatasetVersionResp]	"Dataset version created successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]					"Invalid request"
-//	@Failure		401			{object}	dto.GenericResponse[any]					"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]					"Permission denied"
-//	@Failure		409			{object}	dto.GenericResponse[any]					"Conflict error"
-//	@Failure		500			{object}	dto.GenericResponse[any]					"Internal server error"
+//	@Failure		400			{object}	dto.GenericResponse[any]				"Invalid request"
+//	@Failure		401			{object}	dto.GenericResponse[any]				"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]				"Permission denied"
+//	@Failure		409			{object}	dto.GenericResponse[any]				"Conflict error"
+//	@Failure		500			{object}	dto.GenericResponse[any]				"Internal server error"
 //	@Router			/api/v2/datasets/{dataset_id}/versions [post]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) CreateDatasetVersion(c *gin.Context) {
 	userID, exists := middleware.GetCurrentUserID(c)
 	if !exists {
@@ -360,7 +360,7 @@ func (h *Handler) CreateDatasetVersion(c *gin.Context) {
 //	@Failure		404			{object}	dto.GenericResponse[any]	"Dataset or version not found"
 //	@Failure		500			{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v2/datasets/{dataset_id}/versions/{version_id} [delete]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) DeleteDatasetVersion(c *gin.Context) {
 	versionID, ok := parseDatasetVersionID(c)
 	if !ok {
@@ -382,16 +382,16 @@ func (h *Handler) DeleteDatasetVersion(c *gin.Context) {
 //	@ID				get_dataset_version_by_id
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			dataset_id	path		int													true	"Dataset ID"
-//	@Param			version_id	path		int													true	"Dataset Version ID"
+//	@Param			dataset_id	path		int												true	"Dataset ID"
+//	@Param			version_id	path		int												true	"Dataset Version ID"
 //	@Success		200			{object}	dto.GenericResponse[DatasetVersionDetailResp]	"Dataset version retrieved successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]							"Invalid dataset ID/dataset version ID"
-//	@Failure		401			{object}	dto.GenericResponse[any]							"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]							"Permission denied"
-//	@Failure		404			{object}	dto.GenericResponse[any]							"Dataset or version not found"
-//	@Failure		500			{object}	dto.GenericResponse[any]							"Internal server error"
+//	@Failure		400			{object}	dto.GenericResponse[any]						"Invalid dataset ID/dataset version ID"
+//	@Failure		401			{object}	dto.GenericResponse[any]						"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]						"Permission denied"
+//	@Failure		404			{object}	dto.GenericResponse[any]						"Dataset or version not found"
+//	@Failure		500			{object}	dto.GenericResponse[any]						"Internal server error"
 //	@Router			/api/v2/datasets/{dataset_id}/versions/{version_id} [get]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) GetDatasetVersion(c *gin.Context) {
 	datasetID, ok := parseDatasetID(c)
 	if !ok {
@@ -418,17 +418,17 @@ func (h *Handler) GetDatasetVersion(c *gin.Context) {
 //	@ID				list_dataset_versions
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			dataset_id	path		int															true	"Dataset ID"
-//	@Param			page		query		int															false	"Page number"	default(1)
-//	@Param			size		query		int															false	"Page size"		default(20)
-//	@Param			status		query		consts.StatusType											false	"Dataset version status filter"
+//	@Param			dataset_id	path		int														true	"Dataset ID"
+//	@Param			page		query		int														false	"Page number"	default(1)
+//	@Param			size		query		int														false	"Page size"		default(20)
+//	@Param			status		query		consts.StatusType										false	"Dataset version status filter"
 //	@Success		200			{object}	dto.GenericResponse[dto.ListResp[DatasetVersionResp]]	"Dataset versions retrieved successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]									"Invalid request format or parameters"
-//	@Failure		401			{object}	dto.GenericResponse[any]									"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]									"Permission denied"
-//	@Failure		500			{object}	dto.GenericResponse[any]									"Internal server error"
+//	@Failure		400			{object}	dto.GenericResponse[any]								"Invalid request format or parameters"
+//	@Failure		401			{object}	dto.GenericResponse[any]								"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]								"Permission denied"
+//	@Failure		500			{object}	dto.GenericResponse[any]								"Internal server error"
 //	@Router			/api/v2/datasets/{dataset_id}/versions [get]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) ListDatasetVersions(c *gin.Context) {
 	datasetID, ok := parseDatasetID(c)
 	if !ok {
@@ -463,17 +463,17 @@ func (h *Handler) ListDatasetVersions(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			dataset_id	path		int											true	"Dataset ID"
-//	@Param			version_id	path		int											true	"Dataset Version ID"
+//	@Param			dataset_id	path		int										true	"Dataset ID"
+//	@Param			version_id	path		int										true	"Dataset Version ID"
 //	@Param			request		body		UpdateDatasetVersionReq					true	"Dataset version update request"
 //	@Success		202			{object}	dto.GenericResponse[DatasetVersionResp]	"Dataset version updated successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]					"Invalid dataset ID/dataset version ID/request format/request parameters"
-//	@Failure		401			{object}	dto.GenericResponse[any]					"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]					"Permission denied"
-//	@Failure		404			{object}	dto.GenericResponse[any]					"Dataset not found"
-//	@Failure		500			{object}	dto.GenericResponse[any]					"Internal server error"
+//	@Failure		400			{object}	dto.GenericResponse[any]				"Invalid dataset ID/dataset version ID/request format/request parameters"
+//	@Failure		401			{object}	dto.GenericResponse[any]				"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]				"Permission denied"
+//	@Failure		404			{object}	dto.GenericResponse[any]				"Dataset not found"
+//	@Failure		500			{object}	dto.GenericResponse[any]				"Internal server error"
 //	@Router			/api/v2/datasets/{dataset_id}/versions/{version_id} [patch]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) UpdateDatasetVersion(c *gin.Context) {
 	datasetID, ok := parseDatasetID(c)
 	if !ok {
@@ -519,7 +519,7 @@ func (h *Handler) UpdateDatasetVersion(c *gin.Context) {
 //	@Failure		404			{object}	dto.GenericResponse[any]	"Dataset not found"
 //	@Failure		500			{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v2/datasets/{dataset_id}/versions/{version_id}/download [get]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true","sdk":"true"}
 func (h *Handler) DownloadDatasetVersion(c *gin.Context) {
 	datasetID, ok := parseDatasetID(c)
 	if !ok {
@@ -557,17 +557,17 @@ func (h *Handler) DownloadDatasetVersion(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			dataset_id	path		int													true	"Dataset ID"
-//	@Param			version_id	path		int													true	"Dataset Version ID"
+//	@Param			dataset_id	path		int												true	"Dataset ID"
+//	@Param			version_id	path		int												true	"Dataset Version ID"
 //	@Param			manage		body		ManageDatasetVersionInjectionReq				true	"Injection management request"
 //	@Success		200			{object}	dto.GenericResponse[DatasetVersionDetailResp]	"Injections managed successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]							"Invalid dataset ID or invalid request format/parameters"
-//	@Failure		401			{object}	dto.GenericResponse[any]							"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]							"Permission denied"
-//	@Failure		404			{object}	dto.GenericResponse[any]							"Dataset not found"
-//	@Failure		500			{object}	dto.GenericResponse[any]							"Internal server error"
+//	@Failure		400			{object}	dto.GenericResponse[any]						"Invalid dataset ID or invalid request format/parameters"
+//	@Failure		401			{object}	dto.GenericResponse[any]						"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]						"Permission denied"
+//	@Failure		404			{object}	dto.GenericResponse[any]						"Dataset not found"
+//	@Failure		500			{object}	dto.GenericResponse[any]						"Internal server error"
 //	@Router			/api/v2/datasets/{dataset_id}/version/{version_id}/injections [patch]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true","sdk":"true"}
 func (h *Handler) ManageDatasetVersionInjections(c *gin.Context) {
 	_, ok := parseDatasetID(c)
 	if !ok {

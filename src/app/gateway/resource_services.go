@@ -1,31 +1,31 @@
-package gatewayapp
+package gateway
 
 import (
 	"context"
 
 	"aegis/dto"
 	"aegis/internalclient/resourceclient"
-	chaossystemmodule "aegis/module/chaossystem"
-	containermodule "aegis/module/container"
-	datasetmodule "aegis/module/dataset"
-	evaluationmodule "aegis/module/evaluation"
-	labelmodule "aegis/module/label"
-	projectmodule "aegis/module/project"
+	chaossystem "aegis/module/chaossystem"
+	container "aegis/module/container"
+	dataset "aegis/module/dataset"
+	evaluation "aegis/module/evaluation"
+	label "aegis/module/label"
+	project "aegis/module/project"
 )
 
 type remoteAwareProjectService struct {
-	projectmodule.HandlerService
+	project.HandlerService
 	resource *resourceclient.Client
 }
 
-func (s remoteAwareProjectService) GetProjectDetail(ctx context.Context, projectID int) (*projectmodule.ProjectDetailResp, error) {
+func (s remoteAwareProjectService) GetProjectDetail(ctx context.Context, projectID int) (*project.ProjectDetailResp, error) {
 	if s.resource != nil && s.resource.Enabled() {
 		return s.resource.GetProject(ctx, projectID)
 	}
 	return nil, missingRemoteDependency("resource-service")
 }
 
-func (s remoteAwareProjectService) ListProjects(ctx context.Context, req *projectmodule.ListProjectReq) (*dto.ListResp[projectmodule.ProjectResp], error) {
+func (s remoteAwareProjectService) ListProjects(ctx context.Context, req *project.ListProjectReq) (*dto.ListResp[project.ProjectResp], error) {
 	if s.resource != nil && s.resource.Enabled() {
 		return s.resource.ListProjects(ctx, req)
 	}
@@ -33,18 +33,18 @@ func (s remoteAwareProjectService) ListProjects(ctx context.Context, req *projec
 }
 
 type remoteAwareContainerService struct {
-	containermodule.HandlerService
+	container.HandlerService
 	resource *resourceclient.Client
 }
 
-func (s remoteAwareContainerService) GetContainer(ctx context.Context, containerID int) (*containermodule.ContainerDetailResp, error) {
+func (s remoteAwareContainerService) GetContainer(ctx context.Context, containerID int) (*container.ContainerDetailResp, error) {
 	if s.resource != nil && s.resource.Enabled() {
 		return s.resource.GetContainer(ctx, containerID)
 	}
 	return nil, missingRemoteDependency("resource-service")
 }
 
-func (s remoteAwareContainerService) ListContainers(ctx context.Context, req *containermodule.ListContainerReq) (*dto.ListResp[containermodule.ContainerResp], error) {
+func (s remoteAwareContainerService) ListContainers(ctx context.Context, req *container.ListContainerReq) (*dto.ListResp[container.ContainerResp], error) {
 	if s.resource != nil && s.resource.Enabled() {
 		return s.resource.ListContainers(ctx, req)
 	}
@@ -52,18 +52,18 @@ func (s remoteAwareContainerService) ListContainers(ctx context.Context, req *co
 }
 
 type remoteAwareDatasetService struct {
-	datasetmodule.HandlerService
+	dataset.HandlerService
 	resource *resourceclient.Client
 }
 
-func (s remoteAwareDatasetService) GetDataset(ctx context.Context, datasetID int) (*datasetmodule.DatasetDetailResp, error) {
+func (s remoteAwareDatasetService) GetDataset(ctx context.Context, datasetID int) (*dataset.DatasetDetailResp, error) {
 	if s.resource != nil && s.resource.Enabled() {
 		return s.resource.GetDataset(ctx, datasetID)
 	}
 	return nil, missingRemoteDependency("resource-service")
 }
 
-func (s remoteAwareDatasetService) ListDatasets(ctx context.Context, req *datasetmodule.ListDatasetReq) (*dto.ListResp[datasetmodule.DatasetResp], error) {
+func (s remoteAwareDatasetService) ListDatasets(ctx context.Context, req *dataset.ListDatasetReq) (*dto.ListResp[dataset.DatasetResp], error) {
 	if s.resource != nil && s.resource.Enabled() {
 		return s.resource.ListDatasets(ctx, req)
 	}
@@ -71,32 +71,32 @@ func (s remoteAwareDatasetService) ListDatasets(ctx context.Context, req *datase
 }
 
 type remoteAwareEvaluationService struct {
-	evaluationmodule.HandlerService
+	evaluation.HandlerService
 	resource *resourceclient.Client
 }
 
-func (s remoteAwareEvaluationService) ListDatapackEvaluationResults(ctx context.Context, req *evaluationmodule.BatchEvaluateDatapackReq, userID int) (*evaluationmodule.BatchEvaluateDatapackResp, error) {
+func (s remoteAwareEvaluationService) ListDatapackEvaluationResults(ctx context.Context, req *evaluation.BatchEvaluateDatapackReq, userID int) (*evaluation.BatchEvaluateDatapackResp, error) {
 	if s.resource != nil && s.resource.Enabled() {
 		return s.resource.ListDatapackEvaluationResults(ctx, req, userID)
 	}
 	return nil, missingRemoteDependency("resource-service")
 }
 
-func (s remoteAwareEvaluationService) ListDatasetEvaluationResults(ctx context.Context, req *evaluationmodule.BatchEvaluateDatasetReq, userID int) (*evaluationmodule.BatchEvaluateDatasetResp, error) {
+func (s remoteAwareEvaluationService) ListDatasetEvaluationResults(ctx context.Context, req *evaluation.BatchEvaluateDatasetReq, userID int) (*evaluation.BatchEvaluateDatasetResp, error) {
 	if s.resource != nil && s.resource.Enabled() {
 		return s.resource.ListDatasetEvaluationResults(ctx, req, userID)
 	}
 	return nil, missingRemoteDependency("resource-service")
 }
 
-func (s remoteAwareEvaluationService) ListEvaluations(ctx context.Context, req *evaluationmodule.ListEvaluationReq) (*dto.ListResp[evaluationmodule.EvaluationResp], error) {
+func (s remoteAwareEvaluationService) ListEvaluations(ctx context.Context, req *evaluation.ListEvaluationReq) (*dto.ListResp[evaluation.EvaluationResp], error) {
 	if s.resource != nil && s.resource.Enabled() {
 		return s.resource.ListEvaluations(ctx, req)
 	}
 	return nil, missingRemoteDependency("resource-service")
 }
 
-func (s remoteAwareEvaluationService) GetEvaluation(ctx context.Context, evaluationID int) (*evaluationmodule.EvaluationResp, error) {
+func (s remoteAwareEvaluationService) GetEvaluation(ctx context.Context, evaluationID int) (*evaluation.EvaluationResp, error) {
 	if s.resource != nil && s.resource.Enabled() {
 		return s.resource.GetEvaluation(ctx, evaluationID)
 	}
@@ -111,18 +111,18 @@ func (s remoteAwareEvaluationService) DeleteEvaluation(ctx context.Context, eval
 }
 
 type remoteAwareLabelService struct {
-	labelmodule.HandlerService
+	label.HandlerService
 	resource labelResourceClient
 }
 
 type labelResourceClient interface {
 	Enabled() bool
 	BatchDeleteLabels(context.Context, []int) error
-	CreateLabel(context.Context, *labelmodule.CreateLabelReq) (*labelmodule.LabelResp, error)
+	CreateLabel(context.Context, *label.CreateLabelReq) (*label.LabelResp, error)
 	DeleteLabel(context.Context, int) error
-	GetLabel(context.Context, int) (*labelmodule.LabelDetailResp, error)
-	ListLabels(context.Context, *labelmodule.ListLabelReq) (*dto.ListResp[labelmodule.LabelResp], error)
-	UpdateLabel(context.Context, *labelmodule.UpdateLabelReq, int) (*labelmodule.LabelResp, error)
+	GetLabel(context.Context, int) (*label.LabelDetailResp, error)
+	ListLabels(context.Context, *label.ListLabelReq) (*dto.ListResp[label.LabelResp], error)
+	UpdateLabel(context.Context, *label.UpdateLabelReq, int) (*label.LabelResp, error)
 }
 
 func (s remoteAwareLabelService) BatchDelete(ctx context.Context, ids []int) error {
@@ -132,7 +132,7 @@ func (s remoteAwareLabelService) BatchDelete(ctx context.Context, ids []int) err
 	return missingRemoteDependency("resource-service")
 }
 
-func (s remoteAwareLabelService) Create(ctx context.Context, req *labelmodule.CreateLabelReq) (*labelmodule.LabelResp, error) {
+func (s remoteAwareLabelService) Create(ctx context.Context, req *label.CreateLabelReq) (*label.LabelResp, error) {
 	if s.resource != nil && s.resource.Enabled() {
 		return s.resource.CreateLabel(ctx, req)
 	}
@@ -146,21 +146,21 @@ func (s remoteAwareLabelService) Delete(ctx context.Context, labelID int) error 
 	return missingRemoteDependency("resource-service")
 }
 
-func (s remoteAwareLabelService) GetDetail(ctx context.Context, labelID int) (*labelmodule.LabelDetailResp, error) {
+func (s remoteAwareLabelService) GetDetail(ctx context.Context, labelID int) (*label.LabelDetailResp, error) {
 	if s.resource != nil && s.resource.Enabled() {
 		return s.resource.GetLabel(ctx, labelID)
 	}
 	return nil, missingRemoteDependency("resource-service")
 }
 
-func (s remoteAwareLabelService) List(ctx context.Context, req *labelmodule.ListLabelReq) (*dto.ListResp[labelmodule.LabelResp], error) {
+func (s remoteAwareLabelService) List(ctx context.Context, req *label.ListLabelReq) (*dto.ListResp[label.LabelResp], error) {
 	if s.resource != nil && s.resource.Enabled() {
 		return s.resource.ListLabels(ctx, req)
 	}
 	return nil, missingRemoteDependency("resource-service")
 }
 
-func (s remoteAwareLabelService) Update(ctx context.Context, req *labelmodule.UpdateLabelReq, labelID int) (*labelmodule.LabelResp, error) {
+func (s remoteAwareLabelService) Update(ctx context.Context, req *label.UpdateLabelReq, labelID int) (*label.LabelResp, error) {
 	if s.resource != nil && s.resource.Enabled() {
 		return s.resource.UpdateLabel(ctx, req, labelID)
 	}
@@ -168,43 +168,43 @@ func (s remoteAwareLabelService) Update(ctx context.Context, req *labelmodule.Up
 }
 
 type remoteAwareChaosSystemService struct {
-	chaossystemmodule.HandlerService
+	chaossystem.HandlerService
 	resource chaosSystemResourceClient
 }
 
 type chaosSystemResourceClient interface {
 	Enabled() bool
-	ListChaosSystems(context.Context, *chaossystemmodule.ListChaosSystemReq) (*dto.ListResp[chaossystemmodule.ChaosSystemResp], error)
-	GetChaosSystem(context.Context, int) (*chaossystemmodule.ChaosSystemResp, error)
-	CreateChaosSystem(context.Context, *chaossystemmodule.CreateChaosSystemReq) (*chaossystemmodule.ChaosSystemResp, error)
-	UpdateChaosSystem(context.Context, *chaossystemmodule.UpdateChaosSystemReq, int) (*chaossystemmodule.ChaosSystemResp, error)
+	ListChaosSystems(context.Context, *chaossystem.ListChaosSystemReq) (*dto.ListResp[chaossystem.ChaosSystemResp], error)
+	GetChaosSystem(context.Context, int) (*chaossystem.ChaosSystemResp, error)
+	CreateChaosSystem(context.Context, *chaossystem.CreateChaosSystemReq) (*chaossystem.ChaosSystemResp, error)
+	UpdateChaosSystem(context.Context, *chaossystem.UpdateChaosSystemReq, int) (*chaossystem.ChaosSystemResp, error)
 	DeleteChaosSystem(context.Context, int) error
-	UpsertChaosSystemMetadata(context.Context, int, *chaossystemmodule.BulkUpsertSystemMetadataReq) error
-	ListChaosSystemMetadata(context.Context, int, string) ([]chaossystemmodule.SystemMetadataResp, error)
+	UpsertChaosSystemMetadata(context.Context, int, *chaossystem.BulkUpsertSystemMetadataReq) error
+	ListChaosSystemMetadata(context.Context, int, string) ([]chaossystem.SystemMetadataResp, error)
 }
 
-func (s remoteAwareChaosSystemService) ListSystems(ctx context.Context, req *chaossystemmodule.ListChaosSystemReq) (*dto.ListResp[chaossystemmodule.ChaosSystemResp], error) {
+func (s remoteAwareChaosSystemService) ListSystems(ctx context.Context, req *chaossystem.ListChaosSystemReq) (*dto.ListResp[chaossystem.ChaosSystemResp], error) {
 	if s.resource != nil && s.resource.Enabled() {
 		return s.resource.ListChaosSystems(ctx, req)
 	}
 	return nil, missingRemoteDependency("resource-service")
 }
 
-func (s remoteAwareChaosSystemService) GetSystem(ctx context.Context, id int) (*chaossystemmodule.ChaosSystemResp, error) {
+func (s remoteAwareChaosSystemService) GetSystem(ctx context.Context, id int) (*chaossystem.ChaosSystemResp, error) {
 	if s.resource != nil && s.resource.Enabled() {
 		return s.resource.GetChaosSystem(ctx, id)
 	}
 	return nil, missingRemoteDependency("resource-service")
 }
 
-func (s remoteAwareChaosSystemService) CreateSystem(ctx context.Context, req *chaossystemmodule.CreateChaosSystemReq) (*chaossystemmodule.ChaosSystemResp, error) {
+func (s remoteAwareChaosSystemService) CreateSystem(ctx context.Context, req *chaossystem.CreateChaosSystemReq) (*chaossystem.ChaosSystemResp, error) {
 	if s.resource != nil && s.resource.Enabled() {
 		return s.resource.CreateChaosSystem(ctx, req)
 	}
 	return nil, missingRemoteDependency("resource-service")
 }
 
-func (s remoteAwareChaosSystemService) UpdateSystem(ctx context.Context, id int, req *chaossystemmodule.UpdateChaosSystemReq) (*chaossystemmodule.ChaosSystemResp, error) {
+func (s remoteAwareChaosSystemService) UpdateSystem(ctx context.Context, id int, req *chaossystem.UpdateChaosSystemReq) (*chaossystem.ChaosSystemResp, error) {
 	if s.resource != nil && s.resource.Enabled() {
 		return s.resource.UpdateChaosSystem(ctx, req, id)
 	}
@@ -218,14 +218,14 @@ func (s remoteAwareChaosSystemService) DeleteSystem(ctx context.Context, id int)
 	return missingRemoteDependency("resource-service")
 }
 
-func (s remoteAwareChaosSystemService) UpsertMetadata(ctx context.Context, id int, req *chaossystemmodule.BulkUpsertSystemMetadataReq) error {
+func (s remoteAwareChaosSystemService) UpsertMetadata(ctx context.Context, id int, req *chaossystem.BulkUpsertSystemMetadataReq) error {
 	if s.resource != nil && s.resource.Enabled() {
 		return s.resource.UpsertChaosSystemMetadata(ctx, id, req)
 	}
 	return missingRemoteDependency("resource-service")
 }
 
-func (s remoteAwareChaosSystemService) ListMetadata(ctx context.Context, id int, metadataType string) ([]chaossystemmodule.SystemMetadataResp, error) {
+func (s remoteAwareChaosSystemService) ListMetadata(ctx context.Context, id int, metadataType string) ([]chaossystem.SystemMetadataResp, error) {
 	if s.resource != nil && s.resource.Enabled() {
 		return s.resource.ListChaosSystemMetadata(ctx, id, metadataType)
 	}

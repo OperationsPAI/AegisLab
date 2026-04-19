@@ -1,4 +1,4 @@
-package helminfra
+package helm
 
 import (
 	"context"

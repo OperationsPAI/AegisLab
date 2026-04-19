@@ -10,9 +10,9 @@ import (
 	"aegis/config"
 	"aegis/consts"
 	"aegis/dto"
-	k8sinfra "aegis/infra/k8s"
-	redisinfra "aegis/infra/redis"
-	containermodule "aegis/module/container"
+	k8s "aegis/infra/k8s"
+	redis "aegis/infra/redis"
+	container "aegis/module/container"
 	"aegis/service/common"
 	"aegis/utils"
 
@@ -37,11 +37,11 @@ type errorContext struct {
 	logEntry     *logrus.Entry
 	labels       *taskIdentifiers
 	db           *gorm.DB
-	redisGateway *redisinfra.Gateway
+	redisGateway *redis.Gateway
 }
 
 // NewErrorContext creates an ErrorContext from parsed labels
-func NewErrorContext(ctx context.Context, db *gorm.DB, redisGateway *redisinfra.Gateway, span trace.Span, labels *taskIdentifiers) *errorContext {
+func NewErrorContext(ctx context.Context, db *gorm.DB, redisGateway *redis.Gateway, span trace.Span, labels *taskIdentifiers) *errorContext {
 	return &errorContext{
 		ctx:  ctx,
 		span: span,
@@ -131,12 +131,12 @@ type k8sHandler struct {
 	store        *stateStore
 	monitor      NamespaceMonitor
 	algoLimiter  *TokenBucketRateLimiter
-	k8sGateway   *k8sinfra.Gateway
-	redisGateway *redisinfra.Gateway
+	k8sGateway   *k8s.Gateway
+	redisGateway *redis.Gateway
 	batchManager *FaultBatchManager
 }
 
-func NewHandler(db *gorm.DB, monitor NamespaceMonitor, algoLimiter *TokenBucketRateLimiter, k8sGateway *k8sinfra.Gateway, redisGateway *redisinfra.Gateway, batchManager *FaultBatchManager, execution ExecutionOwner, injection InjectionOwner) *k8sHandler {
+func NewHandler(db *gorm.DB, monitor NamespaceMonitor, algoLimiter *TokenBucketRateLimiter, k8sGateway *k8s.Gateway, redisGateway *redis.Gateway, batchManager *FaultBatchManager, execution ExecutionOwner, injection InjectionOwner) *k8sHandler {
 	return &k8sHandler{
 		db:           db,
 		store:        newStateStore(execution, injection),
@@ -593,7 +593,7 @@ func (h *k8sHandler) HandleJobSucceeded(job *batchv1.Job, annotations map[string
 			Name: config.GetDetectorName(),
 		}
 
-		algorithmVersionResults, err := containermodule.NewRepository(h.db).ResolveContainerVersions([]*dto.ContainerRef{ref}, consts.ContainerTypeAlgorithm, parsedLabels.userID)
+		algorithmVersionResults, err := container.NewRepository(h.db).ResolveContainerVersions([]*dto.ContainerRef{ref}, consts.ContainerTypeAlgorithm, parsedLabels.userID)
 		if err != nil {
 			errCtx.Fatal(nil, "failed to map container refs to versions", err)
 			return

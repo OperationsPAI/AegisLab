@@ -1,4 +1,4 @@
-package evaluationmodule
+package evaluation
 
 import (
 	"context"
@@ -8,9 +8,9 @@ import (
 	"aegis/consts"
 	"aegis/dto"
 	"aegis/model"
-	containermodule "aegis/module/container"
-	datasetmodule "aegis/module/dataset"
-	executionmodule "aegis/module/execution"
+	container "aegis/module/container"
+	dataset "aegis/module/dataset"
+	execution "aegis/module/execution"
 
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
@@ -38,7 +38,7 @@ func (s *Service) ListDatapackEvaluationResults(ctx context.Context, req *BatchE
 		algorithms = append(algorithms, &req.Specs[i].Algorithm)
 	}
 
-	algorithmVersionResults, err := containermodule.NewRepository(s.repo.db).ResolveContainerVersions(algorithms, consts.ContainerTypeAlgorithm, userID)
+	algorithmVersionResults, err := container.NewRepository(s.repo.db).ResolveContainerVersions(algorithms, consts.ContainerTypeAlgorithm, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to map container refs to versions: %w", err)
 	}
@@ -56,7 +56,7 @@ func (s *Service) ListDatapackEvaluationResults(ctx context.Context, req *BatchE
 			continue
 		}
 
-		executions, err := s.listEvaluationExecutionsByDatapack(ctx, &executionmodule.EvaluationExecutionsByDatapackReq{
+		executions, err := s.listEvaluationExecutionsByDatapack(ctx, &execution.EvaluationExecutionsByDatapackReq{
 			AlgorithmVersionID: algorithmVersion.ID,
 			DatapackName:       spec.Datapack,
 			FilterLabels:       spec.FilterLabels,
@@ -70,7 +70,7 @@ func (s *Service) ListDatapackEvaluationResults(ctx context.Context, req *BatchE
 			continue
 		}
 
-		refs := make([]executionmodule.ExecutionRef, 0, len(executions))
+		refs := make([]execution.ExecutionRef, 0, len(executions))
 		for _, execution := range executions {
 			refs = append(refs, execution.ExecutionRef)
 		}
@@ -121,12 +121,12 @@ func (s *Service) ListDatasetEvaluationResults(ctx context.Context, req *BatchEv
 		datasets = append(datasets, &req.Specs[i].Dataset)
 	}
 
-	algorithmVersionResults, err := containermodule.NewRepository(s.repo.db).ResolveContainerVersions(algorithms, consts.ContainerTypeAlgorithm, userID)
+	algorithmVersionResults, err := container.NewRepository(s.repo.db).ResolveContainerVersions(algorithms, consts.ContainerTypeAlgorithm, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to map container refs to versions: %w", err)
 	}
 
-	datasetVersionResults, err := datasetmodule.NewRepository(s.repo.db).ResolveDatasetVersions(datasets, userID)
+	datasetVersionResults, err := dataset.NewRepository(s.repo.db).ResolveDatasetVersions(datasets, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to map dataset refs to versions: %w", err)
 	}
@@ -150,7 +150,7 @@ func (s *Service) ListDatasetEvaluationResults(ctx context.Context, req *BatchEv
 			continue
 		}
 
-		executions, err := s.listEvaluationExecutionsByDataset(ctx, &executionmodule.EvaluationExecutionsByDatasetReq{
+		executions, err := s.listEvaluationExecutionsByDataset(ctx, &execution.EvaluationExecutionsByDatasetReq{
 			AlgorithmVersionID: algorithmVersion.ID,
 			DatasetVersionID:   datasetVersion.ID,
 			FilterLabels:       spec.FilterLabels,
@@ -164,13 +164,13 @@ func (s *Service) ListDatasetEvaluationResults(ctx context.Context, req *BatchEv
 			continue
 		}
 
-		executionMap := make(map[string][]executionmodule.EvaluationExecutionItem)
-		for _, execution := range executions {
-			name := execution.Datapack
+		executionMap := make(map[string][]execution.EvaluationExecutionItem)
+		for _, executionItem := range executions {
+			name := executionItem.Datapack
 			if _, exists := executionMap[name]; !exists {
-				executionMap[name] = make([]executionmodule.EvaluationExecutionItem, 0)
+				executionMap[name] = make([]execution.EvaluationExecutionItem, 0)
 			}
-			executionMap[name] = append(executionMap[name], execution)
+			executionMap[name] = append(executionMap[name], executionItem)
 		}
 
 		notExecutedDatapacks := make([]string, 0)
@@ -182,9 +182,9 @@ func (s *Service) ListDatasetEvaluationResults(ctx context.Context, req *BatchEv
 
 		evaluateRefs := make([]EvaluateDatapackRef, 0, len(executionMap))
 		for datapackName, groupedExecutions := range executionMap {
-			refs := make([]executionmodule.ExecutionRef, 0, len(groupedExecutions))
-			for _, execution := range groupedExecutions {
-				refs = append(refs, execution.ExecutionRef)
+			refs := make([]execution.ExecutionRef, 0, len(groupedExecutions))
+			for _, executionItem := range groupedExecutions {
+				refs = append(refs, executionItem.ExecutionRef)
 			}
 
 			evaluateRef := EvaluateDatapackRef{
@@ -259,14 +259,14 @@ func (s *Service) DeleteEvaluation(_ context.Context, id int) error {
 	return s.repo.DeleteEvaluation(id)
 }
 
-func (s *Service) listEvaluationExecutionsByDatapack(ctx context.Context, req *executionmodule.EvaluationExecutionsByDatapackReq) ([]executionmodule.EvaluationExecutionItem, error) {
+func (s *Service) listEvaluationExecutionsByDatapack(ctx context.Context, req *execution.EvaluationExecutionsByDatapackReq) ([]execution.EvaluationExecutionItem, error) {
 	if s.query == nil {
 		return nil, fmt.Errorf("evaluation execution query source is not configured")
 	}
 	return s.query.ListEvaluationExecutionsByDatapack(ctx, req)
 }
 
-func (s *Service) listEvaluationExecutionsByDataset(ctx context.Context, req *executionmodule.EvaluationExecutionsByDatasetReq) ([]executionmodule.EvaluationExecutionItem, error) {
+func (s *Service) listEvaluationExecutionsByDataset(ctx context.Context, req *execution.EvaluationExecutionsByDatasetReq) ([]execution.EvaluationExecutionItem, error) {
 	if s.query == nil {
 		return nil, fmt.Errorf("evaluation execution query source is not configured")
 	}

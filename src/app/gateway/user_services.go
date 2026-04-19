@@ -1,23 +1,23 @@
-package gatewayapp
+package gateway
 
 import (
 	"context"
 
 	"aegis/dto"
-	usermodule "aegis/module/user"
+	user "aegis/module/user"
 )
 
 type userIAMClient interface {
 	Enabled() bool
-	CreateUser(context.Context, *usermodule.CreateUserReq) (*usermodule.UserResp, error)
+	CreateUser(context.Context, *user.CreateUserReq) (*user.UserResp, error)
 	DeleteUser(context.Context, int) error
-	GetUser(context.Context, int) (*usermodule.UserDetailResp, error)
-	ListUsers(context.Context, *usermodule.ListUserReq) (*dto.ListResp[usermodule.UserResp], error)
-	UpdateUser(context.Context, *usermodule.UpdateUserReq, int) (*usermodule.UserResp, error)
+	GetUser(context.Context, int) (*user.UserDetailResp, error)
+	ListUsers(context.Context, *user.ListUserReq) (*dto.ListResp[user.UserResp], error)
+	UpdateUser(context.Context, *user.UpdateUserReq, int) (*user.UserResp, error)
 	AssignUserRole(context.Context, int, int) error
 	RemoveUserRole(context.Context, int, int) error
-	AssignUserPermissions(context.Context, int, *usermodule.AssignUserPermissionReq) error
-	RemoveUserPermissions(context.Context, int, *usermodule.RemoveUserPermissionReq) error
+	AssignUserPermissions(context.Context, int, *user.AssignUserPermissionReq) error
+	RemoveUserPermissions(context.Context, int, *user.RemoveUserPermissionReq) error
 	AssignUserContainer(context.Context, int, int, int) error
 	RemoveUserContainer(context.Context, int, int) error
 	AssignUserDataset(context.Context, int, int, int) error
@@ -27,11 +27,11 @@ type userIAMClient interface {
 }
 
 type remoteAwareUserService struct {
-	usermodule.HandlerService
+	user.HandlerService
 	iam userIAMClient
 }
 
-func (s remoteAwareUserService) CreateUser(ctx context.Context, req *usermodule.CreateUserReq) (*usermodule.UserResp, error) {
+func (s remoteAwareUserService) CreateUser(ctx context.Context, req *user.CreateUserReq) (*user.UserResp, error) {
 	if s.iam != nil && s.iam.Enabled() {
 		return s.iam.CreateUser(ctx, req)
 	}
@@ -45,21 +45,21 @@ func (s remoteAwareUserService) DeleteUser(ctx context.Context, userID int) erro
 	return missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareUserService) GetUserDetail(ctx context.Context, userID int) (*usermodule.UserDetailResp, error) {
+func (s remoteAwareUserService) GetUserDetail(ctx context.Context, userID int) (*user.UserDetailResp, error) {
 	if s.iam != nil && s.iam.Enabled() {
 		return s.iam.GetUser(ctx, userID)
 	}
 	return nil, missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareUserService) ListUsers(ctx context.Context, req *usermodule.ListUserReq) (*dto.ListResp[usermodule.UserResp], error) {
+func (s remoteAwareUserService) ListUsers(ctx context.Context, req *user.ListUserReq) (*dto.ListResp[user.UserResp], error) {
 	if s.iam != nil && s.iam.Enabled() {
 		return s.iam.ListUsers(ctx, req)
 	}
 	return nil, missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareUserService) UpdateUser(ctx context.Context, req *usermodule.UpdateUserReq, userID int) (*usermodule.UserResp, error) {
+func (s remoteAwareUserService) UpdateUser(ctx context.Context, req *user.UpdateUserReq, userID int) (*user.UserResp, error) {
 	if s.iam != nil && s.iam.Enabled() {
 		return s.iam.UpdateUser(ctx, req, userID)
 	}
@@ -80,14 +80,14 @@ func (s remoteAwareUserService) RemoveRole(ctx context.Context, userID, roleID i
 	return missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareUserService) AssignPermissions(ctx context.Context, req *usermodule.AssignUserPermissionReq, userID int) error {
+func (s remoteAwareUserService) AssignPermissions(ctx context.Context, req *user.AssignUserPermissionReq, userID int) error {
 	if s.iam != nil && s.iam.Enabled() {
 		return s.iam.AssignUserPermissions(ctx, userID, req)
 	}
 	return missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareUserService) RemovePermissions(ctx context.Context, req *usermodule.RemoveUserPermissionReq, userID int) error {
+func (s remoteAwareUserService) RemovePermissions(ctx context.Context, req *user.RemoveUserPermissionReq, userID int) error {
 	if s.iam != nil && s.iam.Enabled() {
 		return s.iam.RemoveUserPermissions(ctx, userID, req)
 	}

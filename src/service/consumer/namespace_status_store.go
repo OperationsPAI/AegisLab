@@ -7,7 +7,7 @@ import (
 
 	"aegis/consts"
 	redisinfra "aegis/infra/redis"
-	"github.com/redis/go-redis/v9"
+	goredis "github.com/redis/go-redis/v9"
 )
 
 type namespaceStatusStore struct {
@@ -24,7 +24,7 @@ func (s namespaceStatusStore) key(namespace string) string {
 
 func (s namespaceStatusStore) get(ctx context.Context, namespace string) (consts.StatusType, error) {
 	statusStr, err := s.client.HashGet(ctx, s.key(namespace), "status")
-	if err == redis.Nil {
+	if err == goredis.Nil {
 		return consts.CommonEnabled, nil
 	}
 	if err != nil {

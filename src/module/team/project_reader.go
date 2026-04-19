@@ -1,4 +1,4 @@
-package teammodule
+package team
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"aegis/dto"
 	"aegis/internalclient/resourceclient"
 	"aegis/model"
-	projectmodule "aegis/module/project"
+	project "aegis/module/project"
 
 	"go.uber.org/fx"
 )
@@ -49,7 +49,7 @@ func newRemoteProjectReader(params projectReaderParams) projectReader {
 func (r projectReaderAdapter) CountProjects(ctx context.Context, teamID int) (int, error) {
 	if r.resource != nil && r.resource.Enabled() {
 		includeStatistics := false
-		resp, err := r.resource.ListProjects(ctx, &projectmodule.ListProjectReq{
+		resp, err := r.resource.ListProjects(ctx, &project.ListProjectReq{
 			PaginationReq:     dto.PaginationReq{Page: 1, Size: 10},
 			TeamID:            &teamID,
 			IncludeStatistics: &includeStatistics,
@@ -110,7 +110,7 @@ func (r projectReaderAdapter) ListProjects(ctx context.Context, req *TeamProject
 
 	items := make([]TeamProjectItem, 0, len(projects))
 	for i := range projects {
-		items = append(items, *projectmodule.NewProjectResp(&projects[i], statsMap[projects[i].ID]))
+		items = append(items, *project.NewProjectResp(&projects[i], statsMap[projects[i].ID]))
 	}
 
 	return &dto.ListResp[TeamProjectItem]{

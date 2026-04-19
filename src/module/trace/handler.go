@@ -1,4 +1,4 @@
-package tracemodule
+package trace
 
 import (
 	"aegis/httpx"
@@ -34,15 +34,15 @@ func NewHandler(service HandlerService) *Handler {
 //	@ID				get_trace_by_id
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			trace_id	path		string										true	"Trace ID"
+//	@Param			trace_id	path		string									true	"Trace ID"
 //	@Success		200			{object}	dto.GenericResponse[TraceDetailResp]	"Trace retrieved successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]					"Invalid trace ID"
-//	@Failure		401			{object}	dto.GenericResponse[any]					"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]					"Permission denied"
-//	@Failure		404			{object}	dto.GenericResponse[any]					"Trace not found"
-//	@Failure		500			{object}	dto.GenericResponse[any]					"Internal server error"
+//	@Failure		400			{object}	dto.GenericResponse[any]				"Invalid trace ID"
+//	@Failure		401			{object}	dto.GenericResponse[any]				"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]				"Permission denied"
+//	@Failure		404			{object}	dto.GenericResponse[any]				"Trace not found"
+//	@Failure		500			{object}	dto.GenericResponse[any]				"Internal server error"
 //	@Router			/api/v2/traces/{trace_id} [get]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) GetTrace(c *gin.Context) {
 	traceID := c.Param(consts.URLPathTraceID)
 	if !utils.IsValidUUID(traceID) {
@@ -66,20 +66,20 @@ func (h *Handler) GetTrace(c *gin.Context) {
 //	@ID				list_traces
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			page		query		int													false	"Page number"	default(1)
-//	@Param			size		query		int													false	"Page size"		default(20)
-//	@Param			trace_type	query		consts.TraceType									false	"Filter by trace type"
-//	@Param			group_id	query		string												false	"Filter by group ID (uuid format)"
-//	@Param			project_id	query		int													false	"Filter by project ID"
-//	@Param			state		query		consts.TraceState									false	"Filter by state"
-//	@Param			status		query		consts.StatusType									false	"Filter by status"
+//	@Param			page		query		int												false	"Page number"	default(1)
+//	@Param			size		query		int												false	"Page size"		default(20)
+//	@Param			trace_type	query		consts.TraceType								false	"Filter by trace type"
+//	@Param			group_id	query		string											false	"Filter by group ID (uuid format)"
+//	@Param			project_id	query		int												false	"Filter by project ID"
+//	@Param			state		query		consts.TraceState								false	"Filter by state"
+//	@Param			status		query		consts.StatusType								false	"Filter by status"
 //	@Success		200			{object}	dto.GenericResponse[dto.ListResp[TraceResp]]	"Traces retrieved successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]							"Invalid request format or parameters"
-//	@Failure		401			{object}	dto.GenericResponse[any]							"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]							"Permission denied"
-//	@Failure		500			{object}	dto.GenericResponse[any]							"Internal server error"
+//	@Failure		400			{object}	dto.GenericResponse[any]						"Invalid request format or parameters"
+//	@Failure		401			{object}	dto.GenericResponse[any]						"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]						"Permission denied"
+//	@Failure		500			{object}	dto.GenericResponse[any]						"Internal server error"
 //	@Router			/api/v2/traces [get]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) ListTraces(c *gin.Context) {
 	var req ListTraceReq
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -116,8 +116,8 @@ func (h *Handler) ListTraces(c *gin.Context) {
 //	@Failure		403			{object}	dto.GenericResponse[any]	"Permission denied"
 //	@Failure		500			{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v2/traces/{trace_id}/stream [get]
-//	@x-api-type		{}
 //	@x-request-type	{"stream":"true"}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) GetTraceStream(c *gin.Context) {
 	traceID := c.Param(consts.URLPathTraceID)
 	if !utils.IsValidUUID(traceID) {

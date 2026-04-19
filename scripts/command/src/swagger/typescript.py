@@ -8,65 +8,51 @@ from python_on_whales import docker
 
 from src.common.command import run_command
 from src.common.common import PROJECT_ROOT, console, settings
-from src.swagger.common import SWAGGER_ROOT, Generator, RunMode
+from src.swagger.common import SWAGGER_ROOT, RunMode
 
 
-class TypeScriptClient(Generator):
-    """TypeScript client generator using OpenAPI Generator."""
-
-    MODE = RunMode.CLIENT
-    CLIENT_DIR = PROJECT_ROOT / "client" / "typescript"
-    CLIENT_GEN_DIR = PROJECT_ROOT / "client" / "typescript-gen"
-    GENERATOR_CONFIG_DIR = PROJECT_ROOT / ".openapi-generator" / "typescript" / "client"
-
-    def __init__(self, version: str) -> None:
-        self.version = version
-
-    def generate(self) -> None:
-        _generate_typescript_helper(
-            self.MODE,
-            self.version,
-            self.CLIENT_DIR,
-            self.CLIENT_GEN_DIR,
-            self.GENERATOR_CONFIG_DIR,
-        )
-
-
-class TypeScriptSDK(Generator):
+class TypeScriptSDK:
     """TypeScript generator for separate portal/admin audience specs."""
 
     SDK_ROOT_DIR = PROJECT_ROOT / "sdk" / "typescript"
     SDK_GEN_ROOT_DIR = PROJECT_ROOT / "sdk" / "typescript-gen"
-    GENERATOR_CONFIG_DIR = PROJECT_ROOT / ".openapi-generator" / "typescript" / "sdk"
+    GENERATOR_CONFIG_DIR = PROJECT_ROOT / ".openapi-generator" / "typescript"
 
-    def __init__(self, version: str) -> None:
+    def __init__(self, version: str, target: RunMode | None = None) -> None:
         self.version = version
+        self.target = target
 
     def generate(self) -> None:
-        legacy_shared_sdk = self.SDK_ROOT_DIR
-        if legacy_shared_sdk.exists() and legacy_shared_sdk.is_dir():
-            shutil.rmtree(legacy_shared_sdk)
+        _cleanup_stale_sdk_root_files(self.SDK_ROOT_DIR)
+        typescript_settings = settings.sdk.typescript
 
         audience_packages = {
             RunMode.PORTAL: {
                 "dst_dir": self.SDK_ROOT_DIR / "portal",
                 "gen_dir": self.SDK_GEN_ROOT_DIR / "portal",
                 "config_overrides": {
-                    "npmName": "@OperationsPAI/portal",
-                    "npmDescription": "TypeScript Portal SDK for RCABench API",
+                    "npmName": typescript_settings.portal.npm_name,
+                    "npmDescription": typescript_settings.portal.npm_description,
                 },
             },
             RunMode.ADMIN: {
                 "dst_dir": self.SDK_ROOT_DIR / "admin",
                 "gen_dir": self.SDK_GEN_ROOT_DIR / "admin",
                 "config_overrides": {
-                    "npmName": "@OperationsPAI/admin",
-                    "npmDescription": "TypeScript Admin SDK for RCABench API",
+                    "npmName": typescript_settings.admin.npm_name,
+                    "npmDescription": typescript_settings.admin.npm_description,
                 },
             },
         }
 
-        for mode, spec in audience_packages.items():
+        target_modes = (
+            [self.target]
+            if self.target is not None
+            else [RunMode.PORTAL, RunMode.ADMIN]
+        )
+
+        for mode in target_modes:
+            spec = audience_packages[mode]
             _generate_typescript_helper(
                 mode,
                 self.version,
@@ -75,6 +61,24 @@ class TypeScriptSDK(Generator):
                 self.GENERATOR_CONFIG_DIR,
                 config_overrides=spec["config_overrides"],
             )
+
+
+def _cleanup_stale_sdk_root_files(root_dir: Path) -> None:
+    """Remove stale flat sdk/typescript files while keeping portal/admin packages."""
+    if not root_dir.exists() or not root_dir.is_dir():
+        return
+
+    # Skip when the root only acts as a parent directory for portal/admin packages.
+    if not (root_dir / "package.json").exists():
+        return
+
+    for child in root_dir.iterdir():
+        if child.name in {"portal", "admin"}:
+            continue
+        if child.is_dir():
+            shutil.rmtree(child)
+            continue
+        child.unlink(missing_ok=True)
 
 
 def _generate_typescript_helper(
@@ -86,30 +90,19 @@ def _generate_typescript_helper(
     config_overrides: dict[str, str] | None = None,
 ) -> None:
     """
-    Helper function to generate TypeScript client or SDK.
+    Helper function to generate one TypeScript SDK package.
     1. Updates the generator config with the specified version.
-    2. Generates the client/SDK using OpenAPI Generator in a Docker container.
-    3. Post-processes the generated client/SDK.
+    2. Generates the SDK using OpenAPI Generator in a Docker container.
+    3. Post-processes the generated SDK.
     4. Cleans up temporary directories.
     """
-    if mode not in {
-        RunMode.CLIENT,
-        RunMode.SDK,
-        RunMode.PORTAL,
-        RunMode.ADMIN,
-    }:
-        raise ValueError(
-            f"Invalid mode: {mode}. Must be 'client', 'sdk', 'portal', or 'admin'."
-        )
+    if mode not in {RunMode.PORTAL, RunMode.ADMIN}:
+        raise ValueError(f"Invalid mode: {mode}. Must be 'portal' or 'admin'.")
 
-    if mode == RunMode.CLIENT:
-        msg = "Client"
-    elif mode == RunMode.PORTAL:
+    if mode == RunMode.PORTAL:
         msg = "Portal SDK"
-    elif mode == RunMode.ADMIN:
-        msg = "Admin SDK"
     else:
-        msg = "SDK"
+        msg = "Admin SDK"
 
     # 1. Update generator config with the specified version
     generator_config = generator_config_dir / "config.json"
@@ -134,7 +127,7 @@ def _generate_typescript_helper(
 
     gen_dir.mkdir(parents=True)
 
-    volume_path = Path("/local")
+    volume_path = Path(settings.openapi.generator_volume_root)
     relative_swagger = SWAGGER_ROOT.relative_to(PROJECT_ROOT)
     relative_gen = gen_dir.relative_to(PROJECT_ROOT)
     relative_generator_config = generator_config_dir.relative_to(PROJECT_ROOT)
@@ -180,11 +173,11 @@ def _generate_typescript_helper(
             tmp_generator_config.unlink(missing_ok=True)
 
     console.print(
-        f"[bold green]✅ Original TypeScript {msg} generated successfully![/bold green]"
+        f"[bold green]✅ Generated TypeScript {msg} successfully![/bold green]"
     )
     console.print()
 
-    # 3. Post-process generated client/SDK
+    # 3. Post-process generated SDK
     console.print(f"[bold blue]Step 2: Post-processing generated {msg}...[/bold blue]")
 
     # Clean up existing
@@ -203,7 +196,7 @@ def _generate_typescript_helper(
     if gen_dir.exists():
         shutil.rmtree(gen_dir)
 
-    # 5. Build the TypeScript client/SDK
+    # 5. Build the TypeScript SDK
     console.print(f"[bold blue]Step 3: Building TypeScript {msg}...[/bold blue]")
 
     # Check if pnpm is available, fallback to npm

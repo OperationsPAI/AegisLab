@@ -448,7 +448,7 @@ class MysqlBackupManager:
                     run_command(
                         [
                             "wget",
-                            "https://dev.mysql.com/get/mysql-apt-config_0.8.29-1_all.deb",
+                            settings.command_urls.mysql_apt_config_deb_url,
                             "-O",
                             "/tmp/mysql-apt-config.deb",
                         ],

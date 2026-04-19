@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	redisinfra "aegis/infra/redis"
-	"github.com/redis/go-redis/v9"
+	goredis "github.com/redis/go-redis/v9"
 )
 
 type tokenBucketStore struct {
@@ -18,7 +18,7 @@ func newTokenBucketStore(client *redisinfra.Gateway, bucketKey string) tokenBuck
 }
 
 func (s tokenBucketStore) acquire(ctx context.Context, maxTokens int, taskID, traceID string) (bool, error) {
-	script := redis.NewScript(`
+	script := goredis.NewScript(`
 		local bucket_key = KEYS[1]
 		local max_tokens = tonumber(ARGV[1])
 		local task_id = ARGV[2]

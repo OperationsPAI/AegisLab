@@ -11,10 +11,10 @@ import (
 	"aegis/dto"
 	"aegis/httpx"
 	"aegis/middleware"
-	authmodule "aegis/module/auth"
-	rbacmodule "aegis/module/rbac"
-	teammodule "aegis/module/team"
-	usermodule "aegis/module/user"
+	auth "aegis/module/auth"
+	rbac "aegis/module/rbac"
+	team "aegis/module/team"
+	user "aegis/module/user"
 	iamv1 "aegis/proto/iam/v1"
 	"aegis/utils"
 
@@ -224,7 +224,7 @@ func (c *Client) IsUserInProject(ctx context.Context, userID, projectID int) (bo
 	return resp.GetValue(), nil
 }
 
-func (c *Client) Login(ctx context.Context, req *authmodule.LoginReq) (*authmodule.LoginResp, error) {
+func (c *Client) Login(ctx context.Context, req *auth.LoginReq) (*auth.LoginResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("iam grpc client is not configured")
 	}
@@ -236,10 +236,10 @@ func (c *Client) Login(ctx context.Context, req *authmodule.LoginReq) (*authmodu
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[authmodule.LoginResp](resp.GetData())
+	return decodeStruct[auth.LoginResp](resp.GetData())
 }
 
-func (c *Client) Register(ctx context.Context, req *authmodule.RegisterReq) (*authmodule.UserInfo, error) {
+func (c *Client) Register(ctx context.Context, req *auth.RegisterReq) (*auth.UserInfo, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("iam grpc client is not configured")
 	}
@@ -251,10 +251,10 @@ func (c *Client) Register(ctx context.Context, req *authmodule.RegisterReq) (*au
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[authmodule.UserInfo](resp.GetData())
+	return decodeStruct[auth.UserInfo](resp.GetData())
 }
 
-func (c *Client) RefreshToken(ctx context.Context, req *authmodule.TokenRefreshReq) (*authmodule.TokenRefreshResp, error) {
+func (c *Client) RefreshToken(ctx context.Context, req *auth.TokenRefreshReq) (*auth.TokenRefreshResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("iam grpc client is not configured")
 	}
@@ -266,7 +266,7 @@ func (c *Client) RefreshToken(ctx context.Context, req *authmodule.TokenRefreshR
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[authmodule.TokenRefreshResp](resp.GetData())
+	return decodeStruct[auth.TokenRefreshResp](resp.GetData())
 }
 
 func (c *Client) Logout(ctx context.Context, claims *utils.Claims) error {
@@ -284,7 +284,7 @@ func (c *Client) Logout(ctx context.Context, claims *utils.Claims) error {
 	return mapRPCError(err)
 }
 
-func (c *Client) ChangePassword(ctx context.Context, req *authmodule.ChangePasswordReq, userID int) error {
+func (c *Client) ChangePassword(ctx context.Context, req *auth.ChangePasswordReq, userID int) error {
 	if !c.Enabled() {
 		return fmt.Errorf("iam grpc client is not configured")
 	}
@@ -299,7 +299,7 @@ func (c *Client) ChangePassword(ctx context.Context, req *authmodule.ChangePassw
 	return mapRPCError(err)
 }
 
-func (c *Client) GetProfile(ctx context.Context, userID int) (*authmodule.UserProfileResp, error) {
+func (c *Client) GetProfile(ctx context.Context, userID int) (*auth.UserProfileResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("iam grpc client is not configured")
 	}
@@ -307,10 +307,10 @@ func (c *Client) GetProfile(ctx context.Context, userID int) (*authmodule.UserPr
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[authmodule.UserProfileResp](resp.GetData())
+	return decodeStruct[auth.UserProfileResp](resp.GetData())
 }
 
-func (c *Client) CreateAPIKey(ctx context.Context, userID int, req *authmodule.CreateAPIKeyReq) (*authmodule.APIKeyWithSecretResp, error) {
+func (c *Client) CreateAPIKey(ctx context.Context, userID int, req *auth.CreateAPIKeyReq) (*auth.APIKeyWithSecretResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("iam grpc client is not configured")
 	}
@@ -325,10 +325,10 @@ func (c *Client) CreateAPIKey(ctx context.Context, userID int, req *authmodule.C
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[authmodule.APIKeyWithSecretResp](resp.GetData())
+	return decodeStruct[auth.APIKeyWithSecretResp](resp.GetData())
 }
 
-func (c *Client) ListAPIKeys(ctx context.Context, userID int, req *authmodule.ListAPIKeyReq) (*authmodule.ListAPIKeyResp, error) {
+func (c *Client) ListAPIKeys(ctx context.Context, userID int, req *auth.ListAPIKeyReq) (*auth.ListAPIKeyResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("iam grpc client is not configured")
 	}
@@ -343,10 +343,10 @@ func (c *Client) ListAPIKeys(ctx context.Context, userID int, req *authmodule.Li
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[authmodule.ListAPIKeyResp](resp.GetData())
+	return decodeStruct[auth.ListAPIKeyResp](resp.GetData())
 }
 
-func (c *Client) GetAPIKey(ctx context.Context, userID, accessKeyID int) (*authmodule.APIKeyInfo, error) {
+func (c *Client) GetAPIKey(ctx context.Context, userID, accessKeyID int) (*auth.APIKeyInfo, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("iam grpc client is not configured")
 	}
@@ -357,7 +357,7 @@ func (c *Client) GetAPIKey(ctx context.Context, userID, accessKeyID int) (*authm
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[authmodule.APIKeyInfo](resp.GetData())
+	return decodeStruct[auth.APIKeyInfo](resp.GetData())
 }
 
 func (c *Client) DeleteAPIKey(ctx context.Context, userID, accessKeyID int) error {
@@ -404,7 +404,7 @@ func (c *Client) RevokeAPIKey(ctx context.Context, userID, accessKeyID int) erro
 	return mapRPCError(err)
 }
 
-func (c *Client) RotateAPIKey(ctx context.Context, userID, accessKeyID int) (*authmodule.APIKeyWithSecretResp, error) {
+func (c *Client) RotateAPIKey(ctx context.Context, userID, accessKeyID int) (*auth.APIKeyWithSecretResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("iam grpc client is not configured")
 	}
@@ -415,10 +415,10 @@ func (c *Client) RotateAPIKey(ctx context.Context, userID, accessKeyID int) (*au
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[authmodule.APIKeyWithSecretResp](resp.GetData())
+	return decodeStruct[auth.APIKeyWithSecretResp](resp.GetData())
 }
 
-func (c *Client) ExchangeAPIKeyToken(ctx context.Context, req *authmodule.APIKeyTokenReq, method, path string) (*authmodule.APIKeyTokenResp, error) {
+func (c *Client) ExchangeAPIKeyToken(ctx context.Context, req *auth.APIKeyTokenReq, method, path string) (*auth.APIKeyTokenResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("iam grpc client is not configured")
 	}
@@ -433,7 +433,7 @@ func (c *Client) ExchangeAPIKeyToken(ctx context.Context, req *authmodule.APIKey
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return &authmodule.APIKeyTokenResp{
+	return &auth.APIKeyTokenResp{
 		Token:     resp.GetToken(),
 		TokenType: resp.GetTokenType(),
 		ExpiresAt: time.Unix(resp.GetExpiresAtUnix(), 0),
@@ -442,7 +442,7 @@ func (c *Client) ExchangeAPIKeyToken(ctx context.Context, req *authmodule.APIKey
 	}, nil
 }
 
-func (c *Client) CreateUser(ctx context.Context, req *usermodule.CreateUserReq) (*usermodule.UserResp, error) {
+func (c *Client) CreateUser(ctx context.Context, req *user.CreateUserReq) (*user.UserResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("iam grpc client is not configured")
 	}
@@ -454,7 +454,7 @@ func (c *Client) CreateUser(ctx context.Context, req *usermodule.CreateUserReq) 
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[usermodule.UserResp](resp.GetData())
+	return decodeStruct[user.UserResp](resp.GetData())
 }
 
 func (c *Client) DeleteUser(ctx context.Context, userID int) error {
@@ -465,7 +465,7 @@ func (c *Client) DeleteUser(ctx context.Context, userID int) error {
 	return mapRPCError(err)
 }
 
-func (c *Client) GetUser(ctx context.Context, userID int) (*usermodule.UserDetailResp, error) {
+func (c *Client) GetUser(ctx context.Context, userID int) (*user.UserDetailResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("iam grpc client is not configured")
 	}
@@ -473,10 +473,10 @@ func (c *Client) GetUser(ctx context.Context, userID int) (*usermodule.UserDetai
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[usermodule.UserDetailResp](resp.GetData())
+	return decodeStruct[user.UserDetailResp](resp.GetData())
 }
 
-func (c *Client) ListUsers(ctx context.Context, req *usermodule.ListUserReq) (*dto.ListResp[usermodule.UserResp], error) {
+func (c *Client) ListUsers(ctx context.Context, req *user.ListUserReq) (*dto.ListResp[user.UserResp], error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("iam grpc client is not configured")
 	}
@@ -488,10 +488,10 @@ func (c *Client) ListUsers(ctx context.Context, req *usermodule.ListUserReq) (*d
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[dto.ListResp[usermodule.UserResp]](resp.GetData())
+	return decodeStruct[dto.ListResp[user.UserResp]](resp.GetData())
 }
 
-func (c *Client) UpdateUser(ctx context.Context, req *usermodule.UpdateUserReq, userID int) (*usermodule.UserResp, error) {
+func (c *Client) UpdateUser(ctx context.Context, req *user.UpdateUserReq, userID int) (*user.UserResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("iam grpc client is not configured")
 	}
@@ -506,7 +506,7 @@ func (c *Client) UpdateUser(ctx context.Context, req *usermodule.UpdateUserReq, 
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[usermodule.UserResp](resp.GetData())
+	return decodeStruct[user.UserResp](resp.GetData())
 }
 
 func (c *Client) AssignUserRole(ctx context.Context, userID, roleID int) error {
@@ -531,7 +531,7 @@ func (c *Client) RemoveUserRole(ctx context.Context, userID, roleID int) error {
 	return mapRPCError(err)
 }
 
-func (c *Client) AssignUserPermissions(ctx context.Context, userID int, req *usermodule.AssignUserPermissionReq) error {
+func (c *Client) AssignUserPermissions(ctx context.Context, userID int, req *user.AssignUserPermissionReq) error {
 	if !c.Enabled() {
 		return fmt.Errorf("iam grpc client is not configured")
 	}
@@ -546,7 +546,7 @@ func (c *Client) AssignUserPermissions(ctx context.Context, userID int, req *use
 	return mapRPCError(err)
 }
 
-func (c *Client) RemoveUserPermissions(ctx context.Context, userID int, req *usermodule.RemoveUserPermissionReq) error {
+func (c *Client) RemoveUserPermissions(ctx context.Context, userID int, req *user.RemoveUserPermissionReq) error {
 	if !c.Enabled() {
 		return fmt.Errorf("iam grpc client is not configured")
 	}
@@ -630,7 +630,7 @@ func (c *Client) RemoveUserProject(ctx context.Context, userID, projectID int) e
 	return mapRPCError(err)
 }
 
-func (c *Client) CreateRole(ctx context.Context, req *rbacmodule.CreateRoleReq) (*rbacmodule.RoleResp, error) {
+func (c *Client) CreateRole(ctx context.Context, req *rbac.CreateRoleReq) (*rbac.RoleResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("iam grpc client is not configured")
 	}
@@ -642,7 +642,7 @@ func (c *Client) CreateRole(ctx context.Context, req *rbacmodule.CreateRoleReq) 
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[rbacmodule.RoleResp](resp.GetData())
+	return decodeStruct[rbac.RoleResp](resp.GetData())
 }
 
 func (c *Client) DeleteRole(ctx context.Context, roleID int) error {
@@ -653,7 +653,7 @@ func (c *Client) DeleteRole(ctx context.Context, roleID int) error {
 	return mapRPCError(err)
 }
 
-func (c *Client) GetRole(ctx context.Context, roleID int) (*rbacmodule.RoleDetailResp, error) {
+func (c *Client) GetRole(ctx context.Context, roleID int) (*rbac.RoleDetailResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("iam grpc client is not configured")
 	}
@@ -661,10 +661,10 @@ func (c *Client) GetRole(ctx context.Context, roleID int) (*rbacmodule.RoleDetai
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[rbacmodule.RoleDetailResp](resp.GetData())
+	return decodeStruct[rbac.RoleDetailResp](resp.GetData())
 }
 
-func (c *Client) ListRoles(ctx context.Context, req *rbacmodule.ListRoleReq) (*dto.ListResp[rbacmodule.RoleResp], error) {
+func (c *Client) ListRoles(ctx context.Context, req *rbac.ListRoleReq) (*dto.ListResp[rbac.RoleResp], error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("iam grpc client is not configured")
 	}
@@ -676,10 +676,10 @@ func (c *Client) ListRoles(ctx context.Context, req *rbacmodule.ListRoleReq) (*d
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[dto.ListResp[rbacmodule.RoleResp]](resp.GetData())
+	return decodeStruct[dto.ListResp[rbac.RoleResp]](resp.GetData())
 }
 
-func (c *Client) UpdateRole(ctx context.Context, req *rbacmodule.UpdateRoleReq, roleID int) (*rbacmodule.RoleResp, error) {
+func (c *Client) UpdateRole(ctx context.Context, req *rbac.UpdateRoleReq, roleID int) (*rbac.RoleResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("iam grpc client is not configured")
 	}
@@ -694,7 +694,7 @@ func (c *Client) UpdateRole(ctx context.Context, req *rbacmodule.UpdateRoleReq, 
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[rbacmodule.RoleResp](resp.GetData())
+	return decodeStruct[rbac.RoleResp](resp.GetData())
 }
 
 func (c *Client) AssignRolePermissions(ctx context.Context, roleID int, permissionIDs []int) error {
@@ -719,7 +719,7 @@ func (c *Client) RemoveRolePermissions(ctx context.Context, roleID int, permissi
 	return mapRPCError(err)
 }
 
-func (c *Client) ListUsersFromRole(ctx context.Context, roleID int) ([]rbacmodule.UserListItem, error) {
+func (c *Client) ListUsersFromRole(ctx context.Context, roleID int) ([]rbac.UserListItem, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("iam grpc client is not configured")
 	}
@@ -727,14 +727,14 @@ func (c *Client) ListUsersFromRole(ctx context.Context, roleID int) ([]rbacmodul
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	data, err := decodeStruct[[]rbacmodule.UserListItem](resp.GetData())
+	data, err := decodeStruct[[]rbac.UserListItem](resp.GetData())
 	if err != nil {
 		return nil, err
 	}
 	return *data, nil
 }
 
-func (c *Client) GetPermission(ctx context.Context, permissionID int) (*rbacmodule.PermissionDetailResp, error) {
+func (c *Client) GetPermission(ctx context.Context, permissionID int) (*rbac.PermissionDetailResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("iam grpc client is not configured")
 	}
@@ -742,10 +742,10 @@ func (c *Client) GetPermission(ctx context.Context, permissionID int) (*rbacmodu
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[rbacmodule.PermissionDetailResp](resp.GetData())
+	return decodeStruct[rbac.PermissionDetailResp](resp.GetData())
 }
 
-func (c *Client) ListPermissions(ctx context.Context, req *rbacmodule.ListPermissionReq) (*dto.ListResp[rbacmodule.PermissionResp], error) {
+func (c *Client) ListPermissions(ctx context.Context, req *rbac.ListPermissionReq) (*dto.ListResp[rbac.PermissionResp], error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("iam grpc client is not configured")
 	}
@@ -757,10 +757,10 @@ func (c *Client) ListPermissions(ctx context.Context, req *rbacmodule.ListPermis
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[dto.ListResp[rbacmodule.PermissionResp]](resp.GetData())
+	return decodeStruct[dto.ListResp[rbac.PermissionResp]](resp.GetData())
 }
 
-func (c *Client) ListRolesFromPermission(ctx context.Context, permissionID int) ([]rbacmodule.RoleResp, error) {
+func (c *Client) ListRolesFromPermission(ctx context.Context, permissionID int) ([]rbac.RoleResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("iam grpc client is not configured")
 	}
@@ -768,14 +768,14 @@ func (c *Client) ListRolesFromPermission(ctx context.Context, permissionID int) 
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	data, err := decodeStruct[[]rbacmodule.RoleResp](resp.GetData())
+	data, err := decodeStruct[[]rbac.RoleResp](resp.GetData())
 	if err != nil {
 		return nil, err
 	}
 	return *data, nil
 }
 
-func (c *Client) GetResource(ctx context.Context, resourceID int) (*rbacmodule.ResourceResp, error) {
+func (c *Client) GetResource(ctx context.Context, resourceID int) (*rbac.ResourceResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("iam grpc client is not configured")
 	}
@@ -783,10 +783,10 @@ func (c *Client) GetResource(ctx context.Context, resourceID int) (*rbacmodule.R
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[rbacmodule.ResourceResp](resp.GetData())
+	return decodeStruct[rbac.ResourceResp](resp.GetData())
 }
 
-func (c *Client) ListResources(ctx context.Context, req *rbacmodule.ListResourceReq) (*dto.ListResp[rbacmodule.ResourceResp], error) {
+func (c *Client) ListResources(ctx context.Context, req *rbac.ListResourceReq) (*dto.ListResp[rbac.ResourceResp], error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("iam grpc client is not configured")
 	}
@@ -798,10 +798,10 @@ func (c *Client) ListResources(ctx context.Context, req *rbacmodule.ListResource
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[dto.ListResp[rbacmodule.ResourceResp]](resp.GetData())
+	return decodeStruct[dto.ListResp[rbac.ResourceResp]](resp.GetData())
 }
 
-func (c *Client) ListResourcePermissions(ctx context.Context, resourceID int) ([]rbacmodule.PermissionResp, error) {
+func (c *Client) ListResourcePermissions(ctx context.Context, resourceID int) ([]rbac.PermissionResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("iam grpc client is not configured")
 	}
@@ -809,14 +809,14 @@ func (c *Client) ListResourcePermissions(ctx context.Context, resourceID int) ([
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	data, err := decodeStruct[[]rbacmodule.PermissionResp](resp.GetData())
+	data, err := decodeStruct[[]rbac.PermissionResp](resp.GetData())
 	if err != nil {
 		return nil, err
 	}
 	return *data, nil
 }
 
-func (c *Client) CreateTeam(ctx context.Context, req *teammodule.CreateTeamReq, userID int) (*teammodule.TeamResp, error) {
+func (c *Client) CreateTeam(ctx context.Context, req *team.CreateTeamReq, userID int) (*team.TeamResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("iam grpc client is not configured")
 	}
@@ -831,7 +831,7 @@ func (c *Client) CreateTeam(ctx context.Context, req *teammodule.CreateTeamReq, 
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[teammodule.TeamResp](resp.GetData())
+	return decodeStruct[team.TeamResp](resp.GetData())
 }
 
 func (c *Client) DeleteTeam(ctx context.Context, teamID int) error {
@@ -842,7 +842,7 @@ func (c *Client) DeleteTeam(ctx context.Context, teamID int) error {
 	return mapRPCError(err)
 }
 
-func (c *Client) GetTeam(ctx context.Context, teamID int) (*teammodule.TeamDetailResp, error) {
+func (c *Client) GetTeam(ctx context.Context, teamID int) (*team.TeamDetailResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("iam grpc client is not configured")
 	}
@@ -850,10 +850,10 @@ func (c *Client) GetTeam(ctx context.Context, teamID int) (*teammodule.TeamDetai
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[teammodule.TeamDetailResp](resp.GetData())
+	return decodeStruct[team.TeamDetailResp](resp.GetData())
 }
 
-func (c *Client) ListTeams(ctx context.Context, req *teammodule.ListTeamReq, userID int, isAdmin bool) (*dto.ListResp[teammodule.TeamResp], error) {
+func (c *Client) ListTeams(ctx context.Context, req *team.ListTeamReq, userID int, isAdmin bool) (*dto.ListResp[team.TeamResp], error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("iam grpc client is not configured")
 	}
@@ -869,10 +869,10 @@ func (c *Client) ListTeams(ctx context.Context, req *teammodule.ListTeamReq, use
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[dto.ListResp[teammodule.TeamResp]](resp.GetData())
+	return decodeStruct[dto.ListResp[team.TeamResp]](resp.GetData())
 }
 
-func (c *Client) UpdateTeam(ctx context.Context, req *teammodule.UpdateTeamReq, teamID int) (*teammodule.TeamResp, error) {
+func (c *Client) UpdateTeam(ctx context.Context, req *team.UpdateTeamReq, teamID int) (*team.TeamResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("iam grpc client is not configured")
 	}
@@ -887,10 +887,10 @@ func (c *Client) UpdateTeam(ctx context.Context, req *teammodule.UpdateTeamReq, 
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[teammodule.TeamResp](resp.GetData())
+	return decodeStruct[team.TeamResp](resp.GetData())
 }
 
-func (c *Client) ListTeamProjects(ctx context.Context, req *teammodule.TeamProjectListReq, teamID int) (*dto.ListResp[teammodule.TeamProjectItem], error) {
+func (c *Client) ListTeamProjects(ctx context.Context, req *team.TeamProjectListReq, teamID int) (*dto.ListResp[team.TeamProjectItem], error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("iam grpc client is not configured")
 	}
@@ -905,10 +905,10 @@ func (c *Client) ListTeamProjects(ctx context.Context, req *teammodule.TeamProje
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[dto.ListResp[teammodule.TeamProjectItem]](resp.GetData())
+	return decodeStruct[dto.ListResp[team.TeamProjectItem]](resp.GetData())
 }
 
-func (c *Client) AddTeamMember(ctx context.Context, req *teammodule.AddTeamMemberReq, teamID int) error {
+func (c *Client) AddTeamMember(ctx context.Context, req *team.AddTeamMemberReq, teamID int) error {
 	if !c.Enabled() {
 		return fmt.Errorf("iam grpc client is not configured")
 	}
@@ -935,7 +935,7 @@ func (c *Client) RemoveTeamMember(ctx context.Context, teamID, currentUserID, ta
 	return mapRPCError(err)
 }
 
-func (c *Client) UpdateTeamMemberRole(ctx context.Context, req *teammodule.UpdateTeamMemberRoleReq, teamID, targetUserID, currentUserID int) error {
+func (c *Client) UpdateTeamMemberRole(ctx context.Context, req *team.UpdateTeamMemberRoleReq, teamID, targetUserID, currentUserID int) error {
 	if !c.Enabled() {
 		return fmt.Errorf("iam grpc client is not configured")
 	}
@@ -952,7 +952,7 @@ func (c *Client) UpdateTeamMemberRole(ctx context.Context, req *teammodule.Updat
 	return mapRPCError(err)
 }
 
-func (c *Client) ListTeamMembers(ctx context.Context, req *teammodule.ListTeamMemberReq, teamID int) (*dto.ListResp[teammodule.TeamMemberResp], error) {
+func (c *Client) ListTeamMembers(ctx context.Context, req *team.ListTeamMemberReq, teamID int) (*dto.ListResp[team.TeamMemberResp], error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("iam grpc client is not configured")
 	}
@@ -967,7 +967,7 @@ func (c *Client) ListTeamMembers(ctx context.Context, req *teammodule.ListTeamMe
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[dto.ListResp[teammodule.TeamMemberResp]](resp.GetData())
+	return decodeStruct[dto.ListResp[team.TeamMemberResp]](resp.GetData())
 }
 
 var _ middleware.TokenVerifier = (*Client)(nil)

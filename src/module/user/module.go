@@ -1,4 +1,4 @@
-package usermodule
+package user
 
 import "go.uber.org/fx"
 

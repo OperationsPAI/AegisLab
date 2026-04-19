@@ -1,4 +1,4 @@
-package injectionmodule
+package injection
 
 import (
 	"time"

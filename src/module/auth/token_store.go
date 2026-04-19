@@ -1,4 +1,4 @@
-package authmodule
+package auth
 
 import (
 	"context"
@@ -7,17 +7,17 @@ import (
 	"time"
 
 	"aegis/consts"
-	redisinfra "aegis/infra/redis"
+	redis "aegis/infra/redis"
 )
 
 const tokenBlacklistPrefix = "blacklist:token:%s"
 const apiKeyNoncePrefix = "api_key:nonce:%s:%s"
 
 type TokenStore struct {
-	redis *redisinfra.Gateway
+	redis *redis.Gateway
 }
 
-func NewTokenStore(redis *redisinfra.Gateway) *TokenStore {
+func NewTokenStore(redis *redis.Gateway) *TokenStore {
 	return &TokenStore{redis: redis}
 }
 

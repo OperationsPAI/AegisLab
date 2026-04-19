@@ -7,8 +7,8 @@ import (
 
 	"aegis/consts"
 	"aegis/dto"
-	executionmodule "aegis/module/execution"
-	injectionmodule "aegis/module/injection"
+	execution "aegis/module/execution"
+	injection "aegis/module/injection"
 )
 
 type stateStore struct {
@@ -27,7 +27,7 @@ func (s *stateStore) updateExecutionState(ctx context.Context, executionID int, 
 	if s.execution == nil {
 		return fmt.Errorf("execution owner service is nil")
 	}
-	return s.execution.UpdateExecutionState(ctx, &executionmodule.RuntimeUpdateExecutionStateReq{
+	return s.execution.UpdateExecutionState(ctx, &execution.RuntimeUpdateExecutionStateReq{
 		ExecutionID: executionID,
 		State:       newState,
 	})
@@ -37,7 +37,7 @@ func (s *stateStore) updateInjectionState(ctx context.Context, injectionName str
 	if s.injection == nil {
 		return fmt.Errorf("injection owner service is nil")
 	}
-	return s.injection.UpdateInjectionState(ctx, &injectionmodule.RuntimeUpdateInjectionStateReq{
+	return s.injection.UpdateInjectionState(ctx, &injection.RuntimeUpdateInjectionStateReq{
 		Name:  injectionName,
 		State: newState,
 	})
@@ -47,7 +47,7 @@ func (s *stateStore) updateInjectionTimestamp(ctx context.Context, injectionName
 	if s.injection == nil {
 		return nil, fmt.Errorf("injection owner service is nil")
 	}
-	return s.injection.UpdateInjectionTimestamps(ctx, &injectionmodule.RuntimeUpdateInjectionTimestampReq{
+	return s.injection.UpdateInjectionTimestamps(ctx, &injection.RuntimeUpdateInjectionTimestampReq{
 		Name:      injectionName,
 		StartTime: startTime,
 		EndTime:   endTime,

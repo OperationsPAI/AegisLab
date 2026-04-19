@@ -1,4 +1,4 @@
-package injectionmodule
+package injection
 
 import (
 	"archive/zip"
@@ -12,11 +12,11 @@ import (
 
 	"aegis/consts"
 	"aegis/dto"
-	lokiinfra "aegis/infra/loki"
-	redisinfra "aegis/infra/redis"
+	loki "aegis/infra/loki"
+	redis "aegis/infra/redis"
 	"aegis/model"
-	containermodule "aegis/module/container"
-	labelmodule "aegis/module/label"
+	container "aegis/module/container"
+	label "aegis/module/label"
 	"aegis/service/common"
 	"aegis/utils"
 
@@ -27,11 +27,11 @@ import (
 type Service struct {
 	repo       *Repository
 	store      *DatapackStore
-	lokiClient *lokiinfra.Client
-	redis      *redisinfra.Gateway
+	lokiClient *loki.Client
+	redis      *redis.Gateway
 }
 
-func NewService(repo *Repository, store *DatapackStore, lokiClient *lokiinfra.Client, redis *redisinfra.Gateway) *Service {
+func NewService(repo *Repository, store *DatapackStore, lokiClient *loki.Client, redis *redis.Gateway) *Service {
 	return &Service{repo: repo, store: store, lokiClient: lokiClient, redis: redis}
 }
 
@@ -166,7 +166,7 @@ func (s *Service) SubmitFaultInjection(ctx context.Context, req *SubmitInjection
 		projectID = &project.ID
 	}
 
-	pedestalVersionResults, err := containermodule.NewRepository(db).ResolveContainerVersions([]*dto.ContainerRef{&req.Pedestal.ContainerRef}, consts.ContainerTypePedestal, userID)
+	pedestalVersionResults, err := container.NewRepository(db).ResolveContainerVersions([]*dto.ContainerRef{&req.Pedestal.ContainerRef}, consts.ContainerTypePedestal, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to map pedestal container ref to version: %w", err)
 	}
@@ -184,7 +184,7 @@ func (s *Service) SubmitFaultInjection(ctx context.Context, req *SubmitInjection
 	}
 
 	params := flattenYAMLToParameters(req.Pedestal.Payload, "")
-	helmValues, err := containermodule.NewRepository(db).ListHelmConfigValues(params, helmConfig)
+	helmValues, err := container.NewRepository(db).ListHelmConfigValues(params, helmConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to render pedestal helm values: %w", err)
 	}
@@ -195,7 +195,7 @@ func (s *Service) SubmitFaultInjection(ctx context.Context, req *SubmitInjection
 	pedestalItem := dto.NewContainerVersionItem(&pedestalVersion)
 	pedestalItem.Extra = helmConfigItem
 
-	benchmarkVersionResults, err := containermodule.NewRepository(db).ResolveContainerVersions([]*dto.ContainerRef{&req.Benchmark.ContainerRef}, consts.ContainerTypeBenchmark, userID)
+	benchmarkVersionResults, err := container.NewRepository(db).ResolveContainerVersions([]*dto.ContainerRef{&req.Benchmark.ContainerRef}, consts.ContainerTypeBenchmark, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to map benchmark container ref to version: %w", err)
 	}
@@ -205,7 +205,7 @@ func (s *Service) SubmitFaultInjection(ctx context.Context, req *SubmitInjection
 	}
 
 	benchmarkVersionItem := dto.NewContainerVersionItem(&benchmarkVersion)
-	envVars, err := containermodule.NewRepository(db).ListContainerVersionEnvVars(req.Benchmark.EnvVars, &benchmarkVersion)
+	envVars, err := container.NewRepository(db).ListContainerVersionEnvVars(req.Benchmark.EnvVars, &benchmarkVersion)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list benchmark env vars: %w", err)
 	}
@@ -245,7 +245,7 @@ func (s *Service) SubmitFaultInjection(ctx context.Context, req *SubmitInjection
 			refs = append(refs, &req.Algorithms[i].ContainerRef)
 		}
 
-		algorithmVersionsResults, err := containermodule.NewRepository(db).ResolveContainerVersions(refs, consts.ContainerTypeAlgorithm, userID)
+		algorithmVersionsResults, err := container.NewRepository(db).ResolveContainerVersions(refs, consts.ContainerTypeAlgorithm, userID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to map container refs to versions: %w", err)
 		}
@@ -259,7 +259,7 @@ func (s *Service) SubmitFaultInjection(ctx context.Context, req *SubmitInjection
 			}
 
 			algorithmVersionItem := dto.NewContainerVersionItem(&algorithmVersion)
-			envVars, err := containermodule.NewRepository(db).ListContainerVersionEnvVars(spec.EnvVars, &algorithmVersion)
+			envVars, err := container.NewRepository(db).ListContainerVersionEnvVars(spec.EnvVars, &algorithmVersion)
 			if err != nil {
 				return nil, fmt.Errorf("failed to list algorithm env vars: %w", err)
 			}
@@ -348,7 +348,7 @@ func (s *Service) SubmitDatapackBuilding(ctx context.Context, req *SubmitDatapac
 		refs = append(refs, &req.Specs[i].Benchmark.ContainerRef)
 	}
 
-	benchmarkVersionResults, err := containermodule.NewRepository(db).ResolveContainerVersions(refs, consts.ContainerTypeBenchmark, userID)
+	benchmarkVersionResults, err := container.NewRepository(db).ResolveContainerVersions(refs, consts.ContainerTypeBenchmark, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to map container refs to versions: %w", err)
 	}
@@ -366,7 +366,7 @@ func (s *Service) SubmitDatapackBuilding(ctx context.Context, req *SubmitDatapac
 		}
 
 		benchmarkVersionItem := dto.NewContainerVersionItem(&benchmarkVersion)
-		envVars, err := containermodule.NewRepository(db).ListContainerVersionEnvVars(spec.Benchmark.EnvVars, &benchmarkVersion)
+		envVars, err := container.NewRepository(db).ListContainerVersionEnvVars(spec.Benchmark.EnvVars, &benchmarkVersion)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list benchmark env vars: %w", err)
 		}
@@ -459,7 +459,7 @@ func (s *Service) ManageLabels(_ context.Context, req *ManageInjectionLabelReq, 
 		}
 
 		if len(req.AddLabels) > 0 {
-			labels, err := labelmodule.NewRepository(tx).CreateOrUpdateLabelsFromItems(tx, req.AddLabels, consts.InjectionCategory)
+			labels, err := label.NewRepository(tx).CreateOrUpdateLabelsFromItems(tx, req.AddLabels, consts.InjectionCategory)
 			if err != nil {
 				return fmt.Errorf("failed to create or update labels: %w", err)
 			}
@@ -559,7 +559,7 @@ func (s *Service) BatchManageLabels(_ context.Context, req *BatchManageInjection
 
 		var labelMap map[string]int
 		if len(allAddLabels) > 0 {
-			labels, err := labelmodule.NewRepository(tx).CreateOrUpdateLabelsFromItems(tx, allAddLabels, consts.InjectionCategory)
+			labels, err := label.NewRepository(tx).CreateOrUpdateLabelsFromItems(tx, allAddLabels, consts.InjectionCategory)
 			if err != nil {
 				return fmt.Errorf("failed to create or update labels: %w", err)
 			}
@@ -680,7 +680,7 @@ func (s *Service) Clone(_ context.Context, id int, req *CloneInjectionReq) (*Inj
 			return fmt.Errorf("failed to create injection: %w", err)
 		}
 		if len(req.Labels) > 0 {
-			labels, err := labelmodule.NewRepository(tx).CreateOrUpdateLabelsFromItems(tx, req.Labels, consts.InjectionCategory)
+			labels, err := label.NewRepository(tx).CreateOrUpdateLabelsFromItems(tx, req.Labels, consts.InjectionCategory)
 			if err != nil {
 				return fmt.Errorf("failed to create or update labels: %w", err)
 			}
@@ -727,7 +727,7 @@ func (s *Service) GetLogs(ctx context.Context, id int) (*InjectionLogsResp, erro
 
 	lokiCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	logEntries, lokiErr := s.lokiClient.QueryJobLogs(lokiCtx, *injection.TaskID, lokiinfra.QueryOpts{
+	logEntries, lokiErr := s.lokiClient.QueryJobLogs(lokiCtx, *injection.TaskID, loki.QueryOpts{
 		Start:     task.CreatedAt,
 		Direction: "forward",
 	})
@@ -836,7 +836,7 @@ func (s *Service) CreateInjectionRecord(_ context.Context, req *RuntimeCreateInj
 		}
 
 		if len(req.Labels) > 0 {
-			createdLabels, err := labelmodule.NewRepository(tx).CreateOrUpdateLabelsFromItems(tx, req.Labels, consts.InjectionCategory)
+			createdLabels, err := label.NewRepository(tx).CreateOrUpdateLabelsFromItems(tx, req.Labels, consts.InjectionCategory)
 			if err != nil {
 				return fmt.Errorf("failed to create or update labels: %w", err)
 			}
@@ -1007,7 +1007,7 @@ func (s *Service) UploadDatapack(_ context.Context, req *UploadDatapackReq, file
 		}
 
 		if len(labels) > 0 {
-			createdLabels, err := labelmodule.NewRepository(tx).CreateOrUpdateLabelsFromItems(tx, labels, consts.InjectionCategory)
+			createdLabels, err := label.NewRepository(tx).CreateOrUpdateLabelsFromItems(tx, labels, consts.InjectionCategory)
 			if err != nil {
 				return fmt.Errorf("failed to create or update labels: %w", err)
 			}

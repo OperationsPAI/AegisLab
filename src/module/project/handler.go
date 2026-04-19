@@ -1,4 +1,4 @@
-package projectmodule
+package project
 
 import (
 	"aegis/httpx"
@@ -29,13 +29,13 @@ func NewHandler(service HandlerService) *Handler {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			request	body		CreateProjectReq						true	"Project creation request"
-//	@Success		201		{object}	dto.GenericResponse[ProjectResp]		"Project created successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]				"Invalid request format or parameters"
-//	@Failure		401		{object}	dto.GenericResponse[any]				"Authentication required"
-//	@Failure		403		{object}	dto.GenericResponse[any]				"Permission denied"
-//	@Failure		409		{object}	dto.GenericResponse[any]				"Project already exists"
-//	@Failure		500		{object}	dto.GenericResponse[any]				"Internal server error"
+//	@Param			request	body		CreateProjectReq					true	"Project creation request"
+//	@Success		201		{object}	dto.GenericResponse[ProjectResp]	"Project created successfully"
+//	@Failure		400		{object}	dto.GenericResponse[any]			"Invalid request format or parameters"
+//	@Failure		401		{object}	dto.GenericResponse[any]			"Authentication required"
+//	@Failure		403		{object}	dto.GenericResponse[any]			"Permission denied"
+//	@Failure		409		{object}	dto.GenericResponse[any]			"Project already exists"
+//	@Failure		500		{object}	dto.GenericResponse[any]			"Internal server error"
 //	@Router			/api/v2/projects [post]
 //	@x-api-type		{"portal":"true"}
 func (h *Handler) CreateProject(c *gin.Context) {
@@ -103,13 +103,13 @@ func (h *Handler) DeleteProject(c *gin.Context) {
 //	@ID				get_project_by_id
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			project_id	path		int											true	"Project ID"
+//	@Param			project_id	path		int										true	"Project ID"
 //	@Success		200			{object}	dto.GenericResponse[ProjectDetailResp]	"Project retrieved successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]					"Invalid project ID"
-//	@Failure		401			{object}	dto.GenericResponse[any]					"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]					"Permission denied"
-//	@Failure		404			{object}	dto.GenericResponse[any]					"Project not found"
-//	@Failure		500			{object}	dto.GenericResponse[any]					"Internal server error"
+//	@Failure		400			{object}	dto.GenericResponse[any]				"Invalid project ID"
+//	@Failure		401			{object}	dto.GenericResponse[any]				"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]				"Permission denied"
+//	@Failure		404			{object}	dto.GenericResponse[any]				"Project not found"
+//	@Failure		500			{object}	dto.GenericResponse[any]				"Internal server error"
 //	@Router			/api/v2/projects/{project_id} [get]
 //	@x-api-type		{"portal":"true"}
 func (h *Handler) GetProjectDetail(c *gin.Context) {
@@ -134,15 +134,15 @@ func (h *Handler) GetProjectDetail(c *gin.Context) {
 //	@ID				list_projects
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			page		query		int													false	"Page number"	default(1)
-//	@Param			size		query		int													false	"Page size"		default(20)
-//	@Param			is_public	query		bool												false	"Filter by public status"
-//	@Param			status		query		consts.StatusType									false	"Filter by status"
+//	@Param			page		query		int												false	"Page number"	default(1)
+//	@Param			size		query		int												false	"Page size"		default(20)
+//	@Param			is_public	query		bool											false	"Filter by public status"
+//	@Param			status		query		consts.StatusType								false	"Filter by status"
 //	@Success		200			{object}	dto.GenericResponse[dto.ListResp[ProjectResp]]	"Projects retrieved successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]							"Invalid request format or parameters"
-//	@Failure		401			{object}	dto.GenericResponse[any]							"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]							"Permission denied"
-//	@Failure		500			{object}	dto.GenericResponse[any]							"Internal server error"
+//	@Failure		400			{object}	dto.GenericResponse[any]						"Invalid request format or parameters"
+//	@Failure		401			{object}	dto.GenericResponse[any]						"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]						"Permission denied"
+//	@Failure		500			{object}	dto.GenericResponse[any]						"Internal server error"
 //	@Router			/api/v2/projects [get]
 //	@x-api-type		{"portal":"true"}
 func (h *Handler) ListProjects(c *gin.Context) {
@@ -174,14 +174,14 @@ func (h *Handler) ListProjects(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			project_id	path		int										true	"Project ID"
-//	@Param			request		body		UpdateProjectReq						true	"Project update request"
-//	@Success		202			{object}	dto.GenericResponse[ProjectResp]		"Project updated successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]				"Invalid project ID or invalid request format or parameters"
-//	@Failure		401			{object}	dto.GenericResponse[any]				"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]				"Permission denied"
-//	@Failure		404			{object}	dto.GenericResponse[any]				"Project not found"
-//	@Failure		500			{object}	dto.GenericResponse[any]				"Internal server error"
+//	@Param			project_id	path		int									true	"Project ID"
+//	@Param			request		body		UpdateProjectReq					true	"Project update request"
+//	@Success		202			{object}	dto.GenericResponse[ProjectResp]	"Project updated successfully"
+//	@Failure		400			{object}	dto.GenericResponse[any]			"Invalid project ID or invalid request format or parameters"
+//	@Failure		401			{object}	dto.GenericResponse[any]			"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]			"Permission denied"
+//	@Failure		404			{object}	dto.GenericResponse[any]			"Project not found"
+//	@Failure		500			{object}	dto.GenericResponse[any]			"Internal server error"
 //	@Router			/api/v2/projects/{project_id} [patch]
 //	@x-api-type		{"portal":"true"}
 func (h *Handler) UpdateProject(c *gin.Context) {
@@ -218,14 +218,14 @@ func (h *Handler) UpdateProject(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			project_id	path		int										true	"Project ID"
-//	@Param			manage		body		ManageProjectLabelReq					true	"Label management request"
-//	@Success		200			{object}	dto.GenericResponse[ProjectResp]		"Labels managed successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]				"Invalid project ID or invalid request format/parameters"
-//	@Failure		401			{object}	dto.GenericResponse[any]				"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]				"Permission denied"
-//	@Failure		404			{object}	dto.GenericResponse[any]				"Project not found"
-//	@Failure		500			{object}	dto.GenericResponse[any]				"Internal server error"
+//	@Param			project_id	path		int									true	"Project ID"
+//	@Param			manage		body		ManageProjectLabelReq				true	"Label management request"
+//	@Success		200			{object}	dto.GenericResponse[ProjectResp]	"Labels managed successfully"
+//	@Failure		400			{object}	dto.GenericResponse[any]			"Invalid project ID or invalid request format/parameters"
+//	@Failure		401			{object}	dto.GenericResponse[any]			"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]			"Permission denied"
+//	@Failure		404			{object}	dto.GenericResponse[any]			"Project not found"
+//	@Failure		500			{object}	dto.GenericResponse[any]			"Internal server error"
 //	@Router			/api/v2/projects/{project_id}/labels [patch]
 //	@x-api-type		{"portal":"true"}
 func (h *Handler) ManageProjectCustomLabels(c *gin.Context) {

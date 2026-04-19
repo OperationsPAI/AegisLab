@@ -7,7 +7,7 @@ import (
 
 	"aegis/config"
 	"aegis/consts"
-	redisinfra "aegis/infra/redis"
+	redis "aegis/infra/redis"
 
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/trace"
@@ -176,7 +176,7 @@ func (r *TokenBucketRateLimiter) WaitForToken(ctx context.Context, taskID, trace
 	}
 }
 
-func NewRestartPedestalRateLimiter(gateway *redisinfra.Gateway) *TokenBucketRateLimiter {
+func NewRestartPedestalRateLimiter(gateway *redis.Gateway) *TokenBucketRateLimiter {
 	return newTokenBucketRateLimiter(gateway, RateLimiterConfig{
 		TokenBucketKey:   consts.RestartPedestalTokenBucket,
 		MaxTokensKey:     consts.MaxTokensKeyRestartPedestal,
@@ -186,7 +186,7 @@ func NewRestartPedestalRateLimiter(gateway *redisinfra.Gateway) *TokenBucketRate
 	})
 }
 
-func NewBuildContainerRateLimiter(gateway *redisinfra.Gateway) *TokenBucketRateLimiter {
+func NewBuildContainerRateLimiter(gateway *redis.Gateway) *TokenBucketRateLimiter {
 	return newTokenBucketRateLimiter(gateway, RateLimiterConfig{
 		TokenBucketKey:   consts.BuildContainerTokenBucket,
 		MaxTokensKey:     consts.MaxTokensKeyBuildContainer,
@@ -196,7 +196,7 @@ func NewBuildContainerRateLimiter(gateway *redisinfra.Gateway) *TokenBucketRateL
 	})
 }
 
-func NewAlgoExecutionRateLimiter(gateway *redisinfra.Gateway) *TokenBucketRateLimiter {
+func NewAlgoExecutionRateLimiter(gateway *redis.Gateway) *TokenBucketRateLimiter {
 	return newTokenBucketRateLimiter(gateway, RateLimiterConfig{
 		TokenBucketKey:   consts.AlgoExecutionTokenBucket,
 		MaxTokensKey:     consts.MaxTokensKeyAlgoExecution,
@@ -207,7 +207,7 @@ func NewAlgoExecutionRateLimiter(gateway *redisinfra.Gateway) *TokenBucketRateLi
 }
 
 // newTokenBucketRateLimiter creates a new token bucket rate limiter
-func newTokenBucketRateLimiter(gateway *redisinfra.Gateway, cfg RateLimiterConfig) *TokenBucketRateLimiter {
+func newTokenBucketRateLimiter(gateway *redis.Gateway, cfg RateLimiterConfig) *TokenBucketRateLimiter {
 	maxTokens := config.GetInt(cfg.MaxTokensKey)
 	if maxTokens <= 0 {
 		maxTokens = cfg.DefaultMaxTokens

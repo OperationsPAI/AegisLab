@@ -1,4 +1,4 @@
-package containermodule
+package container
 
 import (
 	"context"
@@ -8,9 +8,9 @@ import (
 
 	"aegis/consts"
 	"aegis/dto"
-	redisinfra "aegis/infra/redis"
+	redis "aegis/infra/redis"
 	"aegis/model"
-	labelmodule "aegis/module/label"
+	label "aegis/module/label"
 	"aegis/service/common"
 
 	"gorm.io/gorm"
@@ -20,10 +20,10 @@ type Service struct {
 	repo      *Repository
 	build     *BuildGateway
 	helmFiles *HelmFileStore
-	redis     *redisinfra.Gateway
+	redis     *redis.Gateway
 }
 
-func NewService(repo *Repository, build *BuildGateway, helmFiles *HelmFileStore, redis *redisinfra.Gateway) *Service {
+func NewService(repo *Repository, build *BuildGateway, helmFiles *HelmFileStore, redis *redis.Gateway) *Service {
 	return &Service{repo: repo, build: build, helmFiles: helmFiles, redis: redis}
 }
 
@@ -169,7 +169,7 @@ func (s *Service) ManageContainerLabels(_ context.Context, req *ManageContainerL
 		}
 
 		if len(req.AddLabels) > 0 {
-			labels, err := labelmodule.NewRepository(tx).CreateOrUpdateLabelsFromItems(tx, req.AddLabels, consts.ContainerCategory)
+			labels, err := label.NewRepository(tx).CreateOrUpdateLabelsFromItems(tx, req.AddLabels, consts.ContainerCategory)
 			if err != nil {
 				return fmt.Errorf("failed to create or update labels: %w", err)
 			}

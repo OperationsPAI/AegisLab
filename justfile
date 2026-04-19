@@ -61,7 +61,7 @@ check-prerequisites:
     printf "{{green}}✅ All dependency checks passed{{reset}}\n\n"
 
 # 🔗 Start port forwarding to access application
-forward-ports env="prod":
+port-forward env="prod":
     just run-command port start -e {{env}} -n {{ns}}
 
 # 🛠️ Setup development environment
@@ -99,8 +99,8 @@ setup-test-env: check-prerequisites
 # Pedestal Function
 # =============================================================================
 
-# 🔍 Install pedestals in namespaces (usage: just install-pedestals <name> <count>)
-install-pedestals pedestal_name pedestal_count:
+# 🔍 Install pedestals in namespaces (usage: just pedestal-install <name> <count>)
+pedestal-install pedestal_name pedestal_count:
     just run-command pedestal install -e {{env_mode}} -n {{pedestal_name}} -c {{pedestal_count}} -f
 
 # =============================================================================
@@ -108,7 +108,7 @@ install-pedestals pedestal_name pedestal_count:
 # =============================================================================
 
 # Deploy OpenEBS
-install-openebs:
+openebs-install:
     #!/usr/bin/env bash
     set -euo pipefail
     printf "{{blue}}Deploying OpenEBS...{{reset}}\n"
@@ -119,7 +119,7 @@ install-openebs:
     printf "{{green}}✅ OpenEBS installed successfully{{reset}}\n\n"
 
 # 🔧 Deploy RCABench application in prod environment
-install-rcabench:
+rcabench-install:
     #!/usr/bin/env bash
     set -euo pipefail
     printf "{{blue}}🔧 Deploying RCABench application...{{reset}}\n"
@@ -132,23 +132,23 @@ install-rcabench:
         --atomic --timeout 10m
     printf "{{green}}✅ RCABench installed successfully{{reset}}\n\n"
     printf "{{blue}}🔗 Starting automatic port forwarding...{{reset}}\n"
-    just forward-ports
+    just port-forward
 
 # 🛠️ Setup local development environment with basic services
 local-deploy:
     just run-command rcabench local-deploy -f
-    just init-etcd
+    just etcd-init
 
 # 🚀 Build and deploy application (using skaffold)
 run: check-prerequisites
     ENV_MODE=staging devbox run skaffold run
 
 # Initialize etcd
-init-etcd:
+etcd-init:
     just run-command etcd init -e {{env_mode}} -f
 
-update-version version:
-    just run-command rcabench update-version -v {{version}}
+version-update version:
+    just run-command rcabench version-update -v {{version}}
 
 # =============================================================================
 # Backup
@@ -167,8 +167,8 @@ test version:
     SDK_VERSION={{version}} ENV_MODE=test devbox run skaffold run
 
 # Run regression tests
-regression-test:
-    chmod +x ./scripts/regression-test.sh && ./scripts/regression-test.sh
+test-regression:
+    chmod +x ./scripts/test-regression.sh && ./scripts/test-regression.sh
 
 # =============================================================================
 # Development Tools
@@ -205,7 +205,7 @@ delete-chaos ns_prefix ns_count:
 # =============================================================================
 
 # 🔄 Sync Docker images from DockerHub to prod repository
-sync-images bv="latest" fv="latest":
+images-sync bv="latest" fv="latest":
     #!/usr/bin/env bash
     set -euo pipefail
     source {{root}}/.secret
@@ -242,23 +242,32 @@ sync-images bv="latest" fv="latest":
 # =============================================================================
 
 # 📝 Initialize Swagger documentation
-swag-init version:
-    just run-command swagger init -v {{version}}
+swagger-init v:
+    just run-command swagger init -v {{v}} --apifox-target all
 
-# ⚙️ Generate TypeScript Client from Swagger documentation
-generate-typescript-client version:
-    just swag-init {{version}}
-    just run-command swagger generate-client -l typescript -v {{version}}
+# ⚙️ Generate Portal TypeScript SDK from Swagger documentation
+generate-portal v:
+    just run-command sdk typescript --target portal --env local --version {{v}}
+
+# ⚙️ Generate Admin TypeScript SDK from Swagger documentation
+generate-admin v:
+    just run-command sdk typescript --target admin --env local --version {{v}}
 
 # ⚙️ Generate Python SDK from Swagger documentation
-generate-python-sdk version:
-    just swag-init {{version}}
-    just run-command swagger generate-sdk -l python -v {{version}}
+generate-python-sdk v:
+    just run-command sdk python --target sdk --env local --version {{v}}
 
-# ⚙️ Generate TypeScript SDK from Swagger documentation
-generate-typescript-sdk version:
-    just swag-init {{version}}
-    just run-command swagger generate-sdk -l typescript -v {{version}}
+# 🚀 Generate release-ready Portal TypeScript SDK
+release-portal v:
+    just run-command sdk typescript --target portal --env release --version {{v}}
+
+# 🚀 Generate release-ready Admin TypeScript SDK
+release-admin v:
+    just run-command sdk typescript --target admin --env release --version {{v}}
+
+# 🚀 Generate release-ready Python SDK
+release-python-sdk v:
+    just run-command sdk python --target sdk --env release --version {{v}}
 
 # =============================================================================
 # Utilities
@@ -286,7 +295,7 @@ release version:
     #!/usr/bin/env bash
     set -euo pipefail
     printf "{{blue}}🚀 Releasing version {{version}}...{{reset}}\n"
-    just update-version {{version}}
+    just version-update {{version}}
     just changelog
     git add {{root}}/CHANGELOG.md {{root}}/helm/Chart.yaml {{root}}/helm/values.yaml \
         {{root}}/src/config.dev.toml {{root}}/src/main.go

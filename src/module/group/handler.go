@@ -1,4 +1,4 @@
-package groupmodule
+package group
 
 import (
 	"aegis/httpx"
@@ -34,14 +34,14 @@ func NewHandler(service HandlerService) *Handler {
 //	@ID				get_group_stats
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			group_id	path		string								true	"Group ID (UUID)"
-//	@Success		200			{object}	dto.GenericResponse[GroupStats]		"Group trace statistics"
-//	@Failure		400			{object}	dto.GenericResponse[any]			"Invalid request format/parameters"
-//	@Failure		401			{object}	dto.GenericResponse[any]			"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]			"Permission denied"
-//	@Failure		500			{object}	dto.GenericResponse[any]			"Internal server error"
+//	@Param			group_id	path		string							true	"Group ID (UUID)"
+//	@Success		200			{object}	dto.GenericResponse[GroupStats]	"Group trace statistics"
+//	@Failure		400			{object}	dto.GenericResponse[any]		"Invalid request format/parameters"
+//	@Failure		401			{object}	dto.GenericResponse[any]		"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]		"Permission denied"
+//	@Failure		500			{object}	dto.GenericResponse[any]		"Internal server error"
 //	@Router			/api/v2/groups/{group_id}/stats [get]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) GetGroupStats(c *gin.Context) {
 	groupID := c.Param(consts.URLPathGroupID)
 	if !utils.IsValidUUID(groupID) {
@@ -80,8 +80,8 @@ func (h *Handler) GetGroupStats(c *gin.Context) {
 //	@Failure		401			{object}	dto.GenericResponse[any]	"Authentication required"
 //	@Failure		500			{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v2/groups/{group_id}/stream [get]
+//	@x-api-type		{"portal":"true"}
 //	@x-request-type	{"stream":"true"}
-//	@x-api-type		{}
 func (h *Handler) GetGroupStream(c *gin.Context) {
 	groupID := c.Param(consts.URLPathGroupID)
 	if !utils.IsValidUUID(groupID) {

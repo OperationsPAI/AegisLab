@@ -1,10 +1,10 @@
-package receiverinterface
+package receiver
 
 import (
 	"context"
 
 	"aegis/config"
-	redisinfra "aegis/infra/redis"
+	redis "aegis/infra/redis"
 	"aegis/service/logreceiver"
 
 	"github.com/sirupsen/logrus"
@@ -22,7 +22,7 @@ type Lifecycle struct {
 	StopFunc  func()
 }
 
-func newLifecycle(redisGateway *redisinfra.Gateway) *Lifecycle {
+func newLifecycle(redisGateway *redis.Gateway) *Lifecycle {
 	otlpPort := config.GetInt("otlp_receiver.port")
 	if otlpPort == 0 {
 		otlpPort = logreceiver.DefaultPort

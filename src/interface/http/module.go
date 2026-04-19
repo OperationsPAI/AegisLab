@@ -1,7 +1,8 @@
-package httpinterface
+package httpapi
 
 import (
 	"aegis/middleware"
+	"aegis/router"
 
 	"go.uber.org/fx"
 )
@@ -9,7 +10,7 @@ import (
 var Module = fx.Module("http",
 	fx.Provide(
 		middleware.NewService,
-		NewGinEngine,
+		router.New,
 		NewServer,
 	),
 	fx.Invoke(registerServerLifecycle),

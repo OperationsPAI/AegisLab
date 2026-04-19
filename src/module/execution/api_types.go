@@ -1,4 +1,4 @@
-package executionmodule
+package execution
 
 import (
 	"fmt"

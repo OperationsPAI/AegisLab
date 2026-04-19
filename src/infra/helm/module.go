@@ -1,4 +1,4 @@
-package helminfra
+package helm
 
 import "go.uber.org/fx"
 

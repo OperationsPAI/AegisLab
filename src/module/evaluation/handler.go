@@ -1,4 +1,4 @@
-package evaluationmodule
+package evaluation
 
 import (
 	"aegis/httpx"
@@ -28,14 +28,14 @@ func NewHandler(service HandlerService) *Handler {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			request	body		BatchEvaluateDatapackReq							true	"Batch evaluation request containing multiple algorithm-datapack pairs"
-//	@Success		200		{object}	dto.GenericResponse[BatchEvaluateDatapackResp]		"Batch algorithm datapack evaluation data retrieved successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]							"Invalid request format/parameters"
-//	@Failure		401		{object}	dto.GenericResponse[any]							"Authentication required"
-//	@Failure		403		{object}	dto.GenericResponse[any]							"Permission denied"
-//	@Failure		500		{object}	dto.GenericResponse[any]							"Internal server error"
+//	@Param			request	body		BatchEvaluateDatapackReq						true	"Batch evaluation request containing multiple algorithm-datapack pairs"
+//	@Success		200		{object}	dto.GenericResponse[BatchEvaluateDatapackResp]	"Batch algorithm datapack evaluation data retrieved successfully"
+//	@Failure		400		{object}	dto.GenericResponse[any]						"Invalid request format/parameters"
+//	@Failure		401		{object}	dto.GenericResponse[any]						"Authentication required"
+//	@Failure		403		{object}	dto.GenericResponse[any]						"Permission denied"
+//	@Failure		500		{object}	dto.GenericResponse[any]						"Internal server error"
 //	@Router			/api/v2/evaluations/datapacks [post]
-//	@x-api-type		{}
+//	@x-api-type		{"sdk":"true"}
 func (h *Handler) ListDatapackEvaluationResults(c *gin.Context) {
 	userID, exists := middleware.GetCurrentUserID(c)
 	if !exists || userID <= 0 {
@@ -71,14 +71,14 @@ func (h *Handler) ListDatapackEvaluationResults(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			request	body		BatchEvaluateDatasetReq								true	"Batch evaluation request containing multiple algorithm-dataset pairs"
-//	@Success		200		{object}	dto.GenericResponse[BatchEvaluateDatasetResp]		"Batch algorithm dataset evaluation data retrieved successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]							"Invalid request format/parameters"
-//	@Failure		401		{object}	dto.GenericResponse[any]							"Authentication required"
-//	@Failure		403		{object}	dto.GenericResponse[any]							"Permission denied"
-//	@Failure		500		{object}	dto.GenericResponse[any]							"Internal server error"
+//	@Param			request	body		BatchEvaluateDatasetReq							true	"Batch evaluation request containing multiple algorithm-dataset pairs"
+//	@Success		200		{object}	dto.GenericResponse[BatchEvaluateDatasetResp]	"Batch algorithm dataset evaluation data retrieved successfully"
+//	@Failure		400		{object}	dto.GenericResponse[any]						"Invalid request format/parameters"
+//	@Failure		401		{object}	dto.GenericResponse[any]						"Authentication required"
+//	@Failure		403		{object}	dto.GenericResponse[any]						"Permission denied"
+//	@Failure		500		{object}	dto.GenericResponse[any]						"Internal server error"
 //	@Router			/api/v2/evaluations/datasets [post]
-//	@x-api-type		{}
+//	@x-api-type		{"sdk":"true"}
 func (h *Handler) ListDatasetEvaluationResults(c *gin.Context) {
 	userID, exists := middleware.GetCurrentUserID(c)
 	if !exists || userID <= 0 {
@@ -113,14 +113,14 @@ func (h *Handler) ListDatasetEvaluationResults(c *gin.Context) {
 //	@ID				list_evaluations
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			page	query		int															false	"Page number"	default(1)
-//	@Param			size	query		int															false	"Page size"		default(20)
-//	@Success		200		{object}	dto.GenericResponse[dto.ListResp[EvaluationResp]]		"Evaluations retrieved successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]									"Invalid request format or parameters"
-//	@Failure		401		{object}	dto.GenericResponse[any]									"Authentication required"
-//	@Failure		500		{object}	dto.GenericResponse[any]									"Internal server error"
+//	@Param			page	query		int													false	"Page number"	default(1)
+//	@Param			size	query		int													false	"Page size"		default(20)
+//	@Success		200		{object}	dto.GenericResponse[dto.ListResp[EvaluationResp]]	"Evaluations retrieved successfully"
+//	@Failure		400		{object}	dto.GenericResponse[any]							"Invalid request format or parameters"
+//	@Failure		401		{object}	dto.GenericResponse[any]							"Authentication required"
+//	@Failure		500		{object}	dto.GenericResponse[any]							"Internal server error"
 //	@Router			/api/v2/evaluations [get]
-//	@x-api-type		{}
+//	@x-api-type		{"sdk":"true"}
 func (h *Handler) ListEvaluations(c *gin.Context) {
 	var req ListEvaluationReq
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -149,13 +149,13 @@ func (h *Handler) ListEvaluations(c *gin.Context) {
 //	@ID				get_evaluation_by_id
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			id	path		int										true	"Evaluation ID"
+//	@Param			id	path		int									true	"Evaluation ID"
 //	@Success		200	{object}	dto.GenericResponse[EvaluationResp]	"Evaluation retrieved successfully"
-//	@Failure		400	{object}	dto.GenericResponse[any]				"Invalid evaluation ID"
-//	@Failure		404	{object}	dto.GenericResponse[any]				"Evaluation not found"
-//	@Failure		500	{object}	dto.GenericResponse[any]				"Internal server error"
+//	@Failure		400	{object}	dto.GenericResponse[any]			"Invalid evaluation ID"
+//	@Failure		404	{object}	dto.GenericResponse[any]			"Evaluation not found"
+//	@Failure		500	{object}	dto.GenericResponse[any]			"Internal server error"
 //	@Router			/api/v2/evaluations/{id} [get]
-//	@x-api-type		{}
+//	@x-api-type		{"sdk":"true"}
 func (h *Handler) GetEvaluation(c *gin.Context) {
 	id, ok := httpx.ParsePositiveID(c, c.Param(consts.URLPathID), "evaluation ID")
 	if !ok {
@@ -184,7 +184,7 @@ func (h *Handler) GetEvaluation(c *gin.Context) {
 //	@Failure		404	{object}	dto.GenericResponse[any]	"Evaluation not found"
 //	@Failure		500	{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v2/evaluations/{id} [delete]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) DeleteEvaluation(c *gin.Context) {
 	id, ok := httpx.ParsePositiveID(c, c.Param(consts.URLPathID), "evaluation ID")
 	if !ok {

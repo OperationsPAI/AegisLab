@@ -1,6 +1,6 @@
 //go:build !duckdb_arrow
 
-package injectionmodule
+package injection
 
 import (
 	"context"

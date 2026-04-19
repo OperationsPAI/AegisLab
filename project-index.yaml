@@ -1614,7 +1614,7 @@ requirements:
     priority: P1
     status: implemented
     confidence: inferred
-    source: "sdk/python/, scripts/command/src/swagger.py"
+    source: "sdk/python/, scripts/command/src/swagger/python.py, scripts/command/src/cli/sdk.py"
 
     code:
       - path: sdk/python/src/rcabench/client
@@ -1635,7 +1635,7 @@ requirements:
 
     depends_on: [REQ-602]
     conflicts: []
-    notes: "Generated via 'make generate-python-sdk'"
+    notes: "Generated via 'just generate-python-sdk <version>'; consumes src/docs/converted/sdk.json"
 
   - id: REQ-601
     title: TypeScript SDK (Auto-generated)
@@ -1646,7 +1646,7 @@ requirements:
     priority: P1
     status: implemented
     confidence: inferred
-    source: "CLAUDE.md"
+    source: "scripts/command/src/swagger/typescript.py, scripts/command/src/cli/sdk.py"
 
     code: []
 
@@ -1667,7 +1667,7 @@ requirements:
 
     depends_on: [REQ-602]
     conflicts: []
-    notes: "Generated via 'make generate-typescript-sdk SDK_VERSION=x.x.x'; sdk/typescript/ directory"
+    notes: "Generated via 'just generate-portal <version>' / 'just generate-admin <version>'; output in sdk/typescript/{portal,admin}; generator config lives in .openapi-generator/typescript/*"
 
   - id: REQ-602
     title: Swagger/OpenAPI Documentation
@@ -1680,7 +1680,7 @@ requirements:
     priority: P1
     status: implemented
     confidence: confirmed
-    source: "src/docs/openapi3/openapi.json"
+    source: "src/docs/openapi3/openapi.json, scripts/command/src/swagger/init.py"
 
     code:
       - path: src/handlers/docs.go
@@ -1701,7 +1701,7 @@ requirements:
 
     depends_on: []
     conflicts: []
-    notes: "scripts/command/src/swagger/init.py extracts sdk / portal / admin audience specs from OpenAPI3 x-api-type metadata"
+    notes: "scripts/command/src/swagger/init.py extracts sdk / portal / admin audience specs from OpenAPI3 x-api-type metadata and writes converted artifacts under src/docs/converted/"
 
   # ===========================================================================
   # REQ-7xx: Deployment & Infrastructure (Backend)

@@ -1,4 +1,4 @@
-package tracemodule
+package trace
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"aegis/consts"
 	"aegis/dto"
 	"aegis/model"
-	taskmodule "aegis/module/task"
+	task "aegis/module/task"
 	"aegis/utils"
 )
 
@@ -127,16 +127,16 @@ func NewTraceResp(trace *model.Trace) *TraceResp {
 type TraceDetailResp struct {
 	TraceResp
 
-	Tasks []taskmodule.TaskResp `json:"tasks"`
+	Tasks []task.TaskResp `json:"tasks"`
 }
 
 func NewTraceDetailResp(trace *model.Trace) *TraceDetailResp {
 	resp := &TraceDetailResp{
 		TraceResp: *NewTraceResp(trace),
-		Tasks:     make([]taskmodule.TaskResp, 0, len(trace.Tasks)),
+		Tasks:     make([]task.TaskResp, 0, len(trace.Tasks)),
 	}
 	for i := range trace.Tasks {
-		resp.Tasks = append(resp.Tasks, *taskmodule.NewTaskResp(&trace.Tasks[i]))
+		resp.Tasks = append(resp.Tasks, *task.NewTaskResp(&trace.Tasks[i]))
 	}
 	return resp
 }

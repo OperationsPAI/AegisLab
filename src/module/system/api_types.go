@@ -1,4 +1,4 @@
-package systemmodule
+package system
 
 import (
 	"fmt"
@@ -7,8 +7,8 @@ import (
 	"aegis/consts"
 	"aegis/dto"
 	"aegis/model"
-	systemmetricmodule "aegis/module/systemmetric"
-	taskmodule "aegis/module/task"
+	systemmetric "aegis/module/systemmetric"
+	task "aegis/module/task"
 )
 
 // HealthCheckResp represents system health check response.
@@ -52,9 +52,9 @@ type MonitoringMetricsResp struct {
 	Labels    map[string]string      `json:"labels,omitempty"`
 }
 
-type MetricValue = systemmetricmodule.MetricValue
-type ListNamespaceLockResp = systemmetricmodule.ListNamespaceLockResp
-type QueuedTasksResp = taskmodule.QueuedTasksResp
+type MetricValue = systemmetric.MetricValue
+type ListNamespaceLockResp = systemmetric.ListNamespaceLockResp
+type QueuedTasksResp = task.QueuedTasksResp
 
 type ListAuditLogFilters struct {
 	Action     string

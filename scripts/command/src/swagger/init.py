@@ -7,6 +7,7 @@ from typing import Any
 
 from src.common.command import run_command
 from src.common.common import console
+from src.swagger.apifox import ApifoxTarget, upload_targets_to_apifox
 from src.swagger.common import SWAGGER_ROOT, RunMode
 from src.util import get_longest_common_substring
 
@@ -638,13 +639,15 @@ class SDKPostProcesser:
             return
 
         schema_path = "#/components/schemas/"
+        available_schemas = set(self.data.get("components", {}).get("schemas", {}))
         converted_count = 0
+        skipped_count = 0
 
         def process_parameters(
             params: list[dict[str, Any]], path: str, method: str
         ) -> None:
             """Process parameters and convert inline enums to refs."""
-            nonlocal converted_count
+            nonlocal converted_count, skipped_count
 
             for param in params:
                 if not isinstance(param, dict):
@@ -680,12 +683,17 @@ class SDKPostProcesser:
                     wildcard_key = f"*|{param_name}"
                     target_schema = self.PARAMETER_SCHEMA_MAPPING.get(wildcard_key)
 
-                if target_schema:
+                if target_schema and target_schema in available_schemas:
                     # Replace inline enum with $ref
                     param["schema"] = {"$ref": f"{schema_path}{target_schema}"}
                     converted_count += 1
                     console.print(
                         f"[gray]   -> Converted {method.upper()} {path} parameter '{param_name}' to use schema '{target_schema}'[/gray]"
+                    )
+                elif target_schema:
+                    skipped_count += 1
+                    console.print(
+                        f"[gray]   -> Kept inline enum for {method.upper()} {path} parameter '{param_name}' because schema '{target_schema}' is not present in components[/gray]"
                     )
 
         # Process all paths and their operations
@@ -705,14 +713,16 @@ class SDKPostProcesser:
             console.print(
                 f"[bold green]✅ Converted {converted_count} inline enum parameters to schema references[/bold green]"
             )
+        if skipped_count > 0:
+            console.print(
+                f"[bold yellow]⚠ Skipped {skipped_count} inline enum parameter ref conversions because the target schema was not present[/bold yellow]"
+            )
 
     def output(self, output_file: Path, category: RunMode) -> None:
-        output_data = self.data
-        if category != RunMode.CLIENT:
-            output_data = self._filter_apis_by_audience(category)
-            if output_data is None:
-                console.print("[bold red]Processing function returned None[/bold red]")
-                sys.exit(1)
+        output_data = self._filter_apis_by_audience(category)
+        if output_data is None:
+            console.print("[bold red]Processing function returned None[/bold red]")
+            sys.exit(1)
 
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(output_data, f, indent=2)
@@ -823,7 +833,11 @@ class SDKPostProcesser:
         return new_data
 
 
-def init(version: str) -> None:
+def init(
+    version: str,
+    *,
+    apifox_targets: list[ApifoxTarget] | None = None,
+) -> None:
     """
     Initialize Swagger documentation by generating OpenAPI 2.0 and converting to OpenAPI 3.0.
     """
@@ -863,22 +877,22 @@ def init(version: str) -> None:
         json.dump(openapi3_data, f, indent=2)
 
     # 3. Post-process Swagger JSON
-    console.print("[bold blue]📦 Post-processing swagger initiaization...[/bold blue]")
+    console.print(
+        "[bold blue]📦 Post-processing generated OpenAPI artifacts...[/bold blue]"
+    )
 
     if not CONVERTED_DIR.exists():
         CONVERTED_DIR.mkdir(parents=True)
     else:
-        legacy_typescript_file = CONVERTED_DIR / "typescript.json"
-        legacy_typescript_file.unlink(missing_ok=True)
+        stale_typescript_file = CONVERTED_DIR / "typescript.json"
+        stale_typescript_file.unlink(missing_ok=True)
 
     post_input_file = OPENAPI3_DIR / "openapi.json"
-    client_file = CONVERTED_DIR / "client.json"
     sdk_file = CONVERTED_DIR / "sdk.json"
     runtime_file = CONVERTED_DIR / "runtime.json"
     portal_file = CONVERTED_DIR / "portal.json"
     admin_file = CONVERTED_DIR / "admin.json"
 
-    shutil.copyfile(post_input_file, dst=client_file)
     shutil.copyfile(post_input_file, dst=sdk_file)
     shutil.copyfile(post_input_file, dst=runtime_file)
     shutil.copyfile(post_input_file, dst=portal_file)
@@ -891,11 +905,16 @@ def init(version: str) -> None:
     processor.deduplicate_enum_values()  # Remove duplicate enum values
     processor.convert_inline_enums_to_refs()
 
-    processor.output(client_file, RunMode.CLIENT)
     processor.output(sdk_file, RunMode.SDK)
     processor.output(runtime_file, RunMode.RUNTIME)
     processor.output(portal_file, RunMode.PORTAL)
     processor.output(admin_file, RunMode.ADMIN)
+
+    if apifox_targets:
+        console.print(
+            "[bold blue]☁ Uploading generated OpenAPI documents to Apifox...[/bold blue]"
+        )
+        upload_targets_to_apifox(CONVERTED_DIR, apifox_targets)
 
     console.print(
         "[bold green]✅ Swagger documentation generation completed successfully![/bold green]"

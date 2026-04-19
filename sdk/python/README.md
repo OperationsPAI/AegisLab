@@ -79,7 +79,7 @@ api_client = runtime_client.get_client()
 print(api_client.configuration.host)
 ```
 
-Runtime-tagged API classes are generated from the current OpenAPI audience split. Use `runtime_client.get_client()` with the generated API module that corresponds to those runtime-only routes.
+`RCABenchRuntimeClient` stays as a thin authenticated connector only. Runtime upload/report timing and orchestration semantics belong in the external managed wrapper layer, not in this SDK client.
 
 ## Development
 

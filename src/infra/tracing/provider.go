@@ -1,4 +1,4 @@
-package tracinginfra
+package tracing
 
 import (
 	"context"

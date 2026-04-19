@@ -1,4 +1,4 @@
-package datasetmodule
+package dataset
 
 import (
 	"archive/zip"
@@ -9,7 +9,7 @@ import (
 	"aegis/consts"
 	"aegis/dto"
 	"aegis/model"
-	labelmodule "aegis/module/label"
+	label "aegis/module/label"
 	"aegis/utils"
 
 	"gorm.io/gorm"
@@ -189,7 +189,7 @@ func (s *Service) ManageDatasetLabels(_ context.Context, req *ManageDatasetLabel
 		}
 
 		if len(req.AddLabels) > 0 {
-			labels, err := labelmodule.NewRepository(tx).CreateOrUpdateLabelsFromItems(tx, req.AddLabels, consts.DatasetCategory)
+			labels, err := label.NewRepository(tx).CreateOrUpdateLabelsFromItems(tx, req.AddLabels, consts.DatasetCategory)
 			if err != nil {
 				return fmt.Errorf("failed to create or update labels: %w", err)
 			}

@@ -1,4 +1,4 @@
-package datasetmodule
+package dataset
 
 import (
 	"aegis/dto"

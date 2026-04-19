@@ -2,7 +2,7 @@ package consumer
 
 import (
 	"aegis/consts"
-	k8sinfra "aegis/infra/k8s"
+	k8s "aegis/infra/k8s"
 	"fmt"
 
 	"github.com/sirupsen/logrus"
@@ -16,7 +16,7 @@ const (
 )
 
 // getRequiredVolumeMountConfigs retrieves the volume mount configurations for the specified required keys
-func getRequiredVolumeMountConfigs(gateway *k8sinfra.Gateway, requiredKeys []consts.VolumeMountName) ([]k8sinfra.VolumeMountConfig, error) {
+func getRequiredVolumeMountConfigs(gateway *k8s.Gateway, requiredKeys []consts.VolumeMountName) ([]k8s.VolumeMountConfig, error) {
 	if gateway == nil {
 		return nil, fmt.Errorf("k8s gateway is nil")
 	}
@@ -26,7 +26,7 @@ func getRequiredVolumeMountConfigs(gateway *k8sinfra.Gateway, requiredKeys []con
 		return nil, fmt.Errorf("failed to get volume mount configuration map: %w", err)
 	}
 
-	volumeMountConfigs := make([]k8sinfra.VolumeMountConfig, 0, len(requiredKeys))
+	volumeMountConfigs := make([]k8s.VolumeMountConfig, 0, len(requiredKeys))
 
 	for _, vmName := range requiredKeys {
 		cfg, exists := volumeMountConfigMap[vmName]

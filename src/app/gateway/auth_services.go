@@ -1,51 +1,51 @@
-package gatewayapp
+package gateway
 
 import (
 	"context"
 
-	authmodule "aegis/module/auth"
+	auth "aegis/module/auth"
 	"aegis/utils"
 )
 
 type authIAMClient interface {
 	Enabled() bool
-	Login(context.Context, *authmodule.LoginReq) (*authmodule.LoginResp, error)
-	Register(context.Context, *authmodule.RegisterReq) (*authmodule.UserInfo, error)
-	RefreshToken(context.Context, *authmodule.TokenRefreshReq) (*authmodule.TokenRefreshResp, error)
+	Login(context.Context, *auth.LoginReq) (*auth.LoginResp, error)
+	Register(context.Context, *auth.RegisterReq) (*auth.UserInfo, error)
+	RefreshToken(context.Context, *auth.TokenRefreshReq) (*auth.TokenRefreshResp, error)
 	Logout(context.Context, *utils.Claims) error
-	ChangePassword(context.Context, *authmodule.ChangePasswordReq, int) error
-	GetProfile(context.Context, int) (*authmodule.UserProfileResp, error)
-	CreateAPIKey(context.Context, int, *authmodule.CreateAPIKeyReq) (*authmodule.APIKeyWithSecretResp, error)
-	ListAPIKeys(context.Context, int, *authmodule.ListAPIKeyReq) (*authmodule.ListAPIKeyResp, error)
-	GetAPIKey(context.Context, int, int) (*authmodule.APIKeyInfo, error)
+	ChangePassword(context.Context, *auth.ChangePasswordReq, int) error
+	GetProfile(context.Context, int) (*auth.UserProfileResp, error)
+	CreateAPIKey(context.Context, int, *auth.CreateAPIKeyReq) (*auth.APIKeyWithSecretResp, error)
+	ListAPIKeys(context.Context, int, *auth.ListAPIKeyReq) (*auth.ListAPIKeyResp, error)
+	GetAPIKey(context.Context, int, int) (*auth.APIKeyInfo, error)
 	DeleteAPIKey(context.Context, int, int) error
 	DisableAPIKey(context.Context, int, int) error
 	EnableAPIKey(context.Context, int, int) error
 	RevokeAPIKey(context.Context, int, int) error
-	RotateAPIKey(context.Context, int, int) (*authmodule.APIKeyWithSecretResp, error)
-	ExchangeAPIKeyToken(context.Context, *authmodule.APIKeyTokenReq, string, string) (*authmodule.APIKeyTokenResp, error)
+	RotateAPIKey(context.Context, int, int) (*auth.APIKeyWithSecretResp, error)
+	ExchangeAPIKeyToken(context.Context, *auth.APIKeyTokenReq, string, string) (*auth.APIKeyTokenResp, error)
 }
 
 type remoteAwareAuthService struct {
-	authmodule.HandlerService
+	auth.HandlerService
 	iam authIAMClient
 }
 
-func (s remoteAwareAuthService) Login(ctx context.Context, req *authmodule.LoginReq) (*authmodule.LoginResp, error) {
+func (s remoteAwareAuthService) Login(ctx context.Context, req *auth.LoginReq) (*auth.LoginResp, error) {
 	if s.iam != nil && s.iam.Enabled() {
 		return s.iam.Login(ctx, req)
 	}
 	return nil, missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareAuthService) Register(ctx context.Context, req *authmodule.RegisterReq) (*authmodule.UserInfo, error) {
+func (s remoteAwareAuthService) Register(ctx context.Context, req *auth.RegisterReq) (*auth.UserInfo, error) {
 	if s.iam != nil && s.iam.Enabled() {
 		return s.iam.Register(ctx, req)
 	}
 	return nil, missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareAuthService) RefreshToken(ctx context.Context, req *authmodule.TokenRefreshReq) (*authmodule.TokenRefreshResp, error) {
+func (s remoteAwareAuthService) RefreshToken(ctx context.Context, req *auth.TokenRefreshReq) (*auth.TokenRefreshResp, error) {
 	if s.iam != nil && s.iam.Enabled() {
 		return s.iam.RefreshToken(ctx, req)
 	}
@@ -59,35 +59,35 @@ func (s remoteAwareAuthService) Logout(ctx context.Context, claims *utils.Claims
 	return missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareAuthService) ChangePassword(ctx context.Context, req *authmodule.ChangePasswordReq, userID int) error {
+func (s remoteAwareAuthService) ChangePassword(ctx context.Context, req *auth.ChangePasswordReq, userID int) error {
 	if s.iam != nil && s.iam.Enabled() {
 		return s.iam.ChangePassword(ctx, req, userID)
 	}
 	return missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareAuthService) GetProfile(ctx context.Context, userID int) (*authmodule.UserProfileResp, error) {
+func (s remoteAwareAuthService) GetProfile(ctx context.Context, userID int) (*auth.UserProfileResp, error) {
 	if s.iam != nil && s.iam.Enabled() {
 		return s.iam.GetProfile(ctx, userID)
 	}
 	return nil, missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareAuthService) CreateAPIKey(ctx context.Context, userID int, req *authmodule.CreateAPIKeyReq) (*authmodule.APIKeyWithSecretResp, error) {
+func (s remoteAwareAuthService) CreateAPIKey(ctx context.Context, userID int, req *auth.CreateAPIKeyReq) (*auth.APIKeyWithSecretResp, error) {
 	if s.iam != nil && s.iam.Enabled() {
 		return s.iam.CreateAPIKey(ctx, userID, req)
 	}
 	return nil, missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareAuthService) ListAPIKeys(ctx context.Context, userID int, req *authmodule.ListAPIKeyReq) (*authmodule.ListAPIKeyResp, error) {
+func (s remoteAwareAuthService) ListAPIKeys(ctx context.Context, userID int, req *auth.ListAPIKeyReq) (*auth.ListAPIKeyResp, error) {
 	if s.iam != nil && s.iam.Enabled() {
 		return s.iam.ListAPIKeys(ctx, userID, req)
 	}
 	return nil, missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareAuthService) GetAPIKey(ctx context.Context, userID, accessKeyID int) (*authmodule.APIKeyInfo, error) {
+func (s remoteAwareAuthService) GetAPIKey(ctx context.Context, userID, accessKeyID int) (*auth.APIKeyInfo, error) {
 	if s.iam != nil && s.iam.Enabled() {
 		return s.iam.GetAPIKey(ctx, userID, accessKeyID)
 	}
@@ -122,14 +122,14 @@ func (s remoteAwareAuthService) RevokeAPIKey(ctx context.Context, userID, access
 	return missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareAuthService) RotateAPIKey(ctx context.Context, userID, accessKeyID int) (*authmodule.APIKeyWithSecretResp, error) {
+func (s remoteAwareAuthService) RotateAPIKey(ctx context.Context, userID, accessKeyID int) (*auth.APIKeyWithSecretResp, error) {
 	if s.iam != nil && s.iam.Enabled() {
 		return s.iam.RotateAPIKey(ctx, userID, accessKeyID)
 	}
 	return nil, missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareAuthService) ExchangeAPIKeyToken(ctx context.Context, req *authmodule.APIKeyTokenReq, method, path string) (*authmodule.APIKeyTokenResp, error) {
+func (s remoteAwareAuthService) ExchangeAPIKeyToken(ctx context.Context, req *auth.APIKeyTokenReq, method, path string) (*auth.APIKeyTokenResp, error) {
 	if s.iam != nil && s.iam.Enabled() {
 		return s.iam.ExchangeAPIKeyToken(ctx, req, method, path)
 	}

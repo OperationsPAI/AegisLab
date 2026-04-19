@@ -1,4 +1,4 @@
-package lokiinfra
+package loki
 
 import (
 	"context"

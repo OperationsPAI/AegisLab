@@ -1,4 +1,4 @@
-package chaosinfra
+package chaos
 
 import (
 	chaosCli "github.com/OperationsPAI/chaos-experiment/client"

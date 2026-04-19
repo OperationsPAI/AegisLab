@@ -1,4 +1,4 @@
-package notificationmodule
+package notification
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 
 	redisinfra "aegis/infra/redis"
 
-	"github.com/redis/go-redis/v9"
+	goredis "github.com/redis/go-redis/v9"
 )
 
 type Service struct {
@@ -19,7 +19,7 @@ func NewService(repo *Repository, redis *redisinfra.Gateway) *Service {
 	return &Service{repo: repo, redis: redis}
 }
 
-func (s *Service) ReadStreamMessages(ctx context.Context, streamKey, lastID string, count int64, block time.Duration) ([]redis.XStream, error) {
+func (s *Service) ReadStreamMessages(ctx context.Context, streamKey, lastID string, count int64, block time.Duration) ([]goredis.XStream, error) {
 	if lastID == "" {
 		lastID = "0"
 	}

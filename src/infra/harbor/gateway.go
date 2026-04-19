@@ -1,4 +1,4 @@
-package harborinfra
+package harbor
 
 import (
 	"context"

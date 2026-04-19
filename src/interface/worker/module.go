@@ -1,13 +1,13 @@
-package workerinterface
+package worker
 
 import (
 	"context"
 
-	buildkitinfra "aegis/infra/buildkit"
-	etcdinfra "aegis/infra/etcd"
-	helminfra "aegis/infra/helm"
-	k8sinfra "aegis/infra/k8s"
-	redisinfra "aegis/infra/redis"
+	buildkit "aegis/infra/buildkit"
+	etcd "aegis/infra/etcd"
+	helm "aegis/infra/helm"
+	k8s "aegis/infra/k8s"
+	redis "aegis/infra/redis"
 	commonservice "aegis/service/common"
 	"aegis/service/consumer"
 	"aegis/service/initialization"
@@ -25,12 +25,12 @@ type Params struct {
 	fx.In
 
 	DB             *gorm.DB
-	RedisGateway   *redisinfra.Gateway
-	BuildKit       *buildkitinfra.Gateway
-	Helm           *helminfra.Gateway
-	K8sGateway     *k8sinfra.Gateway
-	Controller     *k8sinfra.Controller
-	Etcd           *etcdinfra.Gateway
+	RedisGateway   *redis.Gateway
+	BuildKit       *buildkit.Gateway
+	Helm           *helm.Gateway
+	K8sGateway     *k8s.Gateway
+	Controller     *k8s.Controller
+	Etcd           *etcd.Gateway
 	Monitor        consumer.NamespaceMonitor
 	RestartLimiter *consumer.TokenBucketRateLimiter `name:"restart_limiter"`
 	BuildLimiter   *consumer.TokenBucketRateLimiter `name:"build_limiter"`

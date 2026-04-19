@@ -1,4 +1,4 @@
-package notificationmodule
+package notification
 
 import (
 	"context"
@@ -39,7 +39,7 @@ func NewHandler(service HandlerService) *Handler {
 //	@Failure		500		{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v2/notifications/stream [get]
 //	@x-request-type	{"stream":"true"}
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) GetStream(c *gin.Context) {
 	var req GetNotificationStreamReq
 	if err := c.ShouldBindQuery(&req); err != nil {

@@ -1,10 +1,10 @@
-package teammodule
+package team
 
 import (
 	"aegis/consts"
 	"aegis/dto"
 	"aegis/model"
-	projectmodule "aegis/module/project"
+	project "aegis/module/project"
 	"errors"
 	"fmt"
 
@@ -131,7 +131,7 @@ func (r *Repository) listTeamProjectViews(teamID, limit, offset int, isPublic *b
 		projectIDs = append(projectIDs, project.ID)
 	}
 
-	statsMap, err := projectmodule.NewRepository(r.db).ListProjectStatistics(projectIDs)
+	statsMap, err := project.NewRepository(r.db).ListProjectStatistics(projectIDs)
 	if err != nil {
 		return nil, nil, 0, err
 	}

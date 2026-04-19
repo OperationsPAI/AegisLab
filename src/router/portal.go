@@ -7,41 +7,67 @@ import (
 )
 
 func SetupPortalV2Routes(v2 *gin.RouterGroup, handlers *Handlers) {
+	containers := v2.Group("/containers", middleware.JWTAuth())
+	{
+		containerRead := containers.Group("", middleware.RequireContainerRead)
+		{
+			containerRead.GET("", handlers.Container.ListContainers)
+			containerRead.GET("/:container_id", handlers.Container.GetContainer)
+		}
+
+		containers.POST("", middleware.RequireContainerCreate, handlers.Container.CreateContainer)
+		containers.PATCH("/:container_id", middleware.RequireContainerUpdate, handlers.Container.UpdateContainer)
+		containers.PATCH("/:container_id/labels", middleware.RequireContainerUpdate, handlers.Container.ManageContainerCustomLabels)
+		containers.DELETE("/:container_id", middleware.RequireContainerDelete, handlers.Container.DeleteContainer)
+		containers.POST("/build", middleware.RequireContainerExecute, handlers.Container.SubmitContainerBuilding)
+
+		containerVersions := containers.Group("/:container_id/versions")
+		{
+			containerVersionRead := containerVersions.Group("", middleware.RequireContainerVersionRead)
+			{
+				containerVersionRead.GET("", handlers.Container.ListContainerVersions)
+				containerVersionRead.GET("/:version_id", handlers.Container.GetContainerVersion)
+			}
+
+			containerVersions.POST("", middleware.RequireContainerVersionCreate, handlers.Container.CreateContainerVersion)
+			containerVersions.PATCH("/:version_id", middleware.RequireContainerVersionUpdate, handlers.Container.UpdateContainerVersion)
+			containerVersions.DELETE("/:version_id", middleware.RequireContainerVersionDelete, handlers.Container.DeleteContainerVersion)
+			containerVersions.POST("/:version_id/helm-chart", middleware.RequireContainerVersionUpload, handlers.Container.UploadHelmChart)
+			containerVersions.POST("/:version_id/helm-values", middleware.RequireContainerVersionUpload, handlers.Container.UploadHelmValueFile)
+		}
+	}
+
+	datasets := v2.Group("/datasets", middleware.JWTAuth())
+	{
+		datasetRead := datasets.Group("", middleware.RequireDatasetRead)
+		{
+			datasetRead.GET("", handlers.Dataset.ListDatasets)
+			datasetRead.GET("/:dataset_id", handlers.Dataset.GetDataset)
+			datasetRead.POST("/search", handlers.Dataset.SearchDataset)
+		}
+
+		datasets.POST("", middleware.RequireDatasetCreate, handlers.Dataset.CreateDataset)
+		datasets.PATCH("/:dataset_id", middleware.RequireDatasetUpdate, handlers.Dataset.UpdateDataset)
+		datasets.PATCH("/:dataset_id/labels", middleware.RequireDatasetUpdate, handlers.Dataset.ManageDatasetCustomLabels)
+		datasets.DELETE("/:dataset_id", middleware.RequireDatasetDelete, handlers.Dataset.DeleteDataset)
+
+		datasetVersions := datasets.Group("/:dataset_id/versions")
+		{
+			datasetVersionRead := datasetVersions.Group("", middleware.RequireDatasetVersionRead)
+			{
+				datasetVersionRead.GET("", handlers.Dataset.ListDatasetVersions)
+				datasetVersionRead.GET("/:version_id", handlers.Dataset.GetDatasetVersion)
+			}
+
+			datasetVersions.POST("", middleware.RequireDatasetVersionCreate, handlers.Dataset.CreateDatasetVersion)
+			datasetVersions.PATCH("/:version_id", middleware.RequireDatasetVersionUpdate, handlers.Dataset.UpdateDatasetVersion)
+			datasetVersions.DELETE("/:version_id", middleware.RequireDatasetVersionDelete, handlers.Dataset.DeleteDatasetVersion)
+		}
+	}
+
 	projects := v2.Group("/projects", middleware.JWTAuth())
 	{
-		injections := projects.Group("/:project_id/injections")
-		{
-			injectionRead := injections.Group("", middleware.RequireProjectRead)
-			{
-				analysis := injectionRead.Group("/analysis")
-				{
-					analysis.GET("/no-issues", handlers.Injection.ListProjectFaultInjectionNoIssues)
-					analysis.GET("/with-issues", handlers.Injection.ListProjectFaultInjectionWithIssues)
-				}
-
-				injectionRead.GET("", handlers.Injection.ListProjectInjections)
-				injectionRead.POST("/search", handlers.Injection.SearchProjectInjections)
-			}
-
-			injectionExecute := injections.Group("", middleware.RequireProjectInjectionExecute)
-			{
-				injectionExecute.POST("/inject", handlers.Injection.SubmitProjectFaultInjection)
-				injectionExecute.POST("/build", handlers.Injection.SubmitProjectDatapackBuilding)
-			}
-		}
-
-		executions := projects.Group("/:project_id/executions")
-		{
-			executionRead := executions.Group("", middleware.RequireProjectRead)
-			{
-				executionRead.GET("", handlers.Execution.ListProjectExecutions)
-			}
-
-			executionExecute := executions.Group("", middleware.RequireProjectExecutionExecute)
-			{
-				executionExecute.POST("/execute", handlers.Execution.SubmitAlgorithmExecution)
-			}
-		}
+		projects.POST("/:project_id/injections/search", middleware.RequireProjectRead, handlers.Injection.SearchProjectInjections)
 
 		projectRead := projects.Group("", middleware.RequireProjectRead)
 		{
@@ -91,6 +117,55 @@ func SetupPortalV2Routes(v2 *gin.RouterGroup, handlers *Handlers) {
 		labels.PATCH("/:label_id", middleware.RequireLabelUpdate, handlers.Label.UpdateLabel)
 		labels.DELETE("/:label_id", middleware.RequireLabelDelete, handlers.Label.DeleteLabel)
 		labels.POST("/batch-delete", middleware.RequireLabelDelete, handlers.Label.BatchDeleteLabels)
+	}
+
+	evaluations := v2.Group("/evaluations", middleware.JWTAuth())
+	{
+		evaluations.DELETE("/:id", handlers.Evaluation.DeleteEvaluation)
+	}
+
+	executions := v2.Group("/executions", middleware.JWTAuth())
+	{
+		executions.GET("/labels", middleware.RequireAPIKeyScopesAny("sdk:*", "sdk:executions:*", "sdk:executions:read"), handlers.Execution.ListAvailableExecutionLabels)
+		executions.POST("/batch-delete", handlers.Execution.BatchDeleteExecutions)
+	}
+
+	injections := v2.Group("/injections", middleware.JWTAuth())
+	{
+		injections.PATCH("/labels/batch", handlers.Injection.BatchManageInjectionLabels)
+		injections.POST("/batch-delete", handlers.Injection.BatchDeleteInjections)
+		injections.POST("/upload", handlers.Injection.UploadDatapack)
+		injections.PUT("/:id/groundtruth", handlers.Injection.UpdateGroundtruth)
+	}
+
+	notifications := v2.Group("/notifications", middleware.JWTAuth())
+	{
+		notifications.GET("/stream", handlers.Notification.GetStream)
+	}
+
+	tasks := v2.Group("/tasks", middleware.JWTAuth())
+	{
+		taskRead := tasks.Group("", middleware.RequireTaskRead)
+		{
+			taskRead.GET("", handlers.Task.ListTasks)
+			taskRead.GET("/:task_id", handlers.Task.GetTask)
+			taskRead.GET("/:task_id/logs/ws", handlers.Task.GetTaskLogsWS)
+		}
+
+		tasks.POST("/batch-delete", middleware.RequireTaskDelete, handlers.Task.BatchDelete)
+	}
+
+	groups := v2.Group("/groups", middleware.JWTAuth(), middleware.RequireTraceRead)
+	{
+		groups.GET("/:group_id/stats", handlers.Group.GetGroupStats)
+		groups.GET("/:group_id/stream", handlers.Group.GetGroupStream)
+	}
+
+	traces := v2.Group("/traces", middleware.JWTAuth(), middleware.RequireTraceRead)
+	{
+		traces.GET("", handlers.Trace.ListTraces)
+		traces.GET("/:trace_id", handlers.Trace.GetTrace)
+		traces.GET("/:trace_id/stream", handlers.Trace.GetTraceStream)
 	}
 
 	accessKeys := v2.Group("/api-keys", middleware.JWTAuth(), middleware.RequireHumanUserAuth())

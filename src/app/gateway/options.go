@@ -1,31 +1,33 @@
-package gatewayapp
+package gateway
 
 import (
 	"aegis/app"
+	chaos "aegis/infra/chaos"
+	k8s "aegis/infra/k8s"
 	"aegis/internalclient/iamclient"
 	"aegis/internalclient/orchestratorclient"
 	"aegis/internalclient/resourceclient"
 	"aegis/internalclient/systemclient"
 	"aegis/middleware"
-	authmodule "aegis/module/auth"
-	chaossystemmodule "aegis/module/chaossystem"
-	containermodule "aegis/module/container"
-	datasetmodule "aegis/module/dataset"
-	evaluationmodule "aegis/module/evaluation"
-	executionmodule "aegis/module/execution"
-	groupmodule "aegis/module/group"
-	injectionmodule "aegis/module/injection"
-	labelmodule "aegis/module/label"
-	metricmodule "aegis/module/metric"
-	notificationmodule "aegis/module/notification"
-	projectmodule "aegis/module/project"
-	rbacmodule "aegis/module/rbac"
-	systemmodule "aegis/module/system"
-	systemmetricmodule "aegis/module/systemmetric"
-	taskmodule "aegis/module/task"
-	teammodule "aegis/module/team"
-	tracemodule "aegis/module/trace"
-	usermodule "aegis/module/user"
+	auth "aegis/module/auth"
+	chaossystem "aegis/module/chaossystem"
+	container "aegis/module/container"
+	dataset "aegis/module/dataset"
+	evaluation "aegis/module/evaluation"
+	execution "aegis/module/execution"
+	group "aegis/module/group"
+	injection "aegis/module/injection"
+	label "aegis/module/label"
+	metric "aegis/module/metric"
+	notification "aegis/module/notification"
+	project "aegis/module/project"
+	rbac "aegis/module/rbac"
+	system "aegis/module/system"
+	systemmetric "aegis/module/systemmetric"
+	task "aegis/module/task"
+	team "aegis/module/team"
+	trace "aegis/module/trace"
+	user "aegis/module/user"
 
 	"go.uber.org/fx"
 )
@@ -38,7 +40,9 @@ func Options(confPath, port string) fx.Option {
 		app.DataOptions(),
 		app.CoordinationOptions(),
 		app.BuildInfraOptions(),
-		app.ProducerCompatibilityOptions(port),
+		chaos.Module,
+		k8s.Module,
+		app.ProducerHTTPOptions(port),
 		app.RequireConfiguredTargets(
 			"api-gateway",
 			app.RequiredConfigTarget{Name: "iam-service", PrimaryKey: "clients.iam.target", LegacyKey: "iam.grpc.target"},
@@ -50,7 +54,7 @@ func Options(confPath, port string) fx.Option {
 		orchestratorclient.Module,
 		resourceclient.Module,
 		systemclient.Module,
-		fx.Decorate(func(local authmodule.HandlerService, remote *iamclient.Client) authmodule.HandlerService {
+		fx.Decorate(func(local auth.HandlerService, remote *iamclient.Client) auth.HandlerService {
 			return remoteAwareAuthService{
 				HandlerService: local,
 				iam:            remote,
@@ -62,110 +66,110 @@ func Options(confPath, port string) fx.Option {
 				iam:  remote,
 			}
 		}),
-		fx.Decorate(func(local usermodule.HandlerService, remote *iamclient.Client) usermodule.HandlerService {
+		fx.Decorate(func(local user.HandlerService, remote *iamclient.Client) user.HandlerService {
 			return remoteAwareUserService{
 				HandlerService: local,
 				iam:            remote,
 			}
 		}),
-		fx.Decorate(func(local rbacmodule.HandlerService, remote *iamclient.Client) rbacmodule.HandlerService {
+		fx.Decorate(func(local rbac.HandlerService, remote *iamclient.Client) rbac.HandlerService {
 			return remoteAwareRBACService{
 				HandlerService: local,
 				iam:            remote,
 			}
 		}),
-		fx.Decorate(func(local teammodule.HandlerService, remote *iamclient.Client) teammodule.HandlerService {
+		fx.Decorate(func(local team.HandlerService, remote *iamclient.Client) team.HandlerService {
 			return remoteAwareTeamService{
 				HandlerService: local,
 				iam:            remote,
 			}
 		}),
-		fx.Decorate(func(local executionmodule.HandlerService, remote *orchestratorclient.Client) executionmodule.HandlerService {
+		fx.Decorate(func(local execution.HandlerService, remote *orchestratorclient.Client) execution.HandlerService {
 			return remoteAwareExecutionService{
 				HandlerService: local,
 				orchestrator:   remote,
 			}
 		}),
-		fx.Decorate(func(local injectionmodule.HandlerService, remote *orchestratorclient.Client) injectionmodule.HandlerService {
+		fx.Decorate(func(local injection.HandlerService, remote *orchestratorclient.Client) injection.HandlerService {
 			return remoteAwareInjectionService{
 				HandlerService: local,
 				orchestrator:   remote,
 			}
 		}),
-		fx.Decorate(func(local taskmodule.HandlerService, remote *orchestratorclient.Client) taskmodule.HandlerService {
+		fx.Decorate(func(local task.HandlerService, remote *orchestratorclient.Client) task.HandlerService {
 			return remoteAwareTaskService{
 				HandlerService: local,
 				orchestrator:   remote,
 			}
 		}),
-		fx.Decorate(func(local tracemodule.HandlerService, remote *orchestratorclient.Client) tracemodule.HandlerService {
+		fx.Decorate(func(local trace.HandlerService, remote *orchestratorclient.Client) trace.HandlerService {
 			return remoteAwareTraceService{
 				HandlerService: local,
 				orchestrator:   remote,
 			}
 		}),
-		fx.Decorate(func(local groupmodule.HandlerService, remote *orchestratorclient.Client) groupmodule.HandlerService {
+		fx.Decorate(func(local group.HandlerService, remote *orchestratorclient.Client) group.HandlerService {
 			return remoteAwareGroupService{
 				HandlerService: local,
 				orchestrator:   remote,
 			}
 		}),
-		fx.Decorate(func(local notificationmodule.HandlerService, remote *orchestratorclient.Client) notificationmodule.HandlerService {
+		fx.Decorate(func(local notification.HandlerService, remote *orchestratorclient.Client) notification.HandlerService {
 			return remoteAwareNotificationService{
 				HandlerService: local,
 				orchestrator:   remote,
 			}
 		}),
-		fx.Decorate(func(local projectmodule.HandlerService, remote *resourceclient.Client) projectmodule.HandlerService {
+		fx.Decorate(func(local project.HandlerService, remote *resourceclient.Client) project.HandlerService {
 			return remoteAwareProjectService{
 				HandlerService: local,
 				resource:       remote,
 			}
 		}),
-		fx.Decorate(func(local containermodule.HandlerService, remote *resourceclient.Client) containermodule.HandlerService {
+		fx.Decorate(func(local container.HandlerService, remote *resourceclient.Client) container.HandlerService {
 			return remoteAwareContainerService{
 				HandlerService: local,
 				resource:       remote,
 			}
 		}),
-		fx.Decorate(func(local datasetmodule.HandlerService, remote *resourceclient.Client) datasetmodule.HandlerService {
+		fx.Decorate(func(local dataset.HandlerService, remote *resourceclient.Client) dataset.HandlerService {
 			return remoteAwareDatasetService{
 				HandlerService: local,
 				resource:       remote,
 			}
 		}),
-		fx.Decorate(func(local evaluationmodule.HandlerService, remote *resourceclient.Client) evaluationmodule.HandlerService {
+		fx.Decorate(func(local evaluation.HandlerService, remote *resourceclient.Client) evaluation.HandlerService {
 			return remoteAwareEvaluationService{
 				HandlerService: local,
 				resource:       remote,
 			}
 		}),
-		fx.Decorate(func(local labelmodule.HandlerService, remote *resourceclient.Client) labelmodule.HandlerService {
+		fx.Decorate(func(local label.HandlerService, remote *resourceclient.Client) label.HandlerService {
 			return remoteAwareLabelService{
 				HandlerService: local,
 				resource:       remote,
 			}
 		}),
-		fx.Decorate(func(local chaossystemmodule.HandlerService, remote *resourceclient.Client) chaossystemmodule.HandlerService {
+		fx.Decorate(func(local chaossystem.HandlerService, remote *resourceclient.Client) chaossystem.HandlerService {
 			return remoteAwareChaosSystemService{
 				HandlerService: local,
 				resource:       remote,
 			}
 		}),
-		fx.Decorate(func(local metricmodule.HandlerService, orchestrator *orchestratorclient.Client, resource *resourceclient.Client) metricmodule.HandlerService {
+		fx.Decorate(func(local metric.HandlerService, orchestrator *orchestratorclient.Client, resource *resourceclient.Client) metric.HandlerService {
 			return remoteAwareMetricService{
 				HandlerService: local,
 				orchestrator:   orchestrator,
 				resource:       resource,
 			}
 		}),
-		fx.Decorate(func(local systemmodule.HandlerService, remote *systemclient.Client) systemmodule.HandlerService {
+		fx.Decorate(func(local system.HandlerService, remote *systemclient.Client) system.HandlerService {
 			return remoteAwareSystemService{
 				HandlerService: local,
 				system:         remote,
 			}
 		}),
-		fx.Decorate(func(local systemmetricmodule.HandlerService, remote *systemclient.Client) systemmetricmodule.HandlerService {
+		fx.Decorate(func(local systemmetric.HandlerService, remote *systemclient.Client) systemmetric.HandlerService {
 			return remoteAwareSystemMetricService{
 				HandlerService: local,
 				system:         remote,

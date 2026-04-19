@@ -1,4 +1,4 @@
-package k8sinfra
+package k8s
 
 import (
 	"bufio"

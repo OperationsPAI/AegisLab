@@ -8,6 +8,37 @@ release_name = "rcabench"
 python_sdk_dir = "sdk/python"
 time_format = "%Y%m%d_%H%M%S"
 
+[default.openapi]
+generator_volume_root = "/local"
+
+[default.apifox]
+api_base_url = "https://api.apifox.com/v1"
+api_version = "2024-03-28"
+locale = "zh-CN"
+
+[default.sdk.python]
+git_host = "github.com"
+git_user_id = "OperationsPAI"
+git_repo_id = "AegisLab"
+
+[default.sdk.typescript.portal]
+npm_name = "@OperationsPAI/portal"
+npm_description = "TypeScript Portal SDK for RCABench API"
+
+[default.sdk.typescript.admin]
+npm_name = "@OperationsPAI/admin"
+npm_description = "TypeScript Admin SDK for RCABench API"
+
+[default.command_urls]
+cert_manager_manifest_url = "https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml"
+mysql_apt_config_deb_url = "https://dev.mysql.com/get/mysql-apt-config_0.8.29-1_all.deb"
+
+[default.command_urls.helm_repo_urls]
+chaos_mesh = "https://charts.chaos-mesh.org"
+cilium = "https://helm.cilium.io/"
+open_telemetry = "https://open-telemetry.github.io/opentelemetry-helm-charts"
+clickstack = "https://hyperdxio.github.io/helm-charts"
+
 [default.database.mysql]
 host = "localhost"
 port = "3306"

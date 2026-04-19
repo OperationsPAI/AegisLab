@@ -1,4 +1,4 @@
-package usermodule
+package user
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"aegis/consts"
 	"aegis/dto"
 	"aegis/model"
-	rbacmodule "aegis/module/rbac"
+	rbac "aegis/module/rbac"
 )
 
 // CreateUserReq represents user creation request.
@@ -121,11 +121,11 @@ func NewUserResp(user *model.User) *UserResp {
 type UserDetailResp struct {
 	UserResp
 
-	GlobalRoles    []rbacmodule.RoleResp       `json:"global_roles,omitempty"`
-	Permissions    []rbacmodule.PermissionResp `json:"permissions,omitempty"`
-	ContainerRoles []UserContainerInfo         `json:"container_roles,omitempty"`
-	DatasetRoles   []UserDatasetInfo           `json:"dataset_roles,omitempty"`
-	ProjectRoles   []UserProjectInfo           `json:"project_roles,omitempty"`
+	GlobalRoles    []rbac.RoleResp       `json:"global_roles,omitempty"`
+	Permissions    []rbac.PermissionResp `json:"permissions,omitempty"`
+	ContainerRoles []UserContainerInfo   `json:"container_roles,omitempty"`
+	DatasetRoles   []UserDatasetInfo     `json:"dataset_roles,omitempty"`
+	ProjectRoles   []UserProjectInfo     `json:"project_roles,omitempty"`
 }
 
 func NewUserDetailResp(user *model.User) *UserDetailResp {

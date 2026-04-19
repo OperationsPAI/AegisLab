@@ -1,4 +1,4 @@
-package rbacmodule
+package rbac
 
 import (
 	"aegis/httpx"
@@ -28,13 +28,13 @@ func NewHandler(service HandlerService) *Handler {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			request	body		CreateRoleReq						true	"Role creation request"
+//	@Param			request	body		CreateRoleReq					true	"Role creation request"
 //	@Success		201		{object}	dto.GenericResponse[RoleResp]	"Role created successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]			"Invalid request format"
-//	@Failure		401		{object}	dto.GenericResponse[any]			"Authentication required"
-//	@Failure		403		{object}	dto.GenericResponse[any]			"Permission denied"
-//	@Failure		409		{object}	dto.GenericResponse[any]			"Role already exists"
-//	@Failure		500		{object}	dto.GenericResponse[any]			"Internal server error"
+//	@Failure		400		{object}	dto.GenericResponse[any]		"Invalid request format"
+//	@Failure		401		{object}	dto.GenericResponse[any]		"Authentication required"
+//	@Failure		403		{object}	dto.GenericResponse[any]		"Permission denied"
+//	@Failure		409		{object}	dto.GenericResponse[any]		"Role already exists"
+//	@Failure		500		{object}	dto.GenericResponse[any]		"Internal server error"
 //	@Router			/api/v2/roles [post]
 //	@x-api-type		{"admin":"true"}
 func (h *Handler) CreateRole(c *gin.Context) {
@@ -86,13 +86,13 @@ func (h *Handler) DeleteRole(c *gin.Context) {
 //	@ID				get_role_by_id
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			id	path		int										true	"Role ID"
+//	@Param			id	path		int									true	"Role ID"
 //	@Success		200	{object}	dto.GenericResponse[RoleDetailResp]	"Role retrieved successfully"
-//	@Failure		401	{object}	dto.GenericResponse[any]				"Authentication required"
-//	@Failure		403	{object}	dto.GenericResponse[any]				"Permission denied"
-//	@Failure		400	{object}	dto.GenericResponse[any]				"Invalid role ID"
-//	@Failure		404	{object}	dto.GenericResponse[any]				"Role not found"
-//	@Failure		500	{object}	dto.GenericResponse[any]				"Internal server error"
+//	@Failure		401	{object}	dto.GenericResponse[any]			"Authentication required"
+//	@Failure		403	{object}	dto.GenericResponse[any]			"Permission denied"
+//	@Failure		400	{object}	dto.GenericResponse[any]			"Invalid role ID"
+//	@Failure		404	{object}	dto.GenericResponse[any]			"Role not found"
+//	@Failure		500	{object}	dto.GenericResponse[any]			"Internal server error"
 //	@Router			/api/v2/roles/{id} [get]
 //	@x-api-type		{"admin":"true"}
 func (h *Handler) GetRole(c *gin.Context) {
@@ -115,15 +115,15 @@ func (h *Handler) GetRole(c *gin.Context) {
 //	@ID				list_roles
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			page		query		int										false	"Page number"	default(1)
-//	@Param			size		query		int										false	"Page size"		default(20)
-//	@Param			is_system	query		bool									false	"Filter by system role"
-//	@Param			status		query		consts.StatusType						false	"Filter by status"
+//	@Param			page		query		int											false	"Page number"	default(1)
+//	@Param			size		query		int											false	"Page size"		default(20)
+//	@Param			is_system	query		bool										false	"Filter by system role"
+//	@Param			status		query		consts.StatusType							false	"Filter by status"
 //	@Success		200			{object}	dto.GenericResponse[dto.ListResp[RoleResp]]	"Roles retrieved successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]				"Invalid request parameters"
-//	@Failure		401			{object}	dto.GenericResponse[any]				"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]				"Permission denied"
-//	@Failure		500			{object}	dto.GenericResponse[any]				"Internal server error"
+//	@Failure		400			{object}	dto.GenericResponse[any]					"Invalid request parameters"
+//	@Failure		401			{object}	dto.GenericResponse[any]					"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]					"Permission denied"
+//	@Failure		500			{object}	dto.GenericResponse[any]					"Internal server error"
 //	@Router			/api/v2/roles [get]
 //	@x-api-type		{"admin":"true"}
 func (h *Handler) ListRoles(c *gin.Context) {
@@ -148,14 +148,14 @@ func (h *Handler) ListRoles(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			id		path		int									true	"Role ID"
-//	@Param			request	body		UpdateRoleReq						true	"Role update request"
+//	@Param			id		path		int								true	"Role ID"
+//	@Param			request	body		UpdateRoleReq					true	"Role update request"
 //	@Success		202		{object}	dto.GenericResponse[RoleResp]	"Role updated successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]			"Invalid request"
-//	@Failure		401		{object}	dto.GenericResponse[any]			"Authentication required"
-//	@Failure		403		{object}	dto.GenericResponse[any]			"Permission denied"
-//	@Failure		404		{object}	dto.GenericResponse[any]			"Role not found"
-//	@Failure		500		{object}	dto.GenericResponse[any]			"Internal server error"
+//	@Failure		400		{object}	dto.GenericResponse[any]		"Invalid request"
+//	@Failure		401		{object}	dto.GenericResponse[any]		"Authentication required"
+//	@Failure		403		{object}	dto.GenericResponse[any]		"Permission denied"
+//	@Failure		404		{object}	dto.GenericResponse[any]		"Role not found"
+//	@Failure		500		{object}	dto.GenericResponse[any]		"Internal server error"
 //	@Router			/api/v2/roles/{id} [patch]
 //	@x-api-type		{"admin":"true"}
 func (h *Handler) UpdateRole(c *gin.Context) {
@@ -286,13 +286,13 @@ func (h *Handler) ListUsersFromRole(c *gin.Context) {
 //	@ID				get_permission_by_id
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			id	path		int												true	"Permission ID"
+//	@Param			id	path		int											true	"Permission ID"
 //	@Success		200	{object}	dto.GenericResponse[PermissionDetailResp]	"Permission retrieved successfully"
-//	@Failure		400	{object}	dto.GenericResponse[any]						"Invalid permission ID"
-//	@Failure		401	{object}	dto.GenericResponse[any]						"Authentication required"
-//	@Failure		403	{object}	dto.GenericResponse[any]						"Permission denied"
-//	@Failure		404	{object}	dto.GenericResponse[any]						"Permission not found"
-//	@Failure		500	{object}	dto.GenericResponse[any]						"Internal server error"
+//	@Failure		400	{object}	dto.GenericResponse[any]					"Invalid permission ID"
+//	@Failure		401	{object}	dto.GenericResponse[any]					"Authentication required"
+//	@Failure		403	{object}	dto.GenericResponse[any]					"Permission denied"
+//	@Failure		404	{object}	dto.GenericResponse[any]					"Permission not found"
+//	@Failure		500	{object}	dto.GenericResponse[any]					"Internal server error"
 //	@Router			/api/v2/permissions/{id} [get]
 //	@x-api-type		{"admin":"true"}
 func (h *Handler) GetPermission(c *gin.Context) {
@@ -315,16 +315,16 @@ func (h *Handler) GetPermission(c *gin.Context) {
 //	@ID				list_permissions
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			page		query		int										false	"Page number"	default(1)
-//	@Param			size		query		int										false	"Page size"		default(20)
-//	@Param			action		query		string									false	"Filter by action"
-//	@Param			is_system	query		bool									false	"Filter by system permission"
-//	@Param			status		query		consts.StatusType						false	"Filter by status"
+//	@Param			page		query		int													false	"Page number"	default(1)
+//	@Param			size		query		int													false	"Page size"		default(20)
+//	@Param			action		query		string												false	"Filter by action"
+//	@Param			is_system	query		bool												false	"Filter by system permission"
+//	@Param			status		query		consts.StatusType									false	"Filter by status"
 //	@Success		200			{object}	dto.GenericResponse[dto.ListResp[PermissionResp]]	"Permissions retrieved successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]				"Invalid request format or parameters"
-//	@Failure		401			{object}	dto.GenericResponse[any]				"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]				"Permission denied"
-//	@Failure		500			{object}	dto.GenericResponse[any]				"Internal server error"
+//	@Failure		400			{object}	dto.GenericResponse[any]							"Invalid request format or parameters"
+//	@Failure		401			{object}	dto.GenericResponse[any]							"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]							"Permission denied"
+//	@Failure		500			{object}	dto.GenericResponse[any]							"Internal server error"
 //	@Router			/api/v2/permissions [get]
 //	@x-api-type		{"admin":"true"}
 func (h *Handler) ListPermissions(c *gin.Context) {
@@ -352,13 +352,13 @@ func (h *Handler) ListPermissions(c *gin.Context) {
 //	@ID				list_roles_with_permission
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			permission_id	path		int									true	"Permission ID"
+//	@Param			permission_id	path		int								true	"Permission ID"
 //	@Success		200				{object}	dto.GenericResponse[[]RoleResp]	"Roles retrieved successfully"
-//	@Failure		400				{object}	dto.GenericResponse[any]			"Invalid permission ID"
-//	@Failure		401				{object}	dto.GenericResponse[any]			"Authentication required"
-//	@Failure		403				{object}	dto.GenericResponse[any]			"Permission denied"
-//	@Failure		404				{object}	dto.GenericResponse[any]			"Permission not found"
-//	@Failure		500				{object}	dto.GenericResponse[any]			"Internal server error"
+//	@Failure		400				{object}	dto.GenericResponse[any]		"Invalid permission ID"
+//	@Failure		401				{object}	dto.GenericResponse[any]		"Authentication required"
+//	@Failure		403				{object}	dto.GenericResponse[any]		"Permission denied"
+//	@Failure		404				{object}	dto.GenericResponse[any]		"Permission not found"
+//	@Failure		500				{object}	dto.GenericResponse[any]		"Internal server error"
 //	@Router			/api/v2/permissions/{permission_id}/roles [get]
 //	@x-api-type		{"admin":"true"}
 func (h *Handler) ListRolesFromPermission(c *gin.Context) {
@@ -381,13 +381,13 @@ func (h *Handler) ListRolesFromPermission(c *gin.Context) {
 //	@ID				get_resource_by_id
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			id	path		int										true	"Resource ID"
+//	@Param			id	path		int									true	"Resource ID"
 //	@Success		200	{object}	dto.GenericResponse[ResourceResp]	"Resource retrieved successfully"
-//	@Failure		400	{object}	dto.GenericResponse[any]				"Invalid resource ID"
-//	@Failure		401	{object}	dto.GenericResponse[any]				"Authentication required"
-//	@Failure		403	{object}	dto.GenericResponse[any]				"Permission denied"
-//	@Failure		404	{object}	dto.GenericResponse[any]				"Resource not found"
-//	@Failure		500	{object}	dto.GenericResponse[any]				"Internal server error"
+//	@Failure		400	{object}	dto.GenericResponse[any]			"Invalid resource ID"
+//	@Failure		401	{object}	dto.GenericResponse[any]			"Authentication required"
+//	@Failure		403	{object}	dto.GenericResponse[any]			"Permission denied"
+//	@Failure		404	{object}	dto.GenericResponse[any]			"Resource not found"
+//	@Failure		500	{object}	dto.GenericResponse[any]			"Internal server error"
 //	@Router			/api/v2/resources/{id} [get]
 //	@x-api-type		{"admin":"true"}
 func (h *Handler) GetResource(c *gin.Context) {
@@ -410,15 +410,15 @@ func (h *Handler) GetResource(c *gin.Context) {
 //	@ID				list_resources
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			page		query		int													false	"Page number"	default(1)
-//	@Param			size		query		int													false	"Page size"		default(20)
-//	@Param			type		query		consts.ResourceType									false	"Filter by resource type"
-//	@Param			category	query		consts.ResourceCategory								false	"Filter by resource category"
+//	@Param			page		query		int												false	"Page number"	default(1)
+//	@Param			size		query		int												false	"Page size"		default(20)
+//	@Param			type		query		consts.ResourceType								false	"Filter by resource type"
+//	@Param			category	query		consts.ResourceCategory							false	"Filter by resource category"
 //	@Success		200			{object}	dto.GenericResponse[dto.ListResp[ResourceResp]]	"Resources retrieved successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]							"Invalid request format or parameters"
-//	@Failure		401			{object}	dto.GenericResponse[any]							"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]							"Permission denied"
-//	@Failure		500			{object}	dto.GenericResponse[any]							"Internal server error"
+//	@Failure		400			{object}	dto.GenericResponse[any]						"Invalid request format or parameters"
+//	@Failure		401			{object}	dto.GenericResponse[any]						"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]						"Permission denied"
+//	@Failure		500			{object}	dto.GenericResponse[any]						"Internal server error"
 //	@Router			/api/v2/resources [get]
 //	@x-api-type		{"admin":"true"}
 func (h *Handler) ListResources(c *gin.Context) {
@@ -446,13 +446,13 @@ func (h *Handler) ListResources(c *gin.Context) {
 //	@ID				list_resource_permissions
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			id	path		int											true	"Resource ID"
+//	@Param			id	path		int										true	"Resource ID"
 //	@Success		200	{object}	dto.GenericResponse[[]PermissionResp]	"Permissions retrieved successfully"
-//	@Failure		400	{object}	dto.GenericResponse[any]					"Invalid resource ID or request form"
-//	@Failure		401	{object}	dto.GenericResponse[any]					"Authentication required"
-//	@Failure		403	{object}	dto.GenericResponse[any]					"Permission denied"
-//	@Failure		404	{object}	dto.GenericResponse[any]					"Resource not found"
-//	@Failure		500	{object}	dto.GenericResponse[any]					"Internal server error"
+//	@Failure		400	{object}	dto.GenericResponse[any]				"Invalid resource ID or request form"
+//	@Failure		401	{object}	dto.GenericResponse[any]				"Authentication required"
+//	@Failure		403	{object}	dto.GenericResponse[any]				"Permission denied"
+//	@Failure		404	{object}	dto.GenericResponse[any]				"Resource not found"
+//	@Failure		500	{object}	dto.GenericResponse[any]				"Internal server error"
 //	@Router			/api/v2/resources/{id}/permissions [get]
 //	@x-api-type		{"admin":"true"}
 func (h *Handler) ListResourcePermissions(c *gin.Context) {

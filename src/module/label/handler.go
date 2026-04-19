@@ -1,4 +1,4 @@
-package labelmodule
+package label
 
 import (
 	"aegis/httpx"
@@ -26,7 +26,7 @@ func NewHandler(service HandlerService) *Handler { return &Handler{service: serv
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			request	body		BatchDeleteLabelReq		true	"Batch delete request"
+//	@Param			request	body		BatchDeleteLabelReq			true	"Batch delete request"
 //	@Success		200		{object}	dto.GenericResponse[any]	"Labels deleted successfully"
 //	@Failure		400		{object}	dto.GenericResponse[any]	"Invalid request format or parameters"
 //	@Failure		401		{object}	dto.GenericResponse[any]	"Authentication required"
@@ -59,13 +59,13 @@ func (h *Handler) BatchDeleteLabels(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			label	body		CreateLabelReq						true	"Label creation request"
-//	@Success		201		{object}	dto.GenericResponse[LabelResp]		"Label created successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]			"Invalid request format/parameters"
-//	@Failure		401		{object}	dto.GenericResponse[any]			"Authentication required"
-//	@Failure		403		{object}	dto.GenericResponse[any]			"Permission denied"
-//	@Failure		409		{object}	dto.GenericResponse[any]			"Label already exists"
-//	@Failure		500		{object}	dto.GenericResponse[any]			"Internal server error"
+//	@Param			label	body		CreateLabelReq					true	"Label creation request"
+//	@Success		201		{object}	dto.GenericResponse[LabelResp]	"Label created successfully"
+//	@Failure		400		{object}	dto.GenericResponse[any]		"Invalid request format/parameters"
+//	@Failure		401		{object}	dto.GenericResponse[any]		"Authentication required"
+//	@Failure		403		{object}	dto.GenericResponse[any]		"Permission denied"
+//	@Failure		409		{object}	dto.GenericResponse[any]		"Label already exists"
+//	@Failure		500		{object}	dto.GenericResponse[any]		"Internal server error"
 //	@Router			/api/v2/labels [post]
 //	@x-api-type		{"portal":"true"}
 func (h *Handler) CreateLabel(c *gin.Context) {
@@ -121,13 +121,13 @@ func (h *Handler) DeleteLabel(c *gin.Context) {
 //	@ID				get_label_by_id
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			label_id	path		int											true	"Label ID"
+//	@Param			label_id	path		int										true	"Label ID"
 //	@Success		200			{object}	dto.GenericResponse[LabelDetailResp]	"Label retrieved successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]					"Invalid label ID"
-//	@Failure		401			{object}	dto.GenericResponse[any]					"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]					"Permission denied"
-//	@Failure		404			{object}	dto.GenericResponse[any]					"Label not found"
-//	@Failure		500			{object}	dto.GenericResponse[any]					"Internal server error"
+//	@Failure		400			{object}	dto.GenericResponse[any]				"Invalid label ID"
+//	@Failure		401			{object}	dto.GenericResponse[any]				"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]				"Permission denied"
+//	@Failure		404			{object}	dto.GenericResponse[any]				"Label not found"
+//	@Failure		500			{object}	dto.GenericResponse[any]				"Internal server error"
 //	@Router			/api/v2/labels/{label_id} [get]
 //	@x-api-type		{"portal":"true"}
 func (h *Handler) GetLabelDetail(c *gin.Context) {
@@ -150,18 +150,18 @@ func (h *Handler) GetLabelDetail(c *gin.Context) {
 //	@ID				list_labels
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			page		query		int													false	"Page number"	default(1)
-//	@Param			size		query		int													false	"Page size"		default(20)
-//	@Param			key			query		string												false	"Filter by label key"
-//	@Param			value		query		string												false	"Filter by label value"
-//	@Param			category	query		consts.LabelCategory								false	"Filter by category"
-//	@Param			is_system	query		bool												false	"Filter by system label"
-//	@Param			status		query		consts.StatusType									false	"Filter by status"
+//	@Param			page		query		int												false	"Page number"	default(1)
+//	@Param			size		query		int												false	"Page size"		default(20)
+//	@Param			key			query		string											false	"Filter by label key"
+//	@Param			value		query		string											false	"Filter by label value"
+//	@Param			category	query		consts.LabelCategory							false	"Filter by category"
+//	@Param			is_system	query		bool											false	"Filter by system label"
+//	@Param			status		query		consts.StatusType								false	"Filter by status"
 //	@Success		200			{object}	dto.GenericResponse[dto.ListResp[LabelResp]]	"Labels retrieved successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]							"Invalid request format or parameters"
-//	@Failure		401			{object}	dto.GenericResponse[any]							"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]							"Permission denied"
-//	@Failure		500			{object}	dto.GenericResponse[any]							"Internal server error"
+//	@Failure		400			{object}	dto.GenericResponse[any]						"Invalid request format or parameters"
+//	@Failure		401			{object}	dto.GenericResponse[any]						"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]						"Permission denied"
+//	@Failure		500			{object}	dto.GenericResponse[any]						"Internal server error"
 //	@Router			/api/v2/labels [get]
 //	@x-api-type		{"portal":"true"}
 func (h *Handler) ListLabels(c *gin.Context) {
@@ -190,14 +190,14 @@ func (h *Handler) ListLabels(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			label_id	path		int									true	"Label ID"
-//	@Param			request		body		UpdateLabelReq						true	"Label update request"
-//	@Success		202			{object}	dto.GenericResponse[LabelResp]		"Label updated successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]			"Invalid label ID or invalid request format or parameters"
-//	@Failure		401			{object}	dto.GenericResponse[any]			"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]			"Permission denied"
-//	@Failure		404			{object}	dto.GenericResponse[any]			"Label not found"
-//	@Failure		500			{object}	dto.GenericResponse[any]			"Internal server error"
+//	@Param			label_id	path		int								true	"Label ID"
+//	@Param			request		body		UpdateLabelReq					true	"Label update request"
+//	@Success		202			{object}	dto.GenericResponse[LabelResp]	"Label updated successfully"
+//	@Failure		400			{object}	dto.GenericResponse[any]		"Invalid label ID or invalid request format or parameters"
+//	@Failure		401			{object}	dto.GenericResponse[any]		"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]		"Permission denied"
+//	@Failure		404			{object}	dto.GenericResponse[any]		"Label not found"
+//	@Failure		500			{object}	dto.GenericResponse[any]		"Internal server error"
 //	@Router			/api/v2/labels/{label_id} [patch]
 //	@x-api-type		{"portal":"true"}
 func (h *Handler) UpdateLabel(c *gin.Context) {

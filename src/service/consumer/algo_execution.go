@@ -13,9 +13,9 @@ import (
 	"aegis/config"
 	"aegis/consts"
 	"aegis/dto"
-	k8sinfra "aegis/infra/k8s"
-	redisinfra "aegis/infra/redis"
-	executionmodule "aegis/module/execution"
+	k8s "aegis/infra/k8s"
+	redis "aegis/infra/redis"
+	execution "aegis/module/execution"
 	"aegis/service/common"
 	"aegis/tracing"
 	"aegis/utils"
@@ -43,8 +43,8 @@ type algoJobCreationParams struct {
 	payload     *executionPayload
 }
 
-func (p *algoJobCreationParams) toK8sJobConfig(envVars []corev1.EnvVar, initContainers []corev1.Container, volumeMountconfigs []k8sinfra.VolumeMountConfig) *k8sinfra.JobConfig {
-	return &k8sinfra.JobConfig{
+func (p *algoJobCreationParams) toK8sJobConfig(envVars []corev1.EnvVar, initContainers []corev1.Container, volumeMountconfigs []k8s.VolumeMountConfig) *k8s.JobConfig {
+	return &k8s.JobConfig{
 		JobName:            p.jobName,
 		Image:              p.image,
 		Command:            strings.Split(p.payload.algorithm.Command, " "),
@@ -155,7 +155,7 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask, deps RuntimeDe
 }
 
 // rescheduleAlgoExecutionTask reschedules a algorithm execution task with a random delay between 1 to 5 minutes
-func rescheduleAlgoExecutionTask(ctx context.Context, db *gorm.DB, redisGateway *redisinfra.Gateway, task *dto.UnifiedTask, reason string) error {
+func rescheduleAlgoExecutionTask(ctx context.Context, db *gorm.DB, redisGateway *redis.Gateway, task *dto.UnifiedTask, reason string) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		span := trace.SpanFromContext(childCtx)
 
@@ -226,7 +226,7 @@ func parseExecutionPayload(payload map[string]any) (*executionPayload, error) {
 }
 
 // createAlgoJob creates and submits a Kubernetes job for algorithm execution
-func createAlgoJob(ctx context.Context, gateway *k8sinfra.Gateway, params *algoJobCreationParams) error {
+func createAlgoJob(ctx context.Context, gateway *k8s.Gateway, params *algoJobCreationParams) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		span := trace.SpanFromContext(childCtx)
 		logEntry := logrus.WithFields(logrus.Fields{
@@ -345,7 +345,7 @@ func createExecution(ctx context.Context, deps RuntimeDeps, taskID string, algor
 	if deps.ExecutionOwner == nil {
 		return 0, fmt.Errorf("execution owner service is nil")
 	}
-	return deps.ExecutionOwner.CreateExecution(ctx, &executionmodule.RuntimeCreateExecutionReq{
+	return deps.ExecutionOwner.CreateExecution(ctx, &execution.RuntimeCreateExecutionReq{
 		TaskID:             taskID,
 		AlgorithmVersionID: algorithmVersionID,
 		DatapackID:         datapackID,

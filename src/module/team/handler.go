@@ -1,4 +1,4 @@
-package teammodule
+package team
 
 import (
 	"aegis/httpx"
@@ -29,13 +29,13 @@ func NewHandler(service HandlerService) *Handler {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			request	body		CreateTeamReq						true	"Team creation request"
-//	@Success		201		{object}	dto.GenericResponse[TeamResp]		"Team created successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]			"Invalid request format or parameters"
-//	@Failure		401		{object}	dto.GenericResponse[any]			"Authentication required"
-//	@Failure		403		{object}	dto.GenericResponse[any]			"Permission denied"
-//	@Failure		409		{object}	dto.GenericResponse[any]			"Team already exists"
-//	@Failure		500		{object}	dto.GenericResponse[any]			"Internal server error"
+//	@Param			request	body		CreateTeamReq					true	"Team creation request"
+//	@Success		201		{object}	dto.GenericResponse[TeamResp]	"Team created successfully"
+//	@Failure		400		{object}	dto.GenericResponse[any]		"Invalid request format or parameters"
+//	@Failure		401		{object}	dto.GenericResponse[any]		"Authentication required"
+//	@Failure		403		{object}	dto.GenericResponse[any]		"Permission denied"
+//	@Failure		409		{object}	dto.GenericResponse[any]		"Team already exists"
+//	@Failure		500		{object}	dto.GenericResponse[any]		"Internal server error"
 //	@Router			/api/v2/teams [post]
 //	@x-api-type		{"portal":"true"}
 func (h *Handler) CreateTeam(c *gin.Context) {
@@ -96,13 +96,13 @@ func (h *Handler) DeleteTeam(c *gin.Context) {
 //	@ID				get_team_by_id
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			team_id	path		int										true	"Team ID"
+//	@Param			team_id	path		int									true	"Team ID"
 //	@Success		200		{object}	dto.GenericResponse[TeamDetailResp]	"Team retrieved successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]				"Invalid team ID"
-//	@Failure		401		{object}	dto.GenericResponse[any]				"Authentication required"
-//	@Failure		403		{object}	dto.GenericResponse[any]				"Permission denied"
-//	@Failure		404		{object}	dto.GenericResponse[any]				"Team not found"
-//	@Failure		500		{object}	dto.GenericResponse[any]				"Internal server error"
+//	@Failure		400		{object}	dto.GenericResponse[any]			"Invalid team ID"
+//	@Failure		401		{object}	dto.GenericResponse[any]			"Authentication required"
+//	@Failure		403		{object}	dto.GenericResponse[any]			"Permission denied"
+//	@Failure		404		{object}	dto.GenericResponse[any]			"Team not found"
+//	@Failure		500		{object}	dto.GenericResponse[any]			"Internal server error"
 //	@Router			/api/v2/teams/{team_id} [get]
 //	@x-api-type		{"portal":"true"}
 func (h *Handler) GetTeamDetail(c *gin.Context) {
@@ -125,15 +125,15 @@ func (h *Handler) GetTeamDetail(c *gin.Context) {
 //	@ID				list_teams
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			page		query		int												false	"Page number"	default(1)
-//	@Param			size		query		int												false	"Page size"		default(20)
-//	@Param			is_public	query		bool											false	"Filter by public status"
-//	@Param			status		query		consts.StatusType								false	"Filter by status"
+//	@Param			page		query		int											false	"Page number"	default(1)
+//	@Param			size		query		int											false	"Page size"		default(20)
+//	@Param			is_public	query		bool										false	"Filter by public status"
+//	@Param			status		query		consts.StatusType							false	"Filter by status"
 //	@Success		200			{object}	dto.GenericResponse[dto.ListResp[TeamResp]]	"Teams retrieved successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]						"Invalid request format or parameters"
-//	@Failure		401			{object}	dto.GenericResponse[any]						"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]						"Permission denied"
-//	@Failure		500			{object}	dto.GenericResponse[any]						"Internal server error"
+//	@Failure		400			{object}	dto.GenericResponse[any]					"Invalid request format or parameters"
+//	@Failure		401			{object}	dto.GenericResponse[any]					"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]					"Permission denied"
+//	@Failure		500			{object}	dto.GenericResponse[any]					"Internal server error"
 //	@Router			/api/v2/teams [get]
 //	@x-api-type		{"portal":"true"}
 func (h *Handler) ListTeams(c *gin.Context) {
@@ -167,14 +167,14 @@ func (h *Handler) ListTeams(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			team_id	path		int									true	"Team ID"
-//	@Param			request	body		UpdateTeamReq						true	"Team update request"
-//	@Success		202		{object}	dto.GenericResponse[TeamResp]		"Team updated successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]			"Invalid team ID or invalid request format or parameters"
-//	@Failure		401		{object}	dto.GenericResponse[any]			"Authentication required"
-//	@Failure		403		{object}	dto.GenericResponse[any]			"Permission denied"
-//	@Failure		404		{object}	dto.GenericResponse[any]			"Team not found"
-//	@Failure		500		{object}	dto.GenericResponse[any]			"Internal server error"
+//	@Param			team_id	path		int								true	"Team ID"
+//	@Param			request	body		UpdateTeamReq					true	"Team update request"
+//	@Success		202		{object}	dto.GenericResponse[TeamResp]	"Team updated successfully"
+//	@Failure		400		{object}	dto.GenericResponse[any]		"Invalid team ID or invalid request format or parameters"
+//	@Failure		401		{object}	dto.GenericResponse[any]		"Authentication required"
+//	@Failure		403		{object}	dto.GenericResponse[any]		"Permission denied"
+//	@Failure		404		{object}	dto.GenericResponse[any]		"Team not found"
+//	@Failure		500		{object}	dto.GenericResponse[any]		"Internal server error"
 //	@Router			/api/v2/teams/{team_id} [patch]
 //	@x-api-type		{"portal":"true"}
 func (h *Handler) UpdateTeam(c *gin.Context) {
@@ -379,15 +379,15 @@ func (h *Handler) UpdateTeamMemberRole(c *gin.Context) {
 //	@ID				list_team_members
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			team_id	path		int														true	"Team ID"
-//	@Param			page	query		int														false	"Page number"	default(1)
-//	@Param			size	query		int														false	"Page size"		default(20)
+//	@Param			team_id	path		int													true	"Team ID"
+//	@Param			page	query		int													false	"Page number"	default(1)
+//	@Param			size	query		int													false	"Page size"		default(20)
 //	@Success		200		{object}	dto.GenericResponse[dto.ListResp[TeamMemberResp]]	"Members retrieved successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]								"Invalid team ID or request parameters"
-//	@Failure		401		{object}	dto.GenericResponse[any]								"Authentication required"
-//	@Failure		403		{object}	dto.GenericResponse[any]								"Permission denied"
-//	@Failure		404		{object}	dto.GenericResponse[any]								"Team not found"
-//	@Failure		500		{object}	dto.GenericResponse[any]								"Internal server error"
+//	@Failure		400		{object}	dto.GenericResponse[any]							"Invalid team ID or request parameters"
+//	@Failure		401		{object}	dto.GenericResponse[any]							"Authentication required"
+//	@Failure		403		{object}	dto.GenericResponse[any]							"Permission denied"
+//	@Failure		404		{object}	dto.GenericResponse[any]							"Team not found"
+//	@Failure		500		{object}	dto.GenericResponse[any]							"Internal server error"
 //	@Router			/api/v2/teams/{team_id}/members [get]
 //	@x-api-type		{"portal":"true"}
 func (h *Handler) ListTeamMembers(c *gin.Context) {

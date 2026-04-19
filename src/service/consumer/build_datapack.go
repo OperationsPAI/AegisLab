@@ -16,8 +16,8 @@ import (
 	"aegis/config"
 	"aegis/consts"
 	"aegis/dto"
-	dbinfra "aegis/infra/db"
-	k8sinfra "aegis/infra/k8s"
+	db "aegis/infra/db"
+	k8s "aegis/infra/k8s"
 	"aegis/tracing"
 	"aegis/utils"
 )
@@ -35,11 +35,11 @@ type datapackJobCreationParams struct {
 	annotations map[string]string
 	labels      map[string]string
 	payload     *datapackPayload
-	dbConfig    *dbinfra.DatabaseConfig
+	dbConfig    *db.DatabaseConfig
 }
 
-func (p *datapackJobCreationParams) toK8sJobConfig(envVars []corev1.EnvVar, volumeMountConfigs []k8sinfra.VolumeMountConfig) *k8sinfra.JobConfig {
-	return &k8sinfra.JobConfig{
+func (p *datapackJobCreationParams) toK8sJobConfig(envVars []corev1.EnvVar, volumeMountConfigs []k8s.VolumeMountConfig) *k8s.JobConfig {
+	return &k8s.JobConfig{
 		JobName:            p.jobName,
 		Image:              p.image,
 		Command:            strings.Split(p.payload.benchmark.Command, " "),
@@ -91,7 +91,7 @@ func executeBuildDatapackWithDeps(ctx context.Context, task *dto.UnifiedTask, de
 			annotations: annotations,
 			labels:      jobLabels,
 			payload:     payload,
-			dbConfig:    dbinfra.NewDatabaseConfig("clickhouse"),
+			dbConfig:    db.NewDatabaseConfig("clickhouse"),
 		}
 		return createDatapackJob(childCtx, k8sGateway, params)
 	})
@@ -127,7 +127,7 @@ func parseDatapackPayload(payload map[string]any) (*datapackPayload, error) {
 	}, nil
 }
 
-func createDatapackJob(ctx context.Context, gateway *k8sinfra.Gateway, params *datapackJobCreationParams) error {
+func createDatapackJob(ctx context.Context, gateway *k8s.Gateway, params *datapackJobCreationParams) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		span := trace.SpanFromContext(childCtx)
 		logEntry := logrus.WithFields(logrus.Fields{
@@ -153,7 +153,7 @@ func createDatapackJob(ctx context.Context, gateway *k8sinfra.Gateway, params *d
 	})
 }
 
-func getDatapackJobEnvVars(taskID string, datapackPathPrefix string, payload *datapackPayload, dbConfig *dbinfra.DatabaseConfig) ([]corev1.EnvVar, error) {
+func getDatapackJobEnvVars(taskID string, datapackPathPrefix string, payload *datapackPayload, dbConfig *db.DatabaseConfig) ([]corev1.EnvVar, error) {
 	tz := config.GetString("system.timezone")
 	if tz == "" {
 		tz = time.Local.String()

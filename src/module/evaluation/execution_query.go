@@ -1,23 +1,23 @@
-package evaluationmodule
+package evaluation
 
 import (
 	"context"
 	"fmt"
 
 	"aegis/internalclient/orchestratorclient"
-	executionmodule "aegis/module/execution"
+	execution "aegis/module/execution"
 
 	"go.uber.org/fx"
 )
 
 type executionQuerySource interface {
-	ListEvaluationExecutionsByDatapack(context.Context, *executionmodule.EvaluationExecutionsByDatapackReq) ([]executionmodule.EvaluationExecutionItem, error)
-	ListEvaluationExecutionsByDataset(context.Context, *executionmodule.EvaluationExecutionsByDatasetReq) ([]executionmodule.EvaluationExecutionItem, error)
+	ListEvaluationExecutionsByDatapack(context.Context, *execution.EvaluationExecutionsByDatapackReq) ([]execution.EvaluationExecutionItem, error)
+	ListEvaluationExecutionsByDataset(context.Context, *execution.EvaluationExecutionsByDatasetReq) ([]execution.EvaluationExecutionItem, error)
 }
 
 type executionQueryAdapter struct {
 	orchestrator  *orchestratorclient.Client
-	local         *executionmodule.Service
+	local         *execution.Service
 	requireRemote bool
 }
 
@@ -25,7 +25,7 @@ type executionQuerySourceParams struct {
 	fx.In
 
 	Orchestrator *orchestratorclient.Client `optional:"true"`
-	Local        *executionmodule.Service   `optional:"true"`
+	Local        *execution.Service         `optional:"true"`
 }
 
 func newExecutionQuerySource(params executionQuerySourceParams) executionQuerySource {
@@ -44,7 +44,7 @@ func newRemoteExecutionQuerySource(params executionQuerySourceParams) executionQ
 	}
 }
 
-func (a executionQueryAdapter) ListEvaluationExecutionsByDatapack(ctx context.Context, req *executionmodule.EvaluationExecutionsByDatapackReq) ([]executionmodule.EvaluationExecutionItem, error) {
+func (a executionQueryAdapter) ListEvaluationExecutionsByDatapack(ctx context.Context, req *execution.EvaluationExecutionsByDatapackReq) ([]execution.EvaluationExecutionItem, error) {
 	if a.orchestrator != nil && a.orchestrator.Enabled() {
 		return a.orchestrator.ListEvaluationExecutionsByDatapack(ctx, req)
 	}
@@ -57,7 +57,7 @@ func (a executionQueryAdapter) ListEvaluationExecutionsByDatapack(ctx context.Co
 	return a.local.ListEvaluationExecutionsByDatapack(ctx, req)
 }
 
-func (a executionQueryAdapter) ListEvaluationExecutionsByDataset(ctx context.Context, req *executionmodule.EvaluationExecutionsByDatasetReq) ([]executionmodule.EvaluationExecutionItem, error) {
+func (a executionQueryAdapter) ListEvaluationExecutionsByDataset(ctx context.Context, req *execution.EvaluationExecutionsByDatasetReq) ([]execution.EvaluationExecutionItem, error) {
 	if a.orchestrator != nil && a.orchestrator.Enabled() {
 		return a.orchestrator.ListEvaluationExecutionsByDataset(ctx, req)
 	}

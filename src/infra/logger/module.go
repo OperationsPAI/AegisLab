@@ -1,4 +1,4 @@
-package loggerinfra
+package logger
 
 import (
 	"fmt"

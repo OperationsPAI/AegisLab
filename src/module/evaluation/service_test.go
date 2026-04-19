@@ -1,20 +1,20 @@
-package evaluationmodule
+package evaluation
 
 import (
 	"testing"
 
-	executionmodule "aegis/module/execution"
+	execution "aegis/module/execution"
 )
 
 func TestListEvaluationExecutionsRequiresQuerySource(t *testing.T) {
 	service := &Service{}
 
-	_, err := service.listEvaluationExecutionsByDatapack(t.Context(), &executionmodule.EvaluationExecutionsByDatapackReq{})
+	_, err := service.listEvaluationExecutionsByDatapack(t.Context(), &execution.EvaluationExecutionsByDatapackReq{})
 	if err == nil {
 		t.Fatalf("expected datapack query to fail without orchestrator or execution service")
 	}
 
-	_, err = service.listEvaluationExecutionsByDataset(t.Context(), &executionmodule.EvaluationExecutionsByDatasetReq{})
+	_, err = service.listEvaluationExecutionsByDataset(t.Context(), &execution.EvaluationExecutionsByDatasetReq{})
 	if err == nil {
 		t.Fatalf("expected dataset query to fail without orchestrator or execution service")
 	}

@@ -21,12 +21,12 @@ import (
 	"os"
 
 	"aegis/app"
-	gatewayapp "aegis/app/gateway"
-	iamapp "aegis/app/iam"
-	orchestratorapp "aegis/app/orchestrator"
-	resourceapp "aegis/app/resource"
+	gateway "aegis/app/gateway"
+	iam "aegis/app/iam"
+	orchestrator "aegis/app/orchestrator"
+	resource "aegis/app/resource"
 	runtimeapp "aegis/app/runtime"
-	systemapp "aegis/app/system"
+	system "aegis/app/system"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -75,22 +75,22 @@ func main() {
 		fx.New(app.BothOptions(viper.GetString("conf"), viper.GetString("port"))).Run()
 	})
 	apiGatewayCmd := newModeCommand("api-gateway", "Run as the API gateway", func() {
-		fx.New(gatewayapp.Options(viper.GetString("conf"), viper.GetString("port"))).Run()
+		fx.New(gateway.Options(viper.GetString("conf"), viper.GetString("port"))).Run()
 	})
 	iamServiceCmd := newModeCommand("iam-service", "Run as the IAM service", func() {
-		fx.New(iamapp.Options(viper.GetString("conf"))).Run()
+		fx.New(iam.Options(viper.GetString("conf"))).Run()
 	})
 	orchestratorServiceCmd := newModeCommand("orchestrator-service", "Run as the orchestrator service", func() {
-		fx.New(orchestratorapp.Options(viper.GetString("conf"))).Run()
+		fx.New(orchestrator.Options(viper.GetString("conf"))).Run()
 	})
 	resourceServiceCmd := newModeCommand("resource-service", "Run as the resource service", func() {
-		fx.New(resourceapp.Options(viper.GetString("conf"))).Run()
+		fx.New(resource.Options(viper.GetString("conf"))).Run()
 	})
 	runtimeWorkerServiceCmd := newModeCommand("runtime-worker-service", "Run as the runtime worker service", func() {
 		fx.New(runtimeapp.Options(viper.GetString("conf"))).Run()
 	})
 	systemServiceCmd := newModeCommand("system-service", "Run as the system service", func() {
-		fx.New(systemapp.Options(viper.GetString("conf"))).Run()
+		fx.New(system.Options(viper.GetString("conf"))).Run()
 	})
 
 	rootCmd.AddCommand(

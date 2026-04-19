@@ -9,8 +9,8 @@ import (
 	"aegis/consts"
 	"aegis/dto"
 	"aegis/httpx"
-	systemmodule "aegis/module/system"
-	systemmetricmodule "aegis/module/systemmetric"
+	system "aegis/module/system"
+	systemmetric "aegis/module/systemmetric"
 	systemv1 "aegis/proto/system/v1"
 
 	"go.uber.org/fx"
@@ -64,7 +64,7 @@ func (c *Client) Enabled() bool {
 	return c != nil && c.rpc != nil
 }
 
-func (c *Client) GetHealth(ctx context.Context) (*systemmodule.HealthCheckResp, error) {
+func (c *Client) GetHealth(ctx context.Context) (*system.HealthCheckResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("system grpc client is not configured")
 	}
@@ -72,10 +72,10 @@ func (c *Client) GetHealth(ctx context.Context) (*systemmodule.HealthCheckResp, 
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[systemmodule.HealthCheckResp](resp.GetData())
+	return decodeStruct[system.HealthCheckResp](resp.GetData())
 }
 
-func (c *Client) GetMetrics(ctx context.Context) (*systemmodule.MonitoringMetricsResp, error) {
+func (c *Client) GetMetrics(ctx context.Context) (*system.MonitoringMetricsResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("system grpc client is not configured")
 	}
@@ -83,10 +83,10 @@ func (c *Client) GetMetrics(ctx context.Context) (*systemmodule.MonitoringMetric
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[systemmodule.MonitoringMetricsResp](resp.GetData())
+	return decodeStruct[system.MonitoringMetricsResp](resp.GetData())
 }
 
-func (c *Client) GetSystemInfo(ctx context.Context) (*systemmodule.SystemInfo, error) {
+func (c *Client) GetSystemInfo(ctx context.Context) (*system.SystemInfo, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("system grpc client is not configured")
 	}
@@ -94,10 +94,10 @@ func (c *Client) GetSystemInfo(ctx context.Context) (*systemmodule.SystemInfo, e
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[systemmodule.SystemInfo](resp.GetData())
+	return decodeStruct[system.SystemInfo](resp.GetData())
 }
 
-func (c *Client) ListConfigs(ctx context.Context, req *systemmodule.ListConfigReq) (*dto.ListResp[systemmodule.ConfigResp], error) {
+func (c *Client) ListConfigs(ctx context.Context, req *system.ListConfigReq) (*dto.ListResp[system.ConfigResp], error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("system grpc client is not configured")
 	}
@@ -109,10 +109,10 @@ func (c *Client) ListConfigs(ctx context.Context, req *systemmodule.ListConfigRe
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[dto.ListResp[systemmodule.ConfigResp]](resp.GetData())
+	return decodeStruct[dto.ListResp[system.ConfigResp]](resp.GetData())
 }
 
-func (c *Client) GetConfig(ctx context.Context, configID int) (*systemmodule.ConfigDetailResp, error) {
+func (c *Client) GetConfig(ctx context.Context, configID int) (*system.ConfigDetailResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("system grpc client is not configured")
 	}
@@ -120,10 +120,10 @@ func (c *Client) GetConfig(ctx context.Context, configID int) (*systemmodule.Con
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[systemmodule.ConfigDetailResp](resp.GetData())
+	return decodeStruct[system.ConfigDetailResp](resp.GetData())
 }
 
-func (c *Client) ListAuditLogs(ctx context.Context, req *systemmodule.ListAuditLogReq) (*dto.ListResp[systemmodule.AuditLogResp], error) {
+func (c *Client) ListAuditLogs(ctx context.Context, req *system.ListAuditLogReq) (*dto.ListResp[system.AuditLogResp], error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("system grpc client is not configured")
 	}
@@ -135,10 +135,10 @@ func (c *Client) ListAuditLogs(ctx context.Context, req *systemmodule.ListAuditL
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[dto.ListResp[systemmodule.AuditLogResp]](resp.GetData())
+	return decodeStruct[dto.ListResp[system.AuditLogResp]](resp.GetData())
 }
 
-func (c *Client) GetAuditLog(ctx context.Context, auditLogID int) (*systemmodule.AuditLogDetailResp, error) {
+func (c *Client) GetAuditLog(ctx context.Context, auditLogID int) (*system.AuditLogDetailResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("system grpc client is not configured")
 	}
@@ -146,10 +146,10 @@ func (c *Client) GetAuditLog(ctx context.Context, auditLogID int) (*systemmodule
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[systemmodule.AuditLogDetailResp](resp.GetData())
+	return decodeStruct[system.AuditLogDetailResp](resp.GetData())
 }
 
-func (c *Client) ListNamespaceLocks(ctx context.Context) (*systemmodule.ListNamespaceLockResp, error) {
+func (c *Client) ListNamespaceLocks(ctx context.Context) (*system.ListNamespaceLockResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("system grpc client is not configured")
 	}
@@ -157,10 +157,10 @@ func (c *Client) ListNamespaceLocks(ctx context.Context) (*systemmodule.ListName
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[systemmodule.ListNamespaceLockResp](resp.GetData())
+	return decodeStruct[system.ListNamespaceLockResp](resp.GetData())
 }
 
-func (c *Client) ListQueuedTasks(ctx context.Context) (*systemmodule.QueuedTasksResp, error) {
+func (c *Client) ListQueuedTasks(ctx context.Context) (*system.QueuedTasksResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("system grpc client is not configured")
 	}
@@ -168,10 +168,10 @@ func (c *Client) ListQueuedTasks(ctx context.Context) (*systemmodule.QueuedTasks
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[systemmodule.QueuedTasksResp](resp.GetData())
+	return decodeStruct[system.QueuedTasksResp](resp.GetData())
 }
 
-func (c *Client) GetSystemMetrics(ctx context.Context) (*systemmetricmodule.SystemMetricsResp, error) {
+func (c *Client) GetSystemMetrics(ctx context.Context) (*systemmetric.SystemMetricsResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("system grpc client is not configured")
 	}
@@ -179,10 +179,10 @@ func (c *Client) GetSystemMetrics(ctx context.Context) (*systemmetricmodule.Syst
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[systemmetricmodule.SystemMetricsResp](resp.GetData())
+	return decodeStruct[systemmetric.SystemMetricsResp](resp.GetData())
 }
 
-func (c *Client) GetSystemMetricsHistory(ctx context.Context) (*systemmetricmodule.SystemMetricsHistoryResp, error) {
+func (c *Client) GetSystemMetricsHistory(ctx context.Context) (*systemmetric.SystemMetricsHistoryResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("system grpc client is not configured")
 	}
@@ -190,7 +190,7 @@ func (c *Client) GetSystemMetricsHistory(ctx context.Context) (*systemmetricmodu
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[systemmetricmodule.SystemMetricsHistoryResp](resp.GetData())
+	return decodeStruct[systemmetric.SystemMetricsHistoryResp](resp.GetData())
 }
 
 func toStructPB(value any) (*structpb.Struct, error) {

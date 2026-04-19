@@ -9,12 +9,12 @@ import (
 	"aegis/consts"
 	"aegis/dto"
 	"aegis/httpx"
-	chaossystemmodule "aegis/module/chaossystem"
-	containermodule "aegis/module/container"
-	datasetmodule "aegis/module/dataset"
-	evaluationmodule "aegis/module/evaluation"
-	labelmodule "aegis/module/label"
-	projectmodule "aegis/module/project"
+	chaossystem "aegis/module/chaossystem"
+	container "aegis/module/container"
+	dataset "aegis/module/dataset"
+	evaluation "aegis/module/evaluation"
+	label "aegis/module/label"
+	project "aegis/module/project"
 	resourcev1 "aegis/proto/resource/v1"
 
 	"go.uber.org/fx"
@@ -68,7 +68,7 @@ func (c *Client) Enabled() bool {
 	return c != nil && c.rpc != nil
 }
 
-func (c *Client) ListProjects(ctx context.Context, req *projectmodule.ListProjectReq) (*dto.ListResp[projectmodule.ProjectResp], error) {
+func (c *Client) ListProjects(ctx context.Context, req *project.ListProjectReq) (*dto.ListResp[project.ProjectResp], error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("resource grpc client is not configured")
 	}
@@ -80,10 +80,10 @@ func (c *Client) ListProjects(ctx context.Context, req *projectmodule.ListProjec
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[dto.ListResp[projectmodule.ProjectResp]](resp.GetData())
+	return decodeStruct[dto.ListResp[project.ProjectResp]](resp.GetData())
 }
 
-func (c *Client) GetProject(ctx context.Context, projectID int) (*projectmodule.ProjectDetailResp, error) {
+func (c *Client) GetProject(ctx context.Context, projectID int) (*project.ProjectDetailResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("resource grpc client is not configured")
 	}
@@ -91,10 +91,10 @@ func (c *Client) GetProject(ctx context.Context, projectID int) (*projectmodule.
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[projectmodule.ProjectDetailResp](resp.GetData())
+	return decodeStruct[project.ProjectDetailResp](resp.GetData())
 }
 
-func (c *Client) ListContainers(ctx context.Context, req *containermodule.ListContainerReq) (*dto.ListResp[containermodule.ContainerResp], error) {
+func (c *Client) ListContainers(ctx context.Context, req *container.ListContainerReq) (*dto.ListResp[container.ContainerResp], error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("resource grpc client is not configured")
 	}
@@ -106,10 +106,10 @@ func (c *Client) ListContainers(ctx context.Context, req *containermodule.ListCo
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[dto.ListResp[containermodule.ContainerResp]](resp.GetData())
+	return decodeStruct[dto.ListResp[container.ContainerResp]](resp.GetData())
 }
 
-func (c *Client) GetContainer(ctx context.Context, containerID int) (*containermodule.ContainerDetailResp, error) {
+func (c *Client) GetContainer(ctx context.Context, containerID int) (*container.ContainerDetailResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("resource grpc client is not configured")
 	}
@@ -117,10 +117,10 @@ func (c *Client) GetContainer(ctx context.Context, containerID int) (*containerm
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[containermodule.ContainerDetailResp](resp.GetData())
+	return decodeStruct[container.ContainerDetailResp](resp.GetData())
 }
 
-func (c *Client) ListDatasets(ctx context.Context, req *datasetmodule.ListDatasetReq) (*dto.ListResp[datasetmodule.DatasetResp], error) {
+func (c *Client) ListDatasets(ctx context.Context, req *dataset.ListDatasetReq) (*dto.ListResp[dataset.DatasetResp], error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("resource grpc client is not configured")
 	}
@@ -132,10 +132,10 @@ func (c *Client) ListDatasets(ctx context.Context, req *datasetmodule.ListDatase
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[dto.ListResp[datasetmodule.DatasetResp]](resp.GetData())
+	return decodeStruct[dto.ListResp[dataset.DatasetResp]](resp.GetData())
 }
 
-func (c *Client) GetDataset(ctx context.Context, datasetID int) (*datasetmodule.DatasetDetailResp, error) {
+func (c *Client) GetDataset(ctx context.Context, datasetID int) (*dataset.DatasetDetailResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("resource grpc client is not configured")
 	}
@@ -143,10 +143,10 @@ func (c *Client) GetDataset(ctx context.Context, datasetID int) (*datasetmodule.
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[datasetmodule.DatasetDetailResp](resp.GetData())
+	return decodeStruct[dataset.DatasetDetailResp](resp.GetData())
 }
 
-func (c *Client) CreateLabel(ctx context.Context, req *labelmodule.CreateLabelReq) (*labelmodule.LabelResp, error) {
+func (c *Client) CreateLabel(ctx context.Context, req *label.CreateLabelReq) (*label.LabelResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("resource grpc client is not configured")
 	}
@@ -158,10 +158,10 @@ func (c *Client) CreateLabel(ctx context.Context, req *labelmodule.CreateLabelRe
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[labelmodule.LabelResp](resp.GetData())
+	return decodeStruct[label.LabelResp](resp.GetData())
 }
 
-func (c *Client) GetLabel(ctx context.Context, labelID int) (*labelmodule.LabelDetailResp, error) {
+func (c *Client) GetLabel(ctx context.Context, labelID int) (*label.LabelDetailResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("resource grpc client is not configured")
 	}
@@ -169,10 +169,10 @@ func (c *Client) GetLabel(ctx context.Context, labelID int) (*labelmodule.LabelD
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[labelmodule.LabelDetailResp](resp.GetData())
+	return decodeStruct[label.LabelDetailResp](resp.GetData())
 }
 
-func (c *Client) ListLabels(ctx context.Context, req *labelmodule.ListLabelReq) (*dto.ListResp[labelmodule.LabelResp], error) {
+func (c *Client) ListLabels(ctx context.Context, req *label.ListLabelReq) (*dto.ListResp[label.LabelResp], error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("resource grpc client is not configured")
 	}
@@ -184,10 +184,10 @@ func (c *Client) ListLabels(ctx context.Context, req *labelmodule.ListLabelReq) 
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[dto.ListResp[labelmodule.LabelResp]](resp.GetData())
+	return decodeStruct[dto.ListResp[label.LabelResp]](resp.GetData())
 }
 
-func (c *Client) UpdateLabel(ctx context.Context, req *labelmodule.UpdateLabelReq, labelID int) (*labelmodule.LabelResp, error) {
+func (c *Client) UpdateLabel(ctx context.Context, req *label.UpdateLabelReq, labelID int) (*label.LabelResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("resource grpc client is not configured")
 	}
@@ -202,7 +202,7 @@ func (c *Client) UpdateLabel(ctx context.Context, req *labelmodule.UpdateLabelRe
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[labelmodule.LabelResp](resp.GetData())
+	return decodeStruct[label.LabelResp](resp.GetData())
 }
 
 func (c *Client) DeleteLabel(ctx context.Context, labelID int) error {
@@ -227,7 +227,7 @@ func (c *Client) BatchDeleteLabels(ctx context.Context, ids []int) error {
 	return nil
 }
 
-func (c *Client) ListChaosSystems(ctx context.Context, req *chaossystemmodule.ListChaosSystemReq) (*dto.ListResp[chaossystemmodule.ChaosSystemResp], error) {
+func (c *Client) ListChaosSystems(ctx context.Context, req *chaossystem.ListChaosSystemReq) (*dto.ListResp[chaossystem.ChaosSystemResp], error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("resource grpc client is not configured")
 	}
@@ -239,10 +239,10 @@ func (c *Client) ListChaosSystems(ctx context.Context, req *chaossystemmodule.Li
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[dto.ListResp[chaossystemmodule.ChaosSystemResp]](resp.GetData())
+	return decodeStruct[dto.ListResp[chaossystem.ChaosSystemResp]](resp.GetData())
 }
 
-func (c *Client) GetChaosSystem(ctx context.Context, systemID int) (*chaossystemmodule.ChaosSystemResp, error) {
+func (c *Client) GetChaosSystem(ctx context.Context, systemID int) (*chaossystem.ChaosSystemResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("resource grpc client is not configured")
 	}
@@ -250,10 +250,10 @@ func (c *Client) GetChaosSystem(ctx context.Context, systemID int) (*chaossystem
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[chaossystemmodule.ChaosSystemResp](resp.GetData())
+	return decodeStruct[chaossystem.ChaosSystemResp](resp.GetData())
 }
 
-func (c *Client) CreateChaosSystem(ctx context.Context, req *chaossystemmodule.CreateChaosSystemReq) (*chaossystemmodule.ChaosSystemResp, error) {
+func (c *Client) CreateChaosSystem(ctx context.Context, req *chaossystem.CreateChaosSystemReq) (*chaossystem.ChaosSystemResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("resource grpc client is not configured")
 	}
@@ -265,10 +265,10 @@ func (c *Client) CreateChaosSystem(ctx context.Context, req *chaossystemmodule.C
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[chaossystemmodule.ChaosSystemResp](resp.GetData())
+	return decodeStruct[chaossystem.ChaosSystemResp](resp.GetData())
 }
 
-func (c *Client) UpdateChaosSystem(ctx context.Context, req *chaossystemmodule.UpdateChaosSystemReq, systemID int) (*chaossystemmodule.ChaosSystemResp, error) {
+func (c *Client) UpdateChaosSystem(ctx context.Context, req *chaossystem.UpdateChaosSystemReq, systemID int) (*chaossystem.ChaosSystemResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("resource grpc client is not configured")
 	}
@@ -283,7 +283,7 @@ func (c *Client) UpdateChaosSystem(ctx context.Context, req *chaossystemmodule.U
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[chaossystemmodule.ChaosSystemResp](resp.GetData())
+	return decodeStruct[chaossystem.ChaosSystemResp](resp.GetData())
 }
 
 func (c *Client) DeleteChaosSystem(ctx context.Context, systemID int) error {
@@ -297,7 +297,7 @@ func (c *Client) DeleteChaosSystem(ctx context.Context, systemID int) error {
 	return nil
 }
 
-func (c *Client) UpsertChaosSystemMetadata(ctx context.Context, systemID int, req *chaossystemmodule.BulkUpsertSystemMetadataReq) error {
+func (c *Client) UpsertChaosSystemMetadata(ctx context.Context, systemID int, req *chaossystem.BulkUpsertSystemMetadataReq) error {
 	if !c.Enabled() {
 		return fmt.Errorf("resource grpc client is not configured")
 	}
@@ -315,7 +315,7 @@ func (c *Client) UpsertChaosSystemMetadata(ctx context.Context, systemID int, re
 	return nil
 }
 
-func (c *Client) ListChaosSystemMetadata(ctx context.Context, systemID int, metadataType string) ([]chaossystemmodule.SystemMetadataResp, error) {
+func (c *Client) ListChaosSystemMetadata(ctx context.Context, systemID int, metadataType string) ([]chaossystem.SystemMetadataResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("resource grpc client is not configured")
 	}
@@ -331,7 +331,7 @@ func (c *Client) ListChaosSystemMetadata(ctx context.Context, systemID int, meta
 		return nil, mapRPCError(err)
 	}
 	items, err := decodeStruct[struct {
-		Items []chaossystemmodule.SystemMetadataResp `json:"items"`
+		Items []chaossystem.SystemMetadataResp `json:"items"`
 	}](resp.GetData())
 	if err != nil {
 		return nil, err
@@ -339,7 +339,7 @@ func (c *Client) ListChaosSystemMetadata(ctx context.Context, systemID int, meta
 	return items.Items, nil
 }
 
-func (c *Client) ListDatapackEvaluationResults(ctx context.Context, req *evaluationmodule.BatchEvaluateDatapackReq, userID int) (*evaluationmodule.BatchEvaluateDatapackResp, error) {
+func (c *Client) ListDatapackEvaluationResults(ctx context.Context, req *evaluation.BatchEvaluateDatapackReq, userID int) (*evaluation.BatchEvaluateDatapackResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("resource grpc client is not configured")
 	}
@@ -354,10 +354,10 @@ func (c *Client) ListDatapackEvaluationResults(ctx context.Context, req *evaluat
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[evaluationmodule.BatchEvaluateDatapackResp](resp.GetData())
+	return decodeStruct[evaluation.BatchEvaluateDatapackResp](resp.GetData())
 }
 
-func (c *Client) ListDatasetEvaluationResults(ctx context.Context, req *evaluationmodule.BatchEvaluateDatasetReq, userID int) (*evaluationmodule.BatchEvaluateDatasetResp, error) {
+func (c *Client) ListDatasetEvaluationResults(ctx context.Context, req *evaluation.BatchEvaluateDatasetReq, userID int) (*evaluation.BatchEvaluateDatasetResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("resource grpc client is not configured")
 	}
@@ -372,10 +372,10 @@ func (c *Client) ListDatasetEvaluationResults(ctx context.Context, req *evaluati
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[evaluationmodule.BatchEvaluateDatasetResp](resp.GetData())
+	return decodeStruct[evaluation.BatchEvaluateDatasetResp](resp.GetData())
 }
 
-func (c *Client) ListEvaluations(ctx context.Context, req *evaluationmodule.ListEvaluationReq) (*dto.ListResp[evaluationmodule.EvaluationResp], error) {
+func (c *Client) ListEvaluations(ctx context.Context, req *evaluation.ListEvaluationReq) (*dto.ListResp[evaluation.EvaluationResp], error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("resource grpc client is not configured")
 	}
@@ -387,10 +387,10 @@ func (c *Client) ListEvaluations(ctx context.Context, req *evaluationmodule.List
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[dto.ListResp[evaluationmodule.EvaluationResp]](resp.GetData())
+	return decodeStruct[dto.ListResp[evaluation.EvaluationResp]](resp.GetData())
 }
 
-func (c *Client) GetEvaluation(ctx context.Context, evaluationID int) (*evaluationmodule.EvaluationResp, error) {
+func (c *Client) GetEvaluation(ctx context.Context, evaluationID int) (*evaluation.EvaluationResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("resource grpc client is not configured")
 	}
@@ -398,7 +398,7 @@ func (c *Client) GetEvaluation(ctx context.Context, evaluationID int) (*evaluati
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[evaluationmodule.EvaluationResp](resp.GetData())
+	return decodeStruct[evaluation.EvaluationResp](resp.GetData())
 }
 
 func (c *Client) DeleteEvaluation(ctx context.Context, evaluationID int) error {

@@ -1,4 +1,4 @@
-package taskmodule
+package task
 
 import "go.uber.org/fx"
 

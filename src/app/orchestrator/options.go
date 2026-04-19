@@ -1,13 +1,13 @@
-package orchestratorapp
+package orchestrator
 
 import (
 	"aegis/app"
-	grpcorchestratorinterface "aegis/interface/grpcorchestrator"
-	groupmodule "aegis/module/group"
-	metricmodule "aegis/module/metric"
-	notificationmodule "aegis/module/notification"
-	taskmodule "aegis/module/task"
-	tracemodule "aegis/module/trace"
+	grpcorchestrator "aegis/interface/grpc/orchestrator"
+	group "aegis/module/group"
+	metric "aegis/module/metric"
+	notification "aegis/module/notification"
+	task "aegis/module/task"
+	trace "aegis/module/trace"
 
 	"go.uber.org/fx"
 )
@@ -19,11 +19,11 @@ func Options(confPath string) fx.Option {
 		app.ObserveOptions(),
 		app.DataOptions(),
 		app.ExecutionInjectionOwnerModules(),
-		groupmodule.Module,
-		metricmodule.Module,
-		notificationmodule.Module,
-		taskmodule.Module,
-		tracemodule.Module,
-		grpcorchestratorinterface.Module,
+		group.Module,
+		metric.Module,
+		notification.Module,
+		task.Module,
+		trace.Module,
+		grpcorchestrator.Module,
 	)
 }

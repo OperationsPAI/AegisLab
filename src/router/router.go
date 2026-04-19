@@ -10,12 +10,8 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
-func New(handlers *Handlers, services ...middleware.Service) *gin.Engine {
+func New(handlers *Handlers, middlewareService middleware.Service) *gin.Engine {
 	router := gin.Default()
-	var middlewareService middleware.Service
-	if len(services) > 0 {
-		middlewareService = services[0]
-	}
 
 	// CORS configuration
 	config := cors.DefaultConfig()
@@ -40,11 +36,8 @@ func New(handlers *Handlers, services ...middleware.Service) *gin.Engine {
 	v2 := router.Group("/api/v2")
 	SetupPublicV2Routes(v2, handlers)
 	SetupSDKV2Routes(v2, handlers)
-	SetupRuntimeV2Routes(v2, handlers)
 	SetupAdminV2Routes(v2, handlers)
 	SetupPortalV2Routes(v2, handlers)
-	SetupSystemV2Routes(v2, handlers)
-	SetupSystemRoutes(router, handlers)
 
 	// Swagger documentation
 	router.GET("/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

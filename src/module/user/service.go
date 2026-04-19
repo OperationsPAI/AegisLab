@@ -1,4 +1,4 @@
-package usermodule
+package user
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"aegis/consts"
 	"aegis/dto"
 	"aegis/model"
-	rbacmodule "aegis/module/rbac"
+	rbac "aegis/module/rbac"
 
 	"gorm.io/gorm"
 )
@@ -83,14 +83,14 @@ func (s *Service) GetUserDetail(_ context.Context, userID int) (*UserDetailResp,
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user detail relations: %w", err)
 	}
-	resp.GlobalRoles = make([]rbacmodule.RoleResp, len(globalRoles))
+	resp.GlobalRoles = make([]rbac.RoleResp, len(globalRoles))
 	for i, role := range globalRoles {
-		resp.GlobalRoles[i] = *rbacmodule.NewRoleResp(&role)
+		resp.GlobalRoles[i] = *rbac.NewRoleResp(&role)
 	}
 
-	resp.Permissions = make([]rbacmodule.PermissionResp, len(permissions))
+	resp.Permissions = make([]rbac.PermissionResp, len(permissions))
 	for i, permission := range permissions {
-		resp.Permissions[i] = *rbacmodule.NewPermissionResp(&permission)
+		resp.Permissions[i] = *rbac.NewPermissionResp(&permission)
 	}
 
 	containerRoles, datasetRoles, projectRoles := buildUserResourceRoles(userContainers, userDatasets, userProjects)

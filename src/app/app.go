@@ -1,53 +1,53 @@
 package app
 
 import (
-	buildkitinfra "aegis/infra/buildkit"
-	configinfra "aegis/infra/config"
-	dbinfra "aegis/infra/db"
-	etcdinfra "aegis/infra/etcd"
-	harborinfra "aegis/infra/harbor"
-	helminfra "aegis/infra/helm"
-	loggerinfra "aegis/infra/logger"
-	lokiinfra "aegis/infra/loki"
-	redisinfra "aegis/infra/redis"
-	tracinginfra "aegis/infra/tracing"
+	buildkit "aegis/infra/buildkit"
+	config "aegis/infra/config"
+	db "aegis/infra/db"
+	etcd "aegis/infra/etcd"
+	harbor "aegis/infra/harbor"
+	helm "aegis/infra/helm"
+	logger "aegis/infra/logger"
+	loki "aegis/infra/loki"
+	redis "aegis/infra/redis"
+	tracing "aegis/infra/tracing"
 
 	"go.uber.org/fx"
 )
 
 func BaseOptions(confPath string) fx.Option {
 	return fx.Options(
-		fx.Supply(configinfra.Params{Path: confPath}),
-		configinfra.Module,
-		loggerinfra.Module,
+		fx.Supply(config.Params{Path: confPath}),
+		config.Module,
+		logger.Module,
 	)
 }
 
 func ObserveOptions() fx.Option {
 	return fx.Options(
-		lokiinfra.Module,
-		tracinginfra.Module,
+		loki.Module,
+		tracing.Module,
 	)
 }
 
 func DataOptions() fx.Option {
 	return fx.Options(
-		dbinfra.Module,
-		redisinfra.Module,
+		db.Module,
+		redis.Module,
 	)
 }
 
 func CoordinationOptions() fx.Option {
 	return fx.Options(
-		etcdinfra.Module,
+		etcd.Module,
 	)
 }
 
 func BuildInfraOptions() fx.Option {
 	return fx.Options(
-		harborinfra.Module,
-		helminfra.Module,
-		buildkitinfra.Module,
+		harbor.Module,
+		helm.Module,
+		buildkit.Module,
 	)
 }
 

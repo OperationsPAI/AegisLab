@@ -1,4 +1,4 @@
-package httpinterface
+package httpapi
 
 import (
 	"context"

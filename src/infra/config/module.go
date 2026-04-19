@@ -1,4 +1,4 @@
-package configinfra
+package config
 
 import (
 	"aegis/config"

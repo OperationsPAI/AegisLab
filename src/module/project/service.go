@@ -1,4 +1,4 @@
-package projectmodule
+package project
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"aegis/consts"
 	"aegis/dto"
 	"aegis/model"
-	labelmodule "aegis/module/label"
+	label "aegis/module/label"
 
 	"gorm.io/gorm"
 )
@@ -178,7 +178,7 @@ func (s *Service) ManageProjectLabels(ctx context.Context, req *ManageProjectLab
 		repo := NewRepository(tx)
 		addLabelIDs := make([]int, 0, len(req.AddLabels))
 		if len(req.AddLabels) > 0 {
-			labels, err := labelmodule.NewRepository(tx).CreateOrUpdateLabelsFromItems(tx, req.AddLabels, consts.ProjectCategory)
+			labels, err := label.NewRepository(tx).CreateOrUpdateLabelsFromItems(tx, req.AddLabels, consts.ProjectCategory)
 			if err != nil {
 				return fmt.Errorf("failed to create or update labels: %w", err)
 			}

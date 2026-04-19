@@ -1,4 +1,4 @@
-package projectmodule
+package project
 
 import (
 	"fmt"
@@ -8,13 +8,13 @@ import (
 	"aegis/consts"
 	"aegis/dto"
 	"aegis/model"
-	containermodule "aegis/module/container"
-	datasetmodule "aegis/module/dataset"
-	injectionmodule "aegis/module/injection"
+	container "aegis/module/container"
+	dataset "aegis/module/dataset"
+	injection "aegis/module/injection"
 )
 
-type ProjectContainerItem = containermodule.ContainerResp
-type ProjectDatasetItem = datasetmodule.DatasetResp
+type ProjectContainerItem = container.ContainerResp
+type ProjectDatasetItem = dataset.DatasetResp
 
 // CreateProjectReq represents project creation request.
 type CreateProjectReq struct {
@@ -161,10 +161,10 @@ func NewProjectResp(project *model.Project, stats *dto.ProjectStatistics) *Proje
 type ProjectDetailResp struct {
 	ProjectResp
 
-	Containers []ProjectContainerItem          `json:"containers,omitempty"`
-	Datapacks  []injectionmodule.InjectionResp `json:"datapacks,omitempty"`
-	Datasets   []ProjectDatasetItem            `json:"datasets,omitempty"`
-	UserCount  int                             `json:"user_count"`
+	Containers []ProjectContainerItem    `json:"containers,omitempty"`
+	Datapacks  []injection.InjectionResp `json:"datapacks,omitempty"`
+	Datasets   []ProjectDatasetItem      `json:"datasets,omitempty"`
+	UserCount  int                       `json:"user_count"`
 }
 
 func NewProjectDetailResp(project *model.Project, stats *dto.ProjectStatistics) *ProjectDetailResp {

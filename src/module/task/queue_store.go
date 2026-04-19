@@ -1,11 +1,11 @@
-package taskmodule
+package task
 
 import (
 	"context"
 	"fmt"
 
 	redisinfra "aegis/infra/redis"
-	"github.com/redis/go-redis/v9"
+	goredis "github.com/redis/go-redis/v9"
 )
 
 const jobLogsChannelPrefix = "joblogs"
@@ -18,7 +18,7 @@ func NewTaskQueueStore(redis *redisinfra.Gateway) *TaskQueueStore {
 	return &TaskQueueStore{redis: redis}
 }
 
-func (s *TaskQueueStore) SubscribeJobLogs(ctx context.Context, taskID string) (*redis.PubSub, error) {
+func (s *TaskQueueStore) SubscribeJobLogs(ctx context.Context, taskID string) (*goredis.PubSub, error) {
 	channel := fmt.Sprintf("%s:%s", jobLogsChannelPrefix, taskID)
 	return s.redis.Subscribe(ctx, channel)
 }

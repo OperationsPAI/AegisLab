@@ -1,4 +1,4 @@
-package authmodule
+package auth
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 
 	"aegis/consts"
 	"aegis/model"
-	usermodule "aegis/module/user"
+	user "aegis/module/user"
 	"aegis/utils"
 
 	"github.com/sirupsen/logrus"
@@ -523,32 +523,32 @@ func (s *Service) generateAPIKeyTokenWithRoles(roleRepo *RoleRepository, user *m
 	return token, expiresAt, nil
 }
 
-func (s *Service) getAllUserResourceRoles(userID int) ([]usermodule.UserContainerInfo, []usermodule.UserDatasetInfo, []usermodule.UserProjectInfo, error) {
+func (s *Service) getAllUserResourceRoles(userID int) ([]user.UserContainerInfo, []user.UserDatasetInfo, []user.UserProjectInfo, error) {
 	userContainers, err := s.userRepo.ListContainerRoles(userID)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to list user-container roles: %w", err)
 	}
-	containerRoles := make([]usermodule.UserContainerInfo, 0, len(userContainers))
+	containerRoles := make([]user.UserContainerInfo, 0, len(userContainers))
 	for _, uc := range userContainers {
-		containerRoles = append(containerRoles, *usermodule.NewUserContainerInfo(&uc))
+		containerRoles = append(containerRoles, *user.NewUserContainerInfo(&uc))
 	}
 
 	userDatasets, err := s.userRepo.ListDatasetRoles(userID)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to list user-dataset roles: %w", err)
 	}
-	datasetRoles := make([]usermodule.UserDatasetInfo, 0, len(userDatasets))
+	datasetRoles := make([]user.UserDatasetInfo, 0, len(userDatasets))
 	for _, ud := range userDatasets {
-		datasetRoles = append(datasetRoles, *usermodule.NewUserDatasetInfo(&ud))
+		datasetRoles = append(datasetRoles, *user.NewUserDatasetInfo(&ud))
 	}
 
 	userProjects, err := s.userRepo.ListProjectRoles(userID)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to list user-project roles: %w", err)
 	}
-	projectRoles := make([]usermodule.UserProjectInfo, 0, len(userProjects))
+	projectRoles := make([]user.UserProjectInfo, 0, len(userProjects))
 	for _, up := range userProjects {
-		projectRoles = append(projectRoles, *usermodule.NewUserProjectInfo(&up))
+		projectRoles = append(projectRoles, *user.NewUserProjectInfo(&up))
 	}
 
 	return containerRoles, datasetRoles, projectRoles, nil

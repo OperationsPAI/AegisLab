@@ -1,4 +1,4 @@
-package etcdinfra
+package etcd
 
 import "go.uber.org/fx"
 

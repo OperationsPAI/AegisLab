@@ -1,4 +1,4 @@
-package evaluationmodule
+package evaluation
 
 import (
 	"context"

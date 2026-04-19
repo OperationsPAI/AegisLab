@@ -1,15 +1,15 @@
-package resourceapp
+package resource
 
 import (
 	"aegis/app"
-	grpcresourceinterface "aegis/interface/grpcresource"
+	grpcresource "aegis/interface/grpc/resource"
 	"aegis/internalclient/orchestratorclient"
-	chaossystemmodule "aegis/module/chaossystem"
-	containermodule "aegis/module/container"
-	datasetmodule "aegis/module/dataset"
-	evaluationmodule "aegis/module/evaluation"
-	labelmodule "aegis/module/label"
-	projectmodule "aegis/module/project"
+	chaossystem "aegis/module/chaossystem"
+	container "aegis/module/container"
+	dataset "aegis/module/dataset"
+	evaluation "aegis/module/evaluation"
+	label "aegis/module/label"
+	project "aegis/module/project"
 
 	"go.uber.org/fx"
 )
@@ -25,14 +25,14 @@ func Options(confPath string) fx.Option {
 			app.RequiredConfigTarget{Name: "orchestrator-service", PrimaryKey: "clients.orchestrator.target", LegacyKey: "orchestrator.grpc.target"},
 		),
 		orchestratorclient.Module,
-		evaluationmodule.RemoteQueryOption(),
-		projectmodule.RemoteStatisticsOption(),
-		chaossystemmodule.Module,
-		containermodule.Module,
-		datasetmodule.Module,
-		evaluationmodule.Module,
-		labelmodule.Module,
-		projectmodule.Module,
-		grpcresourceinterface.Module,
+		evaluation.RemoteQueryOption(),
+		project.RemoteStatisticsOption(),
+		chaossystem.Module,
+		container.Module,
+		dataset.Module,
+		evaluation.Module,
+		label.Module,
+		project.Module,
+		grpcresource.Module,
 	)
 }

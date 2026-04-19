@@ -1,36 +1,36 @@
-package gatewayapp
+package gateway
 
 import (
 	"context"
 
 	"aegis/dto"
-	rbacmodule "aegis/module/rbac"
+	rbac "aegis/module/rbac"
 )
 
 type rbacIAMClient interface {
 	Enabled() bool
-	CreateRole(context.Context, *rbacmodule.CreateRoleReq) (*rbacmodule.RoleResp, error)
+	CreateRole(context.Context, *rbac.CreateRoleReq) (*rbac.RoleResp, error)
 	DeleteRole(context.Context, int) error
-	GetRole(context.Context, int) (*rbacmodule.RoleDetailResp, error)
-	ListRoles(context.Context, *rbacmodule.ListRoleReq) (*dto.ListResp[rbacmodule.RoleResp], error)
-	UpdateRole(context.Context, *rbacmodule.UpdateRoleReq, int) (*rbacmodule.RoleResp, error)
+	GetRole(context.Context, int) (*rbac.RoleDetailResp, error)
+	ListRoles(context.Context, *rbac.ListRoleReq) (*dto.ListResp[rbac.RoleResp], error)
+	UpdateRole(context.Context, *rbac.UpdateRoleReq, int) (*rbac.RoleResp, error)
 	AssignRolePermissions(context.Context, int, []int) error
 	RemoveRolePermissions(context.Context, int, []int) error
-	ListUsersFromRole(context.Context, int) ([]rbacmodule.UserListItem, error)
-	GetPermission(context.Context, int) (*rbacmodule.PermissionDetailResp, error)
-	ListPermissions(context.Context, *rbacmodule.ListPermissionReq) (*dto.ListResp[rbacmodule.PermissionResp], error)
-	ListRolesFromPermission(context.Context, int) ([]rbacmodule.RoleResp, error)
-	GetResource(context.Context, int) (*rbacmodule.ResourceResp, error)
-	ListResources(context.Context, *rbacmodule.ListResourceReq) (*dto.ListResp[rbacmodule.ResourceResp], error)
-	ListResourcePermissions(context.Context, int) ([]rbacmodule.PermissionResp, error)
+	ListUsersFromRole(context.Context, int) ([]rbac.UserListItem, error)
+	GetPermission(context.Context, int) (*rbac.PermissionDetailResp, error)
+	ListPermissions(context.Context, *rbac.ListPermissionReq) (*dto.ListResp[rbac.PermissionResp], error)
+	ListRolesFromPermission(context.Context, int) ([]rbac.RoleResp, error)
+	GetResource(context.Context, int) (*rbac.ResourceResp, error)
+	ListResources(context.Context, *rbac.ListResourceReq) (*dto.ListResp[rbac.ResourceResp], error)
+	ListResourcePermissions(context.Context, int) ([]rbac.PermissionResp, error)
 }
 
 type remoteAwareRBACService struct {
-	rbacmodule.HandlerService
+	rbac.HandlerService
 	iam rbacIAMClient
 }
 
-func (s remoteAwareRBACService) CreateRole(ctx context.Context, req *rbacmodule.CreateRoleReq) (*rbacmodule.RoleResp, error) {
+func (s remoteAwareRBACService) CreateRole(ctx context.Context, req *rbac.CreateRoleReq) (*rbac.RoleResp, error) {
 	if s.iam != nil && s.iam.Enabled() {
 		return s.iam.CreateRole(ctx, req)
 	}
@@ -44,21 +44,21 @@ func (s remoteAwareRBACService) DeleteRole(ctx context.Context, roleID int) erro
 	return missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareRBACService) GetRole(ctx context.Context, roleID int) (*rbacmodule.RoleDetailResp, error) {
+func (s remoteAwareRBACService) GetRole(ctx context.Context, roleID int) (*rbac.RoleDetailResp, error) {
 	if s.iam != nil && s.iam.Enabled() {
 		return s.iam.GetRole(ctx, roleID)
 	}
 	return nil, missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareRBACService) ListRoles(ctx context.Context, req *rbacmodule.ListRoleReq) (*dto.ListResp[rbacmodule.RoleResp], error) {
+func (s remoteAwareRBACService) ListRoles(ctx context.Context, req *rbac.ListRoleReq) (*dto.ListResp[rbac.RoleResp], error) {
 	if s.iam != nil && s.iam.Enabled() {
 		return s.iam.ListRoles(ctx, req)
 	}
 	return nil, missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareRBACService) UpdateRole(ctx context.Context, req *rbacmodule.UpdateRoleReq, roleID int) (*rbacmodule.RoleResp, error) {
+func (s remoteAwareRBACService) UpdateRole(ctx context.Context, req *rbac.UpdateRoleReq, roleID int) (*rbac.RoleResp, error) {
 	if s.iam != nil && s.iam.Enabled() {
 		return s.iam.UpdateRole(ctx, req, roleID)
 	}
@@ -79,49 +79,49 @@ func (s remoteAwareRBACService) RemoveRolePermissions(ctx context.Context, permi
 	return missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareRBACService) ListUsersFromRole(ctx context.Context, roleID int) ([]rbacmodule.UserListItem, error) {
+func (s remoteAwareRBACService) ListUsersFromRole(ctx context.Context, roleID int) ([]rbac.UserListItem, error) {
 	if s.iam != nil && s.iam.Enabled() {
 		return s.iam.ListUsersFromRole(ctx, roleID)
 	}
 	return nil, missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareRBACService) GetPermission(ctx context.Context, permissionID int) (*rbacmodule.PermissionDetailResp, error) {
+func (s remoteAwareRBACService) GetPermission(ctx context.Context, permissionID int) (*rbac.PermissionDetailResp, error) {
 	if s.iam != nil && s.iam.Enabled() {
 		return s.iam.GetPermission(ctx, permissionID)
 	}
 	return nil, missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareRBACService) ListPermissions(ctx context.Context, req *rbacmodule.ListPermissionReq) (*dto.ListResp[rbacmodule.PermissionResp], error) {
+func (s remoteAwareRBACService) ListPermissions(ctx context.Context, req *rbac.ListPermissionReq) (*dto.ListResp[rbac.PermissionResp], error) {
 	if s.iam != nil && s.iam.Enabled() {
 		return s.iam.ListPermissions(ctx, req)
 	}
 	return nil, missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareRBACService) ListRolesFromPermission(ctx context.Context, permissionID int) ([]rbacmodule.RoleResp, error) {
+func (s remoteAwareRBACService) ListRolesFromPermission(ctx context.Context, permissionID int) ([]rbac.RoleResp, error) {
 	if s.iam != nil && s.iam.Enabled() {
 		return s.iam.ListRolesFromPermission(ctx, permissionID)
 	}
 	return nil, missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareRBACService) GetResource(ctx context.Context, resourceID int) (*rbacmodule.ResourceResp, error) {
+func (s remoteAwareRBACService) GetResource(ctx context.Context, resourceID int) (*rbac.ResourceResp, error) {
 	if s.iam != nil && s.iam.Enabled() {
 		return s.iam.GetResource(ctx, resourceID)
 	}
 	return nil, missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareRBACService) ListResources(ctx context.Context, req *rbacmodule.ListResourceReq) (*dto.ListResp[rbacmodule.ResourceResp], error) {
+func (s remoteAwareRBACService) ListResources(ctx context.Context, req *rbac.ListResourceReq) (*dto.ListResp[rbac.ResourceResp], error) {
 	if s.iam != nil && s.iam.Enabled() {
 		return s.iam.ListResources(ctx, req)
 	}
 	return nil, missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareRBACService) ListResourcePermissions(ctx context.Context, resourceID int) ([]rbacmodule.PermissionResp, error) {
+func (s remoteAwareRBACService) ListResourcePermissions(ctx context.Context, resourceID int) ([]rbac.PermissionResp, error) {
 	if s.iam != nil && s.iam.Enabled() {
 		return s.iam.ListResourcePermissions(ctx, resourceID)
 	}

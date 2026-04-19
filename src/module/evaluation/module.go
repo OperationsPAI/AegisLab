@@ -1,4 +1,4 @@
-package evaluationmodule
+package evaluation
 
 import "go.uber.org/fx"
 

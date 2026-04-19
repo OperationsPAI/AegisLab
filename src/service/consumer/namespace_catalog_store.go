@@ -6,14 +6,14 @@ import (
 	"time"
 
 	"aegis/consts"
-	redisinfra "aegis/infra/redis"
+	redis "aegis/infra/redis"
 )
 
 type namespaceCatalogStore struct {
-	client *redisinfra.Gateway
+	client *redis.Gateway
 }
 
-func newNamespaceCatalogStore(client *redisinfra.Gateway) namespaceCatalogStore {
+func newNamespaceCatalogStore(client *redis.Gateway) namespaceCatalogStore {
 	return namespaceCatalogStore{client: client}
 }
 

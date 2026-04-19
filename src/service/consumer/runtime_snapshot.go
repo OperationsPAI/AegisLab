@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"aegis/consts"
-	buildkitinfra "aegis/infra/buildkit"
-	helminfra "aegis/infra/helm"
-	k8sinfra "aegis/infra/k8s"
-	redisinfra "aegis/infra/redis"
+	buildkit "aegis/infra/buildkit"
+	helm "aegis/infra/helm"
+	k8s "aegis/infra/k8s"
+	redis "aegis/infra/redis"
 
 	"gorm.io/gorm"
 )
@@ -41,10 +41,10 @@ type RuntimeStatusSnapshot struct {
 
 type RuntimeSnapshotService struct {
 	db        *gorm.DB
-	redis     *redisinfra.Gateway
-	k8s       *k8sinfra.Gateway
-	buildkit  *buildkitinfra.Gateway
-	helm      *helminfra.Gateway
+	redis     *redis.Gateway
+	k8s       *k8s.Gateway
+	buildkit  *buildkit.Gateway
+	helm      *helm.Gateway
 	restart   *TokenBucketRateLimiter
 	build     *TokenBucketRateLimiter
 	algorithm *TokenBucketRateLimiter
@@ -52,10 +52,10 @@ type RuntimeSnapshotService struct {
 
 func NewRuntimeSnapshotService(
 	db *gorm.DB,
-	redis *redisinfra.Gateway,
-	k8s *k8sinfra.Gateway,
-	buildkit *buildkitinfra.Gateway,
-	helm *helminfra.Gateway,
+	redis *redis.Gateway,
+	k8s *k8s.Gateway,
+	buildkit *buildkit.Gateway,
+	helm *helm.Gateway,
 	restart *TokenBucketRateLimiter,
 	build *TokenBucketRateLimiter,
 	algorithm *TokenBucketRateLimiter,
@@ -92,9 +92,9 @@ func (s *RuntimeSnapshotService) RuntimeStatus(ctx context.Context) RuntimeStatu
 	}
 }
 
-func (s *RuntimeSnapshotService) QueueStatus(ctx context.Context) (redisinfra.TaskQueueStats, error) {
+func (s *RuntimeSnapshotService) QueueStatus(ctx context.Context) (redis.TaskQueueStats, error) {
 	if s.redis == nil {
-		return redisinfra.TaskQueueStats{}, fmt.Errorf("redis gateway is nil")
+		return redis.TaskQueueStats{}, fmt.Errorf("redis gateway is nil")
 	}
 	return s.redis.GetTaskQueueStats(ctx)
 }

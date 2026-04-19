@@ -1,4 +1,4 @@
-package evaluationmodule
+package evaluation
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"aegis/config"
 	"aegis/dto"
 	"aegis/model"
-	executionmodule "aegis/module/execution"
+	execution "aegis/module/execution"
 
 	chaos "github.com/OperationsPAI/chaos-experiment/handler"
 )
@@ -58,7 +58,7 @@ func NewEvaluationResp(eval *model.Evaluation) *EvaluationResp {
 
 // Execution represents execution data for evaluation.
 type Execution struct {
-	Items []executionmodule.GranularityResultItem `json:"items"`
+	Items []execution.GranularityResultItem `json:"items"`
 }
 
 // Conclusion represents evaluation conclusion.
@@ -107,9 +107,9 @@ func (req *BatchEvaluateDatapackReq) Validate() error {
 }
 
 type EvaluateDatapackRef struct {
-	Datapack      string                         `json:"datapack"`
-	Groundtruths  []chaos.Groundtruth            `json:"groundtruths"`
-	ExecutionRefs []executionmodule.ExecutionRef `json:"execution_refs"`
+	Datapack      string                   `json:"datapack"`
+	Groundtruths  []chaos.Groundtruth      `json:"groundtruths"`
+	ExecutionRefs []execution.ExecutionRef `json:"execution_refs"`
 }
 
 type EvaluateDatapackItem struct {

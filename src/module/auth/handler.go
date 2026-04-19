@@ -1,4 +1,4 @@
-package authmodule
+package auth
 
 import (
 	"aegis/httpx"
@@ -28,11 +28,11 @@ func NewHandler(service HandlerService) *Handler {
 //	@ID				login
 //	@Accept			json
 //	@Produce		json
-//	@Param			request	body		LoginReq							true	"Login credentials"
-//	@Success		200		{object}	dto.GenericResponse[LoginResp]		"Login successful"
-//	@Failure		400		{object}	dto.GenericResponse[any]			"Invalid request format"
-//	@Failure		401		{object}	dto.GenericResponse[any]			"Invalid user name or password"
-//	@Failure		500		{object}	dto.GenericResponse[any]			"Internal server error"
+//	@Param			request	body		LoginReq						true	"Login credentials"
+//	@Success		200		{object}	dto.GenericResponse[LoginResp]	"Login successful"
+//	@Failure		400		{object}	dto.GenericResponse[any]		"Invalid request format"
+//	@Failure		401		{object}	dto.GenericResponse[any]		"Invalid user name or password"
+//	@Failure		500		{object}	dto.GenericResponse[any]		"Internal server error"
 //	@Router			/api/v2/auth/login [post]
 //	@x-api-type		{"portal":"true","admin":"true"}
 func (h *Handler) Login(c *gin.Context) {
@@ -63,11 +63,11 @@ func (h *Handler) Login(c *gin.Context) {
 //	@ID				register_user
 //	@Accept			json
 //	@Produce		json
-//	@Param			request	body		RegisterReq							true	"Registration details"
-//	@Success		201		{object}	dto.GenericResponse[UserInfo]		"Registration successful"
-//	@Failure		400		{object}	dto.GenericResponse[any]			"Invalid request format/parameters"
-//	@Failure		409		{object}	dto.GenericResponse[any]			"User already exists"
-//	@Failure		500		{object}	dto.GenericResponse[any]			"Internal server error"
+//	@Param			request	body		RegisterReq						true	"Registration details"
+//	@Success		201		{object}	dto.GenericResponse[UserInfo]	"Registration successful"
+//	@Failure		400		{object}	dto.GenericResponse[any]		"Invalid request format/parameters"
+//	@Failure		409		{object}	dto.GenericResponse[any]		"User already exists"
+//	@Failure		500		{object}	dto.GenericResponse[any]		"Internal server error"
 //	@Router			/api/v2/auth/register [post]
 //	@x-api-type		{"portal":"true","admin":"true"}
 func (h *Handler) Register(c *gin.Context) {
@@ -98,11 +98,11 @@ func (h *Handler) Register(c *gin.Context) {
 //	@ID				refresh_auth_token
 //	@Accept			json
 //	@Produce		json
-//	@Param			request	body		TokenRefreshReq								true	"Token refresh request"
-//	@Success		200		{object}	dto.GenericResponse[TokenRefreshResp]		"Token refreshed successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]					"Invalid request format"
-//	@Failure		401		{object}	dto.GenericResponse[any]					"Invalid token"
-//	@Failure		500		{object}	dto.GenericResponse[any]					"Internal server error"
+//	@Param			request	body		TokenRefreshReq							true	"Token refresh request"
+//	@Success		200		{object}	dto.GenericResponse[TokenRefreshResp]	"Token refreshed successfully"
+//	@Failure		400		{object}	dto.GenericResponse[any]				"Invalid request format"
+//	@Failure		401		{object}	dto.GenericResponse[any]				"Invalid token"
+//	@Failure		500		{object}	dto.GenericResponse[any]				"Internal server error"
 //	@Router			/api/v2/auth/refresh [post]
 //	@x-api-type		{"portal":"true","admin":"true"}
 func (h *Handler) RefreshToken(c *gin.Context) {
@@ -241,9 +241,9 @@ func (h *Handler) GetProfile(c *gin.Context) {
 //	@Security		BearerAuth
 //	@Param			request	body		CreateAPIKeyReq								true	"API key create request"
 //	@Success		201		{object}	dto.GenericResponse[APIKeyWithSecretResp]	"API key created successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]						"Invalid request"
-//	@Failure		401		{object}	dto.GenericResponse[any]						"Authentication required"
-//	@Failure		500		{object}	dto.GenericResponse[any]						"Internal server error"
+//	@Failure		400		{object}	dto.GenericResponse[any]					"Invalid request"
+//	@Failure		401		{object}	dto.GenericResponse[any]					"Authentication required"
+//	@Failure		500		{object}	dto.GenericResponse[any]					"Internal server error"
 //	@Router			/api/v2/api-keys [post]
 //	@x-api-type		{"portal":"true"}
 func (h *Handler) CreateAPIKey(c *gin.Context) {
@@ -279,12 +279,12 @@ func (h *Handler) CreateAPIKey(c *gin.Context) {
 //	@ID				list_api_keys
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			page	query		int	false	"Page number"
-//	@Param			size	query		int	false	"Page size"
+//	@Param			page	query		int									false	"Page number"
+//	@Param			size	query		int									false	"Page size"
 //	@Success		200		{object}	dto.GenericResponse[ListAPIKeyResp]	"API keys listed successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]					"Invalid request"
-//	@Failure		401		{object}	dto.GenericResponse[any]					"Authentication required"
-//	@Failure		500		{object}	dto.GenericResponse[any]					"Internal server error"
+//	@Failure		400		{object}	dto.GenericResponse[any]			"Invalid request"
+//	@Failure		401		{object}	dto.GenericResponse[any]			"Authentication required"
+//	@Failure		500		{object}	dto.GenericResponse[any]			"Internal server error"
 //	@Router			/api/v2/api-keys [get]
 //	@x-api-type		{"portal":"true"}
 func (h *Handler) ListAPIKeys(c *gin.Context) {
@@ -320,11 +320,11 @@ func (h *Handler) ListAPIKeys(c *gin.Context) {
 //	@ID				get_api_key
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			id	path		int	true	"API key record ID"
-//	@Success		200				{object}	dto.GenericResponse[APIKeyInfo]	"API key detail retrieved successfully"
-//	@Failure		401				{object}	dto.GenericResponse[any]				"Authentication required"
-//	@Failure		404				{object}	dto.GenericResponse[any]				"API key not found"
-//	@Failure		500				{object}	dto.GenericResponse[any]				"Internal server error"
+//	@Param			id	path		int								true	"API key record ID"
+//	@Success		200	{object}	dto.GenericResponse[APIKeyInfo]	"API key detail retrieved successfully"
+//	@Failure		401	{object}	dto.GenericResponse[any]		"Authentication required"
+//	@Failure		404	{object}	dto.GenericResponse[any]		"API key not found"
+//	@Failure		500	{object}	dto.GenericResponse[any]		"Internal server error"
 //	@Router			/api/v2/api-keys/{id} [get]
 //	@x-api-type		{"portal":"true"}
 func (h *Handler) GetAPIKey(c *gin.Context) {
@@ -349,11 +349,11 @@ func (h *Handler) GetAPIKey(c *gin.Context) {
 //	@ID				delete_api_key
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			id	path		int	true	"API key record ID"
-//	@Success		204				{object}	dto.GenericResponse[any]	"API key deleted successfully"
-//	@Failure		401				{object}	dto.GenericResponse[any]	"Authentication required"
-//	@Failure		404				{object}	dto.GenericResponse[any]	"API key not found"
-//	@Failure		500				{object}	dto.GenericResponse[any]	"Internal server error"
+//	@Param			id	path		int							true	"API key record ID"
+//	@Success		204	{object}	dto.GenericResponse[any]	"API key deleted successfully"
+//	@Failure		401	{object}	dto.GenericResponse[any]	"Authentication required"
+//	@Failure		404	{object}	dto.GenericResponse[any]	"API key not found"
+//	@Failure		500	{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v2/api-keys/{id} [delete]
 //	@x-api-type		{"portal":"true"}
 func (h *Handler) DeleteAPIKey(c *gin.Context) {
@@ -377,11 +377,11 @@ func (h *Handler) DeleteAPIKey(c *gin.Context) {
 //	@ID				disable_api_key
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			id	path		int	true	"API key record ID"
-//	@Success		200				{object}	dto.GenericResponse[any]	"API key disabled successfully"
-//	@Failure		401				{object}	dto.GenericResponse[any]	"Authentication required"
-//	@Failure		404				{object}	dto.GenericResponse[any]	"API key not found"
-//	@Failure		500				{object}	dto.GenericResponse[any]	"Internal server error"
+//	@Param			id	path		int							true	"API key record ID"
+//	@Success		200	{object}	dto.GenericResponse[any]	"API key disabled successfully"
+//	@Failure		401	{object}	dto.GenericResponse[any]	"Authentication required"
+//	@Failure		404	{object}	dto.GenericResponse[any]	"API key not found"
+//	@Failure		500	{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v2/api-keys/{id}/disable [post]
 //	@x-api-type		{"portal":"true"}
 func (h *Handler) DisableAPIKey(c *gin.Context) {
@@ -405,11 +405,11 @@ func (h *Handler) DisableAPIKey(c *gin.Context) {
 //	@ID				enable_api_key
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			id	path		int	true	"API key record ID"
-//	@Success		200				{object}	dto.GenericResponse[any]	"API key enabled successfully"
-//	@Failure		401				{object}	dto.GenericResponse[any]	"Authentication required"
-//	@Failure		404				{object}	dto.GenericResponse[any]	"API key not found"
-//	@Failure		500				{object}	dto.GenericResponse[any]	"Internal server error"
+//	@Param			id	path		int							true	"API key record ID"
+//	@Success		200	{object}	dto.GenericResponse[any]	"API key enabled successfully"
+//	@Failure		401	{object}	dto.GenericResponse[any]	"Authentication required"
+//	@Failure		404	{object}	dto.GenericResponse[any]	"API key not found"
+//	@Failure		500	{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v2/api-keys/{id}/enable [post]
 //	@x-api-type		{"portal":"true"}
 func (h *Handler) EnableAPIKey(c *gin.Context) {
@@ -433,7 +433,7 @@ func (h *Handler) EnableAPIKey(c *gin.Context) {
 //	@ID				revoke_api_key
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			id	path		int	true	"API key record ID"
+//	@Param			id	path		int							true	"API key record ID"
 //	@Success		200	{object}	dto.GenericResponse[any]	"API key revoked successfully"
 //	@Failure		401	{object}	dto.GenericResponse[any]	"Authentication required"
 //	@Failure		404	{object}	dto.GenericResponse[any]	"API key not found"
@@ -461,11 +461,11 @@ func (h *Handler) RevokeAPIKey(c *gin.Context) {
 //	@ID				rotate_api_key
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			id	path		int												true	"API key record ID"
-//	@Success		200				{object}	dto.GenericResponse[APIKeyWithSecretResp]	"API key rotated successfully"
-//	@Failure		401				{object}	dto.GenericResponse[any]						"Authentication required"
-//	@Failure		404				{object}	dto.GenericResponse[any]						"API key not found"
-//	@Failure		500				{object}	dto.GenericResponse[any]						"Internal server error"
+//	@Param			id	path		int											true	"API key record ID"
+//	@Success		200	{object}	dto.GenericResponse[APIKeyWithSecretResp]	"API key rotated successfully"
+//	@Failure		401	{object}	dto.GenericResponse[any]					"Authentication required"
+//	@Failure		404	{object}	dto.GenericResponse[any]					"API key not found"
+//	@Failure		500	{object}	dto.GenericResponse[any]					"Internal server error"
 //	@Router			/api/v2/api-keys/{id}/rotate [post]
 //	@x-api-type		{"portal":"true"}
 func (h *Handler) RotateAPIKey(c *gin.Context) {
@@ -489,14 +489,14 @@ func (h *Handler) RotateAPIKey(c *gin.Context) {
 //	@Tags			Authentication
 //	@ID				exchange_api_key_token
 //	@Produce		json
-//	@Param			X-Key-Id		header		string										true	"Public key identifier"
-//	@Param			X-Timestamp		header		string										true	"Unix timestamp in seconds"
-//	@Param			X-Nonce			header		string										true	"Unique request nonce"
-//	@Param			X-Signature		header		string										true	"Hex encoded HMAC-SHA256 signature of METHOD\\nPATH\\nTIMESTAMP\\nNONCE\\nSHA256(BODY)"
-//	@Success		200		{object}	dto.GenericResponse[APIKeyTokenResp]	"API key token issued successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]					"Invalid request"
-//	@Failure		401		{object}	dto.GenericResponse[any]					"Invalid signature or replayed request"
-//	@Failure		500		{object}	dto.GenericResponse[any]					"Internal server error"
+//	@Param			X-Key-Id	header		string									true	"Public key identifier"
+//	@Param			X-Timestamp	header		string									true	"Unix timestamp in seconds"
+//	@Param			X-Nonce		header		string									true	"Unique request nonce"
+//	@Param			X-Signature	header		string									true	"Hex encoded HMAC-SHA256 signature of METHOD\\nPATH\\nTIMESTAMP\\nNONCE\\nSHA256(BODY)"
+//	@Success		200			{object}	dto.GenericResponse[APIKeyTokenResp]	"API key token issued successfully"
+//	@Failure		400			{object}	dto.GenericResponse[any]				"Invalid request"
+//	@Failure		401			{object}	dto.GenericResponse[any]				"Invalid signature or replayed request"
+//	@Failure		500			{object}	dto.GenericResponse[any]				"Internal server error"
 //	@Router			/api/v2/auth/api-key/token [post]
 //	@x-api-type		{"sdk":"true"}
 func (h *Handler) ExchangeAPIKeyToken(c *gin.Context) {

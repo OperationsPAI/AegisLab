@@ -1,4 +1,4 @@
-package sdkmodule
+package sdk
 
 import (
 	"aegis/httpx"
@@ -26,13 +26,13 @@ func NewHandler(service *Service) *Handler {
 //	@ID				list_sdk_evaluations
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			exp_id	query		string	false	"Experiment ID filter"
-//	@Param			stage	query		string	false	"Stage filter (init, rollout, judged)"
-//	@Param			page	query		int		false	"Page number"	default(1)
-//	@Param			size	query		int		false	"Page size"		default(20)
+//	@Param			exp_id	query		string													false	"Experiment ID filter"
+//	@Param			stage	query		string													false	"Stage filter (init, rollout, judged)"
+//	@Param			page	query		int														false	"Page number"	default(1)
+//	@Param			size	query		int														false	"Page size"		default(20)
 //	@Success		200		{object}	dto.GenericResponse[dto.ListResp[SDKEvaluationSample]]	"SDK evaluations retrieved successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]										"Invalid request format or parameters"
-//	@Failure		500		{object}	dto.GenericResponse[any]										"Internal server error"
+//	@Failure		400		{object}	dto.GenericResponse[any]								"Invalid request format or parameters"
+//	@Failure		500		{object}	dto.GenericResponse[any]								"Internal server error"
 //	@Router			/api/v2/sdk/evaluations [get]
 //	@x-api-type		{"sdk":"true"}
 func (h *Handler) ListEvaluations(c *gin.Context) {
@@ -60,11 +60,11 @@ func (h *Handler) ListEvaluations(c *gin.Context) {
 //	@ID				get_sdk_evaluation
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			id	path		int										true	"SDK Evaluation Sample ID"
+//	@Param			id	path		int											true	"SDK Evaluation Sample ID"
 //	@Success		200	{object}	dto.GenericResponse[SDKEvaluationSample]	"SDK evaluation sample retrieved successfully"
-//	@Failure		400	{object}	dto.GenericResponse[any]							"Invalid evaluation ID"
-//	@Failure		404	{object}	dto.GenericResponse[any]							"SDK evaluation sample not found"
-//	@Failure		500	{object}	dto.GenericResponse[any]							"Internal server error"
+//	@Failure		400	{object}	dto.GenericResponse[any]					"Invalid evaluation ID"
+//	@Failure		404	{object}	dto.GenericResponse[any]					"SDK evaluation sample not found"
+//	@Failure		500	{object}	dto.GenericResponse[any]					"Internal server error"
 //	@Router			/api/v2/sdk/evaluations/{id} [get]
 //	@x-api-type		{"sdk":"true"}
 func (h *Handler) GetEvaluation(c *gin.Context) {
@@ -88,7 +88,7 @@ func (h *Handler) GetEvaluation(c *gin.Context) {
 //	@Produce		json
 //	@Security		BearerAuth
 //	@Success		200	{object}	dto.GenericResponse[SDKExperimentListResp]	"SDK experiments retrieved successfully"
-//	@Failure		500	{object}	dto.GenericResponse[any]						"Internal server error"
+//	@Failure		500	{object}	dto.GenericResponse[any]					"Internal server error"
 //	@Router			/api/v2/sdk/evaluations/experiments [get]
 //	@x-api-type		{"sdk":"true"}
 func (h *Handler) ListExperiments(c *gin.Context) {
@@ -107,12 +107,12 @@ func (h *Handler) ListExperiments(c *gin.Context) {
 //	@ID				list_sdk_dataset_samples
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			dataset	query		string	false	"Dataset name filter"
-//	@Param			page	query		int		false	"Page number"	default(1)
-//	@Param			size	query		int		false	"Page size"		default(20)
+//	@Param			dataset	query		string												false	"Dataset name filter"
+//	@Param			page	query		int													false	"Page number"	default(1)
+//	@Param			size	query		int													false	"Page size"		default(20)
 //	@Success		200		{object}	dto.GenericResponse[dto.ListResp[SDKDatasetSample]]	"SDK dataset samples retrieved successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]										"Invalid request format or parameters"
-//	@Failure		500		{object}	dto.GenericResponse[any]										"Internal server error"
+//	@Failure		400		{object}	dto.GenericResponse[any]							"Invalid request format or parameters"
+//	@Failure		500		{object}	dto.GenericResponse[any]							"Internal server error"
 //	@Router			/api/v2/sdk/datasets [get]
 //	@x-api-type		{"sdk":"true"}
 func (h *Handler) ListDatasetSamples(c *gin.Context) {

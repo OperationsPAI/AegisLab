@@ -1,4 +1,4 @@
-package rbacmodule
+package rbac
 
 import "go.uber.org/fx"
 

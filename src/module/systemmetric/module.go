@@ -1,4 +1,4 @@
-package systemmetricmodule
+package systemmetric
 
 import "go.uber.org/fx"
 

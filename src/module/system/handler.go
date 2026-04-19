@@ -1,4 +1,4 @@
-package systemmodule
+package system
 
 import (
 	"aegis/httpx"
@@ -28,7 +28,7 @@ func NewHandler(service HandlerService) *Handler {
 //	@ID				get_system_health
 //	@Produce		json
 //	@Success		200	{object}	dto.GenericResponse[HealthCheckResp]	"Health check successful"
-//	@Failure		500	{object}	dto.GenericResponse[any]					"Internal server error"
+//	@Failure		500	{object}	dto.GenericResponse[any]				"Internal server error"
 //	@Router			/system/health [get]
 //	@x-api-type		{"admin":"true"}
 func (h *Handler) GetHealth(c *gin.Context) {
@@ -45,18 +45,18 @@ func (h *Handler) GetHealth(c *gin.Context) {
 //	@Summary		Get monitoring metrics
 //	@Description	Deprecated: This endpoint returns hardcoded/fabricated data. Use the v2 equivalent GET /api/v2/system/metrics which provides real system metrics via gopsutil.
 //	@Deprecated
-//	@Tags			System
-//	@Accept			json
-//	@Produce		json
-//	@Security		BearerAuth
-//	@Param			request	body		MonitoringQueryReq							true	"Metrics query request"
-//	@Success		200		{object}	dto.GenericResponse[MonitoringMetricsResp]	"Metrics retrieved successfully"
-//	@Success		400		{object}	dto.GenericResponse[any]						"Invalid request format"
-//	@Failure		401		{object}	dto.GenericResponse[any]						"Authentication required"
-//	@Failure		403		{object}	dto.GenericResponse[any]						"Permission denied"
-//	@Failure		500		{object}	dto.GenericResponse[any]						"Internal server error"
-//	@Router			/system/monitor/metrics [post]
-//	@x-api-type		{"admin":"true"}
+//	@Tags		System
+//	@Accept		json
+//	@Produce	json
+//	@Security	BearerAuth
+//	@Param		request	body		MonitoringQueryReq							true	"Metrics query request"
+//	@Success	200		{object}	dto.GenericResponse[MonitoringMetricsResp]	"Metrics retrieved successfully"
+//	@Success	400		{object}	dto.GenericResponse[any]					"Invalid request format"
+//	@Failure	401		{object}	dto.GenericResponse[any]					"Authentication required"
+//	@Failure	403		{object}	dto.GenericResponse[any]					"Permission denied"
+//	@Failure	500		{object}	dto.GenericResponse[any]					"Internal server error"
+//	@Router		/system/monitor/metrics [post]
+//	@x-api-type	{"admin":"true"}
 func (h *Handler) GetMetrics(c *gin.Context) {
 	var req MonitoringQueryReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -77,15 +77,15 @@ func (h *Handler) GetMetrics(c *gin.Context) {
 //	@Summary		Get system information
 //	@Description	Deprecated: This endpoint returns partially hardcoded data. Use the v2 equivalent GET /api/v2/system/metrics which provides real system metrics via gopsutil.
 //	@Deprecated
-//	@Tags			System
-//	@Produce		json
-//	@Security		BearerAuth
-//	@Success		200	{object}	dto.GenericResponse[SystemInfo]	"System info retrieved successfully"
-//	@Failure		401	{object}	dto.GenericResponse[any]			"Authentication required"
-//	@Failure		403	{object}	dto.GenericResponse[any]			"Permission denied"
-//	@Failure		500	{object}	dto.GenericResponse[any]			"Internal server error"
-//	@Router			/system/monitor/info [get]
-//	@x-api-type		{"admin":"true"}
+//	@Tags		System
+//	@Produce	json
+//	@Security	BearerAuth
+//	@Success	200	{object}	dto.GenericResponse[SystemInfo]	"System info retrieved successfully"
+//	@Failure	401	{object}	dto.GenericResponse[any]		"Authentication required"
+//	@Failure	403	{object}	dto.GenericResponse[any]		"Permission denied"
+//	@Failure	500	{object}	dto.GenericResponse[any]		"Internal server error"
+//	@Router		/system/monitor/info [get]
+//	@x-api-type	{"admin":"true"}
 func (h *Handler) GetSystemInfo(c *gin.Context) {
 	c.Header("Deprecation", "true")
 	c.Header("Link", `</api/v2/system/metrics>; rel="successor-version"`)
@@ -104,9 +104,9 @@ func (h *Handler) GetSystemInfo(c *gin.Context) {
 //	@Produce		json
 //	@Security		BearerAuth
 //	@Success		200	{object}	dto.GenericResponse[ListNamespaceLockResp]	"Successfully retrieved the list of locks"
-//	@Failure		401	{object}	dto.GenericResponse[any]						"Authentication required"
-//	@Failure		403	{object}	dto.GenericResponse[any]						"Permission denied"
-//	@Failure		500	{object}	dto.GenericResponse[any]						"Internal Server Error"
+//	@Failure		401	{object}	dto.GenericResponse[any]					"Authentication required"
+//	@Failure		403	{object}	dto.GenericResponse[any]					"Permission denied"
+//	@Failure		500	{object}	dto.GenericResponse[any]					"Internal Server Error"
 //	@Router			/system/monitor/namespaces/locks [get]
 //	@x-api-type		{"admin":"true"}
 func (h *Handler) ListNamespaceLocks(c *gin.Context) {
@@ -125,10 +125,10 @@ func (h *Handler) ListNamespaceLocks(c *gin.Context) {
 //	@Produce		json
 //	@Security		BearerAuth
 //	@Success		200	{object}	dto.GenericResponse[QueuedTasksResp]	"Queued tasks retrieved successfully"
-//	@Failure		401	{object}	dto.GenericResponse[any]					"Authentication required"
-//	@Failure		403	{object}	dto.GenericResponse[any]					"Permission denied"
-//	@Failure		404	{object}	dto.GenericResponse[any]					"No queued tasks found"
-//	@Failure		500	{object}	dto.GenericResponse[any]					"Internal server error"
+//	@Failure		401	{object}	dto.GenericResponse[any]				"Authentication required"
+//	@Failure		403	{object}	dto.GenericResponse[any]				"Permission denied"
+//	@Failure		404	{object}	dto.GenericResponse[any]				"No queued tasks found"
+//	@Failure		500	{object}	dto.GenericResponse[any]				"Internal server error"
 //	@Router			/system/monitor/tasks/queue [post]
 //	@x-api-type		{"admin":"true"}
 func (h *Handler) ListQueuedTasks(c *gin.Context) {
@@ -146,13 +146,13 @@ func (h *Handler) ListQueuedTasks(c *gin.Context) {
 //	@Tags			System
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			id	path		int											true	"Audit log ID"
+//	@Param			id	path		int										true	"Audit log ID"
 //	@Success		200	{object}	dto.GenericResponse[AuditLogDetailResp]	"Audit log retrieved successfully"
-//	@Failure		400	{object}	dto.GenericResponse[any]					"Invalid ID"
-//	@Failure		401	{object}	dto.GenericResponse[any]					"Authentication required"
-//	@Failure		403	{object}	dto.GenericResponse[any]					"Permission denied"
-//	@Failure		404	{object}	dto.GenericResponse[any]					"Audit log not found"
-//	@Failure		500	{object}	dto.GenericResponse[any]					"Internal server error"
+//	@Failure		400	{object}	dto.GenericResponse[any]				"Invalid ID"
+//	@Failure		401	{object}	dto.GenericResponse[any]				"Authentication required"
+//	@Failure		403	{object}	dto.GenericResponse[any]				"Permission denied"
+//	@Failure		404	{object}	dto.GenericResponse[any]				"Audit log not found"
+//	@Failure		500	{object}	dto.GenericResponse[any]				"Internal server error"
 //	@Router			/system/audit/{id} [get]
 //	@x-api-type		{"admin":"true"}
 func (h *Handler) GetAuditLog(c *gin.Context) {
@@ -175,20 +175,20 @@ func (h *Handler) GetAuditLog(c *gin.Context) {
 //	@Tags			System
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			page		query		int													false	"Page number"	default(1)
-//	@Param			size		query		int													false	"Page size"		default(20)
-//	@Param			action		query		string												false	"Filter by action"
-//	@Param			user_id		query		int													false	"Filter by user ID"
-//	@Param			resource_id	query		int													false	"Filter by resource ID"
-//	@Param			state		query		int													false	"Filter by state"
-//	@Param			status		query		int													false	"Filter by status"
-//	@Param			start_date	query		string												false	"Filter from date (YYYY-MM-DD)"
-//	@Param			end_date	query		string												false	"Filter to date (YYYY-MM-DD)"
+//	@Param			page		query		int												false	"Page number"	default(1)
+//	@Param			size		query		int												false	"Page size"		default(20)
+//	@Param			action		query		string											false	"Filter by action"
+//	@Param			user_id		query		int												false	"Filter by user ID"
+//	@Param			resource_id	query		int												false	"Filter by resource ID"
+//	@Param			state		query		int												false	"Filter by state"
+//	@Param			status		query		int												false	"Filter by status"
+//	@Param			start_date	query		string											false	"Filter from date (YYYY-MM-DD)"
+//	@Param			end_date	query		string											false	"Filter to date (YYYY-MM-DD)"
 //	@Success		200			{object}	dto.GenericResponse[dto.ListResp[AuditLogResp]]	"Audit logs retrieved successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]							"Invalid request format/parameters"
-//	@Failure		401			{object}	dto.GenericResponse[any]							"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]							"Permission denied"
-//	@Failure		500			{object}	dto.GenericResponse[any]							"Internal server error"
+//	@Failure		400			{object}	dto.GenericResponse[any]						"Invalid request format/parameters"
+//	@Failure		401			{object}	dto.GenericResponse[any]						"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]						"Permission denied"
+//	@Failure		500			{object}	dto.GenericResponse[any]						"Internal server error"
 //	@Router			/system/audit [get]
 //	@x-api-type		{"admin":"true"}
 func (h *Handler) ListAuditLogs(c *gin.Context) {
@@ -217,13 +217,13 @@ func (h *Handler) ListAuditLogs(c *gin.Context) {
 //	@ID				get_config_by_id
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			config_id	path		int									true	"Configuration ID"
+//	@Param			config_id	path		int								true	"Configuration ID"
 //	@Success		200			{object}	dto.GenericResponse[ConfigResp]	"Configuration retrieved successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]			"Invalid config ID"
-//	@Failure		401			{object}	dto.GenericResponse[any]			"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]			"Permission denied"
-//	@Failure		404			{object}	dto.GenericResponse[any]			"Config not found"
-//	@Failure		500			{object}	dto.GenericResponse[any]			"Internal server error"
+//	@Failure		400			{object}	dto.GenericResponse[any]		"Invalid config ID"
+//	@Failure		401			{object}	dto.GenericResponse[any]		"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]		"Permission denied"
+//	@Failure		404			{object}	dto.GenericResponse[any]		"Config not found"
+//	@Failure		500			{object}	dto.GenericResponse[any]		"Internal server error"
 //	@Router			/system/configs/{config_id} [get]
 //	@x-api-type		{"admin":"true"}
 func (h *Handler) GetConfig(c *gin.Context) {
@@ -247,17 +247,17 @@ func (h *Handler) GetConfig(c *gin.Context) {
 //	@ID				list_configs
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			page		query		int													false	"Page number"	default(1)
-//	@Param			page_size	query		int													false	"Page size"		default(20)
-//	@Param			category	query		string												false	"Filter by configuration category"
-//	@Param			value_type	query		consts.ConfigValueType								false	"Filter by configuration value type"
-//	@Param			is_secret	query		bool												false	"Filter by secret status"
-//	@Param			updated_by	query		int													false	"Filter by ID of the user who last updated the config"
+//	@Param			page		query		int												false	"Page number"	default(1)
+//	@Param			page_size	query		int												false	"Page size"		default(20)
+//	@Param			category	query		string											false	"Filter by configuration category"
+//	@Param			value_type	query		consts.ConfigValueType							false	"Filter by configuration value type"
+//	@Param			is_secret	query		bool											false	"Filter by secret status"
+//	@Param			updated_by	query		int												false	"Filter by ID of the user who last updated the config"
 //	@Success		200			{object}	dto.GenericResponse[dto.ListResp[ConfigResp]]	"Configurations retrieved successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]							"Invalid request format or parameters"
-//	@Failure		401			{object}	dto.GenericResponse[any]							"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]							"Permission denied"
-//	@Failure		500			{object}	dto.GenericResponse[any]							"Internal server error"
+//	@Failure		400			{object}	dto.GenericResponse[any]						"Invalid request format or parameters"
+//	@Failure		401			{object}	dto.GenericResponse[any]						"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]						"Permission denied"
+//	@Failure		500			{object}	dto.GenericResponse[any]						"Internal server error"
 //	@Router			/system/configs [get]
 //	@x-api-type		{"admin":"true"}
 func (h *Handler) ListConfigs(c *gin.Context) {
@@ -288,7 +288,7 @@ func (h *Handler) ListConfigs(c *gin.Context) {
 //	@Produce		json
 //	@Security		BearerAuth
 //	@Param			config_id	path		int							true	"Configuration ID"
-//	@Param			rollback	body		RollbackConfigReq		true	"Rollback request with history_id and reason"
+//	@Param			rollback	body		RollbackConfigReq			true	"Rollback request with history_id and reason"
 //	@Success		202			{object}	dto.GenericResponse[any]	"Configuration value rolled back successfully"
 //	@Failure		400			{object}	dto.GenericResponse[any]	"Invalid config ID/request format/history is not a value change"
 //	@Failure		401			{object}	dto.GenericResponse[any]	"Authentication required"
@@ -330,14 +330,14 @@ func (h *Handler) RollbackConfigValue(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			config_id	path		int									true	"Configuration ID"
+//	@Param			config_id	path		int								true	"Configuration ID"
 //	@Param			rollback	body		RollbackConfigReq				true	"Rollback request with history_id and reason"
 //	@Success		200			{object}	dto.GenericResponse[ConfigResp]	"Configuration metadata rolled back successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]			"Invalid config ID/request format/history is a value change"
-//	@Failure		401			{object}	dto.GenericResponse[any]			"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]			"Permission denied - admin only"
-//	@Failure		404			{object}	dto.GenericResponse[any]			"Configuration or history not found"
-//	@Failure		500			{object}	dto.GenericResponse[any]			"Internal server error"
+//	@Failure		400			{object}	dto.GenericResponse[any]		"Invalid config ID/request format/history is a value change"
+//	@Failure		401			{object}	dto.GenericResponse[any]		"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]		"Permission denied - admin only"
+//	@Failure		404			{object}	dto.GenericResponse[any]		"Configuration or history not found"
+//	@Failure		500			{object}	dto.GenericResponse[any]		"Internal server error"
 //	@Router			/system/configs/{config_id}/metadata/rollback [post]
 //	@x-api-type		{"admin":"true"}
 func (h *Handler) RollbackConfigMetadata(c *gin.Context) {
@@ -375,7 +375,7 @@ func (h *Handler) RollbackConfigMetadata(c *gin.Context) {
 //	@Produce		json
 //	@Security		BearerAuth
 //	@Param			config_id	path		int							true	"Configuration ID"
-//	@Param			request		body		UpdateConfigValueReq	true	"Configuration value update request"
+//	@Param			request		body		UpdateConfigValueReq		true	"Configuration value update request"
 //	@Success		202			{object}	dto.GenericResponse[any]	"Configuration value updated successfully"
 //	@Failure		400			{object}	dto.GenericResponse[any]	"Invalid config ID/request"
 //	@Failure		401			{object}	dto.GenericResponse[any]	"Authentication required"
@@ -417,14 +417,14 @@ func (h *Handler) UpdateConfigValue(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			config_id	path		int									true	"Configuration ID"
+//	@Param			config_id	path		int								true	"Configuration ID"
 //	@Param			request		body		UpdateConfigMetadataReq			true	"Configuration metadata update request"
 //	@Success		200			{object}	dto.GenericResponse[ConfigResp]	"Configuration metadata updated successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]			"Invalid config ID/request"
-//	@Failure		401			{object}	dto.GenericResponse[any]			"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]			"Permission denied - admin only"
-//	@Failure		404			{object}	dto.GenericResponse[any]			"Configuration not found"
-//	@Failure		500			{object}	dto.GenericResponse[any]			"Internal server error"
+//	@Failure		400			{object}	dto.GenericResponse[any]		"Invalid config ID/request"
+//	@Failure		401			{object}	dto.GenericResponse[any]		"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]		"Permission denied - admin only"
+//	@Failure		404			{object}	dto.GenericResponse[any]		"Configuration not found"
+//	@Failure		500			{object}	dto.GenericResponse[any]		"Internal server error"
 //	@Router			/system/configs/{config_id}/metadata [put]
 //	@x-api-type		{"admin":"true"}
 func (h *Handler) UpdateConfigMetadata(c *gin.Context) {
@@ -464,14 +464,14 @@ func (h *Handler) UpdateConfigMetadata(c *gin.Context) {
 //	@ID				list_config_histories
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			config_id	path		int															true	"Configuration ID"
-//	@Param			page		query		int															false	"Page number"	default(1)
-//	@Param			size		query		int															false	"Page size"		default(20)
+//	@Param			config_id	path		int														true	"Configuration ID"
+//	@Param			page		query		int														false	"Page number"	default(1)
+//	@Param			size		query		int														false	"Page size"		default(20)
 //	@Success		200			{object}	dto.GenericResponse[dto.ListResp[ConfigHistoryResp]]	"Config histories retrieved successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]									"Invalid request format or parameters"
-//	@Failure		401			{object}	dto.GenericResponse[any]									"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]									"Permission denied"
-//	@Failure		500			{object}	dto.GenericResponse[any]									"Internal server error"
+//	@Failure		400			{object}	dto.GenericResponse[any]								"Invalid request format or parameters"
+//	@Failure		401			{object}	dto.GenericResponse[any]								"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]								"Permission denied"
+//	@Failure		500			{object}	dto.GenericResponse[any]								"Internal server error"
 //	@Router			/system/configs/{config_id}/histories [get]
 //	@x-api-type		{"admin":"true"}
 func (h *Handler) ListConfigHistories(c *gin.Context) {

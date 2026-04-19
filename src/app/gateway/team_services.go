@@ -1,32 +1,32 @@
-package gatewayapp
+package gateway
 
 import (
 	"context"
 
 	"aegis/dto"
-	teammodule "aegis/module/team"
+	team "aegis/module/team"
 )
 
 type teamIAMClient interface {
 	Enabled() bool
-	CreateTeam(context.Context, *teammodule.CreateTeamReq, int) (*teammodule.TeamResp, error)
+	CreateTeam(context.Context, *team.CreateTeamReq, int) (*team.TeamResp, error)
 	DeleteTeam(context.Context, int) error
-	GetTeam(context.Context, int) (*teammodule.TeamDetailResp, error)
-	ListTeams(context.Context, *teammodule.ListTeamReq, int, bool) (*dto.ListResp[teammodule.TeamResp], error)
-	UpdateTeam(context.Context, *teammodule.UpdateTeamReq, int) (*teammodule.TeamResp, error)
-	ListTeamProjects(context.Context, *teammodule.TeamProjectListReq, int) (*dto.ListResp[teammodule.TeamProjectItem], error)
-	AddTeamMember(context.Context, *teammodule.AddTeamMemberReq, int) error
+	GetTeam(context.Context, int) (*team.TeamDetailResp, error)
+	ListTeams(context.Context, *team.ListTeamReq, int, bool) (*dto.ListResp[team.TeamResp], error)
+	UpdateTeam(context.Context, *team.UpdateTeamReq, int) (*team.TeamResp, error)
+	ListTeamProjects(context.Context, *team.TeamProjectListReq, int) (*dto.ListResp[team.TeamProjectItem], error)
+	AddTeamMember(context.Context, *team.AddTeamMemberReq, int) error
 	RemoveTeamMember(context.Context, int, int, int) error
-	UpdateTeamMemberRole(context.Context, *teammodule.UpdateTeamMemberRoleReq, int, int, int) error
-	ListTeamMembers(context.Context, *teammodule.ListTeamMemberReq, int) (*dto.ListResp[teammodule.TeamMemberResp], error)
+	UpdateTeamMemberRole(context.Context, *team.UpdateTeamMemberRoleReq, int, int, int) error
+	ListTeamMembers(context.Context, *team.ListTeamMemberReq, int) (*dto.ListResp[team.TeamMemberResp], error)
 }
 
 type remoteAwareTeamService struct {
-	teammodule.HandlerService
+	team.HandlerService
 	iam teamIAMClient
 }
 
-func (s remoteAwareTeamService) CreateTeam(ctx context.Context, req *teammodule.CreateTeamReq, userID int) (*teammodule.TeamResp, error) {
+func (s remoteAwareTeamService) CreateTeam(ctx context.Context, req *team.CreateTeamReq, userID int) (*team.TeamResp, error) {
 	if s.iam != nil && s.iam.Enabled() {
 		return s.iam.CreateTeam(ctx, req, userID)
 	}
@@ -40,35 +40,35 @@ func (s remoteAwareTeamService) DeleteTeam(ctx context.Context, teamID int) erro
 	return missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareTeamService) GetTeamDetail(ctx context.Context, teamID int) (*teammodule.TeamDetailResp, error) {
+func (s remoteAwareTeamService) GetTeamDetail(ctx context.Context, teamID int) (*team.TeamDetailResp, error) {
 	if s.iam != nil && s.iam.Enabled() {
 		return s.iam.GetTeam(ctx, teamID)
 	}
 	return nil, missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareTeamService) ListTeams(ctx context.Context, req *teammodule.ListTeamReq, userID int, isAdmin bool) (*dto.ListResp[teammodule.TeamResp], error) {
+func (s remoteAwareTeamService) ListTeams(ctx context.Context, req *team.ListTeamReq, userID int, isAdmin bool) (*dto.ListResp[team.TeamResp], error) {
 	if s.iam != nil && s.iam.Enabled() {
 		return s.iam.ListTeams(ctx, req, userID, isAdmin)
 	}
 	return nil, missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareTeamService) UpdateTeam(ctx context.Context, req *teammodule.UpdateTeamReq, teamID int) (*teammodule.TeamResp, error) {
+func (s remoteAwareTeamService) UpdateTeam(ctx context.Context, req *team.UpdateTeamReq, teamID int) (*team.TeamResp, error) {
 	if s.iam != nil && s.iam.Enabled() {
 		return s.iam.UpdateTeam(ctx, req, teamID)
 	}
 	return nil, missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareTeamService) ListTeamProjects(ctx context.Context, req *teammodule.TeamProjectListReq, teamID int) (*dto.ListResp[teammodule.TeamProjectItem], error) {
+func (s remoteAwareTeamService) ListTeamProjects(ctx context.Context, req *team.TeamProjectListReq, teamID int) (*dto.ListResp[team.TeamProjectItem], error) {
 	if s.iam != nil && s.iam.Enabled() {
 		return s.iam.ListTeamProjects(ctx, req, teamID)
 	}
 	return nil, missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareTeamService) AddMember(ctx context.Context, req *teammodule.AddTeamMemberReq, teamID int) error {
+func (s remoteAwareTeamService) AddMember(ctx context.Context, req *team.AddTeamMemberReq, teamID int) error {
 	if s.iam != nil && s.iam.Enabled() {
 		return s.iam.AddTeamMember(ctx, req, teamID)
 	}
@@ -82,14 +82,14 @@ func (s remoteAwareTeamService) RemoveMember(ctx context.Context, teamID, curren
 	return missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareTeamService) UpdateMemberRole(ctx context.Context, req *teammodule.UpdateTeamMemberRoleReq, teamID, targetUserID, currentUserID int) error {
+func (s remoteAwareTeamService) UpdateMemberRole(ctx context.Context, req *team.UpdateTeamMemberRoleReq, teamID, targetUserID, currentUserID int) error {
 	if s.iam != nil && s.iam.Enabled() {
 		return s.iam.UpdateTeamMemberRole(ctx, req, teamID, targetUserID, currentUserID)
 	}
 	return missingRemoteDependency("iam-service")
 }
 
-func (s remoteAwareTeamService) ListMembers(ctx context.Context, req *teammodule.ListTeamMemberReq, teamID int) (*dto.ListResp[teammodule.TeamMemberResp], error) {
+func (s remoteAwareTeamService) ListMembers(ctx context.Context, req *team.ListTeamMemberReq, teamID int) (*dto.ListResp[team.TeamMemberResp], error) {
 	if s.iam != nil && s.iam.Enabled() {
 		return s.iam.ListTeamMembers(ctx, req, teamID)
 	}

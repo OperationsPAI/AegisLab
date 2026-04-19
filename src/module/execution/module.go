@@ -1,4 +1,4 @@
-package executionmodule
+package execution
 
 import "go.uber.org/fx"
 

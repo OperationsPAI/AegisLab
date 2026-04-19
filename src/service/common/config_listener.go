@@ -8,7 +8,7 @@ import (
 
 	"aegis/config"
 	"aegis/consts"
-	etcdinfra "aegis/infra/etcd"
+	etcd "aegis/infra/etcd"
 
 	"github.com/sirupsen/logrus"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -33,10 +33,10 @@ type ConfigUpdateListener struct {
 	mu      sync.Mutex
 	active  map[consts.ConfigScope]bool // scopes already loaded + watched
 	db      *gorm.DB
-	gateway *etcdinfra.Gateway
+	gateway *etcd.Gateway
 }
 
-func NewConfigUpdateListener(ctx context.Context, db *gorm.DB, gateway *etcdinfra.Gateway) *ConfigUpdateListener {
+func NewConfigUpdateListener(ctx context.Context, db *gorm.DB, gateway *etcd.Gateway) *ConfigUpdateListener {
 	listenerCtx, cancel := context.WithCancel(ctx)
 	listener := &ConfigUpdateListener{
 		ctx:     listenerCtx,

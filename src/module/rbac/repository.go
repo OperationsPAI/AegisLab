@@ -1,4 +1,4 @@
-package rbacmodule
+package rbac
 
 import (
 	"aegis/consts"

@@ -1,4 +1,4 @@
-package etcdinfra
+package etcd
 
 import (
 	"context"

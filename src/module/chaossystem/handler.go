@@ -1,4 +1,4 @@
-package chaossystemmodule
+package chaossystem
 
 import (
 	"aegis/httpx"
@@ -29,9 +29,9 @@ func NewHandler(service HandlerService) *Handler {
 //	@Param			page	query		int													false	"Page number"	default(1)
 //	@Param			size	query		int													false	"Page size"		default(20)
 //	@Success		200		{object}	dto.GenericResponse[dto.ListResp[ChaosSystemResp]]	"Systems retrieved successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]								"Invalid request format or parameters"
-//	@Failure		401		{object}	dto.GenericResponse[any]								"Authentication required"
-//	@Failure		500		{object}	dto.GenericResponse[any]								"Internal server error"
+//	@Failure		400		{object}	dto.GenericResponse[any]							"Invalid request format or parameters"
+//	@Failure		401		{object}	dto.GenericResponse[any]							"Authentication required"
+//	@Failure		500		{object}	dto.GenericResponse[any]							"Internal server error"
 //	@Router			/api/v2/systems [get]
 //	@x-api-type		{"admin":"true"}
 func (h *Handler) ListSystems(c *gin.Context) {
@@ -177,12 +177,12 @@ func (h *Handler) DeleteSystem(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			id		path		int									true	"System ID"
-//	@Param			request	body		BulkUpsertSystemMetadataReq		true	"Metadata upsert request"
-//	@Success		200		{object}	dto.GenericResponse[any]			"Metadata upserted successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]			"Invalid request format or parameters"
-//	@Failure		404		{object}	dto.GenericResponse[any]			"System not found"
-//	@Failure		500		{object}	dto.GenericResponse[any]			"Internal server error"
+//	@Param			id		path		int							true	"System ID"
+//	@Param			request	body		BulkUpsertSystemMetadataReq	true	"Metadata upsert request"
+//	@Success		200		{object}	dto.GenericResponse[any]	"Metadata upserted successfully"
+//	@Failure		400		{object}	dto.GenericResponse[any]	"Invalid request format or parameters"
+//	@Failure		404		{object}	dto.GenericResponse[any]	"System not found"
+//	@Failure		500		{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v2/systems/{id}/metadata [post]
 //	@x-api-type		{"admin":"true"}
 func (h *Handler) UpsertMetadata(c *gin.Context) {
@@ -209,12 +209,12 @@ func (h *Handler) UpsertMetadata(c *gin.Context) {
 //	@ID				list_chaos_system_metadata
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			id		path		int												true	"System ID"
-//	@Param			type	query		string											false	"Metadata type filter"
+//	@Param			id		path		int											true	"System ID"
+//	@Param			type	query		string										false	"Metadata type filter"
 //	@Success		200		{object}	dto.GenericResponse[[]SystemMetadataResp]	"Metadata retrieved successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]						"Invalid system ID"
-//	@Failure		404		{object}	dto.GenericResponse[any]						"System not found"
-//	@Failure		500		{object}	dto.GenericResponse[any]						"Internal server error"
+//	@Failure		400		{object}	dto.GenericResponse[any]					"Invalid system ID"
+//	@Failure		404		{object}	dto.GenericResponse[any]					"System not found"
+//	@Failure		500		{object}	dto.GenericResponse[any]					"Internal server error"
 //	@Router			/api/v2/systems/{id}/metadata [get]
 //	@x-api-type		{"admin":"true"}
 func (h *Handler) ListMetadata(c *gin.Context) {

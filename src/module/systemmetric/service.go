@@ -1,4 +1,4 @@
-package systemmetricmodule
+package systemmetric
 
 import (
 	"context"
@@ -11,9 +11,9 @@ import (
 	"aegis/consts"
 	"aegis/dto"
 	redisinfra "aegis/infra/redis"
-	taskmodule "aegis/module/task"
+	task "aegis/module/task"
 
-	"github.com/redis/go-redis/v9"
+	goredis "github.com/redis/go-redis/v9"
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/disk"
 	"github.com/shirou/gopsutil/v3/mem"
@@ -75,12 +75,12 @@ func (s *Service) GetSystemMetricsHistory(ctx context.Context) (*SystemMetricsHi
 	endTime := now.Unix()
 
 	cpuData, err := s.redis.ZRangeByScore(ctx, "system:metrics:cpu", fmt.Sprintf("%d", startTime), fmt.Sprintf("%d", endTime))
-	if err != nil && !errors.Is(err, redis.Nil) {
+	if err != nil && !errors.Is(err, goredis.Nil) {
 		return nil, fmt.Errorf("failed to get CPU history: %v", err)
 	}
 
 	memData, err := s.redis.ZRangeByScore(ctx, "system:metrics:memory", fmt.Sprintf("%d", startTime), fmt.Sprintf("%d", endTime))
-	if err != nil && !errors.Is(err, redis.Nil) {
+	if err != nil && !errors.Is(err, goredis.Nil) {
 		return nil, fmt.Errorf("failed to get memory history: %v", err)
 	}
 
@@ -143,16 +143,16 @@ func (s *Service) ListNamespaceLocks(ctx context.Context) (*ListNamespaceLockRes
 	return &ListNamespaceLockResp{Items: items}, nil
 }
 
-func (s *Service) ListQueuedTasks(ctx context.Context) (*taskmodule.QueuedTasksResp, error) {
+func (s *Service) ListQueuedTasks(ctx context.Context) (*task.QueuedTasksResp, error) {
 	readyTaskDatas, err := s.redis.ListReadyTasks(ctx)
 	if err != nil {
-		if errors.Is(err, redis.Nil) {
+		if errors.Is(err, goredis.Nil) {
 			return nil, fmt.Errorf("%w: no ready tasks found", consts.ErrNotFound)
 		}
 		return nil, err
 	}
 
-	readyTasks := make([]taskmodule.TaskResp, 0, len(readyTaskDatas))
+	readyTasks := make([]task.TaskResp, 0, len(readyTaskDatas))
 	for _, taskData := range readyTaskDatas {
 		taskResp, err := decodeQueuedTask(taskData)
 		if err != nil {
@@ -163,13 +163,13 @@ func (s *Service) ListQueuedTasks(ctx context.Context) (*taskmodule.QueuedTasksR
 
 	delayedTaskDatas, err := s.redis.ListDelayedTasks(ctx, 1000)
 	if err != nil {
-		if errors.Is(err, redis.Nil) {
+		if errors.Is(err, goredis.Nil) {
 			return nil, fmt.Errorf("%w: no delayed tasks found", consts.ErrNotFound)
 		}
 		return nil, err
 	}
 
-	delayedTasks := make([]taskmodule.TaskResp, 0, len(delayedTaskDatas))
+	delayedTasks := make([]task.TaskResp, 0, len(delayedTaskDatas))
 	for _, taskData := range delayedTaskDatas {
 		taskResp, err := decodeQueuedTask(taskData)
 		if err != nil {
@@ -178,29 +178,29 @@ func (s *Service) ListQueuedTasks(ctx context.Context) (*taskmodule.QueuedTasksR
 		delayedTasks = append(delayedTasks, taskResp)
 	}
 
-	return &taskmodule.QueuedTasksResp{
+	return &task.QueuedTasksResp{
 		ReadyTasks:   readyTasks,
 		DelayedTasks: delayedTasks,
 	}, nil
 }
 
-func decodeQueuedTask(taskData string) (taskmodule.TaskResp, error) {
-	var task dto.UnifiedTask
-	if err := json.Unmarshal([]byte(taskData), &task); err != nil {
-		return taskmodule.TaskResp{}, err
+func decodeQueuedTask(taskData string) (task.TaskResp, error) {
+	var queuedTask dto.UnifiedTask
+	if err := json.Unmarshal([]byte(taskData), &queuedTask); err != nil {
+		return task.TaskResp{}, err
 	}
 
-	return taskmodule.TaskResp{
-		ID:          task.TaskID,
-		Type:        consts.GetTaskTypeName(task.Type),
-		Immediate:   task.Immediate,
-		ExecuteTime: task.ExecuteTime,
-		CronExpr:    task.CronExpr,
-		TraceID:     task.TraceID,
-		GroupID:     task.GroupID,
-		State:       consts.GetTaskStateName(task.State),
+	return task.TaskResp{
+		ID:          queuedTask.TaskID,
+		Type:        consts.GetTaskTypeName(queuedTask.Type),
+		Immediate:   queuedTask.Immediate,
+		ExecuteTime: queuedTask.ExecuteTime,
+		CronExpr:    queuedTask.CronExpr,
+		TraceID:     queuedTask.TraceID,
+		GroupID:     queuedTask.GroupID,
+		State:       consts.GetTaskStateName(queuedTask.State),
 		Status:      consts.GetStatusTypeName(consts.CommonEnabled),
-		ProjectID:   task.ProjectID,
+		ProjectID:   queuedTask.ProjectID,
 	}, nil
 }
 
@@ -224,7 +224,7 @@ func (s *Service) StoreSystemMetrics(ctx context.Context) error {
 	now := time.Now().Unix()
 
 	cpuData, _ := json.Marshal(metrics.CPU)
-	if err := s.redis.ZAdd(ctx, "system:metrics:cpu", redis.Z{
+	if err := s.redis.ZAdd(ctx, "system:metrics:cpu", goredis.Z{
 		Score:  float64(now),
 		Member: cpuData,
 	}); err != nil {
@@ -232,7 +232,7 @@ func (s *Service) StoreSystemMetrics(ctx context.Context) error {
 	}
 
 	memData, _ := json.Marshal(metrics.Memory)
-	if err := s.redis.ZAdd(ctx, "system:metrics:memory", redis.Z{
+	if err := s.redis.ZAdd(ctx, "system:metrics:memory", goredis.Z{
 		Score:  float64(now),
 		Member: memData,
 	}); err != nil {

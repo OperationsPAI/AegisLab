@@ -1,4 +1,4 @@
-package gatewayapp
+package gateway
 
 import (
 	"context"
@@ -6,42 +6,42 @@ import (
 
 	"aegis/consts"
 	"aegis/dto"
-	containermodule "aegis/module/container"
-	metricmodule "aegis/module/metric"
+	container "aegis/module/container"
+	metric "aegis/module/metric"
 )
 
 type metricOrchestratorClient interface {
 	Enabled() bool
-	GetInjectionMetrics(context.Context, *metricmodule.GetMetricsReq) (*metricmodule.InjectionMetrics, error)
-	GetExecutionMetrics(context.Context, *metricmodule.GetMetricsReq) (*metricmodule.ExecutionMetrics, error)
+	GetInjectionMetrics(context.Context, *metric.GetMetricsReq) (*metric.InjectionMetrics, error)
+	GetExecutionMetrics(context.Context, *metric.GetMetricsReq) (*metric.ExecutionMetrics, error)
 }
 
 type metricResourceClient interface {
 	Enabled() bool
-	ListContainers(context.Context, *containermodule.ListContainerReq) (*dto.ListResp[containermodule.ContainerResp], error)
+	ListContainers(context.Context, *container.ListContainerReq) (*dto.ListResp[container.ContainerResp], error)
 }
 
 type remoteAwareMetricService struct {
-	metricmodule.HandlerService
+	metric.HandlerService
 	orchestrator metricOrchestratorClient
 	resource     metricResourceClient
 }
 
-func (s remoteAwareMetricService) GetInjectionMetrics(ctx context.Context, req *metricmodule.GetMetricsReq) (*metricmodule.InjectionMetrics, error) {
+func (s remoteAwareMetricService) GetInjectionMetrics(ctx context.Context, req *metric.GetMetricsReq) (*metric.InjectionMetrics, error) {
 	if s.orchestrator != nil && s.orchestrator.Enabled() {
 		return s.orchestrator.GetInjectionMetrics(ctx, req)
 	}
 	return nil, missingRemoteDependency("orchestrator-service")
 }
 
-func (s remoteAwareMetricService) GetExecutionMetrics(ctx context.Context, req *metricmodule.GetMetricsReq) (*metricmodule.ExecutionMetrics, error) {
+func (s remoteAwareMetricService) GetExecutionMetrics(ctx context.Context, req *metric.GetMetricsReq) (*metric.ExecutionMetrics, error) {
 	if s.orchestrator != nil && s.orchestrator.Enabled() {
 		return s.orchestrator.GetExecutionMetrics(ctx, req)
 	}
 	return nil, missingRemoteDependency("orchestrator-service")
 }
 
-func (s remoteAwareMetricService) GetAlgorithmMetrics(ctx context.Context, req *metricmodule.GetMetricsReq) (*metricmodule.AlgorithmMetrics, error) {
+func (s remoteAwareMetricService) GetAlgorithmMetrics(ctx context.Context, req *metric.GetMetricsReq) (*metric.AlgorithmMetrics, error) {
 	if s.orchestrator == nil || !s.orchestrator.Enabled() {
 		return nil, missingRemoteDependency("orchestrator-service")
 	}
@@ -54,12 +54,12 @@ func (s remoteAwareMetricService) GetAlgorithmMetrics(ctx context.Context, req *
 		return nil, err
 	}
 
-	metrics := &metricmodule.AlgorithmMetrics{
-		Algorithms: make([]metricmodule.AlgorithmMetricItem, 0, len(algorithms)),
+	metrics := &metric.AlgorithmMetrics{
+		Algorithms: make([]metric.AlgorithmMetricItem, 0, len(algorithms)),
 	}
 	for _, algorithm := range algorithms {
 		algorithmID := algorithm.ID
-		executionMetrics, err := s.orchestrator.GetExecutionMetrics(ctx, &metricmodule.GetMetricsReq{
+		executionMetrics, err := s.orchestrator.GetExecutionMetrics(ctx, &metric.GetMetricsReq{
 			StartTime:   req.StartTime,
 			EndTime:     req.EndTime,
 			AlgorithmID: &algorithmID,
@@ -67,7 +67,7 @@ func (s remoteAwareMetricService) GetAlgorithmMetrics(ctx context.Context, req *
 		if err != nil || executionMetrics == nil || executionMetrics.TotalCount == 0 {
 			continue
 		}
-		metrics.Algorithms = append(metrics.Algorithms, metricmodule.AlgorithmMetricItem{
+		metrics.Algorithms = append(metrics.Algorithms, metric.AlgorithmMetricItem{
 			AlgorithmID:    algorithm.ID,
 			AlgorithmName:  algorithm.Name,
 			ExecutionCount: executionMetrics.TotalCount,
@@ -80,14 +80,14 @@ func (s remoteAwareMetricService) GetAlgorithmMetrics(ctx context.Context, req *
 	return metrics, nil
 }
 
-func (s remoteAwareMetricService) listAlgorithmContainers(ctx context.Context, req *metricmodule.GetMetricsReq) ([]containermodule.ContainerResp, error) {
+func (s remoteAwareMetricService) listAlgorithmContainers(ctx context.Context, req *metric.GetMetricsReq) ([]container.ContainerResp, error) {
 	containerType := consts.ContainerTypeAlgorithm
 	status := consts.CommonEnabled
 	page := 1
-	items := make([]containermodule.ContainerResp, 0)
+	items := make([]container.ContainerResp, 0)
 
 	for {
-		resp, err := s.resource.ListContainers(ctx, &containermodule.ListContainerReq{
+		resp, err := s.resource.ListContainers(ctx, &container.ListContainerReq{
 			PaginationReq: dto.PaginationReq{
 				Page: page,
 				Size: consts.PageSizeXLarge,
@@ -108,11 +108,11 @@ func (s remoteAwareMetricService) listAlgorithmContainers(ctx context.Context, r
 	if req.AlgorithmID == nil {
 		return items, nil
 	}
-	index := slices.IndexFunc(items, func(item containermodule.ContainerResp) bool {
+	index := slices.IndexFunc(items, func(item container.ContainerResp) bool {
 		return item.ID == *req.AlgorithmID
 	})
 	if index < 0 {
-		return []containermodule.ContainerResp{}, nil
+		return []container.ContainerResp{}, nil
 	}
-	return []containermodule.ContainerResp{items[index]}, nil
+	return []container.ContainerResp{items[index]}, nil
 }

@@ -1,4 +1,4 @@
-package teammodule
+package team
 
 import "go.uber.org/fx"
 

@@ -1,4 +1,4 @@
-package gatewayapp
+package gateway
 
 import (
 	"context"
@@ -8,23 +8,23 @@ import (
 	"aegis/dto"
 	"aegis/internalclient/orchestratorclient"
 	"aegis/model"
-	executionmodule "aegis/module/execution"
-	groupmodule "aegis/module/group"
-	injectionmodule "aegis/module/injection"
-	notificationmodule "aegis/module/notification"
-	taskmodule "aegis/module/task"
-	tracemodule "aegis/module/trace"
+	execution "aegis/module/execution"
+	group "aegis/module/group"
+	injection "aegis/module/injection"
+	notification "aegis/module/notification"
+	task "aegis/module/task"
+	trace "aegis/module/trace"
 
 	"github.com/gorilla/websocket"
 	"github.com/redis/go-redis/v9"
 )
 
 type remoteAwareExecutionService struct {
-	executionmodule.HandlerService
+	execution.HandlerService
 	orchestrator *orchestratorclient.Client
 }
 
-func (s remoteAwareExecutionService) SubmitAlgorithmExecution(ctx context.Context, req *executionmodule.SubmitExecutionReq, groupID string, userID int) (*executionmodule.SubmitExecutionResp, error) {
+func (s remoteAwareExecutionService) SubmitAlgorithmExecution(ctx context.Context, req *execution.SubmitExecutionReq, groupID string, userID int) (*execution.SubmitExecutionResp, error) {
 	if s.orchestrator != nil && s.orchestrator.Enabled() {
 		return s.orchestrator.SubmitExecution(ctx, req, groupID, userID)
 	}
@@ -32,18 +32,18 @@ func (s remoteAwareExecutionService) SubmitAlgorithmExecution(ctx context.Contex
 }
 
 type remoteAwareInjectionService struct {
-	injectionmodule.HandlerService
+	injection.HandlerService
 	orchestrator *orchestratorclient.Client
 }
 
-func (s remoteAwareInjectionService) SubmitFaultInjection(ctx context.Context, req *injectionmodule.SubmitInjectionReq, groupID string, userID int, projectID *int) (*injectionmodule.SubmitInjectionResp, error) {
+func (s remoteAwareInjectionService) SubmitFaultInjection(ctx context.Context, req *injection.SubmitInjectionReq, groupID string, userID int, projectID *int) (*injection.SubmitInjectionResp, error) {
 	if s.orchestrator != nil && s.orchestrator.Enabled() {
 		return s.orchestrator.SubmitFaultInjection(ctx, req, groupID, userID, projectID)
 	}
 	return nil, missingRemoteDependency("orchestrator-service")
 }
 
-func (s remoteAwareInjectionService) SubmitDatapackBuilding(ctx context.Context, req *injectionmodule.SubmitDatapackBuildingReq, groupID string, userID int, projectID *int) (*injectionmodule.SubmitDatapackBuildingResp, error) {
+func (s remoteAwareInjectionService) SubmitDatapackBuilding(ctx context.Context, req *injection.SubmitDatapackBuildingReq, groupID string, userID int, projectID *int) (*injection.SubmitDatapackBuildingResp, error) {
 	if s.orchestrator != nil && s.orchestrator.Enabled() {
 		return s.orchestrator.SubmitDatapackBuilding(ctx, req, groupID, userID, projectID)
 	}
@@ -52,32 +52,32 @@ func (s remoteAwareInjectionService) SubmitDatapackBuilding(ctx context.Context,
 
 type taskOrchestratorClient interface {
 	Enabled() bool
-	GetTask(context.Context, string) (*taskmodule.TaskDetailResp, error)
-	PollTaskLogs(context.Context, string, time.Time) (*taskmodule.TaskLogPollResp, error)
-	ListTasks(context.Context, *taskmodule.ListTaskReq) (*dto.ListResp[taskmodule.TaskResp], error)
+	GetTask(context.Context, string) (*task.TaskDetailResp, error)
+	PollTaskLogs(context.Context, string, time.Time) (*task.TaskLogPollResp, error)
+	ListTasks(context.Context, *task.ListTaskReq) (*dto.ListResp[task.TaskResp], error)
 }
 
 type traceOrchestratorClient interface {
 	Enabled() bool
-	GetTrace(context.Context, string) (*tracemodule.TraceDetailResp, error)
-	ListTraces(context.Context, *tracemodule.ListTraceReq) (*dto.ListResp[tracemodule.TraceResp], error)
+	GetTrace(context.Context, string) (*trace.TraceDetailResp, error)
+	ListTraces(context.Context, *trace.ListTraceReq) (*dto.ListResp[trace.TraceResp], error)
 	GetTraceStreamAlgorithms(context.Context, string) ([]dto.ContainerVersionItem, error)
 	ReadTraceStreamMessages(context.Context, string, string, int64, time.Duration) ([]redis.XStream, error)
 }
 
 type remoteAwareTaskService struct {
-	taskmodule.HandlerService
+	task.HandlerService
 	orchestrator taskOrchestratorClient
 }
 
-func (s remoteAwareTaskService) GetDetail(ctx context.Context, taskID string) (*taskmodule.TaskDetailResp, error) {
+func (s remoteAwareTaskService) GetDetail(ctx context.Context, taskID string) (*task.TaskDetailResp, error) {
 	if s.orchestrator != nil && s.orchestrator.Enabled() {
 		return s.orchestrator.GetTask(ctx, taskID)
 	}
 	return nil, missingRemoteDependency("orchestrator-service")
 }
 
-func (s remoteAwareTaskService) List(ctx context.Context, req *taskmodule.ListTaskReq) (*dto.ListResp[taskmodule.TaskResp], error) {
+func (s remoteAwareTaskService) List(ctx context.Context, req *task.ListTaskReq) (*dto.ListResp[task.TaskResp], error) {
 	if s.orchestrator != nil && s.orchestrator.Enabled() {
 		return s.orchestrator.ListTasks(ctx, req)
 	}
@@ -94,9 +94,9 @@ func (s remoteAwareTaskService) GetForLogStream(ctx context.Context, taskID stri
 	return nil, missingRemoteDependency("orchestrator-service")
 }
 
-func (s remoteAwareTaskService) StreamLogs(ctx context.Context, conn *websocket.Conn, task *model.Task) {
+func (s remoteAwareTaskService) StreamLogs(ctx context.Context, conn *websocket.Conn, taskModel *model.Task) {
 	if s.orchestrator == nil || !s.orchestrator.Enabled() {
-		writeTaskWSMessage(conn, taskmodule.WSLogMessage{
+		writeTaskWSMessage(conn, task.WSLogMessage{
 			Type:    consts.WSLogTypeError,
 			Message: missingRemoteDependency("orchestrator-service").Error(),
 		})
@@ -107,7 +107,7 @@ func (s remoteAwareTaskService) StreamLogs(ctx context.Context, conn *websocket.
 	streamer := remoteTaskLogStreamer{
 		conn:         conn,
 		orchestrator: s.orchestrator,
-		taskID:       task.ID,
+		taskID:       taskModel.ID,
 	}
 	streamer.stream(ctx)
 }
@@ -143,7 +143,7 @@ func (s remoteTaskLogStreamer) stream(ctx context.Context) {
 
 	initial, err := s.orchestrator.PollTaskLogs(ctx, s.taskID, time.Time{})
 	if err != nil {
-		writeTaskWSMessage(s.conn, taskmodule.WSLogMessage{
+		writeTaskWSMessage(s.conn, task.WSLogMessage{
 			Type:    consts.WSLogTypeError,
 			Message: err.Error(),
 		})
@@ -152,7 +152,7 @@ func (s remoteTaskLogStreamer) stream(ctx context.Context) {
 	}
 	lastTimestamp := initial.CreatedAt
 	if len(initial.Logs) > 0 {
-		writeTaskWSMessage(s.conn, taskmodule.WSLogMessage{
+		writeTaskWSMessage(s.conn, task.WSLogMessage{
 			Type:  consts.WSLogTypeHistory,
 			Logs:  initial.Logs,
 			Total: len(initial.Logs),
@@ -174,14 +174,14 @@ func (s remoteTaskLogStreamer) stream(ctx context.Context) {
 		case <-ticker.C:
 			resp, err := s.orchestrator.PollTaskLogs(ctx, s.taskID, lastTimestamp)
 			if err != nil {
-				writeTaskWSMessage(s.conn, taskmodule.WSLogMessage{
+				writeTaskWSMessage(s.conn, task.WSLogMessage{
 					Type:    consts.WSLogTypeError,
 					Message: err.Error(),
 				})
 				return
 			}
 			if len(resp.Logs) > 0 {
-				writeTaskWSMessage(s.conn, taskmodule.WSLogMessage{
+				writeTaskWSMessage(s.conn, task.WSLogMessage{
 					Type: consts.WSLogTypeRealtime,
 					Logs: resp.Logs,
 				})
@@ -200,7 +200,7 @@ func (s remoteTaskLogStreamer) flushTerminalLogs(ctx context.Context, lastTimest
 	for time.Now().Before(deadline) {
 		resp, err := s.orchestrator.PollTaskLogs(ctx, s.taskID, lastTimestamp)
 		if err == nil && len(resp.Logs) > 0 {
-			writeTaskWSMessage(s.conn, taskmodule.WSLogMessage{
+			writeTaskWSMessage(s.conn, task.WSLogMessage{
 				Type: consts.WSLogTypeRealtime,
 				Logs: resp.Logs,
 			})
@@ -208,7 +208,7 @@ func (s remoteTaskLogStreamer) flushTerminalLogs(ctx context.Context, lastTimest
 		}
 		time.Sleep(remoteTaskPollInterval)
 	}
-	writeTaskWSMessage(s.conn, taskmodule.WSLogMessage{
+	writeTaskWSMessage(s.conn, task.WSLogMessage{
 		Type:    consts.WSLogTypeEnd,
 		Message: "task completed",
 	})
@@ -241,37 +241,37 @@ func (s remoteTaskLogStreamer) pingLoop(ctx context.Context, cancel context.Canc
 	}
 }
 
-func writeTaskWSMessage(conn *websocket.Conn, msg taskmodule.WSLogMessage) {
+func writeTaskWSMessage(conn *websocket.Conn, msg task.WSLogMessage) {
 	_ = conn.SetWriteDeadline(time.Now().Add(remoteTaskLogWriteWait))
 	_ = conn.WriteJSON(msg)
 }
 
 type remoteAwareTraceService struct {
-	tracemodule.HandlerService
+	trace.HandlerService
 	orchestrator traceOrchestratorClient
 }
 
-func (s remoteAwareTraceService) GetTrace(ctx context.Context, traceID string) (*tracemodule.TraceDetailResp, error) {
+func (s remoteAwareTraceService) GetTrace(ctx context.Context, traceID string) (*trace.TraceDetailResp, error) {
 	if s.orchestrator != nil && s.orchestrator.Enabled() {
 		return s.orchestrator.GetTrace(ctx, traceID)
 	}
 	return nil, missingRemoteDependency("orchestrator-service")
 }
 
-func (s remoteAwareTraceService) ListTraces(ctx context.Context, req *tracemodule.ListTraceReq) (*dto.ListResp[tracemodule.TraceResp], error) {
+func (s remoteAwareTraceService) ListTraces(ctx context.Context, req *trace.ListTraceReq) (*dto.ListResp[trace.TraceResp], error) {
 	if s.orchestrator != nil && s.orchestrator.Enabled() {
 		return s.orchestrator.ListTraces(ctx, req)
 	}
 	return nil, missingRemoteDependency("orchestrator-service")
 }
 
-func (s remoteAwareTraceService) GetTraceStreamProcessor(ctx context.Context, traceID string) (*tracemodule.StreamProcessor, error) {
+func (s remoteAwareTraceService) GetTraceStreamProcessor(ctx context.Context, traceID string) (*trace.StreamProcessor, error) {
 	if s.orchestrator != nil && s.orchestrator.Enabled() {
 		algorithms, err := s.orchestrator.GetTraceStreamAlgorithms(ctx, traceID)
 		if err != nil {
 			return nil, err
 		}
-		return tracemodule.NewStreamProcessor(algorithms), nil
+		return trace.NewStreamProcessor(algorithms), nil
 	}
 	return nil, missingRemoteDependency("orchestrator-service")
 }
@@ -285,30 +285,30 @@ func (s remoteAwareTraceService) ReadTraceStreamMessages(ctx context.Context, st
 
 type groupOrchestratorClient interface {
 	Enabled() bool
-	GetGroupStats(context.Context, string) (*groupmodule.GroupStats, error)
+	GetGroupStats(context.Context, string) (*group.GroupStats, error)
 	GetGroupTraceCount(context.Context, string) (int, error)
 	ReadGroupStreamMessages(context.Context, string, string, int64, time.Duration) ([]redis.XStream, error)
 }
 
 type remoteAwareGroupService struct {
-	groupmodule.HandlerService
+	group.HandlerService
 	orchestrator groupOrchestratorClient
 }
 
-func (s remoteAwareGroupService) GetGroupStats(ctx context.Context, req *groupmodule.GetGroupStatsReq) (*groupmodule.GroupStats, error) {
+func (s remoteAwareGroupService) GetGroupStats(ctx context.Context, req *group.GetGroupStatsReq) (*group.GroupStats, error) {
 	if s.orchestrator != nil && s.orchestrator.Enabled() {
 		return s.orchestrator.GetGroupStats(ctx, req.GroupID)
 	}
 	return nil, missingRemoteDependency("orchestrator-service")
 }
 
-func (s remoteAwareGroupService) NewGroupStreamProcessor(ctx context.Context, groupID string) (*groupmodule.GroupStreamProcessor, error) {
+func (s remoteAwareGroupService) NewGroupStreamProcessor(ctx context.Context, groupID string) (*group.GroupStreamProcessor, error) {
 	if s.orchestrator != nil && s.orchestrator.Enabled() {
 		totalTraces, err := s.orchestrator.GetGroupTraceCount(ctx, groupID)
 		if err != nil {
 			return nil, err
 		}
-		return groupmodule.NewGroupStreamProcessor(totalTraces), nil
+		return group.NewGroupStreamProcessor(totalTraces), nil
 	}
 	return nil, missingRemoteDependency("orchestrator-service")
 }
@@ -326,7 +326,7 @@ type notificationOrchestratorClient interface {
 }
 
 type remoteAwareNotificationService struct {
-	notificationmodule.HandlerService
+	notification.HandlerService
 	orchestrator notificationOrchestratorClient
 }
 

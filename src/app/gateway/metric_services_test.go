@@ -1,4 +1,4 @@
-package gatewayapp
+package gateway
 
 import (
 	"context"
@@ -7,15 +7,15 @@ import (
 
 	"aegis/consts"
 	"aegis/dto"
-	containermodule "aegis/module/container"
-	metricmodule "aegis/module/metric"
+	container "aegis/module/container"
+	metric "aegis/module/metric"
 )
 
 type orchestratorMetricClientStub struct {
-	injectionReqs []*metricmodule.GetMetricsReq
-	executionReqs []*metricmodule.GetMetricsReq
-	injection     *metricmodule.InjectionMetrics
-	execution     map[int]metricmodule.ExecutionMetrics
+	injectionReqs []*metric.GetMetricsReq
+	executionReqs []*metric.GetMetricsReq
+	injection     *metric.InjectionMetrics
+	execution     map[int]metric.ExecutionMetrics
 	enabled       bool
 }
 
@@ -23,12 +23,12 @@ func (s *orchestratorMetricClientStub) Enabled() bool {
 	return s.enabled
 }
 
-func (s *orchestratorMetricClientStub) GetInjectionMetrics(_ context.Context, req *metricmodule.GetMetricsReq) (*metricmodule.InjectionMetrics, error) {
+func (s *orchestratorMetricClientStub) GetInjectionMetrics(_ context.Context, req *metric.GetMetricsReq) (*metric.InjectionMetrics, error) {
 	s.injectionReqs = append(s.injectionReqs, req)
 	return s.injection, nil
 }
 
-func (s *orchestratorMetricClientStub) GetExecutionMetrics(_ context.Context, req *metricmodule.GetMetricsReq) (*metricmodule.ExecutionMetrics, error) {
+func (s *orchestratorMetricClientStub) GetExecutionMetrics(_ context.Context, req *metric.GetMetricsReq) (*metric.ExecutionMetrics, error) {
 	s.executionReqs = append(s.executionReqs, req)
 	if req != nil && req.AlgorithmID != nil {
 		if metric, ok := s.execution[*req.AlgorithmID]; ok {
@@ -36,11 +36,11 @@ func (s *orchestratorMetricClientStub) GetExecutionMetrics(_ context.Context, re
 			return &result, nil
 		}
 	}
-	return &metricmodule.ExecutionMetrics{}, nil
+	return &metric.ExecutionMetrics{}, nil
 }
 
 type resourceMetricClientStub struct {
-	responses []*dto.ListResp[containermodule.ContainerResp]
+	responses []*dto.ListResp[container.ContainerResp]
 	enabled   bool
 	calls     int
 }
@@ -49,18 +49,18 @@ func (s *resourceMetricClientStub) Enabled() bool {
 	return s.enabled
 }
 
-func (s *resourceMetricClientStub) ListContainers(_ context.Context, _ *containermodule.ListContainerReq) (*dto.ListResp[containermodule.ContainerResp], error) {
+func (s *resourceMetricClientStub) ListContainers(_ context.Context, _ *container.ListContainerReq) (*dto.ListResp[container.ContainerResp], error) {
 	idx := s.calls
 	s.calls++
 	if idx >= len(s.responses) {
-		return &dto.ListResp[containermodule.ContainerResp]{}, nil
+		return &dto.ListResp[container.ContainerResp]{}, nil
 	}
 	return s.responses[idx], nil
 }
 
 func TestRemoteAwareMetricServiceGetInjectionMetricsRemoteOnly(t *testing.T) {
 	service := remoteAwareMetricService{}
-	_, err := service.GetInjectionMetrics(context.Background(), &metricmodule.GetMetricsReq{})
+	_, err := service.GetInjectionMetrics(context.Background(), &metric.GetMetricsReq{})
 	if err == nil {
 		t.Fatal("GetInjectionMetrics() error = nil, want missing dependency")
 	}
@@ -71,7 +71,7 @@ func TestRemoteAwareMetricServiceGetAlgorithmMetricsBuildsFromRemoteSources(t *t
 	end := time.Now()
 	orchestrator := &orchestratorMetricClientStub{
 		enabled: true,
-		execution: map[int]metricmodule.ExecutionMetrics{
+		execution: map[int]metric.ExecutionMetrics{
 			1: {TotalCount: 3, SuccessCount: 2, FailedCount: 1, SuccessRate: 66.7, AvgDuration: 12.5},
 			2: {TotalCount: 0},
 			3: {TotalCount: 5, SuccessCount: 5, FailedCount: 0, SuccessRate: 100, AvgDuration: 8},
@@ -79,16 +79,16 @@ func TestRemoteAwareMetricServiceGetAlgorithmMetricsBuildsFromRemoteSources(t *t
 	}
 	resource := &resourceMetricClientStub{
 		enabled: true,
-		responses: []*dto.ListResp[containermodule.ContainerResp]{
+		responses: []*dto.ListResp[container.ContainerResp]{
 			{
-				Items: []containermodule.ContainerResp{
+				Items: []container.ContainerResp{
 					{ID: 1, Name: "algo-a", Type: consts.GetContainerTypeName(consts.ContainerTypeAlgorithm)},
 					{ID: 2, Name: "algo-b", Type: consts.GetContainerTypeName(consts.ContainerTypeAlgorithm)},
 				},
 				Pagination: &dto.PaginationInfo{Page: 1, Size: 100, Total: 3, TotalPages: 2},
 			},
 			{
-				Items: []containermodule.ContainerResp{
+				Items: []container.ContainerResp{
 					{ID: 3, Name: "algo-c", Type: consts.GetContainerTypeName(consts.ContainerTypeAlgorithm)},
 				},
 				Pagination: &dto.PaginationInfo{Page: 2, Size: 100, Total: 3, TotalPages: 2},
@@ -101,7 +101,7 @@ func TestRemoteAwareMetricServiceGetAlgorithmMetricsBuildsFromRemoteSources(t *t
 		resource:     resource,
 	}
 
-	resp, err := service.GetAlgorithmMetrics(context.Background(), &metricmodule.GetMetricsReq{
+	resp, err := service.GetAlgorithmMetrics(context.Background(), &metric.GetMetricsReq{
 		StartTime: &start,
 		EndTime:   &end,
 	})

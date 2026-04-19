@@ -1,14 +1,14 @@
-package iamapp
+package iam
 
 import (
 	"aegis/app"
-	grpciaminterface "aegis/interface/grpciam"
+	grpciam "aegis/interface/grpc/iam"
 	"aegis/internalclient/resourceclient"
 	"aegis/middleware"
-	authmodule "aegis/module/auth"
-	rbacmodule "aegis/module/rbac"
-	teammodule "aegis/module/team"
-	usermodule "aegis/module/user"
+	auth "aegis/module/auth"
+	rbac "aegis/module/rbac"
+	team "aegis/module/team"
+	user "aegis/module/user"
 
 	"go.uber.org/fx"
 )
@@ -24,12 +24,12 @@ func Options(confPath string) fx.Option {
 			app.RequiredConfigTarget{Name: "resource-service", PrimaryKey: "clients.resource.target", LegacyKey: "resource.grpc.target"},
 		),
 		resourceclient.Module,
-		teammodule.RemoteProjectReaderOption(),
-		authmodule.Module,
-		rbacmodule.Module,
-		teammodule.Module,
-		usermodule.Module,
+		team.RemoteProjectReaderOption(),
+		auth.Module,
+		rbac.Module,
+		team.Module,
+		user.Module,
 		fx.Provide(middleware.NewService),
-		grpciaminterface.Module,
+		grpciam.Module,
 	)
 }

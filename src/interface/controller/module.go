@@ -1,12 +1,12 @@
-package controllerinterface
+package controller
 
 import (
 	"context"
 	"log"
 	"os"
 
-	k8sinfra "aegis/infra/k8s"
-	redisinfra "aegis/infra/redis"
+	k8s "aegis/infra/k8s"
+	redis "aegis/infra/redis"
 	"aegis/service/consumer"
 
 	"github.com/go-logr/stdr"
@@ -23,9 +23,9 @@ var Module = fx.Module("controller",
 type Params struct {
 	fx.In
 
-	Controller     *k8sinfra.Controller
-	K8sGateway     *k8sinfra.Gateway
-	RedisGateway   *redisinfra.Gateway
+	Controller     *k8s.Controller
+	K8sGateway     *k8s.Gateway
+	RedisGateway   *redis.Gateway
 	DB             *gorm.DB
 	Monitor        consumer.NamespaceMonitor
 	AlgoLimiter    *consumer.TokenBucketRateLimiter `name:"algo_limiter"`

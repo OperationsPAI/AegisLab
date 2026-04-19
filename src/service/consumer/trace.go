@@ -3,9 +3,9 @@ package consumer
 import (
 	"aegis/consts"
 	"aegis/dto"
-	redisinfra "aegis/infra/redis"
+	redis "aegis/infra/redis"
 	"aegis/model"
-	groupmodule "aegis/module/group"
+	group "aegis/module/group"
 	"context"
 	"fmt"
 	"time"
@@ -82,7 +82,7 @@ func getEventTypeByTask(taskType consts.TaskType, taskState consts.TaskState) co
 
 // updateTraceState updates trace state based on task state change
 // This function is called after task state is persisted to ensure real-time sync
-func updateTraceState(redisGateway *redisinfra.Gateway, db *gorm.DB, traceID, taskID string, newState consts.TaskState, event *dto.TraceStreamEvent) error {
+func updateTraceState(redisGateway *redis.Gateway, db *gorm.DB, traceID, taskID string, newState consts.TaskState, event *dto.TraceStreamEvent) error {
 	logEntry := logrus.WithField("trace_id", traceID).WithField("task_id", taskID)
 
 	// Update trace state asynchronously to avoid blocking task processing
@@ -98,7 +98,7 @@ func updateTraceState(redisGateway *redisinfra.Gateway, db *gorm.DB, traceID, ta
 }
 
 // performTraceStateUpdate performs the actual trace state update with retry logic
-func performTraceStateUpdate(redisGateway *redisinfra.Gateway, ctx context.Context, db *gorm.DB, traceID, taskID string, newState consts.TaskState, event *dto.TraceStreamEvent) error {
+func performTraceStateUpdate(redisGateway *redis.Gateway, ctx context.Context, db *gorm.DB, traceID, taskID string, newState consts.TaskState, event *dto.TraceStreamEvent) error {
 	const maxRetries = 3
 	logEntry := logrus.WithField("trace_id", traceID)
 
@@ -122,7 +122,7 @@ func performTraceStateUpdate(redisGateway *redisinfra.Gateway, ctx context.Conte
 }
 
 // tryUpdateTraceStateCore attempts to update trace state once
-func tryUpdateTraceStateCore(redisGateway *redisinfra.Gateway, ctx context.Context, db *gorm.DB, traceID, taskID string, newState consts.TaskState, streamEvent *dto.TraceStreamEvent) error {
+func tryUpdateTraceStateCore(redisGateway *redis.Gateway, ctx context.Context, db *gorm.DB, traceID, taskID string, newState consts.TaskState, streamEvent *dto.TraceStreamEvent) error {
 	if db == nil {
 		return fmt.Errorf("trace state update db is nil")
 	}
@@ -519,11 +519,11 @@ func isOptimisticLockError(err error) bool {
 // publishGroupStreamEvent publishes a lightweight event to the group-level Redis stream
 // when a trace reaches a terminal state (Completed/Failed).
 // This enables real-time SSE updates for group progress tracking on the frontend.
-func publishGroupStreamEvent(redisGateway *redisinfra.Gateway, ctx context.Context, groupID, traceID string, state consts.TraceState, lastEvent consts.EventType) {
+func publishGroupStreamEvent(redisGateway *redis.Gateway, ctx context.Context, groupID, traceID string, state consts.TraceState, lastEvent consts.EventType) {
 	streamKey := fmt.Sprintf(consts.StreamGroupLogKey, groupID)
 	logEntry := logrus.WithField("group_id", groupID).WithField("trace_id", traceID)
 
-	event := &groupmodule.GroupStreamEvent{
+	event := &group.GroupStreamEvent{
 		TraceID:   traceID,
 		State:     state,
 		LastEvent: lastEvent,

@@ -9,20 +9,20 @@ import (
 	"testing"
 	"time"
 
-	buildkitinfra "aegis/infra/buildkit"
-	etcdinfra "aegis/infra/etcd"
-	harborinfra "aegis/infra/harbor"
-	helminfra "aegis/infra/helm"
-	k8sinfra "aegis/infra/k8s"
-	lokiinfra "aegis/infra/loki"
+	buildkit "aegis/infra/buildkit"
+	etcd "aegis/infra/etcd"
+	harbor "aegis/infra/harbor"
+	helm "aegis/infra/helm"
+	k8s "aegis/infra/k8s"
+	loki "aegis/infra/loki"
 	redisinfra "aegis/infra/redis"
-	controllerinterface "aegis/interface/controller"
-	httpinterface "aegis/interface/http"
-	receiverinterface "aegis/interface/receiver"
-	workerinterface "aegis/interface/worker"
+	controllerapi "aegis/interface/controller"
+	httpapi "aegis/interface/http"
+	receiverapi "aegis/interface/receiver"
+	workerapi "aegis/interface/worker"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/redis/go-redis/v9"
+	goredis "github.com/redis/go-redis/v9"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.opentelemetry.io/otel/sdk/trace"
 	"go.uber.org/fx"
@@ -67,13 +67,13 @@ func newSmokeReplacements(t *testing.T, spies *smokeLifecycleSpies) (fx.Option, 
 	t.Helper()
 
 	db, cleanupDB := newSmokeDB(t)
-	redisClient := redis.NewClient(&redis.Options{Addr: "127.0.0.1:0"})
+	redisClient := goredis.NewClient(&goredis.Options{Addr: "127.0.0.1:0"})
 	redisGateway := redisinfra.NewGateway(redisClient)
 	etcdClient := &clientv3.Client{}
-	etcdGateway := etcdinfra.NewGateway(etcdClient)
+	etcdGateway := etcd.NewGateway(etcdClient)
 	traceProvider := trace.NewTracerProvider()
-	controller := &k8sinfra.Controller{}
-	k8sGateway := k8sinfra.NewGateway(controller)
+	controller := &k8s.Controller{}
+	k8sGateway := k8s.NewGateway(controller)
 
 	producerInitializer := &ProducerInitializer{StartFunc: func(context.Context) error {
 		if spies != nil {
@@ -81,7 +81,7 @@ func newSmokeReplacements(t *testing.T, spies *smokeLifecycleSpies) (fx.Option, 
 		}
 		return nil
 	}}
-	workerLifecycle := &workerinterface.Lifecycle{
+	workerLifecycle := &workerapi.Lifecycle{
 		StartFunc: func(context.Context) error {
 			if spies != nil {
 				atomic.AddInt32(&spies.workerStarts, 1)
@@ -94,7 +94,7 @@ func newSmokeReplacements(t *testing.T, spies *smokeLifecycleSpies) (fx.Option, 
 			}
 		},
 	}
-	controllerLifecycle := &controllerinterface.Lifecycle{
+	controllerLifecycle := &controllerapi.Lifecycle{
 		RunFunc: func(context.Context, context.CancelFunc) error {
 			if spies != nil {
 				atomic.AddInt32(&spies.controllerStarts, 1)
@@ -107,7 +107,7 @@ func newSmokeReplacements(t *testing.T, spies *smokeLifecycleSpies) (fx.Option, 
 			}
 		},
 	}
-	receiverLifecycle := &receiverinterface.Lifecycle{
+	receiverLifecycle := &receiverapi.Lifecycle{
 		StartFunc: func(context.Context) error {
 			if spies != nil {
 				atomic.AddInt32(&spies.receiverStarts, 1)
@@ -127,14 +127,14 @@ func newSmokeReplacements(t *testing.T, spies *smokeLifecycleSpies) (fx.Option, 
 			redisClient,
 			etcdGateway,
 			etcdClient,
-			&lokiinfra.Client{},
+			&loki.Client{},
 			traceProvider,
 			&rest.Config{},
 			controller,
 			k8sGateway,
-			harborinfra.NewGateway(),
-			helminfra.NewGateway(),
-			buildkitinfra.NewGateway(),
+			harbor.NewGateway(),
+			helm.NewGateway(),
+			buildkit.NewGateway(),
 			producerInitializer,
 			workerLifecycle,
 			controllerLifecycle,
@@ -254,7 +254,7 @@ func TestProducerOptionsHTTPIntegrationSmoke(t *testing.T) {
 	app := fx.New(
 		ProducerOptions("..", "0"),
 		replacements,
-		fx.Replace(httpinterface.ServerConfig{Addr: addr}),
+		fx.Replace(httpapi.ServerConfig{Addr: addr}),
 	)
 
 	startCtx, startCancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -273,7 +273,7 @@ func TestProducerOptionsHTTPIntegrationSmoke(t *testing.T) {
 	client := &http.Client{Timeout: time.Second}
 	baseURL := fmt.Sprintf("http://%s", addr)
 	waitForHTTPStatus(t, client, http.MethodGet, baseURL+"/docs/doc.json", http.StatusOK)
-	waitForHTTPStatus(t, client, http.MethodGet, baseURL+"/system/configs/abc", http.StatusUnauthorized)
+	waitForHTTPStatus(t, client, http.MethodGet, baseURL+"/api/v2/system/configs/abc", http.StatusUnauthorized)
 }
 
 func TestConsumerOptionsLifecycleIntegrationSmoke(t *testing.T) {
@@ -303,7 +303,7 @@ func TestBothOptionsHTTPAndLifecycleIntegrationSmoke(t *testing.T) {
 	app := fx.New(
 		BothOptions("..", "0"),
 		replacements,
-		fx.Replace(httpinterface.ServerConfig{Addr: addr}),
+		fx.Replace(httpapi.ServerConfig{Addr: addr}),
 	)
 
 	startCtx, startCancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -315,7 +315,7 @@ func TestBothOptionsHTTPAndLifecycleIntegrationSmoke(t *testing.T) {
 	client := &http.Client{Timeout: time.Second}
 	baseURL := fmt.Sprintf("http://%s", addr)
 	waitForHTTPStatus(t, client, http.MethodGet, baseURL+"/docs/doc.json", http.StatusOK)
-	waitForHTTPStatus(t, client, http.MethodGet, baseURL+"/system/configs/abc", http.StatusUnauthorized)
+	waitForHTTPStatus(t, client, http.MethodGet, baseURL+"/api/v2/system/configs/abc", http.StatusUnauthorized)
 	requireLifecycleCallCount(t, "producer start", &spies.producerStarts, 1)
 	requireLifecycleCallCount(t, "worker start", &spies.workerStarts, 1)
 	requireLifecycleCallCount(t, "controller start", &spies.controllerStarts, 1)

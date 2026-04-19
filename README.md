@@ -160,23 +160,30 @@ cd src && go run ./cmd/api-gateway -conf ./config.dev.toml -port 8082
 
 ```bash
 # Check prerequisites
-make check-prerequisites
+just check-prerequisites
 
 # Deploy to Kubernetes cluster
-make run
-
-# Check deployment status
-make status
-
-# View logs
-make logs
+just run
 ```
+
+If you use `scripts/start.sh` directly, the external install URLs can now be overridden with env vars such as:
+
+- `CERT_MANAGER_MANIFEST_URL`
+- `CHAOS_MESH_REPO_URL`
+- `CLICKSTACK_REPO_URL`
+- `OPEN_TELEMETRY_REPO_URL`
+- `OTEL_DEMO_REPO_URL`
+- `JUICEFS_REPO_URL`
+- `TEST_HTTP_PROXY`
+- `TEST_HTTPS_PROXY`
+- `TEST_NO_PROXY`
 
 ## 📖 Documentation
 
 - **[Report Index](docs/report-index.md)**: Consolidated backend refactor, runtime, governance, SDK/auth, and validation notes
 - **[Refactor TODO](docs/todo.md)**: Source-of-truth task list and final acceptance checklist
 - **[API Key Auth TODO](docs/api-key-auth-execution-todo.md)**: Key ID / Key Secret auth execution checklist and signing contract
+- **[Package Rename TODO](docs/package-rename-todo.md)**: Go package naming cleanup record for `interface/module/infra/app`
 - **[Frontend Redesign](docs/frontend-redesign.md)**: Frontend redesign plan and IA notes
 - **[Frontend UI Guidelines](docs/frontend-ui-guidelines.md)**: Frontend visual/system guidelines
 
@@ -377,7 +384,7 @@ If the problem only appears in split-service mode, then also check:
 Start here:
 
 - `src/internalclient/*`
-- `src/interface/grpc*/*`
+- `src/interface/grpc/*`
 - `src/app/{gateway,iam,resource,orchestrator,runtime,system}/*`
 
 #### async runtime issues
@@ -407,7 +414,7 @@ Split-service path:
 
 - `src/app/gateway/{auth,user,rbac,team}_services.go`
 - `src/internalclient/iamclient/*`
-- `src/interface/grpciam/*`
+- `src/interface/grpc/iam/*`
 
 #### Project / Label / Container / Dataset
 
@@ -422,7 +429,7 @@ Split-service path:
 
 - `src/app/gateway/resource_services.go`
 - `src/internalclient/resourceclient/*`
-- `src/interface/grpcresource/*`
+- `src/interface/grpc/resource/*`
 
 #### Injection / Execution / Task / Trace / Group / Notification
 
@@ -439,7 +446,7 @@ Split-service path:
 
 - `src/app/gateway/orchestrator_services.go`
 - `src/internalclient/orchestratorclient/*`
-- `src/interface/grpcorchestrator/*`
+- `src/interface/grpc/orchestrator/*`
 - `src/service/consumer/*`
 
 #### System / Metrics / Monitor / Config / Audit
@@ -454,8 +461,8 @@ Split-service path:
 - `src/app/gateway/system_services.go`
 - `src/internalclient/systemclient/*`
 - `src/internalclient/runtimeclient/*`
-- `src/interface/grpcsystem/*`
-- `src/interface/grpcruntime/*`
+- `src/interface/grpc/system/*`
+- `src/interface/grpc/runtime/*`
 
 #### Runtime / K8s / Build / Helm / Chaos
 
@@ -477,10 +484,17 @@ Check:
 cd src
 go build -o rcabench main.go
 
-# Generate API documentation
-make swagger
+# Regenerate OpenAPI / Swagger artifacts
+cd ..
+just swagger-init 1.2.3
+
+# Generate SDK packages
+just generate-portal 1.2.3
+just generate-admin 1.2.3
+just generate-python-sdk 1.2.3
 
 # Run tests
+cd src
 go test ./...
 ```
 
@@ -496,17 +510,21 @@ pip install -e .
 python -m pytest tests/
 ```
 
-## 📦 Available Make Targets
+## 📦 Available Just Recipes
 
 ```bash
-make help                    # Show all available commands
-make run                     # Build and deploy application
-make local-debug             # Start local debugging environment
-make build                   # Build application only
-make status                  # Check application status
-make logs                    # View application logs
-make clean-all              # Clean all resources
-make swagger                # Generate API documentation
+just --list                  # Show all available commands
+just run                     # Deploy to the configured Kubernetes target
+just local-deploy            # Boot local infra dependencies with Docker Compose
+just local-debug             # Start local producer+consumer debug process
+just swagger-init 1.2.3      # Regenerate OpenAPI / Swagger artifacts
+just generate-portal 1.2.3   # Generate portal TypeScript SDK
+just generate-admin 1.2.3    # Generate admin TypeScript SDK
+just generate-python-sdk 1.2.3  # Generate Python SDK
+just release-portal 1.2.3    # Generate release-ready portal TypeScript SDK
+just release-admin 1.2.3     # Generate release-ready admin TypeScript SDK
+just release-python-sdk 1.2.3  # Generate release-ready Python SDK
+just test-regression         # Run the Python SDK regression workflow
 ```
 
 ## 🐛 Troubleshooting
@@ -519,8 +537,8 @@ make swagger                # Generate API documentation
    # Check database status
    kubectl get pods | grep mysql
 
-   # Reset database
-   make reset-db
+   # Re-run the local debug stack after fixing config/env
+   just local-debug
    ```
 
 2. **Pod Scheduling Issues**
@@ -575,7 +593,7 @@ cd src && RUN_K8S_INTEGRATION=1 go test ./infra/k8s -run TestK8sGatewayJobLifecy
 ### Getting Help
 
 - Review the consolidated notes in `docs/report-index.md`
-- Review application logs with `make logs`
+- Run `just --list` to inspect the supported local workflows
 - Verify configuration in `src/config.dev.toml`
 
 ## 📊 Performance Considerations

@@ -1,4 +1,4 @@
-package metricmodule
+package metric
 
 import (
 	"aegis/httpx"
@@ -25,15 +25,15 @@ func NewHandler(service HandlerService) *Handler {
 //	@ID				get_injection_metrics
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			start_time	query		string										false	"Start time (RFC3339)"
-//	@Param			end_time	query		string										false	"End time (RFC3339)"
-//	@Param			fault_type	query		string										false	"Filter by fault type"
-//	@Success		200			{object}	dto.GenericResponse[InjectionMetrics]		"Injection metrics"
-//	@Failure		400			{object}	dto.GenericResponse[any]					"Invalid request"
-//	@Failure		401			{object}	dto.GenericResponse[any]					"Authentication required"
-//	@Failure		500			{object}	dto.GenericResponse[any]					"Internal server error"
+//	@Param			start_time	query		string									false	"Start time (RFC3339)"
+//	@Param			end_time	query		string									false	"End time (RFC3339)"
+//	@Param			fault_type	query		string									false	"Filter by fault type"
+//	@Success		200			{object}	dto.GenericResponse[InjectionMetrics]	"Injection metrics"
+//	@Failure		400			{object}	dto.GenericResponse[any]				"Invalid request"
+//	@Failure		401			{object}	dto.GenericResponse[any]				"Authentication required"
+//	@Failure		500			{object}	dto.GenericResponse[any]				"Internal server error"
 //	@Router			/api/v2/metrics/injections [get]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true","sdk":"true"}
 func (h *Handler) GetInjectionMetrics(c *gin.Context) {
 	var req GetMetricsReq
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -57,15 +57,15 @@ func (h *Handler) GetInjectionMetrics(c *gin.Context) {
 //	@ID				get_execution_metrics
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			start_time		query		string										false	"Start time (RFC3339)"
-//	@Param			end_time		query		string										false	"End time (RFC3339)"
-//	@Param			algorithm_id	query		int											false	"Filter by algorithm ID"
-//	@Success		200				{object}	dto.GenericResponse[ExecutionMetrics]		"Execution metrics"
-//	@Failure		400				{object}	dto.GenericResponse[any]					"Invalid request"
-//	@Failure		401				{object}	dto.GenericResponse[any]					"Authentication required"
-//	@Failure		500				{object}	dto.GenericResponse[any]					"Internal server error"
+//	@Param			start_time		query		string									false	"Start time (RFC3339)"
+//	@Param			end_time		query		string									false	"End time (RFC3339)"
+//	@Param			algorithm_id	query		int										false	"Filter by algorithm ID"
+//	@Success		200				{object}	dto.GenericResponse[ExecutionMetrics]	"Execution metrics"
+//	@Failure		400				{object}	dto.GenericResponse[any]				"Invalid request"
+//	@Failure		401				{object}	dto.GenericResponse[any]				"Authentication required"
+//	@Failure		500				{object}	dto.GenericResponse[any]				"Internal server error"
 //	@Router			/api/v2/metrics/executions [get]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true","sdk":"true"}
 func (h *Handler) GetExecutionMetrics(c *gin.Context) {
 	var req GetMetricsReq
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -89,15 +89,15 @@ func (h *Handler) GetExecutionMetrics(c *gin.Context) {
 //	@ID				get_algorithm_metrics
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			algorithm_ids	query		string										false	"Comma-separated algorithm IDs"
-//	@Param			start_time		query		string										false	"Start time (RFC3339)"
-//	@Param			end_time		query		string										false	"End time (RFC3339)"
-//	@Success		200				{object}	dto.GenericResponse[AlgorithmMetrics]		"Algorithm metrics"
-//	@Failure		400				{object}	dto.GenericResponse[any]					"Invalid request"
-//	@Failure		401				{object}	dto.GenericResponse[any]					"Authentication required"
-//	@Failure		500				{object}	dto.GenericResponse[any]					"Internal server error"
+//	@Param			algorithm_ids	query		string									false	"Comma-separated algorithm IDs"
+//	@Param			start_time		query		string									false	"Start time (RFC3339)"
+//	@Param			end_time		query		string									false	"End time (RFC3339)"
+//	@Success		200				{object}	dto.GenericResponse[AlgorithmMetrics]	"Algorithm metrics"
+//	@Failure		400				{object}	dto.GenericResponse[any]				"Invalid request"
+//	@Failure		401				{object}	dto.GenericResponse[any]				"Authentication required"
+//	@Failure		500				{object}	dto.GenericResponse[any]				"Internal server error"
 //	@Router			/api/v2/metrics/algorithms [get]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true","sdk":"true"}
 func (h *Handler) GetAlgorithmMetrics(c *gin.Context) {
 	var req GetMetricsReq
 	if err := c.ShouldBindQuery(&req); err != nil {

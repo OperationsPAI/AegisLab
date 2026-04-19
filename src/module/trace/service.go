@@ -1,4 +1,4 @@
-package tracemodule
+package trace
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"aegis/dto"
 	redisinfra "aegis/infra/redis"
 
-	"github.com/redis/go-redis/v9"
+	goredis "github.com/redis/go-redis/v9"
 )
 
 type Service struct {
@@ -84,7 +84,7 @@ func (s *Service) GetTraceStreamAlgorithms(ctx context.Context, traceID string) 
 	return filtered, nil
 }
 
-func (s *Service) ReadTraceStreamMessages(ctx context.Context, streamKey, lastID string, count int64, block time.Duration) ([]redis.XStream, error) {
+func (s *Service) ReadTraceStreamMessages(ctx context.Context, streamKey, lastID string, count int64, block time.Duration) ([]goredis.XStream, error) {
 	if lastID == "" {
 		lastID = "0"
 	}

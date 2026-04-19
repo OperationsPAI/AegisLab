@@ -1,24 +1,24 @@
-package systemmodule
+package system
 
 import (
 	"context"
 	"fmt"
 
 	"aegis/internalclient/runtimeclient"
-	systemmetricmodule "aegis/module/systemmetric"
-	taskmodule "aegis/module/task"
+	systemmetric "aegis/module/systemmetric"
+	task "aegis/module/task"
 
 	"go.uber.org/fx"
 )
 
 type runtimeQuerySource interface {
 	ListNamespaceLocks(context.Context) (*ListNamespaceLockResp, error)
-	ListQueuedTasks(context.Context) (*taskmodule.QueuedTasksResp, error)
+	ListQueuedTasks(context.Context) (*task.QueuedTasksResp, error)
 }
 
 type runtimeQueryAdapter struct {
 	runtime       *runtimeclient.Client
-	local         *systemmetricmodule.Service
+	local         *systemmetric.Service
 	requireRemote bool
 }
 
@@ -26,7 +26,7 @@ type runtimeQuerySourceParams struct {
 	fx.In
 
 	Runtime *runtimeclient.Client `optional:"true"`
-	Local   *systemmetricmodule.Service
+	Local   *systemmetric.Service
 }
 
 func newRuntimeQuerySource(params runtimeQuerySourceParams) runtimeQuerySource {
@@ -55,7 +55,7 @@ func (a runtimeQueryAdapter) ListNamespaceLocks(ctx context.Context) (*ListNames
 	return a.local.ListNamespaceLocks(ctx)
 }
 
-func (a runtimeQueryAdapter) ListQueuedTasks(ctx context.Context) (*taskmodule.QueuedTasksResp, error) {
+func (a runtimeQueryAdapter) ListQueuedTasks(ctx context.Context) (*task.QueuedTasksResp, error) {
 	if a.runtime != nil && a.runtime.Enabled() {
 		return a.runtime.GetQueuedTasks(ctx)
 	}

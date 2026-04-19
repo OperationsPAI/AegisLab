@@ -1,4 +1,4 @@
-package executionmodule
+package execution
 
 import (
 	"aegis/httpx"
@@ -32,15 +32,15 @@ func NewHandler(service HandlerService) *Handler {
 //	@ID				list_project_executions
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			project_id	path		int														true	"Project ID"
-//	@Param			page		query		int														false	"Page number"	default(1)
-//	@Param			size		query		int														false	"Page size"		default(20)
+//	@Param			project_id	path		int													true	"Project ID"
+//	@Param			page		query		int													false	"Page number"	default(1)
+//	@Param			size		query		int													false	"Page size"		default(20)
 //	@Success		200			{object}	dto.GenericResponse[dto.ListResp[ExecutionResp]]	"Executions retrieved successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]								"Invalid project ID or parameters"
-//	@Failure		401			{object}	dto.GenericResponse[any]								"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]								"Permission denied"
-//	@Failure		404			{object}	dto.GenericResponse[any]								"Project not found"
-//	@Failure		500			{object}	dto.GenericResponse[any]								"Internal server error"
+//	@Failure		400			{object}	dto.GenericResponse[any]							"Invalid project ID or parameters"
+//	@Failure		401			{object}	dto.GenericResponse[any]							"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]							"Permission denied"
+//	@Failure		404			{object}	dto.GenericResponse[any]							"Project not found"
+//	@Failure		500			{object}	dto.GenericResponse[any]							"Internal server error"
 //	@Router			/api/v2/projects/{project_id}/executions [get]
 //	@x-api-type		{"portal":"true"}
 func (h *Handler) ListProjectExecutions(c *gin.Context) {
@@ -77,16 +77,16 @@ func (h *Handler) ListProjectExecutions(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			project_id	path		int												true	"Project ID"
-//	@Param			request	body		SubmitExecutionReq							true	"Algorithm execution request"
-//	@Success		200		{object}	dto.GenericResponse[SubmitExecutionResp]	"Algorithm execution submitted successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]						"Invalid request format or parameters"
-//	@Failure		401		{object}	dto.GenericResponse[any]						"Authentication required"
-//	@Failure		403		{object}	dto.GenericResponse[any]						"Permission denied"
-//	@Failure		404		{object}	dto.GenericResponse[any]						"Project, algorithm, datapack or dataset not found"
-//	@Failure		500		{object}	dto.GenericResponse[any]						"Internal server error"
+//	@Param			project_id	path		int											true	"Project ID"
+//	@Param			request		body		SubmitExecutionReq							true	"Algorithm execution request"
+//	@Success		200			{object}	dto.GenericResponse[SubmitExecutionResp]	"Algorithm execution submitted successfully"
+//	@Failure		400			{object}	dto.GenericResponse[any]					"Invalid request format or parameters"
+//	@Failure		401			{object}	dto.GenericResponse[any]					"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]					"Permission denied"
+//	@Failure		404			{object}	dto.GenericResponse[any]					"Project, algorithm, datapack or dataset not found"
+//	@Failure		500			{object}	dto.GenericResponse[any]					"Internal server error"
 //	@Router			/api/v2/projects/{project_id}/executions/execute [post]
-//	@x-api-type		{"portal":"true"}
+//	@x-api-type		{"portal":"true","sdk":"true"}
 func (h *Handler) SubmitAlgorithmExecution(c *gin.Context) {
 	groupID := c.GetString("groupID")
 	userID, exists := middleware.GetCurrentUserID(c)
@@ -125,43 +125,6 @@ func (h *Handler) SubmitAlgorithmExecution(c *gin.Context) {
 	dto.SuccessResponse(c, resp)
 }
 
-// ListExecutions handles listing executions with pagination and filtering
-//
-//	@Summary		List executions
-//	@Description	Get a paginated list of executions with pagination and filtering
-//	@Tags			Executions
-//	@ID				list_executions
-//	@Produce		json
-//	@Security		BearerAuth
-//	@Param			page	query		int														false	"Page number"	default(1)
-//	@Param			size	query		int														false	"Page size"		default(20)
-//	@Param			state	query		consts.ExecutionState									false	"Filter by execution state"
-//	@Param			status	query		consts.StatusType										false	"Filter by status"
-//	@Param			labels	query		[]string												false	"Filter by labels (array of key:value strings, e.g., 'type:test')"
-//	@Success		200		{object}	dto.GenericResponse[dto.ListResp[ExecutionResp]]	"Executions retrieved successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]								"Invalid request format or parameters"
-//	@Failure		401		{object}	dto.GenericResponse[any]								"Authentication required"
-//	@Failure		403		{object}	dto.GenericResponse[any]								"Permission denied"
-//	@Failure		500		{object}	dto.GenericResponse[any]								"Internal server error"
-//	@Router			/api/v2/executions [get]
-//	@x-api-type		{}
-func (h *Handler) ListExecutions(c *gin.Context) {
-	var req ListExecutionReq
-	if err := c.ShouldBindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
-		return
-	}
-	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
-		return
-	}
-	resp, err := h.service.ListExecutions(c.Request.Context(), &req)
-	if httpx.HandleServiceError(c, err) {
-		return
-	}
-	dto.SuccessResponse(c, resp)
-}
-
 // GetExecution handles getting a single execution by ID
 //
 //	@Summary		Get execution by ID
@@ -170,15 +133,15 @@ func (h *Handler) ListExecutions(c *gin.Context) {
 //	@ID				get_execution_by_id
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			id	path		int												true	"Execution ID"
+//	@Param			id	path		int											true	"Execution ID"
 //	@Success		200	{object}	dto.GenericResponse[ExecutionDetailResp]	"Execution retrieved successfully"
-//	@Failure		400	{object}	dto.GenericResponse[any]						"Invalid execution ID"
-//	@Failure		401	{object}	dto.GenericResponse[any]						"Authentication required"
-//	@Failure		403	{object}	dto.GenericResponse[any]						"Permission denied"
-//	@Failure		404	{object}	dto.GenericResponse[any]						"Execution not found"
-//	@Failure		500	{object}	dto.GenericResponse[any]						"Internal server error"
+//	@Failure		400	{object}	dto.GenericResponse[any]					"Invalid execution ID"
+//	@Failure		401	{object}	dto.GenericResponse[any]					"Authentication required"
+//	@Failure		403	{object}	dto.GenericResponse[any]					"Permission denied"
+//	@Failure		404	{object}	dto.GenericResponse[any]					"Execution not found"
+//	@Failure		500	{object}	dto.GenericResponse[any]					"Internal server error"
 //	@Router			/api/v2/executions/{id} [get]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true","sdk":"true"}
 func (h *Handler) GetExecution(c *gin.Context) {
 	id, ok := httpx.ParsePositiveID(c, c.Param(consts.URLPathExecutionID), "execution ID")
 	if !ok {
@@ -204,7 +167,7 @@ func (h *Handler) GetExecution(c *gin.Context) {
 //	@Failure		403	{object}	dto.GenericResponse[any]				"Permission denied"
 //	@Failure		500	{object}	dto.GenericResponse[any]				"Internal server error"
 //	@Router			/api/v2/executions/labels [get]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) ListAvailableExecutionLabels(c *gin.Context) {
 	labels, err := h.service.ListAvailableLabels(c.Request.Context())
 	if httpx.HandleServiceError(c, err) {
@@ -222,16 +185,16 @@ func (h *Handler) ListAvailableExecutionLabels(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			id		path		int										true	"Execution ID"
+//	@Param			id		path		int									true	"Execution ID"
 //	@Param			manage	body		ManageExecutionLabelReq				true	"Custom label management request"
 //	@Success		200		{object}	dto.GenericResponse[ExecutionResp]	"Custom labels managed successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]				"Invalid execution ID or request format/parameters"
-//	@Failure		401		{object}	dto.GenericResponse[any]				"Authentication required"
-//	@Failure		403		{object}	dto.GenericResponse[any]				"Permission denied"
-//	@Failure		404		{object}	dto.GenericResponse[any]				"Execution not found"
-//	@Failure		500		{object}	dto.GenericResponse[any]				"Internal server error"
+//	@Failure		400		{object}	dto.GenericResponse[any]			"Invalid execution ID or request format/parameters"
+//	@Failure		401		{object}	dto.GenericResponse[any]			"Authentication required"
+//	@Failure		403		{object}	dto.GenericResponse[any]			"Permission denied"
+//	@Failure		404		{object}	dto.GenericResponse[any]			"Execution not found"
+//	@Failure		500		{object}	dto.GenericResponse[any]			"Internal server error"
 //	@Router			/api/v2/executions/{id}/labels [patch]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true","sdk":"true"}
 func (h *Handler) ManageExecutionCustomLabels(c *gin.Context) {
 	id, ok := httpx.ParsePositiveID(c, c.Param(consts.URLPathExecutionID), "execution ID")
 	if !ok {
@@ -262,14 +225,14 @@ func (h *Handler) ManageExecutionCustomLabels(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			request	body		BatchDeleteExecutionReq	true	"Batch delete request"
+//	@Param			request	body		BatchDeleteExecutionReq		true	"Batch delete request"
 //	@Success		200		{object}	dto.GenericResponse[any]	"Executions deleted successfully"
 //	@Failure		400		{object}	dto.GenericResponse[any]	"Invalid request format or parameters"
 //	@Failure		401		{object}	dto.GenericResponse[any]	"Authentication required"
 //	@Failure		403		{object}	dto.GenericResponse[any]	"Permission denied"
 //	@Failure		500		{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v2/executions/batch-delete [post]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) BatchDeleteExecutions(c *gin.Context) {
 	var req BatchDeleteExecutionReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -295,16 +258,16 @@ func (h *Handler) BatchDeleteExecutions(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			execution_id	path		int													true	"Execution ID"
-//	@Param			request			body		UploadDetectorResultReq								true	"Detector results"
-//	@Success		200				{object}	dto.GenericResponse[UploadExecutionResultResp]		"Results uploaded successfully"
-//	@Failure		400				{object}	dto.GenericResponse[any]							"Invalid executionID or invalid request format or parameters"
-//	@Failure		401				{object}	dto.GenericResponse[any]							"Authentication required"
-//	@Failure		403				{object}	dto.GenericResponse[any]							"Permission denied"
-//	@Failure		404				{object}	dto.GenericResponse[any]							"Execution not found"
-//	@Failure		500				{object}	dto.GenericResponse[any]							"Internal server error"
+//	@Param			execution_id	path		int												true	"Execution ID"
+//	@Param			request			body		UploadDetectorResultReq							true	"Detector results"
+//	@Success		200				{object}	dto.GenericResponse[UploadExecutionResultResp]	"Results uploaded successfully"
+//	@Failure		400				{object}	dto.GenericResponse[any]						"Invalid executionID or invalid request format or parameters"
+//	@Failure		401				{object}	dto.GenericResponse[any]						"Authentication required"
+//	@Failure		403				{object}	dto.GenericResponse[any]						"Permission denied"
+//	@Failure		404				{object}	dto.GenericResponse[any]						"Execution not found"
+//	@Failure		500				{object}	dto.GenericResponse[any]						"Internal server error"
 //	@Router			/api/v2/executions/{execution_id}/detector_results [post]
-//	@x-api-type		{"runtime":"true"}
+//	@x-api-type		{"sdk":"true","runtime":"true"}
 func (h *Handler) UploadDetectorResults(c *gin.Context) {
 	executionID, ok := httpx.ParsePositiveID(c, c.Param(consts.URLPathExecutionID), "execution ID")
 	if !ok {
@@ -335,16 +298,16 @@ func (h *Handler) UploadDetectorResults(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			execution_id	path		int													true	"Execution ID"
-//	@Param			request			body		UploadGranularityResultReq							true	"Granularity results"
-//	@Success		200				{object}	dto.GenericResponse[UploadExecutionResultResp]		"Results uploaded successfully"
-//	@Failure		400				{object}	dto.GenericResponse[any]							"Invalid exeuction ID or invalid request form or parameters"
-//	@Failure		401				{object}	dto.GenericResponse[any]							"Authentication required"
-//	@Failure		403				{object}	dto.GenericResponse[any]							"Permission denied"
-//	@Failure		404				{object}	dto.GenericResponse[any]							"Execution not found"
-//	@Failure		500				{object}	dto.GenericResponse[any]							"Internal server error"
+//	@Param			execution_id	path		int												true	"Execution ID"
+//	@Param			request			body		UploadGranularityResultReq						true	"Granularity results"
+//	@Success		200				{object}	dto.GenericResponse[UploadExecutionResultResp]	"Results uploaded successfully"
+//	@Failure		400				{object}	dto.GenericResponse[any]						"Invalid exeuction ID or invalid request form or parameters"
+//	@Failure		401				{object}	dto.GenericResponse[any]						"Authentication required"
+//	@Failure		403				{object}	dto.GenericResponse[any]						"Permission denied"
+//	@Failure		404				{object}	dto.GenericResponse[any]						"Execution not found"
+//	@Failure		500				{object}	dto.GenericResponse[any]						"Internal server error"
 //	@Router			/api/v2/executions/{execution_id}/granularity_results [post]
-//	@x-api-type		{"runtime":"true"}
+//	@x-api-type		{"sdk":"true","runtime":"true"}
 func (h *Handler) UploadGranularityResults(c *gin.Context) {
 	executionID, ok := httpx.ParsePositiveID(c, c.Param(consts.URLPathExecutionID), "execution ID")
 	if !ok {

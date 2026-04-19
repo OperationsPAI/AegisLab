@@ -10,12 +10,12 @@ import (
 	"aegis/consts"
 	"aegis/dto"
 	"aegis/httpx"
-	executionmodule "aegis/module/execution"
-	groupmodule "aegis/module/group"
-	injectionmodule "aegis/module/injection"
-	metricmodule "aegis/module/metric"
-	taskmodule "aegis/module/task"
-	tracemodule "aegis/module/trace"
+	execution "aegis/module/execution"
+	group "aegis/module/group"
+	injection "aegis/module/injection"
+	metric "aegis/module/metric"
+	task "aegis/module/task"
+	trace "aegis/module/trace"
 	orchestratorv1 "aegis/proto/orchestrator/v1"
 
 	"github.com/redis/go-redis/v9"
@@ -70,7 +70,7 @@ func (c *Client) Enabled() bool {
 	return c != nil && c.rpc != nil
 }
 
-func (c *Client) SubmitExecution(ctx context.Context, req *executionmodule.SubmitExecutionReq, groupID string, userID int) (*executionmodule.SubmitExecutionResp, error) {
+func (c *Client) SubmitExecution(ctx context.Context, req *execution.SubmitExecutionReq, groupID string, userID int) (*execution.SubmitExecutionResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("orchestrator grpc client is not configured")
 	}
@@ -88,9 +88,9 @@ func (c *Client) SubmitExecution(ctx context.Context, req *executionmodule.Submi
 		return nil, mapRPCError(err)
 	}
 
-	items := make([]executionmodule.SubmitExecutionItem, 0, len(resp.GetItems()))
+	items := make([]execution.SubmitExecutionItem, 0, len(resp.GetItems()))
 	for _, item := range resp.GetItems() {
-		mapped := executionmodule.SubmitExecutionItem{
+		mapped := execution.SubmitExecutionItem{
 			Index:              int(item.GetIndex()),
 			TraceID:            item.GetTraceId(),
 			TaskID:             item.GetTaskId(),
@@ -108,13 +108,13 @@ func (c *Client) SubmitExecution(ctx context.Context, req *executionmodule.Submi
 		items = append(items, mapped)
 	}
 
-	return &executionmodule.SubmitExecutionResp{
+	return &execution.SubmitExecutionResp{
 		GroupID: resp.GetGroupId(),
 		Items:   items,
 	}, nil
 }
 
-func (c *Client) SubmitFaultInjection(ctx context.Context, req *injectionmodule.SubmitInjectionReq, groupID string, userID int, projectID *int) (*injectionmodule.SubmitInjectionResp, error) {
+func (c *Client) SubmitFaultInjection(ctx context.Context, req *injection.SubmitInjectionReq, groupID string, userID int, projectID *int) (*injection.SubmitInjectionResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("orchestrator grpc client is not configured")
 	}
@@ -137,22 +137,22 @@ func (c *Client) SubmitFaultInjection(ctx context.Context, req *injectionmodule.
 		return nil, mapRPCError(err)
 	}
 
-	items := make([]injectionmodule.SubmitInjectionItem, 0, len(resp.GetItems()))
+	items := make([]injection.SubmitInjectionItem, 0, len(resp.GetItems()))
 	for _, item := range resp.GetItems() {
-		items = append(items, injectionmodule.SubmitInjectionItem{
+		items = append(items, injection.SubmitInjectionItem{
 			Index:   int(item.GetIndex()),
 			TraceID: item.GetTraceId(),
 			TaskID:  item.GetTaskId(),
 		})
 	}
 
-	result := &injectionmodule.SubmitInjectionResp{
+	result := &injection.SubmitInjectionResp{
 		GroupID:       resp.GetGroupId(),
 		Items:         items,
 		OriginalCount: int(resp.GetOriginalCount()),
 	}
 	if warnings := resp.GetWarnings(); warnings != nil {
-		result.Warnings = &injectionmodule.InjectionWarnings{
+		result.Warnings = &injection.InjectionWarnings{
 			DuplicateServicesInBatch:  warnings.GetDuplicateServicesInBatch(),
 			DuplicateBatchesInRequest: int64sToInts(warnings.GetDuplicateBatchesInRequest()),
 			BatchesExistInDatabase:    int64sToInts(warnings.GetBatchesExistInDatabase()),
@@ -161,7 +161,7 @@ func (c *Client) SubmitFaultInjection(ctx context.Context, req *injectionmodule.
 	return result, nil
 }
 
-func (c *Client) SubmitDatapackBuilding(ctx context.Context, req *injectionmodule.SubmitDatapackBuildingReq, groupID string, userID int, projectID *int) (*injectionmodule.SubmitDatapackBuildingResp, error) {
+func (c *Client) SubmitDatapackBuilding(ctx context.Context, req *injection.SubmitDatapackBuildingReq, groupID string, userID int, projectID *int) (*injection.SubmitDatapackBuildingResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("orchestrator grpc client is not configured")
 	}
@@ -184,22 +184,22 @@ func (c *Client) SubmitDatapackBuilding(ctx context.Context, req *injectionmodul
 		return nil, mapRPCError(err)
 	}
 
-	items := make([]injectionmodule.SubmitBuildingItem, 0, len(resp.GetItems()))
+	items := make([]injection.SubmitBuildingItem, 0, len(resp.GetItems()))
 	for _, item := range resp.GetItems() {
-		items = append(items, injectionmodule.SubmitBuildingItem{
+		items = append(items, injection.SubmitBuildingItem{
 			Index:   int(item.GetIndex()),
 			TraceID: item.GetTraceId(),
 			TaskID:  item.GetTaskId(),
 		})
 	}
 
-	return &injectionmodule.SubmitDatapackBuildingResp{
+	return &injection.SubmitDatapackBuildingResp{
 		GroupID: resp.GetGroupId(),
 		Items:   items,
 	}, nil
 }
 
-func (c *Client) CreateExecution(ctx context.Context, req *executionmodule.RuntimeCreateExecutionReq) (int, error) {
+func (c *Client) CreateExecution(ctx context.Context, req *execution.RuntimeCreateExecutionReq) (int, error) {
 	if !c.Enabled() {
 		return 0, fmt.Errorf("orchestrator grpc client is not configured")
 	}
@@ -219,7 +219,7 @@ func (c *Client) CreateExecution(ctx context.Context, req *executionmodule.Runti
 	return int(executionID), nil
 }
 
-func (c *Client) CreateInjection(ctx context.Context, req *injectionmodule.RuntimeCreateInjectionReq) (*dto.InjectionItem, error) {
+func (c *Client) CreateInjection(ctx context.Context, req *injection.RuntimeCreateInjectionReq) (*dto.InjectionItem, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("orchestrator grpc client is not configured")
 	}
@@ -234,7 +234,7 @@ func (c *Client) CreateInjection(ctx context.Context, req *injectionmodule.Runti
 	return decodeStruct[dto.InjectionItem](resp.GetData())
 }
 
-func (c *Client) UpdateExecutionState(ctx context.Context, req *executionmodule.RuntimeUpdateExecutionStateReq) error {
+func (c *Client) UpdateExecutionState(ctx context.Context, req *execution.RuntimeUpdateExecutionStateReq) error {
 	if !c.Enabled() {
 		return fmt.Errorf("orchestrator grpc client is not configured")
 	}
@@ -249,7 +249,7 @@ func (c *Client) UpdateExecutionState(ctx context.Context, req *executionmodule.
 	return nil
 }
 
-func (c *Client) UpdateInjectionState(ctx context.Context, req *injectionmodule.RuntimeUpdateInjectionStateReq) error {
+func (c *Client) UpdateInjectionState(ctx context.Context, req *injection.RuntimeUpdateInjectionStateReq) error {
 	if !c.Enabled() {
 		return fmt.Errorf("orchestrator grpc client is not configured")
 	}
@@ -264,7 +264,7 @@ func (c *Client) UpdateInjectionState(ctx context.Context, req *injectionmodule.
 	return nil
 }
 
-func (c *Client) UpdateInjectionTimestamps(ctx context.Context, req *injectionmodule.RuntimeUpdateInjectionTimestampReq) (*dto.InjectionItem, error) {
+func (c *Client) UpdateInjectionTimestamps(ctx context.Context, req *injection.RuntimeUpdateInjectionTimestampReq) (*dto.InjectionItem, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("orchestrator grpc client is not configured")
 	}
@@ -279,7 +279,7 @@ func (c *Client) UpdateInjectionTimestamps(ctx context.Context, req *injectionmo
 	return decodeStruct[dto.InjectionItem](resp.GetData())
 }
 
-func (c *Client) GetExecution(ctx context.Context, executionID int) (*executionmodule.ExecutionDetailResp, error) {
+func (c *Client) GetExecution(ctx context.Context, executionID int) (*execution.ExecutionDetailResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("orchestrator grpc client is not configured")
 	}
@@ -287,10 +287,10 @@ func (c *Client) GetExecution(ctx context.Context, executionID int) (*executionm
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[executionmodule.ExecutionDetailResp](resp.GetData())
+	return decodeStruct[execution.ExecutionDetailResp](resp.GetData())
 }
 
-func (c *Client) GetInjectionMetrics(ctx context.Context, req *metricmodule.GetMetricsReq) (*metricmodule.InjectionMetrics, error) {
+func (c *Client) GetInjectionMetrics(ctx context.Context, req *metric.GetMetricsReq) (*metric.InjectionMetrics, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("orchestrator grpc client is not configured")
 	}
@@ -302,10 +302,10 @@ func (c *Client) GetInjectionMetrics(ctx context.Context, req *metricmodule.GetM
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[metricmodule.InjectionMetrics](resp.GetData())
+	return decodeStruct[metric.InjectionMetrics](resp.GetData())
 }
 
-func (c *Client) GetExecutionMetrics(ctx context.Context, req *metricmodule.GetMetricsReq) (*metricmodule.ExecutionMetrics, error) {
+func (c *Client) GetExecutionMetrics(ctx context.Context, req *metric.GetMetricsReq) (*metric.ExecutionMetrics, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("orchestrator grpc client is not configured")
 	}
@@ -317,7 +317,7 @@ func (c *Client) GetExecutionMetrics(ctx context.Context, req *metricmodule.GetM
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[metricmodule.ExecutionMetrics](resp.GetData())
+	return decodeStruct[metric.ExecutionMetrics](resp.GetData())
 }
 
 func (c *Client) ListProjectStatistics(ctx context.Context, projectIDs []int) (map[int]*dto.ProjectStatistics, error) {
@@ -333,7 +333,7 @@ func (c *Client) ListProjectStatistics(ctx context.Context, projectIDs []int) (m
 	return decodeProjectStatisticsMap(resp.GetData())
 }
 
-func (c *Client) ListEvaluationExecutionsByDatapack(ctx context.Context, req *executionmodule.EvaluationExecutionsByDatapackReq) ([]executionmodule.EvaluationExecutionItem, error) {
+func (c *Client) ListEvaluationExecutionsByDatapack(ctx context.Context, req *execution.EvaluationExecutionsByDatapackReq) ([]execution.EvaluationExecutionItem, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("orchestrator grpc client is not configured")
 	}
@@ -345,10 +345,10 @@ func (c *Client) ListEvaluationExecutionsByDatapack(ctx context.Context, req *ex
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStructItems[executionmodule.EvaluationExecutionItem](resp.GetData())
+	return decodeStructItems[execution.EvaluationExecutionItem](resp.GetData())
 }
 
-func (c *Client) ListEvaluationExecutionsByDataset(ctx context.Context, req *executionmodule.EvaluationExecutionsByDatasetReq) ([]executionmodule.EvaluationExecutionItem, error) {
+func (c *Client) ListEvaluationExecutionsByDataset(ctx context.Context, req *execution.EvaluationExecutionsByDatasetReq) ([]execution.EvaluationExecutionItem, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("orchestrator grpc client is not configured")
 	}
@@ -360,10 +360,10 @@ func (c *Client) ListEvaluationExecutionsByDataset(ctx context.Context, req *exe
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStructItems[executionmodule.EvaluationExecutionItem](resp.GetData())
+	return decodeStructItems[execution.EvaluationExecutionItem](resp.GetData())
 }
 
-func (c *Client) GetTask(ctx context.Context, taskID string) (*taskmodule.TaskDetailResp, error) {
+func (c *Client) GetTask(ctx context.Context, taskID string) (*task.TaskDetailResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("orchestrator grpc client is not configured")
 	}
@@ -371,10 +371,10 @@ func (c *Client) GetTask(ctx context.Context, taskID string) (*taskmodule.TaskDe
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[taskmodule.TaskDetailResp](resp.GetData())
+	return decodeStruct[task.TaskDetailResp](resp.GetData())
 }
 
-func (c *Client) PollTaskLogs(ctx context.Context, taskID string, after time.Time) (*taskmodule.TaskLogPollResp, error) {
+func (c *Client) PollTaskLogs(ctx context.Context, taskID string, after time.Time) (*task.TaskLogPollResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("orchestrator grpc client is not configured")
 	}
@@ -386,10 +386,10 @@ func (c *Client) PollTaskLogs(ctx context.Context, taskID string, after time.Tim
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[taskmodule.TaskLogPollResp](resp.GetData())
+	return decodeStruct[task.TaskLogPollResp](resp.GetData())
 }
 
-func (c *Client) ListTasks(ctx context.Context, req *taskmodule.ListTaskReq) (*dto.ListResp[taskmodule.TaskResp], error) {
+func (c *Client) ListTasks(ctx context.Context, req *task.ListTaskReq) (*dto.ListResp[task.TaskResp], error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("orchestrator grpc client is not configured")
 	}
@@ -401,10 +401,10 @@ func (c *Client) ListTasks(ctx context.Context, req *taskmodule.ListTaskReq) (*d
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[dto.ListResp[taskmodule.TaskResp]](resp.GetData())
+	return decodeStruct[dto.ListResp[task.TaskResp]](resp.GetData())
 }
 
-func (c *Client) GetTrace(ctx context.Context, traceID string) (*tracemodule.TraceDetailResp, error) {
+func (c *Client) GetTrace(ctx context.Context, traceID string) (*trace.TraceDetailResp, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("orchestrator grpc client is not configured")
 	}
@@ -412,10 +412,10 @@ func (c *Client) GetTrace(ctx context.Context, traceID string) (*tracemodule.Tra
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[tracemodule.TraceDetailResp](resp.GetData())
+	return decodeStruct[trace.TraceDetailResp](resp.GetData())
 }
 
-func (c *Client) ListTraces(ctx context.Context, req *tracemodule.ListTraceReq) (*dto.ListResp[tracemodule.TraceResp], error) {
+func (c *Client) ListTraces(ctx context.Context, req *trace.ListTraceReq) (*dto.ListResp[trace.TraceResp], error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("orchestrator grpc client is not configured")
 	}
@@ -427,10 +427,10 @@ func (c *Client) ListTraces(ctx context.Context, req *tracemodule.ListTraceReq) 
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[dto.ListResp[tracemodule.TraceResp]](resp.GetData())
+	return decodeStruct[dto.ListResp[trace.TraceResp]](resp.GetData())
 }
 
-func (c *Client) GetGroupStats(ctx context.Context, groupID string) (*groupmodule.GroupStats, error) {
+func (c *Client) GetGroupStats(ctx context.Context, groupID string) (*group.GroupStats, error) {
 	if !c.Enabled() {
 		return nil, fmt.Errorf("orchestrator grpc client is not configured")
 	}
@@ -438,7 +438,7 @@ func (c *Client) GetGroupStats(ctx context.Context, groupID string) (*groupmodul
 	if err != nil {
 		return nil, mapRPCError(err)
 	}
-	return decodeStruct[groupmodule.GroupStats](resp.GetData())
+	return decodeStruct[group.GroupStats](resp.GetData())
 }
 
 func (c *Client) GetTraceStreamAlgorithms(ctx context.Context, traceID string) ([]dto.ContainerVersionItem, error) {

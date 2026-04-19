@@ -11,7 +11,7 @@ import (
 	"aegis/consts"
 	"aegis/dto"
 	"aegis/model"
-	injectionmodule "aegis/module/injection"
+	injection "aegis/module/injection"
 	"aegis/tracing"
 	"aegis/utils"
 
@@ -213,7 +213,7 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask, deps Runt
 			return handleExecutionError(span, logEntry, "injection owner service is nil", fmt.Errorf("missing injection owner service"))
 		}
 
-		_, err = deps.InjectionOwner.CreateInjection(childCtx, &injectionmodule.RuntimeCreateInjectionReq{
+		_, err = deps.InjectionOwner.CreateInjection(childCtx, &injection.RuntimeCreateInjectionReq{
 			Name:              name,
 			FaultType:         faultType,
 			Category:          payload.pedestal,

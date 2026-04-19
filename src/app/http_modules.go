@@ -1,26 +1,26 @@
 package app
 
 import (
-	authmodule "aegis/module/auth"
-	chaossystemmodule "aegis/module/chaossystem"
-	containermodule "aegis/module/container"
-	datasetmodule "aegis/module/dataset"
-	evaluationmodule "aegis/module/evaluation"
-	executionmodule "aegis/module/execution"
-	groupmodule "aegis/module/group"
-	injectionmodule "aegis/module/injection"
-	labelmodule "aegis/module/label"
-	metricmodule "aegis/module/metric"
-	notificationmodule "aegis/module/notification"
-	projectmodule "aegis/module/project"
-	rbacmodule "aegis/module/rbac"
-	sdkmodule "aegis/module/sdk"
-	systemmodule "aegis/module/system"
-	systemmetricmodule "aegis/module/systemmetric"
-	taskmodule "aegis/module/task"
-	teammodule "aegis/module/team"
-	tracemodule "aegis/module/trace"
-	usermodule "aegis/module/user"
+	auth "aegis/module/auth"
+	chaossystem "aegis/module/chaossystem"
+	container "aegis/module/container"
+	dataset "aegis/module/dataset"
+	evaluation "aegis/module/evaluation"
+	execution "aegis/module/execution"
+	group "aegis/module/group"
+	injection "aegis/module/injection"
+	label "aegis/module/label"
+	metric "aegis/module/metric"
+	notification "aegis/module/notification"
+	project "aegis/module/project"
+	rbac "aegis/module/rbac"
+	sdk "aegis/module/sdk"
+	system "aegis/module/system"
+	systemmetric "aegis/module/systemmetric"
+	task "aegis/module/task"
+	team "aegis/module/team"
+	trace "aegis/module/trace"
+	user "aegis/module/user"
 	"aegis/router"
 
 	"go.uber.org/fx"
@@ -28,32 +28,32 @@ import (
 
 func ExecutionInjectionOwnerModules() fx.Option {
 	return fx.Options(
-		executionmodule.Module,
-		injectionmodule.Module,
+		execution.Module,
+		injection.Module,
 	)
 }
 
 func ProducerHTTPModules() fx.Option {
 	return fx.Options(
-		authmodule.Module,
-		chaossystemmodule.Module,
-		containermodule.Module,
-		datasetmodule.Module,
-		evaluationmodule.Module,
+		auth.Module,
+		chaossystem.Module,
+		container.Module,
+		dataset.Module,
+		evaluation.Module,
 		ExecutionInjectionOwnerModules(),
-		groupmodule.Module,
-		labelmodule.Module,
-		metricmodule.Module,
-		notificationmodule.Module,
-		projectmodule.Module,
-		rbacmodule.Module,
-		sdkmodule.Module,
-		systemmodule.Module,
-		systemmetricmodule.Module,
-		taskmodule.Module,
-		teammodule.Module,
-		tracemodule.Module,
-		usermodule.Module,
+		group.Module,
+		label.Module,
+		metric.Module,
+		notification.Module,
+		project.Module,
+		rbac.Module,
+		sdk.Module,
+		system.Module,
+		systemmetric.Module,
+		task.Module,
+		team.Module,
+		trace.Module,
+		user.Module,
 		router.Module,
 	)
 }

@@ -1,4 +1,4 @@
-package containermodule
+package container
 
 import (
 	"aegis/httpx"
@@ -31,15 +31,15 @@ func NewHandler(service HandlerService) *Handler {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			request	body		CreateContainerReq						true	"Container creation request"
-//	@Success		201		{object}	dto.GenericResponse[ContainerResp]		"Container created successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]				"Invalid request"
-//	@Failure		401		{object}	dto.GenericResponse[any]				"Authentication required"
-//	@Failure		403		{object}	dto.GenericResponse[any]				"Permission denied"
-//	@Failure		409		{object}	dto.GenericResponse[any]				"Conflict error"
-//	@Failure		500		{object}	dto.GenericResponse[any]				"Internal server error"
+//	@Param			request	body		CreateContainerReq					true	"Container creation request"
+//	@Success		201		{object}	dto.GenericResponse[ContainerResp]	"Container created successfully"
+//	@Failure		400		{object}	dto.GenericResponse[any]			"Invalid request"
+//	@Failure		401		{object}	dto.GenericResponse[any]			"Authentication required"
+//	@Failure		403		{object}	dto.GenericResponse[any]			"Permission denied"
+//	@Failure		409		{object}	dto.GenericResponse[any]			"Conflict error"
+//	@Failure		500		{object}	dto.GenericResponse[any]			"Internal server error"
 //	@Router			/api/v2/containers [post]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) CreateContainer(c *gin.Context) {
 	userID, exists := middleware.GetCurrentUserID(c)
 	if !exists || userID <= 0 {
@@ -82,7 +82,7 @@ func (h *Handler) CreateContainer(c *gin.Context) {
 //	@Failure		404				{object}	dto.GenericResponse[any]	"Container not found"
 //	@Failure		500				{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v2/containers/{container_id} [delete]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) DeleteContainer(c *gin.Context) {
 	containerID, ok := parseContainerID(c)
 	if !ok {
@@ -104,15 +104,15 @@ func (h *Handler) DeleteContainer(c *gin.Context) {
 //	@ID				get_container_by_id
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			container_id	path		int												true	"Container ID"
+//	@Param			container_id	path		int											true	"Container ID"
 //	@Success		200				{object}	dto.GenericResponse[ContainerDetailResp]	"Container retrieved successfully"
-//	@Failure		400				{object}	dto.GenericResponse[any]						"Invalid container ID"
-//	@Failure		401				{object}	dto.GenericResponse[any]						"Authentication required"
-//	@Failure		403				{object}	dto.GenericResponse[any]						"Permission denied"
-//	@Failure		404				{object}	dto.GenericResponse[any]						"Container not found"
-//	@Failure		500				{object}	dto.GenericResponse[any]						"Internal server error"
+//	@Failure		400				{object}	dto.GenericResponse[any]					"Invalid container ID"
+//	@Failure		401				{object}	dto.GenericResponse[any]					"Authentication required"
+//	@Failure		403				{object}	dto.GenericResponse[any]					"Permission denied"
+//	@Failure		404				{object}	dto.GenericResponse[any]					"Container not found"
+//	@Failure		500				{object}	dto.GenericResponse[any]					"Internal server error"
 //	@Router			/api/v2/containers/{container_id} [get]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) GetContainer(c *gin.Context) {
 	containerID, ok := parseContainerID(c)
 	if !ok {
@@ -135,18 +135,18 @@ func (h *Handler) GetContainer(c *gin.Context) {
 //	@ID				list_containers
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			page		query		int														false	"Page number"	default(1)
-//	@Param			size		query		consts.PageSize											false	"Page size"		default(20)
-//	@Param			type		query		consts.ContainerType									false	"Container type filter"
-//	@Param			is_public	query		bool													false	"Container public visibility filter"
-//	@Param			status		query		consts.StatusType										false	"Container status filter"
+//	@Param			page		query		int													false	"Page number"	default(1)
+//	@Param			size		query		consts.PageSize										false	"Page size"		default(20)
+//	@Param			type		query		consts.ContainerType								false	"Container type filter"
+//	@Param			is_public	query		bool												false	"Container public visibility filter"
+//	@Param			status		query		consts.StatusType									false	"Container status filter"
 //	@Success		200			{object}	dto.GenericResponse[dto.ListResp[ContainerResp]]	"Containers retrieved successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]								"Invalid request format or parameters"
-//	@Failure		401			{object}	dto.GenericResponse[any]								"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]								"Permission denied"
-//	@Failure		500			{object}	dto.GenericResponse[any]								"Internal server error"
+//	@Failure		400			{object}	dto.GenericResponse[any]							"Invalid request format or parameters"
+//	@Failure		401			{object}	dto.GenericResponse[any]							"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]							"Permission denied"
+//	@Failure		500			{object}	dto.GenericResponse[any]							"Internal server error"
 //	@Router			/api/v2/containers [get]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) ListContainers(c *gin.Context) {
 	var req ListContainerReq
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -176,16 +176,16 @@ func (h *Handler) ListContainers(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			container_id	path		int										true	"Container ID"
-//	@Param			request			body		UpdateContainerReq						true	"Container update request"
-//	@Success		202				{object}	dto.GenericResponse[ContainerResp]		"Container updated successfully"
-//	@Failure		400				{object}	dto.GenericResponse[any]				"Invalid container ID/request"
-//	@Failure		401				{object}	dto.GenericResponse[any]				"Authentication required"
-//	@Failure		403				{object}	dto.GenericResponse[any]				"Permission denied"
-//	@Failure		404				{object}	dto.GenericResponse[any]				"Container not found"
-//	@Failure		500				{object}	dto.GenericResponse[any]				"Internal server error"
+//	@Param			container_id	path		int									true	"Container ID"
+//	@Param			request			body		UpdateContainerReq					true	"Container update request"
+//	@Success		202				{object}	dto.GenericResponse[ContainerResp]	"Container updated successfully"
+//	@Failure		400				{object}	dto.GenericResponse[any]			"Invalid container ID/request"
+//	@Failure		401				{object}	dto.GenericResponse[any]			"Authentication required"
+//	@Failure		403				{object}	dto.GenericResponse[any]			"Permission denied"
+//	@Failure		404				{object}	dto.GenericResponse[any]			"Container not found"
+//	@Failure		500				{object}	dto.GenericResponse[any]			"Internal server error"
 //	@Router			/api/v2/containers/{container_id} [patch]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) UpdateContainer(c *gin.Context) {
 	containerID, ok := parseContainerID(c)
 	if !ok {
@@ -215,16 +215,16 @@ func (h *Handler) UpdateContainer(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			container_id	path		int										true	"Container ID"
-//	@Param			manage			body		ManageContainerLabelReq					true	"Label management request"
-//	@Success		200				{object}	dto.GenericResponse[ContainerResp]		"Labels managed successfully"
-//	@Failure		400				{object}	dto.GenericResponse[any]				"Invalid container ID or invalid request format/parameters"
-//	@Failure		401				{object}	dto.GenericResponse[any]				"Authentication required"
-//	@Failure		403				{object}	dto.GenericResponse[any]				"Permission denied"
-//	@Failure		404				{object}	dto.GenericResponse[any]				"Container not found"
-//	@Failure		500				{object}	dto.GenericResponse[any]				"Internal server error"
+//	@Param			container_id	path		int									true	"Container ID"
+//	@Param			manage			body		ManageContainerLabelReq				true	"Label management request"
+//	@Success		200				{object}	dto.GenericResponse[ContainerResp]	"Labels managed successfully"
+//	@Failure		400				{object}	dto.GenericResponse[any]			"Invalid container ID or invalid request format/parameters"
+//	@Failure		401				{object}	dto.GenericResponse[any]			"Authentication required"
+//	@Failure		403				{object}	dto.GenericResponse[any]			"Permission denied"
+//	@Failure		404				{object}	dto.GenericResponse[any]			"Container not found"
+//	@Failure		500				{object}	dto.GenericResponse[any]			"Internal server error"
 //	@Router			/api/v2/containers/{container_id}/labels [patch]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) ManageContainerCustomLabels(c *gin.Context) {
 	containerID, ok := parseContainerID(c)
 	if !ok {
@@ -259,16 +259,16 @@ func (h *Handler) ManageContainerCustomLabels(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			container_id	path		int												true	"Container ID"
+//	@Param			container_id	path		int											true	"Container ID"
 //	@Param			request			body		CreateContainerVersionReq					true	"Container version creation request"
 //	@Success		201				{object}	dto.GenericResponse[ContainerVersionResp]	"Container version created successfully"
-//	@Failure		400				{object}	dto.GenericResponse[any]						"Invalid container ID or invalid request format or parameters"
-//	@Failure		401				{object}	dto.GenericResponse[any]						"Authentication required"
-//	@Failure		403				{object}	dto.GenericResponse[any]						"Permission denied"
-//	@Failure		409				{object}	dto.GenericResponse[any]						"Conflict error"
-//	@Failure		500				{object}	dto.GenericResponse[any]						"Internal server error"
+//	@Failure		400				{object}	dto.GenericResponse[any]					"Invalid container ID or invalid request format or parameters"
+//	@Failure		401				{object}	dto.GenericResponse[any]					"Authentication required"
+//	@Failure		403				{object}	dto.GenericResponse[any]					"Permission denied"
+//	@Failure		409				{object}	dto.GenericResponse[any]					"Conflict error"
+//	@Failure		500				{object}	dto.GenericResponse[any]					"Internal server error"
 //	@Router			/api/v2/containers/{container_id}/versions [post]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) CreateContainerVersion(c *gin.Context) {
 	userID, exists := middleware.GetCurrentUserID(c)
 	if !exists || userID <= 0 {
@@ -317,7 +317,7 @@ func (h *Handler) CreateContainerVersion(c *gin.Context) {
 //	@Failure		404				{object}	dto.GenericResponse[any]	"Container or version not found"
 //	@Failure		500				{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v2/containers/{container_id}/versions/{version_id} [delete]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) DeleteContainerVersion(c *gin.Context) {
 	versionID, ok := parseVersionID(c, "Invalid container version ID")
 	if !ok {
@@ -339,16 +339,16 @@ func (h *Handler) DeleteContainerVersion(c *gin.Context) {
 //	@ID				get_container_version_by_id
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			container_id	path		int													true	"Container ID"
-//	@Param			version_id		path		int													true	"Container Version ID"
+//	@Param			container_id	path		int												true	"Container ID"
+//	@Param			version_id		path		int												true	"Container Version ID"
 //	@Success		200				{object}	dto.GenericResponse[ContainerVersionDetailResp]	"Container version retrieved successfully"
-//	@Failure		400				{object}	dto.GenericResponse[any]							"Invalid container ID/container version ID"
-//	@Failure		401				{object}	dto.GenericResponse[any]							"Authentication required"
-//	@Failure		403				{object}	dto.GenericResponse[any]							"Permission denied"
-//	@Failure		404				{object}	dto.GenericResponse[any]							"Container or version not found"
-//	@Failure		500				{object}	dto.GenericResponse[any]							"Internal server error"
+//	@Failure		400				{object}	dto.GenericResponse[any]						"Invalid container ID/container version ID"
+//	@Failure		401				{object}	dto.GenericResponse[any]						"Authentication required"
+//	@Failure		403				{object}	dto.GenericResponse[any]						"Permission denied"
+//	@Failure		404				{object}	dto.GenericResponse[any]						"Container or version not found"
+//	@Failure		500				{object}	dto.GenericResponse[any]						"Internal server error"
 //	@Router			/api/v2/containers/{container_id}/versions/{version_id} [get]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) GetContainerVersion(c *gin.Context) {
 	containerID, ok := parseContainerID(c)
 	if !ok {
@@ -375,17 +375,17 @@ func (h *Handler) GetContainerVersion(c *gin.Context) {
 //	@ID				list_container_versions
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			container_id	path		int															true	"Container ID"
-//	@Param			page			query		int															false	"Page number"	default(1)
-//	@Param			size			query		int															false	"Page size"		default(20)
-//	@Param			status			query		consts.StatusType											false	"Container version status filter"
+//	@Param			container_id	path		int														true	"Container ID"
+//	@Param			page			query		int														false	"Page number"	default(1)
+//	@Param			size			query		int														false	"Page size"		default(20)
+//	@Param			status			query		consts.StatusType										false	"Container version status filter"
 //	@Success		200				{object}	dto.GenericResponse[dto.ListResp[ContainerVersionResp]]	"Container versions retrieved successfully"
-//	@Failure		400				{object}	dto.GenericResponse[any]									"Invalid request format or parameters"
-//	@Failure		401				{object}	dto.GenericResponse[any]									"Authentication required"
-//	@Failure		403				{object}	dto.GenericResponse[any]									"Permission denied"
-//	@Failure		500				{object}	dto.GenericResponse[any]									"Internal server error"
+//	@Failure		400				{object}	dto.GenericResponse[any]								"Invalid request format or parameters"
+//	@Failure		401				{object}	dto.GenericResponse[any]								"Authentication required"
+//	@Failure		403				{object}	dto.GenericResponse[any]								"Permission denied"
+//	@Failure		500				{object}	dto.GenericResponse[any]								"Internal server error"
 //	@Router			/api/v2/containers/{container_id}/versions [get]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) ListContainerVersions(c *gin.Context) {
 	containerID, ok := parseContainerID(c)
 	if !ok {
@@ -420,17 +420,17 @@ func (h *Handler) ListContainerVersions(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			container_id	path		int												true	"Container ID"
-//	@Param			version_id		path		int												true	"Container Version ID"
+//	@Param			container_id	path		int											true	"Container ID"
+//	@Param			version_id		path		int											true	"Container Version ID"
 //	@Param			request			body		UpdateContainerVersionReq					true	"Container version update request"
 //	@Success		202				{object}	dto.GenericResponse[ContainerVersionResp]	"Container version updated successfully"
-//	@Failure		400				{object}	dto.GenericResponse[any]						"Invalid container ID/container version ID/request"
-//	@Failure		401				{object}	dto.GenericResponse[any]						"Authentication required"
-//	@Failure		403				{object}	dto.GenericResponse[any]						"Permission denied"
-//	@Failure		404				{object}	dto.GenericResponse[any]						"Container not found"
-//	@Failure		500				{object}	dto.GenericResponse[any]						"Internal server error"
+//	@Failure		400				{object}	dto.GenericResponse[any]					"Invalid container ID/container version ID/request"
+//	@Failure		401				{object}	dto.GenericResponse[any]					"Authentication required"
+//	@Failure		403				{object}	dto.GenericResponse[any]					"Permission denied"
+//	@Failure		404				{object}	dto.GenericResponse[any]					"Container not found"
+//	@Failure		500				{object}	dto.GenericResponse[any]					"Internal server error"
 //	@Router			/api/v2/containers/{container_id}/versions/{version_id} [patch]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) UpdateContainerVersion(c *gin.Context) {
 	containerID, ok := parseContainerID(c)
 	if !ok {
@@ -466,13 +466,13 @@ func (h *Handler) UpdateContainerVersion(c *gin.Context) {
 //	@Security		BearerAuth
 //	@Param			request	body		SubmitBuildContainerReq							true	"Container build request"
 //	@Success		200		{object}	dto.GenericResponse[SubmitContainerBuildResp]	"Container build task submitted successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]							"Invalid request format or parameters"
-//	@Failure		401		{object}	dto.GenericResponse[any]							"Authentication required"
-//	@Failure		403		{object}	dto.GenericResponse[any]							"Permission denied"
-//	@Failure		404		{object}	dto.GenericResponse[any]							"Required files not found"
-//	@Failure		500		{object}	dto.GenericResponse[any]							"Internal server error"
+//	@Failure		400		{object}	dto.GenericResponse[any]						"Invalid request format or parameters"
+//	@Failure		401		{object}	dto.GenericResponse[any]						"Authentication required"
+//	@Failure		403		{object}	dto.GenericResponse[any]						"Permission denied"
+//	@Failure		404		{object}	dto.GenericResponse[any]						"Required files not found"
+//	@Failure		500		{object}	dto.GenericResponse[any]						"Internal server error"
 //	@Router			/api/v2/containers/build [post]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) SubmitContainerBuilding(c *gin.Context) {
 	groupID := c.GetString("groupID")
 	userID, exists := middleware.GetCurrentUserID(c)
@@ -509,17 +509,17 @@ func (h *Handler) SubmitContainerBuilding(c *gin.Context) {
 //	@Accept			multipart/form-data
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			container_id	path		int												true	"Container ID"
-//	@Param			version_id		path		int												true	"Container Version ID"
-//	@Param			file			formData	file											true	"Helm chart package (.tgz)"
+//	@Param			container_id	path		int											true	"Container ID"
+//	@Param			version_id		path		int											true	"Container Version ID"
+//	@Param			file			formData	file										true	"Helm chart package (.tgz)"
 //	@Success		200				{object}	dto.GenericResponse[UploadHelmChartResp]	"Chart uploaded successfully"
-//	@Failure		400				{object}	dto.GenericResponse[any]						"Invalid request or file"
-//	@Failure		401				{object}	dto.GenericResponse[any]						"Authentication required"
-//	@Failure		403				{object}	dto.GenericResponse[any]						"Permission denied"
-//	@Failure		404				{object}	dto.GenericResponse[any]						"Container or version not found"
-//	@Failure		500				{object}	dto.GenericResponse[any]						"Internal server error"
+//	@Failure		400				{object}	dto.GenericResponse[any]					"Invalid request or file"
+//	@Failure		401				{object}	dto.GenericResponse[any]					"Authentication required"
+//	@Failure		403				{object}	dto.GenericResponse[any]					"Permission denied"
+//	@Failure		404				{object}	dto.GenericResponse[any]					"Container or version not found"
+//	@Failure		500				{object}	dto.GenericResponse[any]					"Internal server error"
 //	@Router			/api/v2/containers/{container_id}/versions/{version_id}/helm-chart [post]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) UploadHelmChart(c *gin.Context) {
 	userID, exists := middleware.GetCurrentUserID(c)
 	if !exists || userID <= 0 {
@@ -565,17 +565,17 @@ func (h *Handler) UploadHelmChart(c *gin.Context) {
 //	@Accept			multipart/form-data
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			container_id	path		int													true	"Container ID"
-//	@Param			version_id		path		int													true	"Container Version ID"
-//	@Param			file			formData	file												true	"Helm values YAML file"
+//	@Param			container_id	path		int												true	"Container ID"
+//	@Param			version_id		path		int												true	"Container Version ID"
+//	@Param			file			formData	file											true	"Helm values YAML file"
 //	@Success		200				{object}	dto.GenericResponse[UploadHelmValueFileResp]	"File uploaded successfully"
-//	@Failure		400				{object}	dto.GenericResponse[any]							"Invalid request or file"
-//	@Failure		401				{object}	dto.GenericResponse[any]							"Authentication required"
-//	@Failure		403				{object}	dto.GenericResponse[any]							"Permission denied"
-//	@Failure		404				{object}	dto.GenericResponse[any]							"Container or version not found"
-//	@Failure		500				{object}	dto.GenericResponse[any]							"Internal server error"
+//	@Failure		400				{object}	dto.GenericResponse[any]						"Invalid request or file"
+//	@Failure		401				{object}	dto.GenericResponse[any]						"Authentication required"
+//	@Failure		403				{object}	dto.GenericResponse[any]						"Permission denied"
+//	@Failure		404				{object}	dto.GenericResponse[any]						"Container or version not found"
+//	@Failure		500				{object}	dto.GenericResponse[any]						"Internal server error"
 //	@Router			/api/v2/containers/{container_id}/versions/{version_id}/helm-values [post]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) UploadHelmValueFile(c *gin.Context) {
 	userID, exists := middleware.GetCurrentUserID(c)
 	if !exists || userID <= 0 {

@@ -1,4 +1,4 @@
-package injectionmodule
+package injection
 
 import (
 	"aegis/httpx"
@@ -39,17 +39,17 @@ func NewHandler(service HandlerService) *Handler {
 //	@ID				list_project_injections
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			project_id	path		int														true	"Project ID"
-//	@Param			page		query		int														false	"Page number"	default(1)
-//	@Param			size		query		int														false	"Page size"		default(20)
+//	@Param			project_id	path		int													true	"Project ID"
+//	@Param			page		query		int													false	"Page number"	default(1)
+//	@Param			size		query		int													false	"Page size"		default(20)
 //	@Success		200			{object}	dto.GenericResponse[dto.ListResp[InjectionResp]]	"Fault injections retrieved successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]								"Invalid project ID or parameters"
-//	@Failure		401			{object}	dto.GenericResponse[any]								"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]								"Permission denied"
-//	@Failure		404			{object}	dto.GenericResponse[any]								"Project not found"
-//	@Failure		500			{object}	dto.GenericResponse[any]								"Internal server error"
+//	@Failure		400			{object}	dto.GenericResponse[any]							"Invalid project ID or parameters"
+//	@Failure		401			{object}	dto.GenericResponse[any]							"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]							"Permission denied"
+//	@Failure		404			{object}	dto.GenericResponse[any]							"Project not found"
+//	@Failure		500			{object}	dto.GenericResponse[any]							"Internal server error"
 //	@Router			/api/v2/projects/{project_id}/injections [get]
-//	@x-api-type		{"portal":"true"}
+//	@x-api-type		{"portal":"true","sdk":"true"}
 func (h *Handler) ListProjectInjections(c *gin.Context) {
 	projectID, ok := parseProjectID(c)
 	if !ok {
@@ -84,14 +84,14 @@ func (h *Handler) ListProjectInjections(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			project_id	path		int																true	"Project ID"
+//	@Param			project_id	path		int															true	"Project ID"
 //	@Param			search		body		SearchInjectionReq											true	"Search criteria"
 //	@Success		200			{object}	dto.GenericResponse[dto.SearchResp[InjectionDetailResp]]	"Search results"
-//	@Failure		400			{object}	dto.GenericResponse[any]										"Invalid project ID or request"
-//	@Failure		401			{object}	dto.GenericResponse[any]										"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]										"Permission denied"
-//	@Failure		404			{object}	dto.GenericResponse[any]										"Project not found"
-//	@Failure		500			{object}	dto.GenericResponse[any]										"Internal server error"
+//	@Failure		400			{object}	dto.GenericResponse[any]									"Invalid project ID or request"
+//	@Failure		401			{object}	dto.GenericResponse[any]									"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]									"Permission denied"
+//	@Failure		404			{object}	dto.GenericResponse[any]									"Project not found"
+//	@Failure		500			{object}	dto.GenericResponse[any]									"Internal server error"
 //	@Router			/api/v2/projects/{project_id}/injections/search [post]
 //	@x-api-type		{"portal":"true"}
 func (h *Handler) SearchProjectInjections(c *gin.Context) {
@@ -100,7 +100,23 @@ func (h *Handler) SearchProjectInjections(c *gin.Context) {
 		return
 	}
 
-	h.searchInjections(c, &projectID)
+	var req SearchInjectionReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
+		return
+	}
+
+	resp, err := h.service.Search(c.Request.Context(), &req, &projectID)
+	if httpx.HandleServiceError(c, err) {
+		return
+	}
+
+	dto.SuccessResponse(c, resp)
 }
 
 // ListProjectFaultInjectionNoIssues lists fault injections without issues for a project
@@ -111,19 +127,19 @@ func (h *Handler) SearchProjectInjections(c *gin.Context) {
 //	@ID				list_project_injections_no_issues
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			project_id			path		int													true	"Project ID"
-//	@Param			labels				query		[]string											false	"Filter by labels"
-//	@Param			lookback			query		string												false	"Time range query"
-//	@Param			custom_start_time	query		string												false	"Custom start time"
-//	@Param			custom_end_time		query		string												false	"Custom end time"
+//	@Param			project_id			path		int												true	"Project ID"
+//	@Param			labels				query		[]string										false	"Filter by labels"
+//	@Param			lookback			query		string											false	"Time range query"
+//	@Param			custom_start_time	query		string											false	"Custom start time"
+//	@Param			custom_end_time		query		string											false	"Custom end time"
 //	@Success		200					{object}	dto.GenericResponse[[]InjectionNoIssuesResp]	"Injections retrieved successfully"
-//	@Failure		400					{object}	dto.GenericResponse[any]							"Invalid parameters"
-//	@Failure		401					{object}	dto.GenericResponse[any]							"Authentication required"
-//	@Failure		403					{object}	dto.GenericResponse[any]							"Permission denied"
-//	@Failure		404					{object}	dto.GenericResponse[any]							"Project not found"
-//	@Failure		500					{object}	dto.GenericResponse[any]							"Internal server error"
+//	@Failure		400					{object}	dto.GenericResponse[any]						"Invalid parameters"
+//	@Failure		401					{object}	dto.GenericResponse[any]						"Authentication required"
+//	@Failure		403					{object}	dto.GenericResponse[any]						"Permission denied"
+//	@Failure		404					{object}	dto.GenericResponse[any]						"Project not found"
+//	@Failure		500					{object}	dto.GenericResponse[any]						"Internal server error"
 //	@Router			/api/v2/projects/{project_id}/injections/analysis/no-issues [get]
-//	@x-api-type		{"portal":"true"}
+//	@x-api-type		{"portal":"true","sdk":"true"}
 func (h *Handler) ListProjectFaultInjectionNoIssues(c *gin.Context) {
 	projectID, ok := parseProjectID(c)
 	if !ok {
@@ -141,19 +157,19 @@ func (h *Handler) ListProjectFaultInjectionNoIssues(c *gin.Context) {
 //	@ID				list_project_injections_with_issues
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			project_id			path		int													true	"Project ID"
-//	@Param			labels				query		[]string											false	"Filter by labels"
-//	@Param			lookback			query		string												false	"Time range query"
-//	@Param			custom_start_time	query		string												false	"Custom start time"
-//	@Param			custom_end_time		query		string												false	"Custom end time"
+//	@Param			project_id			path		int												true	"Project ID"
+//	@Param			labels				query		[]string										false	"Filter by labels"
+//	@Param			lookback			query		string											false	"Time range query"
+//	@Param			custom_start_time	query		string											false	"Custom start time"
+//	@Param			custom_end_time		query		string											false	"Custom end time"
 //	@Success		200					{object}	dto.GenericResponse[[]InjectionWithIssuesResp]	"Injections retrieved successfully"
-//	@Failure		400					{object}	dto.GenericResponse[any]							"Invalid parameters"
-//	@Failure		401					{object}	dto.GenericResponse[any]							"Authentication required"
-//	@Failure		403					{object}	dto.GenericResponse[any]							"Permission denied"
-//	@Failure		404					{object}	dto.GenericResponse[any]							"Project not found"
-//	@Failure		500					{object}	dto.GenericResponse[any]							"Internal server error"
+//	@Failure		400					{object}	dto.GenericResponse[any]						"Invalid parameters"
+//	@Failure		401					{object}	dto.GenericResponse[any]						"Authentication required"
+//	@Failure		403					{object}	dto.GenericResponse[any]						"Permission denied"
+//	@Failure		404					{object}	dto.GenericResponse[any]						"Project not found"
+//	@Failure		500					{object}	dto.GenericResponse[any]						"Internal server error"
 //	@Router			/api/v2/projects/{project_id}/injections/analysis/with-issues [get]
-//	@x-api-type		{"portal":"true"}
+//	@x-api-type		{"portal":"true","sdk":"true"}
 func (h *Handler) ListProjectFaultInjectionWithIssues(c *gin.Context) {
 	projectID, ok := parseProjectID(c)
 	if !ok {
@@ -172,16 +188,16 @@ func (h *Handler) ListProjectFaultInjectionWithIssues(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			project_id	path		int												true	"Project ID"
+//	@Param			project_id	path		int											true	"Project ID"
 //	@Param			body		body		SubmitInjectionReq							true	"Fault injection request"
 //	@Success		200			{object}	dto.GenericResponse[SubmitInjectionResp]	"Injections submitted successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]						"Invalid request"
-//	@Failure		401			{object}	dto.GenericResponse[any]						"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]						"Permission denied"
-//	@Failure		404			{object}	dto.GenericResponse[any]						"Project not found"
-//	@Failure		500			{object}	dto.GenericResponse[any]						"Internal server error"
+//	@Failure		400			{object}	dto.GenericResponse[any]					"Invalid request"
+//	@Failure		401			{object}	dto.GenericResponse[any]					"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]					"Permission denied"
+//	@Failure		404			{object}	dto.GenericResponse[any]					"Project not found"
+//	@Failure		500			{object}	dto.GenericResponse[any]					"Internal server error"
 //	@Router			/api/v2/projects/{project_id}/injections/inject [post]
-//	@x-api-type		{"portal":"true"}
+//	@x-api-type		{"portal":"true","sdk":"true"}
 func (h *Handler) SubmitProjectFaultInjection(c *gin.Context) {
 	projectID, ok := parseProjectID(c)
 	if !ok {
@@ -200,16 +216,16 @@ func (h *Handler) SubmitProjectFaultInjection(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			project_id	path		int													true	"Project ID"
+//	@Param			project_id	path		int												true	"Project ID"
 //	@Param			body		body		SubmitDatapackBuildingReq						true	"Datapack building request"
 //	@Success		202			{object}	dto.GenericResponse[SubmitDatapackBuildingResp]	"Datapack buildings submitted successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]							"Invalid request"
-//	@Failure		401			{object}	dto.GenericResponse[any]							"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]							"Permission denied"
-//	@Failure		404			{object}	dto.GenericResponse[any]							"Project not found"
-//	@Failure		500			{object}	dto.GenericResponse[any]							"Internal server error"
+//	@Failure		400			{object}	dto.GenericResponse[any]						"Invalid request"
+//	@Failure		401			{object}	dto.GenericResponse[any]						"Authentication required"
+//	@Failure		403			{object}	dto.GenericResponse[any]						"Permission denied"
+//	@Failure		404			{object}	dto.GenericResponse[any]						"Project not found"
+//	@Failure		500			{object}	dto.GenericResponse[any]						"Internal server error"
 //	@Router			/api/v2/projects/{project_id}/injections/build [post]
-//	@x-api-type		{"portal":"true"}
+//	@x-api-type		{"portal":"true","sdk":"true"}
 func (h *Handler) SubmitProjectDatapackBuilding(c *gin.Context) {
 	projectID, ok := parseProjectID(c)
 	if !ok {
@@ -217,141 +233,6 @@ func (h *Handler) SubmitProjectDatapackBuilding(c *gin.Context) {
 	}
 
 	h.submitDatapackBuilding(c, &projectID)
-}
-
-// ListInjections handles listing injections with pagination and filtering
-//
-//	@Summary		List injections
-//	@Description	Get a paginated list of injections with pagination and filtering
-//	@Tags			Injections
-//	@ID				list_injections
-//	@Produce		json
-//	@Security		BearerAuth
-//	@Param			page		query		int														false	"Page number"	default(1)
-//	@Param			size		query		int														false	"Page size"		default(20)
-//	@Param			type		query		chaos.ChaosType											false	"Filter by fault type"
-//	@Param			benchmark	query		string													false	"Filter by benchmark"
-//	@Param			state		query		consts.DatapackState									false	"Filter by injection state"
-//	@Param			status		query		int														false	"Filter by status"
-//	@Param			labels		query		[]string												false	"Filter by labels (array of key:value strings, e.g., 'type:chaos')"
-//	@Success		200			{object}	dto.GenericResponse[dto.ListResp[InjectionResp]]	"Injections retrieved successfully"
-//	@Failure		400			{object}	dto.GenericResponse[any]								"Invalid request format or parameters"
-//	@Failure		401			{object}	dto.GenericResponse[any]								"Authentication required"
-//	@Failure		403			{object}	dto.GenericResponse[any]								"Permission denied"
-//	@Failure		500			{object}	dto.GenericResponse[any]								"Internal server error"
-//	@Router			/api/v2/injections [get]
-//	@x-api-type		{}
-func (h *Handler) ListInjections(c *gin.Context) {
-	var req ListInjectionReq
-	if err := c.ShouldBindQuery(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request format: "+err.Error())
-		return
-	}
-	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request parameters: "+err.Error())
-		return
-	}
-	resp, err := h.service.ListInjections(c.Request.Context(), &req)
-	if httpx.HandleServiceError(c, err) {
-		return
-	}
-	dto.SuccessResponse(c, resp)
-}
-
-// SearchInjections
-//
-//	@Summary		Search injections
-//	@Description	Advanced search for injections with complex filtering including name search, custom labels, tags, and time ranges
-//	@Tags			Injections
-//	@ID				search_injections
-//	@Accept			json
-//	@Produce		json
-//	@Security		BearerAuth
-//	@Param			search	body		SearchInjectionReq											true	"Search criteria"
-//	@Success		200		{object}	dto.GenericResponse[dto.SearchResp[InjectionDetailResp]]	"Search results"
-//	@Failure		400		{object}	dto.GenericResponse[any]										"Invalid request"
-//	@Failure		401		{object}	dto.GenericResponse[any]										"Authentication required"
-//	@Failure		403		{object}	dto.GenericResponse[any]										"Permission denied"
-//	@Failure		500		{object}	dto.GenericResponse[any]										"Internal server error"
-//	@Router			/api/v2/injections/search [post]
-//	@x-api-type		{}
-func (h *Handler) SearchInjections(c *gin.Context) { h.searchInjections(c, nil) }
-
-// SubmitFaultInjection submits batch fault injections
-//
-//	@Summary		Submit batch fault injections
-//	@Description	Submit multiple fault injection tasks in batch
-//	@Tags			Injections
-//	@ID				inject_fault
-//	@Accept			json
-//	@Produce		json
-//	@Security		BearerAuth
-//	@Param			body	body		SubmitInjectionReq							true	"Fault injection request body"
-//	@Success		200		{object}	dto.GenericResponse[SubmitInjectionResp]	"Fault injection submitted successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]						"Invalid request format or parameters"
-//	@Failure		401		{object}	dto.GenericResponse[any]						"Authentication required"
-//	@Failure		403		{object}	dto.GenericResponse[any]						"Permission denied"
-//	@Failure		404		{object}	dto.GenericResponse[any]						"Resource not found"
-//	@Failure		500		{object}	dto.GenericResponse[any]						"Internal server error"
-//	@Router			/api/v2/injections/inject [post]
-//	@x-api-type		{}
-func (h *Handler) SubmitFaultInjection(c *gin.Context) { h.submitFaultInjection(c, nil) }
-
-// SubmitDatapackBuilding submits batch datapack buildings
-//
-//	@Summary		Submit batch datapack buildings
-//	@Description.	Submit multiple datapack building tasks in batch
-//	@Tags			Injections
-//	@ID				build_datapack
-//	@Accept			json
-//	@Produce		json
-//	@Param			body	body		SubmitDatapackBuildingReq						true	"Datapack building request body"
-//	@Success		202		{object}	dto.GenericResponse[SubmitDatapackBuildingResp]	"Datapack building submitted successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]							"Invalid request format or parameters"
-//	@Failure		401		{object}	dto.GenericResponse[any]							"Authentication required"
-//	@Failure		403		{object}	dto.GenericResponse[any]							"Permission denied"
-//	@Failure		404		{object}	dto.GenericResponse[any]							"Resource not found"
-//	@Failure		500		{object}	dto.GenericResponse[any]							"Internal server error"
-//	@Router			/api/v2/injections/build [post]
-//	@x-api-type		{}
-func (h *Handler) SubmitDatapackBuilding(c *gin.Context) { h.submitDatapackBuilding(c, nil) }
-
-// ListFaultInjectionNoIssues
-//
-//	@Summary		Query Fault Injection Records Without Issues
-//	@Description	Query all fault injection records without issues based on time range, returning detailed records including configuration information
-//	@Tags			Injections
-//	@ID				list_failed_injections
-//	@Produce		json
-//	@Param			labels				query		[]string											false	"Filter by labels (array of key:value strings, e.g., 'type:chaos')"
-//	@Param			lookback			query		string												false	"Time range query, supports custom relative time (1h/24h/7d) or custom, default not set"
-//	@Param			custom_start_time	query		string												false	"Custom start time, RFC3339 format, required when lookback=custom"	Format(date-time)
-//	@Param			custom_end_time		query		string												false	"Custom end time, RFC3339 format, required when lookback=custom"	Format(date-time)
-//	@Success		200					{object}	dto.GenericResponse[[]InjectionNoIssuesResp]	"Successfully returned fault injection records without issues"
-//	@Failure		400					{object}	dto.GenericResponse[any]							"Request parameter error, such as incorrect time format or parameter validation failure, etc."
-//	@Failure		500					{object}	dto.GenericResponse[any]							"Internal server error"
-//	@Router			/api/v2/injections/analysis/no-issues [get]
-//	@x-api-type		{}
-func (h *Handler) ListFaultInjectionNoIssues(c *gin.Context) { h.listFaultInjectionNoIssues(c, nil) }
-
-// ListFaultInjectionWithIssues
-//
-//	@Summary		Query Fault Injection Records With Issues
-//	@Description	Query all fault injection records with issues based on time range
-//	@Tags			Injections
-//	@ID				list_successful_injections
-//	@Produce		json
-//	@Param			labels				query		[]string	false	"Filter by labels (array of key:value strings, e.g., 'type:chaos')"
-//	@Param			lookback			query		string		false	"Time range query, supports custom relative time (1h/24h/7d) or custom, default not set"
-//	@Param			custom_start_time	query		string		false	"Custom start time, RFC3339 format, required when lookback=custom"	Format(date-time)
-//	@Param			custom_end_time		query		string		false	"Custom end time, RFC3339 format, required when lookback=custom"	Format(date-time)
-//	@Success		200					{object}	dto.GenericResponse[[]InjectionWithIssuesResp]
-//	@Failure		400					{object}	dto.GenericResponse[any]	"Request parameter error, such as incorrect time format or parameter validation failure, etc."
-//	@Failure		500					{object}	dto.GenericResponse[any]	"Internal server error"
-//	@Router			/api/v2/injections/analysis/with-issues [get]
-//	@x-api-type		{}
-func (h *Handler) ListFaultInjectionWithIssues(c *gin.Context) {
-	h.listFaultInjectionWithIssues(c, nil)
 }
 
 // GetInjection handles getting a single injection by ID
@@ -362,15 +243,15 @@ func (h *Handler) ListFaultInjectionWithIssues(c *gin.Context) {
 //	@ID				get_injection_by_id
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			id	path		int												true	"Injection ID"
+//	@Param			id	path		int											true	"Injection ID"
 //	@Success		200	{object}	dto.GenericResponse[InjectionDetailResp]	"Injection retrieved successfully"
-//	@Failure		400	{object}	dto.GenericResponse[any]						"Invalid injection ID"
-//	@Failure		401	{object}	dto.GenericResponse[any]						"Authentication required"
-//	@Failure		403	{object}	dto.GenericResponse[any]						"Permission denied"
-//	@Failure		404	{object}	dto.GenericResponse[any]						"Injection not found"
-//	@Failure		500	{object}	dto.GenericResponse[any]						"Internal server error"
+//	@Failure		400	{object}	dto.GenericResponse[any]					"Invalid injection ID"
+//	@Failure		401	{object}	dto.GenericResponse[any]					"Authentication required"
+//	@Failure		403	{object}	dto.GenericResponse[any]					"Permission denied"
+//	@Failure		404	{object}	dto.GenericResponse[any]					"Injection not found"
+//	@Failure		500	{object}	dto.GenericResponse[any]					"Internal server error"
 //	@Router			/api/v2/injections/{id} [get]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true","sdk":"true"}
 func (h *Handler) GetInjection(c *gin.Context) {
 	id, ok := parsePositiveID(c, consts.URLPathID, "injection ID")
 	if !ok {
@@ -391,15 +272,15 @@ func (h *Handler) GetInjection(c *gin.Context) {
 //	@ID				get_injection_metadata
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			system	query		chaos.SystemType								true	"System for config and resources metadata"
+//	@Param			system	query		chaos.SystemType							true	"System for config and resources metadata"
 //	@Success		200		{object}	dto.GenericResponse[InjectionMetadataResp]	"Successfully returned metadata"
-//	@Failure		400		{object}	dto.GenericResponse[any]						"Invalid system"
-//	@Failure		401		{object}	dto.GenericResponse[any]						"Authentication required"
-//	@Failure		403		{object}	dto.GenericResponse[any]						"Permission denied"
-//	@Failure		404		{object}	dto.GenericResponse[any]						"Resource not found"
-//	@Failure		500		{object}	dto.GenericResponse[any]						"Internal server error"
+//	@Failure		400		{object}	dto.GenericResponse[any]					"Invalid system"
+//	@Failure		401		{object}	dto.GenericResponse[any]					"Authentication required"
+//	@Failure		403		{object}	dto.GenericResponse[any]					"Permission denied"
+//	@Failure		404		{object}	dto.GenericResponse[any]					"Resource not found"
+//	@Failure		500		{object}	dto.GenericResponse[any]					"Internal server error"
 //	@Router			/api/v2/injections/metadata [get]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true","sdk":"true"}
 func (h *Handler) GetInjectionMetadata(c *gin.Context) {
 	systemStr := c.Query("system")
 	ctx := c.Request.Context()
@@ -439,16 +320,16 @@ func (h *Handler) GetInjectionMetadata(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			id		path		int										true	"Injection ID"
+//	@Param			id		path		int									true	"Injection ID"
 //	@Param			manage	body		ManageInjectionLabelReq				true	"Custom label management request"
 //	@Success		200		{object}	dto.GenericResponse[InjectionResp]	"Custom labels managed successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]				"Invalid injection ID or request format/parameters"
-//	@Failure		401		{object}	dto.GenericResponse[any]				"Authentication required"
-//	@Failure		403		{object}	dto.GenericResponse[any]				"Permission denied"
-//	@Failure		404		{object}	dto.GenericResponse[any]				"Injection not found"
-//	@Failure		500		{object}	dto.GenericResponse[any]				"Internal server error"
+//	@Failure		400		{object}	dto.GenericResponse[any]			"Invalid injection ID or request format/parameters"
+//	@Failure		401		{object}	dto.GenericResponse[any]			"Authentication required"
+//	@Failure		403		{object}	dto.GenericResponse[any]			"Permission denied"
+//	@Failure		404		{object}	dto.GenericResponse[any]			"Injection not found"
+//	@Failure		500		{object}	dto.GenericResponse[any]			"Internal server error"
 //	@Router			/api/v2/injections/{id}/labels [patch]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true","sdk":"true"}
 func (h *Handler) ManageInjectionCustomLabels(c *gin.Context) {
 	id, ok := parsePositiveID(c, consts.URLPathID, "injection ID")
 	if !ok {
@@ -481,12 +362,12 @@ func (h *Handler) ManageInjectionCustomLabels(c *gin.Context) {
 //	@Security		BearerAuth
 //	@Param			batch_manage	body		BatchManageInjectionLabelReq						true	"Batch manage label request"
 //	@Success		200				{object}	dto.GenericResponse[BatchManageInjectionLabelResp]	"Injection labels managed successfully"
-//	@Failure		400				{object}	dto.GenericResponse[any]								"Invalid request"
-//	@Failure		401				{object}	dto.GenericResponse[any]								"Authentication required"
-//	@Failure		403				{object}	dto.GenericResponse[any]								"Permission denied"
-//	@Failure		500				{object}	dto.GenericResponse[any]								"Internal server error"
+//	@Failure		400				{object}	dto.GenericResponse[any]							"Invalid request"
+//	@Failure		401				{object}	dto.GenericResponse[any]							"Authentication required"
+//	@Failure		403				{object}	dto.GenericResponse[any]							"Permission denied"
+//	@Failure		500				{object}	dto.GenericResponse[any]							"Internal server error"
 //	@Router			/api/v2/injections/labels/batch [patch]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) BatchManageInjectionLabels(c *gin.Context) {
 	var req BatchManageInjectionLabelReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -513,14 +394,14 @@ func (h *Handler) BatchManageInjectionLabels(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			batch_delete	body		BatchDeleteInjectionReq	true	"Batch delete request"
+//	@Param			batch_delete	body		BatchDeleteInjectionReq		true	"Batch delete request"
 //	@Success		200				{object}	dto.GenericResponse[any]	"Injections deleted successfully"
 //	@Failure		400				{object}	dto.GenericResponse[any]	"Invalid request"
 //	@Failure		401				{object}	dto.GenericResponse[any]	"Authentication required"
 //	@Failure		403				{object}	dto.GenericResponse[any]	"Permission denied"
 //	@Failure		500				{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v2/injections/batch-delete [post]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) BatchDeleteInjections(c *gin.Context) {
 	var req BatchDeleteInjectionReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -546,15 +427,15 @@ func (h *Handler) BatchDeleteInjections(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			id		path		int												true	"Injection ID"
+//	@Param			id		path		int											true	"Injection ID"
 //	@Param			body	body		CloneInjectionReq							true	"Clone request"
 //	@Success		201		{object}	dto.GenericResponse[InjectionDetailResp]	"Injection cloned successfully"
-//	@Failure		400		{object}	dto.GenericResponse[any]						"Invalid request"
-//	@Failure		401		{object}	dto.GenericResponse[any]						"Authentication required"
-//	@Failure		404		{object}	dto.GenericResponse[any]						"Injection not found"
-//	@Failure		500		{object}	dto.GenericResponse[any]						"Internal server error"
+//	@Failure		400		{object}	dto.GenericResponse[any]					"Invalid request"
+//	@Failure		401		{object}	dto.GenericResponse[any]					"Authentication required"
+//	@Failure		404		{object}	dto.GenericResponse[any]					"Injection not found"
+//	@Failure		500		{object}	dto.GenericResponse[any]					"Internal server error"
 //	@Router			/api/v2/injections/{id}/clone [post]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) CloneInjection(c *gin.Context) {
 	id, ok := parsePositiveID(c, consts.URLPathID, "injection ID")
 	if !ok {
@@ -572,34 +453,6 @@ func (h *Handler) CloneInjection(c *gin.Context) {
 	dto.JSONResponse(c, http.StatusCreated, "Injection cloned successfully", resp)
 }
 
-// GetInjectionLogs handles getting injection execution logs
-//
-//	@Summary		Get injection logs
-//	@Description	Get execution logs for a specific injection
-//	@Tags			Injections
-//	@ID				get_injection_logs
-//	@Produce		json
-//	@Security		BearerAuth
-//	@Param			id	path		int											true	"Injection ID"
-//	@Success		200	{object}	dto.GenericResponse[InjectionLogsResp]	"Logs retrieved successfully"
-//	@Failure		400	{object}	dto.GenericResponse[any]					"Invalid injection ID"
-//	@Failure		401	{object}	dto.GenericResponse[any]					"Authentication required"
-//	@Failure		404	{object}	dto.GenericResponse[any]					"Injection not found"
-//	@Failure		500	{object}	dto.GenericResponse[any]					"Internal server error"
-//	@Router			/api/v2/injections/{id}/logs [get]
-//	@x-api-type		{}
-func (h *Handler) GetInjectionLogs(c *gin.Context) {
-	id, ok := parsePositiveID(c, consts.URLPathID, "injection ID")
-	if !ok {
-		return
-	}
-	resp, err := h.service.GetLogs(c.Request.Context(), id)
-	if httpx.HandleServiceError(c, err) {
-		return
-	}
-	dto.JSONResponse(c, http.StatusOK, "Logs retrieved successfully", resp)
-}
-
 // DownloadDatapack handles datapack file download
 //
 //	@Summary		Download datapack
@@ -615,7 +468,7 @@ func (h *Handler) GetInjectionLogs(c *gin.Context) {
 //	@Failure		404	{object}	dto.GenericResponse[any]	"Injection not found"
 //	@Failure		500	{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v2/injections/{id}/download [get]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) DownloadDatapack(c *gin.Context) {
 	id, ok := parsePositiveID(c, consts.URLPathID, "injection ID")
 	if !ok {
@@ -644,14 +497,14 @@ func (h *Handler) DownloadDatapack(c *gin.Context) {
 //	@ID				list_datapack_files
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			id	path		int											true	"Injection ID"
+//	@Param			id	path		int										true	"Injection ID"
 //	@Success		200	{object}	dto.GenericResponse[DatapackFilesResp]	"Files retrieved successfully"
-//	@Failure		400	{object}	dto.GenericResponse[any]					"Invalid injection ID"
-//	@Failure		401	{object}	dto.GenericResponse[any]					"Authentication required"
-//	@Failure		404	{object}	dto.GenericResponse[any]					"Datapack not found or not ready"
-//	@Failure		500	{object}	dto.GenericResponse[any]					"Internal server error"
+//	@Failure		400	{object}	dto.GenericResponse[any]				"Invalid injection ID"
+//	@Failure		401	{object}	dto.GenericResponse[any]				"Authentication required"
+//	@Failure		404	{object}	dto.GenericResponse[any]				"Datapack not found or not ready"
+//	@Failure		500	{object}	dto.GenericResponse[any]				"Internal server error"
 //	@Router			/api/v2/injections/{id}/files [get]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) ListDatapackFiles(c *gin.Context) {
 	id, ok := parsePositiveID(c, consts.URLPathID, "datapack ID")
 	if !ok {
@@ -689,7 +542,7 @@ func (h *Handler) ListDatapackFiles(c *gin.Context) {
 //	@Failure		416		{object}	dto.GenericResponse[any]	"Range not satisfiable"
 //	@Failure		500		{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v2/injections/{id}/files/download [get]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) DownloadDatapackFile(c *gin.Context) {
 	id, ok := parsePositiveID(c, consts.URLPathID, "datapack ID")
 	if !ok {
@@ -743,7 +596,7 @@ func (h *Handler) DownloadDatapackFile(c *gin.Context) {
 //	@Failure		404		{object}	dto.GenericResponse[any]	"Datapack or file not found"
 //	@Failure		500		{object}	dto.GenericResponse[any]	"Internal server error"
 //	@Router			/api/v2/injections/{id}/files/query [get]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) QueryDatapackFile(c *gin.Context) {
 	id, ok := parsePositiveID(c, consts.URLPathID, "datapack ID")
 	if !ok {
@@ -779,13 +632,13 @@ func (h *Handler) QueryDatapackFile(c *gin.Context) {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			id		path		int								true	"Injection ID"
+//	@Param			id		path		int							true	"Injection ID"
 //	@Param			request	body		UpdateGroundtruthReq		true	"Ground truth data"
-//	@Success		200		{object}	dto.GenericResponse[any]		"Ground truth updated"
-//	@Failure		400		{object}	dto.GenericResponse[any]		"Invalid request"
-//	@Failure		404		{object}	dto.GenericResponse[any]		"Injection not found"
+//	@Success		200		{object}	dto.GenericResponse[any]	"Ground truth updated"
+//	@Failure		400		{object}	dto.GenericResponse[any]	"Invalid request"
+//	@Failure		404		{object}	dto.GenericResponse[any]	"Injection not found"
 //	@Router			/api/v2/injections/{id}/groundtruth [put]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) UpdateGroundtruth(c *gin.Context) {
 	id, ok := parsePositiveID(c, consts.URLPathID, "injection ID")
 	if !ok {
@@ -815,18 +668,18 @@ func (h *Handler) UpdateGroundtruth(c *gin.Context) {
 //	@Accept			multipart/form-data
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			name			formData	string						true	"Datapack name"
-//	@Param			description		formData	string						false	"Description"
-//	@Param			category		formData	string						false	"Category"
-//	@Param			labels			formData	string						false	"JSON-encoded labels"
-//	@Param			ground_truths	formData	string						false	"JSON-encoded ground truths"
-//	@Param			file			formData	file						true	"Zip archive file"
+//	@Param			name			formData	string									true	"Datapack name"
+//	@Param			description		formData	string									false	"Description"
+//	@Param			category		formData	string									false	"Category"
+//	@Param			labels			formData	string									false	"JSON-encoded labels"
+//	@Param			ground_truths	formData	string									false	"JSON-encoded ground truths"
+//	@Param			file			formData	file									true	"Zip archive file"
 //	@Success		201				{object}	dto.GenericResponse[UploadDatapackResp]	"Datapack uploaded successfully"
-//	@Failure		400				{object}	dto.GenericResponse[any]	"Invalid request"
-//	@Failure		401				{object}	dto.GenericResponse[any]	"Authentication required"
-//	@Failure		500				{object}	dto.GenericResponse[any]	"Internal server error"
+//	@Failure		400				{object}	dto.GenericResponse[any]				"Invalid request"
+//	@Failure		401				{object}	dto.GenericResponse[any]				"Authentication required"
+//	@Failure		500				{object}	dto.GenericResponse[any]				"Internal server error"
 //	@Router			/api/v2/injections/upload [post]
-//	@x-api-type		{}
+//	@x-api-type		{"portal":"true"}
 func (h *Handler) UploadDatapack(c *gin.Context) {
 	fileHeader, err := c.FormFile("file")
 	if err != nil {
@@ -856,26 +709,6 @@ func (h *Handler) UploadDatapack(c *gin.Context) {
 		return
 	}
 	dto.JSONResponse(c, http.StatusCreated, "Datapack uploaded successfully", resp)
-}
-
-func (h *Handler) searchInjections(c *gin.Context, projectID *int) {
-	var req SearchInjectionReq
-	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
-		return
-	}
-
-	if err := req.Validate(); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Validation failed: "+err.Error())
-		return
-	}
-
-	resp, err := h.service.Search(c.Request.Context(), &req, projectID)
-	if httpx.HandleServiceError(c, err) {
-		return
-	}
-
-	dto.SuccessResponse(c, resp)
 }
 
 func (h *Handler) listFaultInjectionNoIssues(c *gin.Context, projectID *int) {

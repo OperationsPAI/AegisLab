@@ -1,4 +1,4 @@
-package taskmodule
+package task
 
 import (
 	"encoding/json"

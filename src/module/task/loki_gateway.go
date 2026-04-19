@@ -1,23 +1,23 @@
-package taskmodule
+package task
 
 import (
 	"context"
 	"time"
 
 	"aegis/dto"
-	lokiinfra "aegis/infra/loki"
+	loki "aegis/infra/loki"
 )
 
 type LokiGateway struct {
-	client *lokiinfra.Client
+	client *loki.Client
 }
 
-func NewLokiGateway(client *lokiinfra.Client) *LokiGateway {
+func NewLokiGateway(client *loki.Client) *LokiGateway {
 	return &LokiGateway{client: client}
 }
 
 func (g *LokiGateway) QueryJobLogs(ctx context.Context, taskID string, start time.Time) ([]dto.LogEntry, error) {
-	return g.client.QueryJobLogs(ctx, taskID, lokiinfra.QueryOpts{
+	return g.client.QueryJobLogs(ctx, taskID, loki.QueryOpts{
 		Start:     start,
 		Direction: "forward",
 	})

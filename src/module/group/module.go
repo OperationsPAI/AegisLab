@@ -1,4 +1,4 @@
-package groupmodule
+package group
 
 import "go.uber.org/fx"
 

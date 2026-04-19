@@ -1,4 +1,4 @@
-package groupmodule
+package group
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"aegis/consts"
 	redisinfra "aegis/infra/redis"
 
-	"github.com/redis/go-redis/v9"
+	goredis "github.com/redis/go-redis/v9"
 )
 
 type Service struct {
@@ -79,7 +79,7 @@ func (s *Service) GetGroupTraceCount(groupID string) (int64, error) {
 	return total, nil
 }
 
-func (s *Service) ReadGroupStreamMessages(ctx context.Context, streamKey, lastID string, count int64, block time.Duration) ([]redis.XStream, error) {
+func (s *Service) ReadGroupStreamMessages(ctx context.Context, streamKey, lastID string, count int64, block time.Duration) ([]goredis.XStream, error) {
 	if lastID == "" {
 		lastID = "0"
 	}
@@ -103,7 +103,7 @@ func NewGroupStreamProcessor(totalTraces int) *GroupStreamProcessor {
 	}
 }
 
-func (p *GroupStreamProcessor) ProcessGroupMessage(msg redis.XMessage) (*GroupStreamEvent, error) {
+func (p *GroupStreamProcessor) ProcessGroupMessage(msg goredis.XMessage) (*GroupStreamEvent, error) {
 	traceID, ok := msg.Values[consts.RdbEventTraceID].(string)
 	if !ok || traceID == "" {
 		return nil, fmt.Errorf("missing or invalid %s in group stream message", consts.RdbEventTraceID)

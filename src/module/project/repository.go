@@ -1,4 +1,4 @@
-package projectmodule
+package project
 
 import (
 	"aegis/consts"

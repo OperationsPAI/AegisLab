@@ -1,4 +1,4 @@
-package buildkitinfra
+package buildkit
 
 import "go.uber.org/fx"
 

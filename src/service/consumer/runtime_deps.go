@@ -1,10 +1,10 @@
 package consumer
 
 import (
-	buildkitinfra "aegis/infra/buildkit"
-	helminfra "aegis/infra/helm"
-	k8sinfra "aegis/infra/k8s"
-	redisinfra "aegis/infra/redis"
+	buildkit "aegis/infra/buildkit"
+	helm "aegis/infra/helm"
+	k8s "aegis/infra/k8s"
+	redis "aegis/infra/redis"
 
 	"gorm.io/gorm"
 )
@@ -15,10 +15,10 @@ type RuntimeDeps struct {
 	RestartRateLimiter   *TokenBucketRateLimiter
 	BuildRateLimiter     *TokenBucketRateLimiter
 	AlgorithmRateLimiter *TokenBucketRateLimiter
-	RedisGateway         *redisinfra.Gateway
-	K8sGateway           *k8sinfra.Gateway
-	BuildKitGateway      *buildkitinfra.Gateway
-	HelmGateway          *helminfra.Gateway
+	RedisGateway         *redis.Gateway
+	K8sGateway           *k8s.Gateway
+	BuildKitGateway      *buildkit.Gateway
+	HelmGateway          *helm.Gateway
 	FaultBatchManager    *FaultBatchManager
 	ExecutionOwner       ExecutionOwner
 	InjectionOwner       InjectionOwner

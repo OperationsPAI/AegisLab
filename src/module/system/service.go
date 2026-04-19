@@ -1,4 +1,4 @@
-package systemmodule
+package system
 
 import (
 	"context"
@@ -12,10 +12,10 @@ import (
 	"aegis/config"
 	"aegis/consts"
 	"aegis/dto"
-	buildkitinfra "aegis/infra/buildkit"
-	etcdinfra "aegis/infra/etcd"
-	k8sinfra "aegis/infra/k8s"
-	redisinfra "aegis/infra/redis"
+	buildkit "aegis/infra/buildkit"
+	etcd "aegis/infra/etcd"
+	k8s "aegis/infra/k8s"
+	redis "aegis/infra/redis"
 	"aegis/model"
 	"aegis/service/common"
 	"aegis/utils"
@@ -49,10 +49,10 @@ type configHistoryWriter interface {
 
 type Service struct {
 	repo         *Repository
-	buildkit     *buildkitinfra.Gateway
-	etcd         *etcdinfra.Gateway
-	k8s          *k8sinfra.Gateway
-	redis        *redisinfra.Gateway
+	buildkit     *buildkit.Gateway
+	etcd         *etcd.Gateway
+	k8s          *k8s.Gateway
+	redis        *redis.Gateway
 	runtimeQuery runtimeQuerySource
 }
 
@@ -60,10 +60,10 @@ type serviceParams struct {
 	fx.In
 
 	Repo         *Repository
-	Buildkit     *buildkitinfra.Gateway
-	Etcd         *etcdinfra.Gateway
-	K8s          *k8sinfra.Gateway
-	Redis        *redisinfra.Gateway
+	Buildkit     *buildkit.Gateway
+	Etcd         *etcd.Gateway
+	K8s          *k8s.Gateway
+	Redis        *redis.Gateway
 	RuntimeQuery runtimeQuerySource
 }
 

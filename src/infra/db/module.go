@@ -1,4 +1,4 @@
-package dbinfra
+package db
 
 import (
 	"context"

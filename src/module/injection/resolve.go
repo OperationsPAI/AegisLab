@@ -1,10 +1,10 @@
-package injectionmodule
+package injection
 
 import (
 	"aegis/consts"
 	"aegis/dto"
 	"aegis/model"
-	datasetmodule "aegis/module/dataset"
+	dataset "aegis/module/dataset"
 	"fmt"
 )
 
@@ -55,7 +55,7 @@ func (r *Repository) ResolveDatapacks(datapackName *string, datasetRef *dto.Data
 	}
 
 	if datasetRef != nil {
-		datasetVersionResults, err := datasetmodule.NewRepository(r.db).ResolveDatasetVersions([]*dto.DatasetRef{datasetRef}, userID)
+		datasetVersionResults, err := dataset.NewRepository(r.db).ResolveDatasetVersions([]*dto.DatasetRef{datasetRef}, userID)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to get dataset versions: %w", err)
 		}
@@ -65,7 +65,7 @@ func (r *Repository) ResolveDatapacks(datapackName *string, datasetRef *dto.Data
 			return nil, nil, fmt.Errorf("dataset version not found for %v", datasetRef)
 		}
 
-		datapacks, err := datasetmodule.NewRepository(r.db).ListInjectionsByDatasetVersionID(version.ID, true)
+		datapacks, err := dataset.NewRepository(r.db).ListInjectionsByDatasetVersionID(version.ID, true)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to get dataset datapacks: %s", err.Error())
 		}

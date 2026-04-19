@@ -7,11 +7,11 @@ import (
 
 	"aegis/config"
 	"aegis/consts"
-	redisinfra "aegis/infra/redis"
+	redis "aegis/infra/redis"
 	"aegis/model"
-	containermodule "aegis/module/container"
-	datasetmodule "aegis/module/dataset"
-	labelmodule "aegis/module/label"
+	container "aegis/module/container"
+	dataset "aegis/module/dataset"
+	label "aegis/module/label"
 	"aegis/service/common"
 	"aegis/utils"
 
@@ -32,7 +32,7 @@ func (r permMeta) String() string {
 	return fmt.Sprintf("%v %v %v", r.action, r.resourceScope, r.resourceName)
 }
 
-func InitializeProducer(db *gorm.DB, publisher *redisinfra.Gateway, listener *common.ConfigUpdateListener) error {
+func InitializeProducer(db *gorm.DB, publisher *redis.Gateway, listener *common.ConfigUpdateListener) error {
 	producerData, err := newConfigDataWithDB(db, consts.ConfigScopeProducer)
 	if err != nil {
 		return fmt.Errorf("failed to load producer config metadata: %w", err)
@@ -349,11 +349,11 @@ func initializeContainers(tx *gorm.DB, data *InitialData, userID int) error {
 	dataPath := config.GetString("initialization.data_path")
 
 	for _, containerData := range data.Containers {
-		container := containerData.ConvertToDBContainer()
-		if container.Type == consts.ContainerTypePedestal {
-			system := chaos.SystemType(container.Name)
+		containerModel := containerData.ConvertToDBContainer()
+		if containerModel.Type == consts.ContainerTypePedestal {
+			system := chaos.SystemType(containerModel.Name)
 			if !system.IsValid() {
-				return fmt.Errorf("invalid pedestal name: %s", container.Name)
+				return fmt.Errorf("invalid pedestal name: %s", containerModel.Name)
 			}
 		}
 
@@ -387,17 +387,17 @@ func initializeContainers(tx *gorm.DB, data *InitialData, userID int) error {
 			versions = append(versions, *version)
 		}
 
-		container.Versions = versions
+		containerModel.Versions = versions
 
-		createdContainer, err := containermodule.NewRepository(tx).CreateContainerCore(container, userID)
+		createdContainer, err := container.NewRepository(tx).CreateContainerCore(containerModel, userID)
 		if err != nil {
 			return fmt.Errorf("failed to create container %s: %w", containerData.Name, err)
 		}
 
 		if createdContainer.Type == consts.ContainerTypePedestal {
-			if err := containermodule.NewRepository(tx).UploadHelmValueFileFromPath(
+			if err := container.NewRepository(tx).UploadHelmValueFileFromPath(
 				containerData.Name,
-				container.Versions[0].HelmConfig,
+				containerModel.Versions[0].HelmConfig,
 				filepath.Join(dataPath, fmt.Sprintf("%s.yaml", createdContainer.Name)),
 			); err != nil {
 				return fmt.Errorf("failed to upload helm value file for container %s: %w", containerData.Name, err)
@@ -410,7 +410,7 @@ func initializeContainers(tx *gorm.DB, data *InitialData, userID int) error {
 
 func initializeDatasets(tx *gorm.DB, data *InitialData, userID int) error {
 	for _, datasetData := range data.Datasets {
-		dataset := datasetData.ConvertToDBDataset()
+		datasetModel := datasetData.ConvertToDBDataset()
 
 		versions := make([]model.DatasetVersion, 0, len(datasetData.Versions))
 		for _, versionData := range datasetData.Versions {
@@ -418,7 +418,7 @@ func initializeDatasets(tx *gorm.DB, data *InitialData, userID int) error {
 			versions = append(versions, *version)
 		}
 
-		_, err := datasetmodule.NewRepository(tx).CreateDatasetCore(dataset, versions, userID)
+		_, err := dataset.NewRepository(tx).CreateDatasetCore(datasetModel, versions, userID)
 		if err != nil {
 			return fmt.Errorf("failed to create dataset %s: %w", datasetData.Name, err)
 		}
@@ -437,7 +437,7 @@ func initializeExecutionLabels(tx *gorm.DB) error {
 	}
 
 	for _, labelInfo := range sourceLabels {
-		_, err := labelmodule.NewRepository(tx).CreateLabelCore(tx, &model.Label{
+		_, err := label.NewRepository(tx).CreateLabelCore(tx, &model.Label{
 			Key:         consts.ExecutionLabelSource,
 			Value:       labelInfo.value,
 			Category:    consts.ExecutionCategory,

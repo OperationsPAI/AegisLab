@@ -7,8 +7,8 @@ import (
 	"aegis/config"
 	"aegis/consts"
 	"aegis/dto"
-	redisinfra "aegis/infra/redis"
-	executionmodule "aegis/module/execution"
+	redis "aegis/infra/redis"
+	execution "aegis/module/execution"
 	"aegis/service/common"
 	"aegis/tracing"
 	"aegis/utils"
@@ -137,7 +137,7 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask, deps Runti
 	})
 }
 
-func loadDetectorResults(ctx context.Context, deps RuntimeDeps, _ *gorm.DB, executionID int) ([]executionmodule.DetectorResultItem, error) {
+func loadDetectorResults(ctx context.Context, deps RuntimeDeps, _ *gorm.DB, executionID int) ([]execution.DetectorResultItem, error) {
 	if deps.ExecutionOwner == nil {
 		return nil, fmt.Errorf("execution owner service is nil")
 	}
@@ -148,7 +148,7 @@ func loadDetectorResults(ctx context.Context, deps RuntimeDeps, _ *gorm.DB, exec
 	return resp.DetectorResults, nil
 }
 
-func loadGranularityResults(ctx context.Context, deps RuntimeDeps, _ *gorm.DB, executionID int) ([]executionmodule.GranularityResultItem, error) {
+func loadGranularityResults(ctx context.Context, deps RuntimeDeps, _ *gorm.DB, executionID int) ([]execution.GranularityResultItem, error) {
 	if deps.ExecutionOwner == nil {
 		return nil, fmt.Errorf("execution owner service is nil")
 	}
@@ -185,7 +185,7 @@ func parseCollectPayload(payload map[string]any) (*collectionPayload, error) {
 }
 
 // produceAlgorithmExeuctionTask produces an algorithm execution task into Redis
-func produceAlgorithmExeuctionTask(ctx context.Context, db *gorm.DB, redisGateway *redisinfra.Gateway, task *dto.UnifiedTask, payload map[string]any, index int) error {
+func produceAlgorithmExeuctionTask(ctx context.Context, db *gorm.DB, redisGateway *redis.Gateway, task *dto.UnifiedTask, payload map[string]any, index int) error {
 	newTask := &dto.UnifiedTask{
 		Type:         consts.TaskTypeRunAlgorithm,
 		Immediate:    true,
