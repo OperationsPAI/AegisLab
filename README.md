@@ -1,3 +1,14 @@
+> ## ⚠️ This repository has moved
+>
+> This repo has been consolidated into the **[`OperationsPAI/aegis`](https://github.com/OperationsPAI/aegis)** monorepo.
+>
+> - Code now lives under **[`AegisLab/`](https://github.com/OperationsPAI/aegis/tree/main/AegisLab)** in the monorepo (original directory names preserved).
+> - Pre-migration git history remains viewable here.
+> - **For all new PRs and issues, go to [OperationsPAI/aegis](https://github.com/OperationsPAI/aegis).**
+> - This repository is archived as of 2026-04-19.
+>
+> ---
+
 # RCABench: A Comprehensive Root Cause Analysis Benchmarking Platform
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
