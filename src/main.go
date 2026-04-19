@@ -18,53 +18,30 @@
 package main
 
 import (
-	"context"
-	"fmt"
-	"log"
 	"os"
-	"path"
-	"runtime"
-	"time"
 
-	"aegis/client"
-	"aegis/client/k8s"
-	"aegis/config"
-	"aegis/consts"
-	"aegis/database"
-	"aegis/router"
-	"aegis/service/consumer"
-	"aegis/service/initialization"
-	"aegis/service/logreceiver"
-	producer "aegis/service/producer"
-	"aegis/utils"
+	"aegis/app"
+	gateway "aegis/app/gateway"
+	iam "aegis/app/iam"
+	orchestrator "aegis/app/orchestrator"
+	resource "aegis/app/resource"
+	runtimeapp "aegis/app/runtime"
+	system "aegis/app/system"
 
-	chaosCli "github.com/OperationsPAI/chaos-experiment/client"
-	nested "github.com/antonfisher/nested-logrus-formatter"
-	"github.com/go-logr/stdr"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	k8slogger "sigs.k8s.io/controller-runtime/pkg/log"
+	"go.uber.org/fx"
 )
 
-func init() {
-	logrus.SetReportCaller(true)
-	logrus.SetFormatter(&nested.Formatter{
-		CustomCallerFormatter: func(f *runtime.Frame) string {
-			filename := path.Base(f.File)
-			return fmt.Sprintf(" (%s:%d)", filename, f.Line)
+func newModeCommand(use, short string, run func()) *cobra.Command {
+	return &cobra.Command{
+		Use:   use,
+		Short: short,
+		Run: func(cmd *cobra.Command, args []string) {
+			run()
 		},
-		FieldsOrder:     []string{"component", "category"},
-		HideKeys:        true,
-		TimestampFormat: "2006-01-02 15:04:05",
-	})
-	logrus.SetLevel(logrus.InfoLevel)
-	logrus.Info("Logger initialized")
-}
-
-func initChaosExperiment() {
-	k8sConfig := k8s.GetK8sRestConfig()
-	chaosCli.InitWithConfig(k8sConfig)
+	}
 }
 
 func main() {
@@ -74,7 +51,7 @@ func main() {
 		Use:   "rcabench",
 		Short: "RCA Bench is a benchmarking tool",
 		Run: func(cmd *cobra.Command, args []string) {
-			logrus.Println("Please specify a mode: producer, consumer, or both")
+			logrus.Println("Please specify a mode: producer, consumer, both, api-gateway, iam-service, orchestrator-service, resource-service, runtime-worker-service, or system-service")
 		},
 	}
 
@@ -88,136 +65,47 @@ func main() {
 		logrus.Fatalf("failed to bind flag: %v", err)
 	}
 
-	config.Init(viper.GetString("conf"))
+	producerCmd := newModeCommand("producer", "Run as a producer", func() {
+		fx.New(app.ProducerOptions(viper.GetString("conf"), viper.GetString("port"))).Run()
+	})
+	consumerCmd := newModeCommand("consumer", "Run as a consumer", func() {
+		fx.New(app.ConsumerOptions(viper.GetString("conf"))).Run()
+	})
+	bothCmd := newModeCommand("both", "Run as both producer and consumer", func() {
+		fx.New(app.BothOptions(viper.GetString("conf"), viper.GetString("port"))).Run()
+	})
+	apiGatewayCmd := newModeCommand("api-gateway", "Run as the API gateway", func() {
+		fx.New(gateway.Options(viper.GetString("conf"), viper.GetString("port"))).Run()
+	})
+	iamServiceCmd := newModeCommand("iam-service", "Run as the IAM service", func() {
+		fx.New(iam.Options(viper.GetString("conf"))).Run()
+	})
+	orchestratorServiceCmd := newModeCommand("orchestrator-service", "Run as the orchestrator service", func() {
+		fx.New(orchestrator.Options(viper.GetString("conf"))).Run()
+	})
+	resourceServiceCmd := newModeCommand("resource-service", "Run as the resource service", func() {
+		fx.New(resource.Options(viper.GetString("conf"))).Run()
+	})
+	runtimeWorkerServiceCmd := newModeCommand("runtime-worker-service", "Run as the runtime worker service", func() {
+		fx.New(runtimeapp.Options(viper.GetString("conf"))).Run()
+	})
+	systemServiceCmd := newModeCommand("system-service", "Run as the system service", func() {
+		fx.New(system.Options(viper.GetString("conf"))).Run()
+	})
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	// Producer command - runs HTTP server for API endpoints
-	var producerCmd = &cobra.Command{
-		Use:   "producer",
-		Short: "Run as a producer",
-		Run: func(cmd *cobra.Command, args []string) {
-			logrus.Println("Running as producer")
-			database.InitDB()
-			initialization.InitializeProducer(ctx)
-
-			utils.InitValidator()
-			client.InitTraceProvider()
-			initChaosExperiment()
-
-			engine := router.New()
-			port := viper.GetString("port")
-			if err := engine.Run(":" + port); err != nil {
-				panic(err)
-			}
-		},
-	}
-
-	// Consumer command - runs background workers and Kubernetes controllers
-	var consumerCmd = &cobra.Command{
-		Use:   "consumer",
-		Short: "Run as a consumer",
-		Run: func(cmd *cobra.Command, args []string) {
-			logrus.Println("Running as consumer")
-			consts.InitialTime = utils.TimePtr(time.Now())
-			consts.AppID = utils.GenerateULID(consts.InitialTime)
-
-			k8slogger.SetLogger(stdr.New(log.New(os.Stdout, "", log.LstdFlags)))
-			initChaosExperiment()
-			go k8s.GetK8sController().Initialize(ctx, cancel, consumer.NewHandler())
-
-			database.InitDB()
-			initialization.InitializeConsumer(ctx)
-			initialization.InitConcurrencyLock(ctx)
-
-			client.InitTraceProvider()
-
-			// Auto-GC leaked rate-limiter tokens (OperationsPAI/aegis#21).
-			runRateLimiterStartupGC(ctx)
-
-			// Start OTLP log receiver for real-time job log streaming
-			go func() {
-				otlpPort := config.GetInt("otlp_receiver.port")
-				if otlpPort == 0 {
-					otlpPort = logreceiver.DefaultPort
-				}
-				receiver := logreceiver.NewOTLPLogReceiver(otlpPort, 0)
-				if err := receiver.Start(ctx); err != nil {
-					logrus.Errorf("OTLP log receiver error: %v", err)
-				}
-				defer receiver.Shutdown()
-			}()
-
-			go consumer.StartScheduler(ctx)
-			consumer.ConsumeTasks(ctx)
-		},
-	}
-
-	// Both subcommand
-	var bothCmd = &cobra.Command{
-		Use:   "both",
-		Short: "Run as both producer and consumer",
-		Run: func(cmd *cobra.Command, args []string) {
-			logrus.Println("Running as both producer and consumer")
-			consts.InitialTime = utils.TimePtr(time.Now())
-			consts.AppID = utils.GenerateULID(consts.InitialTime)
-
-			k8slogger.SetLogger(stdr.New(log.New(os.Stdout, "", log.LstdFlags)))
-			initChaosExperiment()
-			go k8s.GetK8sController().Initialize(ctx, cancel, consumer.NewHandler())
-
-			database.InitDB()
-			initialization.InitializeProducer(ctx)
-			initialization.InitializeConsumer(ctx)
-			initialization.InitConcurrencyLock(ctx)
-
-			utils.InitValidator()
-			client.InitTraceProvider()
-
-			// Auto-GC leaked rate-limiter tokens (OperationsPAI/aegis#21).
-			runRateLimiterStartupGC(ctx)
-
-			// Start OTLP log receiver for real-time job log streaming
-			go func() {
-				otlpPort := config.GetInt("otlp_receiver.port")
-				if otlpPort == 0 {
-					otlpPort = logreceiver.DefaultPort
-				}
-				receiver := logreceiver.NewOTLPLogReceiver(otlpPort, 0)
-				if err := receiver.Start(ctx); err != nil {
-					logrus.Errorf("OTLP log receiver error: %v", err)
-				}
-				defer receiver.Shutdown()
-			}()
-
-			go consumer.StartScheduler(ctx)
-			go consumer.ConsumeTasks(ctx)
-
-			engine := router.New()
-			port := viper.GetString("port")
-			if err := engine.Run(":" + port); err != nil {
-				panic(err)
-			}
-		},
-	}
-
-	rootCmd.AddCommand(producerCmd, consumerCmd, bothCmd)
+	rootCmd.AddCommand(
+		producerCmd,
+		consumerCmd,
+		bothCmd,
+		apiGatewayCmd,
+		iamServiceCmd,
+		orchestratorServiceCmd,
+		resourceServiceCmd,
+		runtimeWorkerServiceCmd,
+		systemServiceCmd,
+	)
 	if err := rootCmd.Execute(); err != nil {
 		logrus.Println(err.Error())
 		os.Exit(1)
 	}
-}
-
-// runRateLimiterStartupGC releases tokens still held by terminal-state tasks (OperationsPAI/aegis#21).
-func runRateLimiterStartupGC(ctx context.Context) {
-	released, buckets, err := producer.GCRateLimiters(ctx)
-	if err != nil {
-		logrus.WithError(err).Warn("rate-limiter startup GC failed")
-		return
-	}
-	logrus.WithFields(logrus.Fields{
-		"released": released,
-		"buckets":  buckets,
-	}).Infof("released %d leaked tokens", released)
 }

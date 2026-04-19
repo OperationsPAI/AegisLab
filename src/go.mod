@@ -6,8 +6,9 @@ toolchain go1.24.12
 
 require (
 	github.com/BurntSushi/toml v1.4.0
+	github.com/ClickHouse/clickhouse-go/v2 v2.34.0
+	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/OperationsPAI/chaos-experiment v0.1.0
-	github.com/alicebob/miniredis/v2 v2.37.0
 	github.com/antonfisher/nested-logrus-formatter v1.3.1
 	github.com/apache/arrow-go/v18 v18.4.1
 	github.com/distribution/reference v0.6.0
@@ -18,6 +19,7 @@ require (
 	github.com/gin-gonic/gin v1.10.0
 	github.com/go-logr/stdr v1.2.2
 	github.com/go-playground/validator/v10 v10.24.0
+	github.com/go-sql-driver/mysql v1.8.1
 	github.com/goharbor/go-client v0.213.1
 	github.com/golang-jwt/jwt/v5 v5.2.3
 	github.com/google/uuid v1.6.0
@@ -43,12 +45,12 @@ require (
 	go.opentelemetry.io/otel/sdk v1.37.0
 	go.opentelemetry.io/otel/trace v1.37.0
 	go.opentelemetry.io/proto/otlp v1.5.0
-	golang.org/x/crypto v0.42.0
+	go.uber.org/fx v1.24.0
 	golang.org/x/sync v0.17.0
+	google.golang.org/grpc v1.75.0
 	google.golang.org/protobuf v1.36.8
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/driver/mysql v1.5.7
-	gorm.io/driver/sqlite v1.5.0
 	gorm.io/gorm v1.25.12
 	gorm.io/plugin/opentelemetry v0.1.13
 	helm.sh/helm/v3 v3.17.3
@@ -60,17 +62,12 @@ require (
 	sigs.k8s.io/yaml v1.4.0
 )
 
-replace github.com/OperationsPAI/chaos-experiment => ../../chaos-experiment
-
-replace github.com/chaos-mesh/chaos-mesh/api => github.com/OperationsPAI/chaos-mesh/api v0.0.0-20260124102507-517f3df45e54
-
 require (
 	dario.cat/mergo v1.0.1 // indirect
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
 	github.com/ClickHouse/ch-go v0.65.1 // indirect
-	github.com/ClickHouse/clickhouse-go/v2 v2.34.0 // indirect
 	github.com/KyleBanks/depth v1.2.1 // indirect
 	github.com/MakeNowJust/heredoc v1.0.0 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
@@ -151,7 +148,6 @@ require (
 	github.com/go-openapi/validate v0.20.3 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
-	github.com/go-sql-driver/mysql v1.8.1 // indirect
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
@@ -198,7 +194,6 @@ require (
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
-	github.com/mattn/go-sqlite3 v1.14.22 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
@@ -261,7 +256,6 @@ require (
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
 	github.com/xlab/treeprint v1.2.0 // indirect
-	github.com/yuin/gopher-lua v1.1.1 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	github.com/zeebo/xxh3 v1.0.2 // indirect
 	go.etcd.io/etcd/api/v3 v3.6.7 // indirect
@@ -274,9 +268,11 @@ require (
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.58.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.35.0 // indirect
 	go.opentelemetry.io/otel/metric v1.37.0 // indirect
+	go.uber.org/dig v1.19.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/arch v0.12.0 // indirect
+	golang.org/x/crypto v0.42.0 // indirect
 	golang.org/x/exp v0.0.0-20250408133849-7e4ce0ab07d0 // indirect
 	golang.org/x/mod v0.27.0 // indirect
 	golang.org/x/net v0.45.0 // indirect
@@ -291,7 +287,6 @@ require (
 	google.golang.org/genproto v0.0.0-20240213162025-012b6fc9bca9 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250707201910-8d1bb00bc6a7 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250707201910-8d1bb00bc6a7 // indirect
-	google.golang.org/grpc v1.75.0 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
@@ -313,6 +308,10 @@ require (
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.6.0 // indirect
 )
+
+replace github.com/OperationsPAI/chaos-experiment => ../../chaos-experiment
+
+replace github.com/chaos-mesh/chaos-mesh/api => github.com/OperationsPAI/chaos-mesh/api v0.0.0-20260124102507-517f3df45e54
 
 replace go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc => go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc v0.0.0-20240518090000-14441aefdf88
 

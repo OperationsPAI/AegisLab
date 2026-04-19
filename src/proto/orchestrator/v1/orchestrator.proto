@@ -1,0 +1,192 @@
+syntax = "proto3";
+
+package orchestrator.v1;
+
+option go_package = "aegis/proto/orchestrator/v1;orchestratorv1";
+
+import "google/protobuf/struct.proto";
+
+service OrchestratorService {
+  rpc Ping(PingRequest) returns (PingResponse);
+  rpc SubmitExecution(SubmitExecutionRequest) returns (SubmitExecutionResponse);
+  rpc SubmitFaultInjection(SubmitFaultInjectionRequest) returns (SubmitFaultInjectionResponse);
+  rpc SubmitDatapackBuilding(SubmitDatapackBuildingRequest) returns (SubmitDatapackBuildingResponse);
+  rpc CreateExecution(MutationRequest) returns (StructResponse);
+  rpc CreateInjection(MutationRequest) returns (StructResponse);
+  rpc UpdateExecutionState(MutationRequest) returns (StructResponse);
+  rpc UpdateInjectionState(MutationRequest) returns (StructResponse);
+  rpc UpdateInjectionTimestamps(MutationRequest) returns (StructResponse);
+  rpc GetInjectionMetrics(MutationRequest) returns (StructResponse);
+  rpc GetExecutionMetrics(MutationRequest) returns (StructResponse);
+  rpc CancelTask(CancelTaskRequest) returns (CancelTaskResponse);
+  rpc GetExecution(GetExecutionRequest) returns (StructResponse);
+  rpc ListProjectStatistics(ListProjectStatisticsRequest) returns (StructResponse);
+  rpc ListEvaluationExecutionsByDatapack(MutationRequest) returns (StructResponse);
+  rpc ListEvaluationExecutionsByDataset(MutationRequest) returns (StructResponse);
+  rpc GetTask(GetTaskRequest) returns (StructResponse);
+  rpc PollTaskLogs(PollTaskLogsRequest) returns (StructResponse);
+  rpc ListTasks(ListTasksRequest) returns (StructResponse);
+  rpc GetTrace(GetTraceRequest) returns (StructResponse);
+  rpc ListTraces(ListTracesRequest) returns (StructResponse);
+  rpc GetGroupStats(GetGroupStatsRequest) returns (StructResponse);
+  rpc GetTraceStreamState(GetTraceStreamStateRequest) returns (StructResponse);
+  rpc ReadTraceStreamMessages(ReadStreamMessagesRequest) returns (StructResponse);
+  rpc GetGroupStreamState(GetGroupStreamStateRequest) returns (StructResponse);
+  rpc ReadGroupStreamMessages(ReadStreamMessagesRequest) returns (StructResponse);
+  rpc ReadNotificationStreamMessages(ReadStreamMessagesRequest) returns (StructResponse);
+  rpc ListDeadLetterTasks(ListDeadLetterTasksRequest) returns (StructResponse);
+  rpc RetryTask(RetryTaskRequest) returns (RetryTaskResponse);
+}
+
+message PingRequest {}
+
+message PingResponse {
+  string service = 1;
+  string app_id = 2;
+  string status = 3;
+  int64 timestamp_unix = 4;
+}
+
+message SubmitExecutionRequest {
+  string group_id = 1;
+  int64 user_id = 2;
+  google.protobuf.Struct body = 10;
+}
+
+message SubmitExecutionResponse {
+  string group_id = 1;
+  repeated SubmittedExecutionItem items = 2;
+}
+
+message SubmittedExecutionItem {
+  int64 index = 1;
+  string trace_id = 2;
+  string task_id = 3;
+  int64 algorithm_id = 4;
+  int64 algorithm_version_id = 5;
+  int64 datapack_id = 6;
+  int64 dataset_id = 7;
+  bool has_datapack_id = 8;
+  bool has_dataset_id = 9;
+}
+
+message SubmitFaultInjectionRequest {
+  string group_id = 1;
+  int64 user_id = 2;
+  int64 project_id = 3;
+  google.protobuf.Struct body = 10;
+}
+
+message SubmitFaultInjectionResponse {
+  string group_id = 1;
+  repeated SubmittedInjectionItem items = 2;
+  int64 original_count = 3;
+  InjectionWarnings warnings = 4;
+}
+
+message SubmittedInjectionItem {
+  int64 index = 1;
+  string trace_id = 2;
+  string task_id = 3;
+}
+
+message InjectionWarnings {
+  repeated string duplicate_services_in_batch = 1;
+  repeated int64 duplicate_batches_in_request = 2;
+  repeated int64 batches_exist_in_database = 3;
+}
+
+message SubmitDatapackBuildingRequest {
+  string group_id = 1;
+  int64 user_id = 2;
+  int64 project_id = 3;
+  google.protobuf.Struct body = 10;
+}
+
+message SubmitDatapackBuildingResponse {
+  string group_id = 1;
+  repeated SubmittedBuildingItem items = 2;
+}
+
+message SubmittedBuildingItem {
+  int64 index = 1;
+  string trace_id = 2;
+  string task_id = 3;
+}
+
+message CancelTaskRequest {
+  string task_id = 1;
+}
+
+message CancelTaskResponse {
+  bool cancelled = 1;
+}
+
+message MutationRequest {
+  google.protobuf.Struct body = 1;
+}
+
+message GetExecutionRequest {
+  int64 execution_id = 1;
+}
+
+message ListProjectStatisticsRequest {
+  repeated int64 project_ids = 1;
+}
+
+message GetTaskRequest {
+  string task_id = 1;
+}
+
+message PollTaskLogsRequest {
+  string task_id = 1;
+  int64 after_unix_nano = 2;
+}
+
+message ListTasksRequest {
+  google.protobuf.Struct query = 1;
+}
+
+message GetTraceRequest {
+  string trace_id = 1;
+}
+
+message ListTracesRequest {
+  google.protobuf.Struct query = 1;
+}
+
+message GetGroupStatsRequest {
+  string group_id = 1;
+}
+
+message GetTraceStreamStateRequest {
+  string trace_id = 1;
+}
+
+message GetGroupStreamStateRequest {
+  string group_id = 1;
+}
+
+message ReadStreamMessagesRequest {
+  string stream_key = 1;
+  string last_id = 2;
+  int64 count = 3;
+  int64 block_millis = 4;
+}
+
+message ListDeadLetterTasksRequest {
+  int64 limit = 1;
+}
+
+message RetryTaskRequest {
+  string task_id = 1;
+}
+
+message RetryTaskResponse {
+  bool accepted = 1;
+  string queue = 2;
+}
+
+message StructResponse {
+  google.protobuf.Struct data = 1;
+}

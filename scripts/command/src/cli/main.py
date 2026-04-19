@@ -17,6 +17,7 @@ def main():
         pedestal,
         port_manager,
         rcabench_,
+        sdk,
         swagger,
         test,
     )
@@ -32,6 +33,7 @@ def main():
         port_manager.app, name="port", help="Kubernetes port forwarding manager."
     )
     app.add_typer(rcabench_.app, name="rcabench", help="RCABench utilities.")
+    app.add_typer(sdk.app, name="sdk", help="SDK generation utilities.")
     app.add_typer(swagger.app, name="swagger", help="Swagger/OpenAPI utilities.")
     app.add_typer(test.app, name="test", help="Test environment utilities.")
 

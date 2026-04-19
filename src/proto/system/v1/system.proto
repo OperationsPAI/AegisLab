@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package system.v1;
+
+option go_package = "aegis/proto/system/v1;systemv1";
+
+import "google/protobuf/struct.proto";
+
+service SystemService {
+  rpc Ping(PingRequest) returns (PingResponse);
+  rpc GetHealth(PingRequest) returns (ResourceItemResponse);
+  rpc GetMetrics(PingRequest) returns (ResourceItemResponse);
+  rpc GetSystemInfo(PingRequest) returns (ResourceItemResponse);
+  rpc ListConfigs(ListConfigsRequest) returns (ResourceListResponse);
+  rpc GetConfig(GetResourceRequest) returns (ResourceItemResponse);
+  rpc ListAuditLogs(ListAuditLogsRequest) returns (ResourceListResponse);
+  rpc GetAuditLog(GetResourceRequest) returns (ResourceItemResponse);
+  rpc ListNamespaceLocks(PingRequest) returns (ResourceItemResponse);
+  rpc ListQueuedTasks(PingRequest) returns (ResourceItemResponse);
+  rpc GetSystemMetrics(PingRequest) returns (ResourceItemResponse);
+  rpc GetSystemMetricsHistory(PingRequest) returns (ResourceItemResponse);
+}
+
+message PingRequest {}
+
+message PingResponse {
+  string service = 1;
+  string app_id = 2;
+  string status = 3;
+  int64 timestamp_unix = 4;
+}
+
+message ListConfigsRequest {
+  google.protobuf.Struct query = 1;
+}
+
+message ListAuditLogsRequest {
+  google.protobuf.Struct query = 1;
+}
+
+message GetResourceRequest {
+  int64 id = 1;
+}
+
+message ResourceItemResponse {
+  google.protobuf.Struct data = 1;
+}
+
+message ResourceListResponse {
+  google.protobuf.Struct data = 1;
+}

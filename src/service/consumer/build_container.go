@@ -8,9 +8,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"aegis/config"
 	"aegis/consts"
 	"aegis/dto"
+	buildkit "aegis/infra/buildkit"
+	redis "aegis/infra/redis"
 	"aegis/service/common"
 	"aegis/tracing"
 	"aegis/utils"
@@ -29,6 +30,7 @@ import (
 	"github.com/tonistiigi/fsutil"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
+	"gorm.io/gorm"
 )
 
 type containerPayload struct {
@@ -38,7 +40,7 @@ type containerPayload struct {
 }
 
 // executeBuildContainer handles the execution of a build container task
-func executeBuildContainer(ctx context.Context, task *dto.UnifiedTask) error {
+func executeBuildContainer(ctx context.Context, task *dto.UnifiedTask, deps RuntimeDeps) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		span := trace.SpanFromContext(childCtx)
 		span.AddEvent(fmt.Sprintf("Starting build attempt %d", task.ReStartNum+1))
@@ -46,8 +48,19 @@ func executeBuildContainer(ctx context.Context, task *dto.UnifiedTask) error {
 			"task_id":  task.TaskID,
 			"trace_id": task.TraceID,
 		})
+		buildKitGateway := deps.BuildKitGateway
+		if buildKitGateway == nil {
+			return handleExecutionError(span, logEntry, "buildkit gateway not initialized", fmt.Errorf("buildkit gateway not initialized"))
+		}
+		redisGateway := deps.RedisGateway
+		if redisGateway == nil {
+			return handleExecutionError(span, logEntry, "redis gateway not initialized", fmt.Errorf("redis gateway not initialized"))
+		}
 
-		rateLimiter := GetBuildContainerRateLimiter()
+		rateLimiter := deps.BuildRateLimiter
+		if rateLimiter == nil {
+			return handleExecutionError(span, logEntry, "build container rate limiter not initialized", fmt.Errorf("build container rate limiter not initialized"))
+		}
 		acquired, err := rateLimiter.AcquireToken(childCtx, task.TaskID, task.TraceID)
 		if err != nil {
 			return handleExecutionError(span, logEntry, "failed to acquire rate limit token", err)
@@ -63,7 +76,7 @@ func executeBuildContainer(ctx context.Context, task *dto.UnifiedTask) error {
 			}
 
 			if !acquired {
-				if err := rescheduleContainerBuildingTask(childCtx, task, "failed to acquire build token within timeout, retrying later"); err != nil {
+				if err := rescheduleContainerBuildingTask(childCtx, deps.DB, redisGateway, task, "failed to acquire build token within timeout, retrying later"); err != nil {
 					return err
 				}
 				return nil
@@ -83,7 +96,7 @@ func executeBuildContainer(ctx context.Context, task *dto.UnifiedTask) error {
 			return handleExecutionError(span, logEntry, "failed to parse build payload", err)
 		}
 
-		if err := buildImageAndPush(childCtx, payload, logEntry); err != nil {
+		if err := buildImageAndPush(childCtx, buildKitGateway, payload, logEntry); err != nil {
 			return err
 		}
 
@@ -94,7 +107,7 @@ func executeBuildContainer(ctx context.Context, task *dto.UnifiedTask) error {
 				task.Type,
 				consts.TaskCompleted,
 				fmt.Sprintf("Container image %s built and pushed successfully", payload.imageRef),
-			).withEvent(consts.EventImageBuildSucceed, payload.imageRef),
+			).withEvent(consts.EventImageBuildSucceed, payload.imageRef).withDB(deps.DB).withRedis(redisGateway),
 		)
 
 		if err := os.RemoveAll(payload.sourcePath); err != nil {
@@ -107,7 +120,7 @@ func executeBuildContainer(ctx context.Context, task *dto.UnifiedTask) error {
 }
 
 // rescheduleContainerBuildingTask reschedules a container building task with a random delay between 1 to 5 minutes
-func rescheduleContainerBuildingTask(ctx context.Context, task *dto.UnifiedTask, reason string) error {
+func rescheduleContainerBuildingTask(ctx context.Context, db *gorm.DB, redisGateway *redis.Gateway, task *dto.UnifiedTask, reason string) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		span := trace.SpanFromContext(childCtx)
 
@@ -131,11 +144,11 @@ func rescheduleContainerBuildingTask(ctx context.Context, task *dto.UnifiedTask,
 				task.Type,
 				consts.TaskRescheduled,
 				reason,
-			).withEvent(consts.EventNoTokenAvailable, executeTime.String()),
+			).withEvent(consts.EventNoTokenAvailable, executeTime.String()).withDB(db).withRedis(redisGateway),
 		)
 
 		task.Reschedule(executeTime)
-		if err := common.SubmitTask(childCtx, task); err != nil {
+		if err := common.SubmitTaskWithDB(childCtx, db, redisGateway, task); err != nil {
 			span.RecordError(err)
 			span.AddEvent("failed to submit rescheduled task")
 			return fmt.Errorf("failed to submit rescheduled container building task: %v", err)
@@ -172,17 +185,11 @@ func parseContainerPayload(payload map[string]any) (*containerPayload, error) {
 }
 
 // buildImageAndPush builds the container image using BuildKit and pushes it to the registry
-func buildImageAndPush(ctx context.Context, payload *containerPayload, logEntry *logrus.Entry) error {
+func buildImageAndPush(ctx context.Context, buildKitGateway *buildkit.Gateway, payload *containerPayload, logEntry *logrus.Entry) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		span := trace.SpanFromContext(childCtx)
 
-		address := fmt.Sprintf("tcp://%s", config.GetString("buildkit.address"))
-		if address == "" {
-			err := fmt.Errorf("buildkit address is not configured")
-			return handleExecutionError(span, logEntry, "buildkit address is not configured", err)
-		}
-
-		c, err := buildkitclient.New(childCtx, address)
+		c, err := buildKitGateway.NewClient(childCtx)
 		if err != nil {
 			return handleExecutionError(span, logEntry, "failed to create buildkit client", err)
 		}

@@ -1,22 +1,27 @@
 package common
 
 import (
-	"aegis/client"
 	"aegis/consts"
-	"aegis/database"
 	"aegis/dto"
-	"aegis/repository"
+	redis "aegis/infra/redis"
+	"aegis/model"
 	"context"
 	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
 	"github.com/robfig/cron/v3"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
+
+// logEmitScheduledErr logs a failed task.scheduled event emission.
+func logEmitScheduledErr(taskID string, err error) {
+	logrus.WithField("task_id", taskID).
+		Warnf("failed to emit task.scheduled event: %v", err)
+}
 
 // cronNextTime calculates the next execution time from a cron expression
 func CronNextTime(expr string) (time.Time, error) {
@@ -48,7 +53,14 @@ func CronNextTime(expr string) (time.Time, error) {
 //	               -> Task 3
 //	               -> Task 4
 //	               -> Task 5
-func SubmitTask(ctx context.Context, t *dto.UnifiedTask) error {
+func SubmitTaskWithDB(ctx context.Context, db *gorm.DB, redisGateway *redis.Gateway, t *dto.UnifiedTask) error {
+	if db == nil {
+		return fmt.Errorf("task db is nil")
+	}
+	if redisGateway == nil {
+		return fmt.Errorf("task redis gateway is nil")
+	}
+
 	if t.TraceID == "" {
 		t.TraceID = uuid.NewString()
 	}
@@ -58,7 +70,7 @@ func SubmitTask(ctx context.Context, t *dto.UnifiedTask) error {
 	}
 
 	if t.ParentTaskID != nil && t.State != consts.TaskRescheduled {
-		parentLevel, err := repository.GetParentTaskLevelByID(database.DB, *t.ParentTaskID)
+		parentLevel, err := getParentTaskLevelByID(db, *t.ParentTaskID)
 		if err != nil {
 			return fmt.Errorf("failed to get parent task level: %w", err)
 		}
@@ -71,7 +83,7 @@ func SubmitTask(ctx context.Context, t *dto.UnifiedTask) error {
 		}
 	}
 
-	var trace *database.Trace
+	var trace *model.Trace
 	var err error
 	if t.ParentTaskID == nil && t.State != consts.TaskRescheduled {
 		withAlgorithms := false
@@ -96,14 +108,14 @@ func SubmitTask(ctx context.Context, t *dto.UnifiedTask) error {
 		return fmt.Errorf("failed to convert to task: %w", err)
 	}
 
-	err = database.DB.Transaction(func(tx *gorm.DB) error {
+	err = db.Transaction(func(tx *gorm.DB) error {
 		if trace != nil {
-			if err := repository.UpsertTrace(tx, trace); err != nil {
+			if err := upsertTrace(tx, trace); err != nil {
 				return fmt.Errorf("failed to upsert trace to database: %w", err)
 			}
 		}
 
-		if err := repository.UpsertTask(tx, task); err != nil {
+		if err := upsertTask(tx, task); err != nil {
 			return fmt.Errorf("failed to upsert task to database: %w", err)
 		}
 
@@ -119,15 +131,15 @@ func SubmitTask(ctx context.Context, t *dto.UnifiedTask) error {
 	}
 
 	if t.Immediate {
-		err = repository.SubmitImmediateTask(ctx, taskData, t.TaskID)
+		err = redisGateway.SubmitImmediateTask(ctx, taskData, t.TaskID)
 	} else {
-		err = repository.SubmitDelayedTask(ctx, taskData, t.TaskID, t.ExecuteTime)
+		err = redisGateway.SubmitDelayedTask(ctx, taskData, t.TaskID, t.ExecuteTime)
 		if err == nil {
 			reason := dto.TaskScheduledReasonPreDurationWait
 			if t.Type == consts.TaskTypeCronJob {
 				reason = dto.TaskScheduledReasonCronNext
 			}
-			EmitTaskScheduled(ctx, t, t.ExecuteTime, reason)
+			EmitTaskScheduled(ctx, redisGateway, t, t.ExecuteTime, reason)
 		}
 	}
 
@@ -139,11 +151,9 @@ func SubmitTask(ctx context.Context, t *dto.UnifiedTask) error {
 }
 
 // EmitTaskScheduled publishes a task.scheduled trace event to the task's
-// trace stream. It records the execute_time and the reason the task was
-// deferred. Failures are logged but not propagated — scheduling is the
-// primary concern and the event is observational.
-func EmitTaskScheduled(ctx context.Context, t *dto.UnifiedTask, executeTime int64, reason string) {
-	if t == nil || t.TraceID == "" {
+// trace stream. Best-effort — failures are logged but not propagated.
+func EmitTaskScheduled(ctx context.Context, gateway *redis.Gateway, t *dto.UnifiedTask, executeTime int64, reason string) {
+	if t == nil || t.TraceID == "" || gateway == nil {
 		return
 	}
 	event := dto.TraceStreamEvent{
@@ -156,12 +166,8 @@ func EmitTaskScheduled(ctx context.Context, t *dto.UnifiedTask, executeTime int6
 		},
 	}
 	stream := fmt.Sprintf(consts.StreamTraceLogKey, t.TraceID)
-	if err := client.RedisXAdd(ctx, stream, event.ToRedisStream()); err != nil {
-		if err == redis.Nil {
-			return
-		}
-		logrus.WithField("task_id", t.TaskID).
-			Warnf("failed to emit task.scheduled event: %v", err)
+	if err := gateway.XAdd(ctx, stream, event.ToRedisStream()); err != nil {
+		logEmitScheduledErr(t.TaskID, err)
 	}
 }
 
@@ -174,6 +180,49 @@ func calculateExecuteTime(task *dto.UnifiedTask) error {
 		}
 
 		task.ExecuteTime = next.Unix()
+	}
+	return nil
+}
+
+func getParentTaskLevelByID(db *gorm.DB, parentTaskID string) (int, error) {
+	var result model.Task
+	if err := db.Select("level").
+		Where("id = ? AND status != ?", parentTaskID, consts.CommonDeleted).
+		First(&result).Error; err != nil {
+		return 0, fmt.Errorf("failed to find parent task with id %s: %w", parentTaskID, err)
+	}
+	return result.Level, nil
+}
+
+func upsertTask(db *gorm.DB, task *model.Task) error {
+	if err := db.Clauses(
+		clause.OnConflict{
+			Columns: []clause.Column{{Name: "id"}},
+			DoUpdates: clause.AssignmentColumns([]string{
+				"execute_time",
+				"state",
+				"updated_at",
+			}),
+		},
+	).Create(task).Error; err != nil {
+		return fmt.Errorf("failed to upsert task: %w", err)
+	}
+	return nil
+}
+
+func upsertTrace(db *gorm.DB, trace *model.Trace) error {
+	if err := db.Clauses(
+		clause.OnConflict{
+			Columns: []clause.Column{{Name: "id"}},
+			DoUpdates: clause.AssignmentColumns([]string{
+				"last_event",
+				"end_time",
+				"state",
+				"updated_at",
+			}),
+		},
+	).Create(trace).Error; err != nil {
+		return fmt.Errorf("failed to upsert trace: %w", err)
 	}
 	return nil
 }

@@ -148,7 +148,7 @@ func TestExtractFieldDescriptions(t *testing.T) {
 			fieldByName[f.Name] = f
 		}
 
-		expectedFields := []string{"Duration", "Namespace", "CPULoad", "CPUWorker"}
+		expectedFields := []string{"Duration", "System", "CPULoad", "CPUWorker"}
 		for _, name := range expectedFields {
 			_, exists := fieldByName[name]
 			assert.True(t, exists, "CPUStress should contain field %q", name)

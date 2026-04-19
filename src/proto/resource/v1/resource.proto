@@ -1,0 +1,105 @@
+syntax = "proto3";
+
+package resource.v1;
+
+option go_package = "aegis/proto/resource/v1;resourcev1";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/struct.proto";
+
+service ResourceService {
+  rpc Ping(PingRequest) returns (PingResponse);
+  rpc ListProjects(ListProjectsRequest) returns (ResourceListResponse);
+  rpc GetProject(GetResourceRequest) returns (ResourceItemResponse);
+  rpc ListContainers(ListContainersRequest) returns (ResourceListResponse);
+  rpc GetContainer(GetResourceRequest) returns (ResourceItemResponse);
+  rpc ListDatasets(ListDatasetsRequest) returns (ResourceListResponse);
+  rpc GetDataset(GetResourceRequest) returns (ResourceItemResponse);
+  rpc CreateLabel(MutationRequest) returns (ResourceItemResponse);
+  rpc GetLabel(GetResourceRequest) returns (ResourceItemResponse);
+  rpc ListLabels(QueryRequest) returns (ResourceListResponse);
+  rpc UpdateLabel(UpdateByIDRequest) returns (ResourceItemResponse);
+  rpc DeleteLabel(GetResourceRequest) returns (google.protobuf.Empty);
+  rpc BatchDeleteLabels(BatchDeleteRequest) returns (google.protobuf.Empty);
+  rpc ListChaosSystems(QueryRequest) returns (ResourceListResponse);
+  rpc GetChaosSystem(GetResourceRequest) returns (ResourceItemResponse);
+  rpc CreateChaosSystem(MutationRequest) returns (ResourceItemResponse);
+  rpc UpdateChaosSystem(UpdateByIDRequest) returns (ResourceItemResponse);
+  rpc DeleteChaosSystem(GetResourceRequest) returns (google.protobuf.Empty);
+  rpc UpsertChaosSystemMetadata(UpdateByIDRequest) returns (google.protobuf.Empty);
+  rpc ListChaosSystemMetadata(IDQueryRequest) returns (ResourceItemResponse);
+  rpc ListDatapackEvaluationResults(ListDatapackEvaluationsRequest) returns (ResourceItemResponse);
+  rpc ListDatasetEvaluationResults(ListDatasetEvaluationsRequest) returns (ResourceItemResponse);
+  rpc ListEvaluations(ListEvaluationsRequest) returns (ResourceListResponse);
+  rpc GetEvaluation(GetResourceRequest) returns (ResourceItemResponse);
+  rpc DeleteEvaluation(GetResourceRequest) returns (google.protobuf.Empty);
+}
+
+message PingRequest {}
+
+message PingResponse {
+  string service = 1;
+  string app_id = 2;
+  string status = 3;
+  int64 timestamp_unix = 4;
+}
+
+message ListProjectsRequest {
+  google.protobuf.Struct query = 1;
+}
+
+message ListContainersRequest {
+  google.protobuf.Struct query = 1;
+}
+
+message ListDatasetsRequest {
+  google.protobuf.Struct query = 1;
+}
+
+message ListDatapackEvaluationsRequest {
+  google.protobuf.Struct query = 1;
+  int64 user_id = 2;
+}
+
+message ListDatasetEvaluationsRequest {
+  google.protobuf.Struct query = 1;
+  int64 user_id = 2;
+}
+
+message ListEvaluationsRequest {
+  google.protobuf.Struct query = 1;
+}
+
+message MutationRequest {
+  google.protobuf.Struct body = 1;
+}
+
+message QueryRequest {
+  google.protobuf.Struct query = 1;
+}
+
+message GetResourceRequest {
+  int64 id = 1;
+}
+
+message UpdateByIDRequest {
+  int64 id = 1;
+  google.protobuf.Struct body = 2;
+}
+
+message BatchDeleteRequest {
+  repeated int64 ids = 1;
+}
+
+message IDQueryRequest {
+  int64 id = 1;
+  google.protobuf.Struct query = 2;
+}
+
+message ResourceItemResponse {
+  google.protobuf.Struct data = 1;
+}
+
+message ResourceListResponse {
+  google.protobuf.Struct data = 1;
+}

@@ -180,6 +180,7 @@ logs/
 .husky/
 sdk/python-gen/
 sdk/python/src/rcabench/openapi/
+sdk/typescript/
 src/docs/converted/
 src/docs/openapi2/
 src/docs/openapi3/
@@ -197,6 +198,7 @@ scripts/command/command.bin
 
 CLAUDE.md
 
+.codex
 .claude/
 .vscode/
 

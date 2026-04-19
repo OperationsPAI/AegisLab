@@ -10,7 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"aegis/database"
+	"aegis/model"
 	"github.com/OperationsPAI/chaos-experiment/handler"
 	"github.com/sirupsen/logrus"
 )
@@ -38,7 +38,7 @@ type JVMRuntimeMutatorConfig struct {
 }
 
 // ExecuteJVMRuntimeMutatorChaos executes a JVM runtime mutator chaos injection
-func (c *Consumer) ExecuteJVMRuntimeMutatorChaos(task *database.Task) error {
+func (c *Consumer) ExecuteJVMRuntimeMutatorChaos(task *model.Task) error {
 	logrus.Infof("Executing JVM runtime mutator chaos for task %s", task.ID)
 
 	// Parse task parameters
@@ -81,7 +81,7 @@ func (c *Consumer) ExecuteJVMRuntimeMutatorChaos(task *database.Task) error {
 	}
 
 	// Execute chaos injection
-	ctx := context.Background()
+	ctx := consumerDetachedContext()
 	chaosName, err := spec.Create(c.k8sClient,
 		handler.WithNamespace(mutatorTask.Target.Namespace),
 		handler.WithContext(ctx),

@@ -187,6 +187,15 @@ func (ds DatapackState) MarshalJSON() ([]byte, error) {
 	return json.Marshal(GetDatapackStateName(ds))
 }
 
+func (ds *DatapackState) UnmarshalJSON(data []byte) error {
+	var stateName string
+	if err := json.Unmarshal(data, &stateName); err != nil {
+		return err
+	}
+	*ds = *GetDatapackStateByName(stateName)
+	return nil
+}
+
 type ExecutionState int
 
 const (
@@ -314,15 +323,15 @@ const (
 	RestartFaultDuration = "fault_duration"
 	RestartInjectPayload = "inject_payload"
 
-	InjectBenchmark      = "benchmark_version"
-	InjectPreDuration    = "pre_duration"
-	InjectNodes          = "nodes"
-	InjectGuidedConfigs  = "guided_configs"
-	InjectNamespace      = "namespace"
-	InjectPedestal       = "pedestal"
-	InjectPedestalID     = "pedestal_id"
-	InjectLabels         = "labels"
-	InjectSystem         = "system"
+	InjectBenchmark     = "benchmark_version"
+	InjectPreDuration   = "pre_duration"
+	InjectNodes         = "nodes"
+	InjectGuidedConfigs = "guided_configs"
+	InjectNamespace     = "namespace"
+	InjectPedestal      = "pedestal"
+	InjectPedestalID    = "pedestal_id"
+	InjectLabels        = "labels"
+	InjectSystem        = "system"
 
 	BuildBenchmark        = "benchmark"
 	BuildDatapack         = "datapack"

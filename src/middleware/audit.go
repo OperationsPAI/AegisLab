@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"aegis/consts"
-	producer "aegis/service/producer"
 	"aegis/utils"
 
 	"github.com/gin-gonic/gin"
@@ -27,6 +26,7 @@ func AuditMiddleware() gin.HandlerFunc {
 
 		// Get user information (if authenticated)
 		userID, _ := GetCurrentUserID(c)
+		logger := auditLoggerFromContext(c)
 
 		// Read request body (for recording details)
 		var requestBody []byte
@@ -84,23 +84,23 @@ func AuditMiddleware() gin.HandlerFunc {
 				}
 			}
 
+			ipAddress := c.ClientIP()
+			userAgent := c.GetHeader("User-Agent")
+			durationMillis := int(duration.Milliseconds())
+
 			// Async logging (don't block request)
 			go func() {
-				ipAddress := c.ClientIP()
-				userAgent := c.GetHeader("User-Agent")
-				duration := int(duration.Milliseconds())
-
 				//TODO resource instance extraction
 
 				if errorMsg != "" {
-					if err := producer.LogFailedAction(ipAddress, userAgent, action, errorMsg, duration, userID, resource); err != nil {
+					if err := logger.LogFailedAction(ipAddress, userAgent, action, errorMsg, durationMillis, userID, resource); err != nil {
 						logrus.Errorf("Failed to log audit action: %v", err)
 						return
 					}
 					return
 				}
 
-				if err := producer.LogUserAction(ipAddress, userAgent, action, string(detailsJSON), duration, userID, resource); err != nil {
+				if err := logger.LogUserAction(ipAddress, userAgent, action, string(detailsJSON), durationMillis, userID, resource); err != nil {
 					logrus.Errorf("Failed to log audit action: %v", err)
 					return
 				}

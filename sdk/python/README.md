@@ -1,86 +1,93 @@
-# RCABench SDK
+# RCABench Python SDK
 
-A Python SDK for interacting with RCABench services.
+The SDK exposes two handwritten entry clients on top of the generated OpenAPI package:
+
+- `RCABenchClient`: public/business API client authenticated by `Key ID` + `Key Secret`
+- `RCABenchRuntimeClient`: runtime-only client authenticated by service token
+
+Generated OpenAPI code lives under `src/rcabench/openapi`. Handwritten auth/session logic lives under `src/rcabench/client`.
 
 ## Installation
-
-### From PyPI
 
 ```bash
 pip install rcabench
 ```
 
-### From Source
+For local development:
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-username/rcabench.git
-cd rcabench/sdk/python
-
-# Install the package
+cd sdk/python
 pip install -e .
 ```
 
-## Building the Package
+## Authentication Model
 
-To build the package for distribution:
+Secrets are never passed directly in code. The SDK reads credentials from environment variables only.
+
+### Public Client
+
+Required environment variables:
 
 ```bash
-# Install build dependencies
-pip install build
-
-# Build the package
-python -m build
-
-# This will create distribution files in the dist/ directory
+export RCABENCH_BASE_URL="http://localhost:8082"
+export RCABENCH_KEY_ID="pk_xxx"
+export RCABENCH_KEY_SECRET="sk_xxx"
 ```
+
+`RCABenchClient` exchanges the key pair for a bearer token through the API-key token endpoint, then reuses the authenticated OpenAPI client.
+
+### Runtime Client
+
+Required environment variables:
+
+```bash
+export RCABENCH_BASE_URL="http://localhost:8082"
+export RCABENCH_SERVICE_TOKEN="runtime_token_xxx"
+```
+
+`RCABenchRuntimeClient` is intended for managed runtime/wrapper usage. It injects the service token into the generated OpenAPI client directly.
 
 ## Usage
 
+### Public API Client
+
 ```python
-from rcabench import RCABenchSDK
+from rcabench import RCABenchClient
+from rcabench.openapi.api.datasets_api import DatasetsApi
 
-# Initialize the SDK
-sdk = RCABenchSDK("http://localhost:8082")
+client = RCABenchClient()
+api = DatasetsApi(client.get_client())
 
-# Get available algorithms
-algorithms = sdk.algorithm.list()
-print(algorithms)
-
-# Submit an injection task
-injection_payload = [{
-    "duration": 1,
-    "faultType": 5,
-    "injectNamespace": "ts",
-    "injectPod": "ts-preserve-service",
-    "spec": {"CPULoad": 1, "CPUWorker": 3},
-    "benchmark": "clickhouse",
-}]
-response = sdk.injection.execute(injection_payload)
-print(response)
-
-# Run an algorithm
-algorithm_payload = [{
-    "benchmark": "clickhouse",
-    "algorithm": "e-diagnose", 
-    "dataset": "dataset-name",
-}]
-response = sdk.algorithm.execute(algorithm_payload)
-print(response)
+datasets = api.list_sdk_dataset_samples(page=1, size=10)
+print(datasets)
 ```
 
-## API Reference
+You may still override `base_url` in code when needed:
 
-The SDK provides the following main components:
+```python
+client = RCABenchClient(base_url="http://localhost:8082")
+```
 
-- `RCABenchSDK`: The main entry point for the SDK
-  - `algorithm`: For interacting with algorithm endpoints
-  - `evaluation`: For interacting with evaluation endpoints
-  - `injection`: For interacting with injection endpoints
+### Runtime API Client
 
-For detailed API documentation, please refer to the code docstrings.
+```python
+from rcabench import RCABenchRuntimeClient
 
-## Requirements
+runtime_client = RCABenchRuntimeClient()
+api_client = runtime_client.get_client()
 
-- Python 3.8 or higher
-- `requests` and `aiohttp` libraries
+print(api_client.configuration.host)
+```
+
+`RCABenchRuntimeClient` stays as a thin authenticated connector only. Runtime upload/report timing and orchestration semantics belong in the external managed wrapper layer, not in this SDK client.
+
+## Development
+
+Run type checking only on handwritten SDK code:
+
+```bash
+cd sdk/python
+uv run --with pyright pyright src/rcabench/client
+```
+
+The generated package under `src/rcabench/openapi` is excluded from Pyright.

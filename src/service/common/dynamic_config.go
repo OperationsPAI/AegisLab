@@ -2,8 +2,7 @@ package common
 
 import (
 	"aegis/consts"
-	"aegis/database"
-	"aegis/repository"
+	"aegis/model"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -51,8 +50,8 @@ var configTypeRules = map[consts.ConfigValueType]configTypeConstraints{
 }
 
 // CreateConfig creates a new configuration with history tracking
-func CreateConfig(db *gorm.DB, config *database.DynamicConfig) error {
-	if err := repository.CreateConfig(db, config); err != nil {
+func CreateConfig(db *gorm.DB, config *model.DynamicConfig) error {
+	if err := db.Create(config).Error; err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			return fmt.Errorf("%w: configuration with key '%s' already exists", consts.ErrAlreadyExists, config.Key)
 		}
@@ -62,7 +61,7 @@ func CreateConfig(db *gorm.DB, config *database.DynamicConfig) error {
 }
 
 // ValidateConfig validates a configuration against its type and constraints
-func ValidateConfig(cfg *database.DynamicConfig, value string) error {
+func ValidateConfig(cfg *model.DynamicConfig, value string) error {
 	// Validate metadata constraints
 	if err := ValidateConfigMetadataConstraints(cfg); err != nil {
 		return err
@@ -128,7 +127,7 @@ func ValidateConfig(cfg *database.DynamicConfig, value string) error {
 }
 
 // ValidateConfigMetadataConstraints validates that metadata fields are appropriate for the value type
-func ValidateConfigMetadataConstraints(cfg *database.DynamicConfig) error {
+func ValidateConfigMetadataConstraints(cfg *model.DynamicConfig) error {
 	rules, exists := configTypeRules[cfg.ValueType]
 	if !exists {
 		return fmt.Errorf("unknown value type: %d", cfg.ValueType)
@@ -158,7 +157,7 @@ func ValidateConfigMetadataConstraints(cfg *database.DynamicConfig) error {
 }
 
 // validateConfigOptions validates the config value against allowed options based on value type
-func validateConfigOptions(cfg *database.DynamicConfig, value string) error {
+func validateConfigOptions(cfg *model.DynamicConfig, value string) error {
 	switch cfg.ValueType {
 	case consts.ConfigValueTypeString:
 		var allowedOptions []string

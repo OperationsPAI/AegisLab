@@ -6,14 +6,13 @@ import (
 	"sync"
 	"time"
 
-	"aegis/client"
 	"aegis/config"
 	"aegis/consts"
-	"aegis/database"
-	"aegis/repository"
+	etcd "aegis/infra/etcd"
 
 	"github.com/sirupsen/logrus"
 	clientv3 "go.etcd.io/etcd/client/v3"
+	"gorm.io/gorm"
 )
 
 // scopePrefix maps configuration scopes to their etcd key prefix.
@@ -28,42 +27,39 @@ var scopePrefix = map[consts.ConfigScope]string{
 // It supports incremental scope activation via EnsureScope — each scope is
 // loaded and watched independently, making it safe for both, producer-only
 // and consumer-only modes.
-type configUpdateListener struct {
-	ctx    context.Context
-	cancel context.CancelFunc
-	mu     sync.Mutex
-	active map[consts.ConfigScope]bool // scopes already loaded + watched
+type ConfigUpdateListener struct {
+	ctx     context.Context
+	cancel  context.CancelFunc
+	mu      sync.Mutex
+	active  map[consts.ConfigScope]bool // scopes already loaded + watched
+	db      *gorm.DB
+	gateway *etcd.Gateway
 }
 
-var (
-	configListenerInstance *configUpdateListener
-	configListenerOnce     sync.Once
-)
+func NewConfigUpdateListener(ctx context.Context, db *gorm.DB, gateway *etcd.Gateway) *ConfigUpdateListener {
+	listenerCtx, cancel := context.WithCancel(ctx)
+	listener := &ConfigUpdateListener{
+		ctx:     listenerCtx,
+		cancel:  cancel,
+		active:  make(map[consts.ConfigScope]bool),
+		db:      db,
+		gateway: gateway,
+	}
 
-// GetConfigUpdateListener returns the singleton instance of configUpdateListener
-func GetConfigUpdateListener(ctx context.Context) *configUpdateListener {
-	configListenerOnce.Do(func() {
-		listenerCtx, cancel := context.WithCancel(ctx)
-		configListenerInstance = &configUpdateListener{
-			ctx:    listenerCtx,
-			cancel: cancel,
-			active: make(map[consts.ConfigScope]bool),
-		}
+	go func() {
+		<-ctx.Done()
+		logrus.Info("Parent context cancelled, stopping config update listener...")
+		listener.Stop()
+	}()
 
-		go func() {
-			<-ctx.Done()
-			logrus.Info("Parent context cancelled, stopping config update listener...")
-			configListenerInstance.Stop()
-		}()
-	})
-	return configListenerInstance
+	return listener
 }
 
 // EnsureScope loads initial config values from etcd and starts a watcher for
 // the given scope. The call is idempotent — invoking it multiple times for the
 // same scope is a safe no-op. Scopes without an etcd prefix (e.g. producer)
 // are silently skipped.
-func (l *configUpdateListener) EnsureScope(scope consts.ConfigScope) error {
+func (l *ConfigUpdateListener) EnsureScope(scope consts.ConfigScope) error {
 	prefix, ok := scopePrefix[scope]
 	if !ok {
 		logrus.Debugf("Scope %s has no etcd prefix, skipping listener setup",
@@ -94,15 +90,15 @@ func (l *configUpdateListener) EnsureScope(scope consts.ConfigScope) error {
 }
 
 // Stop cancels the listener context, stopping all watcher goroutines.
-func (l *configUpdateListener) Stop() {
+func (l *ConfigUpdateListener) Stop() {
 	l.cancel()
 	logrus.Info("Config update listener stopped")
 }
 
 // loadScopeFromEtcd loads all configs for a given scope from etcd into viper.
 // Falls back to MySQL defaults only if config doesn't exist in etcd.
-func (l *configUpdateListener) loadScopeFromEtcd(scope consts.ConfigScope, prefix, scopeName string) error {
-	configMetadata, err := repository.ListConfigByScope(database.DB, scope)
+func (l *ConfigUpdateListener) loadScopeFromEtcd(scope consts.ConfigScope, prefix, scopeName string) error {
+	configMetadata, err := newConfigStore(l.db).listConfigsByScope(scope)
 	if err != nil {
 		return fmt.Errorf("failed to list %s config metadata from database: %w", scopeName, err)
 	}
@@ -114,7 +110,7 @@ func (l *configUpdateListener) loadScopeFromEtcd(scope consts.ConfigScope, prefi
 		etcdKey := fmt.Sprintf("%s%s", prefix, meta.Key)
 
 		// Try to get current value from etcd first
-		etcdValue, err := client.EtcdGet(l.ctx, etcdKey)
+		etcdValue, err := l.gateway.Get(l.ctx, etcdKey)
 		if err != nil {
 			logrus.Errorf("Failed to get config %s from etcd: %v", meta.Key, err)
 			continue
@@ -123,7 +119,7 @@ func (l *configUpdateListener) loadScopeFromEtcd(scope consts.ConfigScope, prefi
 		var valueToLoad string
 		if etcdValue == "" {
 			// Config doesn't exist in etcd, initialize it with MySQL default value
-			if err := client.EtcdPut(l.ctx, etcdKey, meta.DefaultValue, 0); err != nil {
+			if err := l.gateway.Put(l.ctx, etcdKey, meta.DefaultValue, 0); err != nil {
 				logrus.Errorf("Failed to initialize config %s in etcd: %v", meta.Key, err)
 				continue
 			}
@@ -151,8 +147,8 @@ func (l *configUpdateListener) loadScopeFromEtcd(scope consts.ConfigScope, prefi
 
 // watchPrefix watches a single etcd prefix for configuration changes.
 // Each scope gets its own goroutine calling this method.
-func (l *configUpdateListener) watchPrefix(prefix, scopeName string) {
-	watchChan := client.EtcdWatch(l.ctx, prefix, true)
+func (l *ConfigUpdateListener) watchPrefix(prefix, scopeName string) {
+	watchChan := l.gateway.Watch(l.ctx, prefix, true)
 	logrus.Infof("Started watching etcd prefix %s for %s config changes", prefix, scopeName)
 
 	for {
@@ -165,19 +161,19 @@ func (l *configUpdateListener) watchPrefix(prefix, scopeName string) {
 			if !ok {
 				logrus.Warnf("etcd %s watch channel closed, restarting...", scopeName)
 				time.Sleep(1 * time.Second)
-				watchChan = client.EtcdWatch(l.ctx, prefix, true)
+				watchChan = l.gateway.Watch(l.ctx, prefix, true)
 				continue
 			}
 			if watchResp.Canceled {
 				logrus.Warnf("etcd %s watch was canceled, restarting...", scopeName)
 				time.Sleep(1 * time.Second)
-				watchChan = client.EtcdWatch(l.ctx, prefix, true)
+				watchChan = l.gateway.Watch(l.ctx, prefix, true)
 				continue
 			}
 			if err := watchResp.Err(); err != nil {
 				logrus.Errorf("etcd %s watch error: %v", scopeName, err)
 				time.Sleep(1 * time.Second)
-				watchChan = client.EtcdWatch(l.ctx, prefix, true)
+				watchChan = l.gateway.Watch(l.ctx, prefix, true)
 				continue
 			}
 			for _, event := range watchResp.Events {
@@ -188,7 +184,7 @@ func (l *configUpdateListener) watchPrefix(prefix, scopeName string) {
 }
 
 // handleEtcdEvent handles a single etcd event from a given prefix
-func (l *configUpdateListener) handleEtcdEvent(event *clientv3.Event, prefix string) {
+func (l *ConfigUpdateListener) handleEtcdEvent(event *clientv3.Event, prefix string) {
 	key := string(event.Kv.Key)
 	newValue := string(event.Kv.Value)
 
@@ -212,7 +208,7 @@ func (l *configUpdateListener) handleEtcdEvent(event *clientv3.Event, prefix str
 	}).Info("received config change from etcd")
 
 	// Apply config change via registry
-	if err := handleConfigChange(l.ctx, configKey, oldValue, newValue); err != nil {
+	if err := handleConfigChange(l.ctx, l.db, configKey, oldValue, newValue); err != nil {
 		logrus.Errorf("failed to apply config update for %s: %v", configKey, err)
 		return
 	}

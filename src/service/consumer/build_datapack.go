@@ -13,11 +13,11 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	corev1 "k8s.io/api/core/v1"
 
-	"aegis/client/k8s"
 	"aegis/config"
 	"aegis/consts"
-	"aegis/database"
 	"aegis/dto"
+	db "aegis/infra/db"
+	k8s "aegis/infra/k8s"
 	"aegis/tracing"
 	"aegis/utils"
 )
@@ -35,7 +35,7 @@ type datapackJobCreationParams struct {
 	annotations map[string]string
 	labels      map[string]string
 	payload     *datapackPayload
-	dbConfig    *database.DatabaseConfig
+	dbConfig    *db.DatabaseConfig
 }
 
 func (p *datapackJobCreationParams) toK8sJobConfig(envVars []corev1.EnvVar, volumeMountConfigs []k8s.VolumeMountConfig) *k8s.JobConfig {
@@ -51,11 +51,14 @@ func (p *datapackJobCreationParams) toK8sJobConfig(envVars []corev1.EnvVar, volu
 	}
 }
 
-// executeBuildDatapack handles the execution of a datapack building task
-func executeBuildDatapack(ctx context.Context, task *dto.UnifiedTask) error {
+func executeBuildDatapackWithDeps(ctx context.Context, task *dto.UnifiedTask, deps RuntimeDeps) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		span := trace.SpanFromContext(childCtx)
 		logEntry := logrus.WithFields(logrus.Fields{"task_id": task.TaskID, "trace_id": task.TraceID})
+		k8sGateway := deps.K8sGateway
+		if k8sGateway == nil {
+			return handleExecutionError(span, logEntry, "k8s gateway not initialized", fmt.Errorf("k8s gateway not initialized"))
+		}
 
 		payload, err := parseDatapackPayload(task.Payload)
 		if err != nil {
@@ -88,9 +91,9 @@ func executeBuildDatapack(ctx context.Context, task *dto.UnifiedTask) error {
 			annotations: annotations,
 			labels:      jobLabels,
 			payload:     payload,
-			dbConfig:    database.NewDatabaseConfig("clickhouse"),
+			dbConfig:    db.NewDatabaseConfig("clickhouse"),
 		}
-		return createDatapackJob(childCtx, params)
+		return createDatapackJob(childCtx, k8sGateway, params)
 	})
 }
 
@@ -124,7 +127,7 @@ func parseDatapackPayload(payload map[string]any) (*datapackPayload, error) {
 	}, nil
 }
 
-func createDatapackJob(ctx context.Context, params *datapackJobCreationParams) error {
+func createDatapackJob(ctx context.Context, gateway *k8s.Gateway, params *datapackJobCreationParams) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		span := trace.SpanFromContext(childCtx)
 		logEntry := logrus.WithFields(logrus.Fields{
@@ -132,7 +135,7 @@ func createDatapackJob(ctx context.Context, params *datapackJobCreationParams) e
 			"datapack_id": params.payload.datapack.ID,
 		})
 
-		volumeMountConfigs, err := getRequiredVolumeMountConfigs([]consts.VolumeMountName{
+		volumeMountConfigs, err := getRequiredVolumeMountConfigs(gateway, []consts.VolumeMountName{
 			consts.VolumeMountDataset,
 		})
 		if err != nil {
@@ -146,11 +149,11 @@ func createDatapackJob(ctx context.Context, params *datapackJobCreationParams) e
 			return handleExecutionError(span, logEntry, "failed to get job environment variables", err)
 		}
 
-		return k8s.CreateJob(childCtx, params.toK8sJobConfig(jobEnvVars, volumeMountConfigs))
+		return gateway.CreateJob(childCtx, params.toK8sJobConfig(jobEnvVars, volumeMountConfigs))
 	})
 }
 
-func getDatapackJobEnvVars(taskID string, datapackPathPrefix string, payload *datapackPayload, dbConfig *database.DatabaseConfig) ([]corev1.EnvVar, error) {
+func getDatapackJobEnvVars(taskID string, datapackPathPrefix string, payload *datapackPayload, dbConfig *db.DatabaseConfig) ([]corev1.EnvVar, error) {
 	tz := config.GetString("system.timezone")
 	if tz == "" {
 		tz = time.Local.String()

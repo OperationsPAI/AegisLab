@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"aegis/client/k8s"
 	"aegis/config"
 	"aegis/consts"
+	k8s "aegis/infra/k8s"
 	"aegis/service/common"
 
 	"github.com/sirupsen/logrus"
@@ -15,13 +15,21 @@ import (
 
 // RegisterConsumerHandlers registers all consumer-scoped configuration handlers.
 // Should be called during consumer initialization, after RegisterGlobalHandlers.
-func RegisterConsumerHandlers() {
+func RegisterConsumerHandlers(
+	controller *k8s.Controller,
+	monitor NamespaceMonitor,
+	publisher common.ConfigPublisher,
+	restartLimiter *TokenBucketRateLimiter,
+	buildLimiter *TokenBucketRateLimiter,
+	algoLimiter *TokenBucketRateLimiter,
+) {
 	scope := consts.ConfigScopeConsumer
-	common.RegisterHandler(newChaosSystemCountHandler(GetMonitor(), k8s.GetK8sController()))
+	common.RegisterHandler(newChaosSystemCountHandler(monitor, controller, publisher))
 	common.RegisterHandler(newRateLimitingConfigHandler(
-		GetRestartPedestalRateLimiter(),
-		GetBuildContainerRateLimiter(),
-		GetAlgoExecutionRateLimiter(),
+		publisher,
+		restartLimiter,
+		buildLimiter,
+		algoLimiter,
 	))
 	logrus.Infof("Registered consumer config handlers: %v", common.ListRegisteredConfigKeys(&scope))
 }
@@ -53,19 +61,20 @@ func UpdateK8sController(controller *k8s.Controller, toAdd, toRemove []string) e
 // =====================================================================
 
 type chaosSystemCountHandler struct {
-	monitor    *monitor
+	monitor    NamespaceMonitor
 	controller *k8s.Controller
+	publisher  common.ConfigPublisher
 }
 
-func newChaosSystemCountHandler(m *monitor, c *k8s.Controller) *chaosSystemCountHandler {
-	return &chaosSystemCountHandler{monitor: m, controller: c}
+func newChaosSystemCountHandler(m NamespaceMonitor, c *k8s.Controller, publisher common.ConfigPublisher) *chaosSystemCountHandler {
+	return &chaosSystemCountHandler{monitor: m, controller: c, publisher: publisher}
 }
 
 func (h *chaosSystemCountHandler) Category() string          { return "injection.system.count" }
 func (h *chaosSystemCountHandler) Scope() consts.ConfigScope { return consts.ConfigScopeConsumer }
 
 func (h *chaosSystemCountHandler) Handle(ctx context.Context, key, oldValue, newValue string) error {
-	return common.PublishWrapper(ctx, func() error {
+	return common.PublishWrapper(ctx, h.publisher, func() error {
 		return config.GetChaosSystemConfigManager().Reload(h.onUpdate)
 	})
 }
@@ -115,17 +124,20 @@ func (h *chaosSystemCountHandler) onUpdate() error {
 // =====================================================================
 
 type rateLimitingConfigHandler struct {
+	publisher      common.ConfigPublisher
 	restartLimiter *TokenBucketRateLimiter
 	buildLimiter   *TokenBucketRateLimiter
 	algoLimiter    *TokenBucketRateLimiter
 }
 
 func newRateLimitingConfigHandler(
+	publisher common.ConfigPublisher,
 	restartLimiter *TokenBucketRateLimiter,
 	buildLimiter *TokenBucketRateLimiter,
 	algoLimiter *TokenBucketRateLimiter,
 ) *rateLimitingConfigHandler {
 	return &rateLimitingConfigHandler{
+		publisher:      publisher,
 		restartLimiter: restartLimiter,
 		buildLimiter:   buildLimiter,
 		algoLimiter:    algoLimiter,
@@ -136,7 +148,7 @@ func (h *rateLimitingConfigHandler) Category() string          { return "rate_li
 func (h *rateLimitingConfigHandler) Scope() consts.ConfigScope { return consts.ConfigScopeConsumer }
 
 func (h *rateLimitingConfigHandler) Handle(ctx context.Context, key, oldValue, newValue string) error {
-	return common.PublishWrapper(ctx, func() error {
+	return common.PublishWrapper(ctx, h.publisher, func() error {
 		logrus.WithFields(logrus.Fields{
 			"key":       key,
 			"old_value": oldValue,

@@ -557,7 +557,9 @@ var injectDownloadCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("download request failed: %w", err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			_ = resp.Body.Close()
+		}()
 
 		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 			body, _ := io.ReadAll(resp.Body)
@@ -568,7 +570,9 @@ var injectDownloadCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("create output file: %w", err)
 		}
-		defer f.Close()
+		defer func() {
+			_ = f.Close()
+		}()
 
 		n, err := io.Copy(f, resp.Body)
 		if err != nil {

@@ -92,7 +92,9 @@ func (r *SSEReader) readStream(ctx context.Context, events chan<- SSEEvent) erro
 	if err != nil {
 		return fmt.Errorf("SSE connect: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("SSE server returned status %d", resp.StatusCode)

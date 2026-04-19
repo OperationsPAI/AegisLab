@@ -3,7 +3,6 @@ package consumer
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math/rand"
 	"path/filepath"
@@ -11,12 +10,12 @@ import (
 	"strings"
 	"time"
 
-	"aegis/client/k8s"
 	"aegis/config"
 	"aegis/consts"
-	"aegis/database"
 	"aegis/dto"
-	"aegis/repository"
+	k8s "aegis/infra/k8s"
+	redis "aegis/infra/redis"
+	execution "aegis/module/execution"
 	"aegis/service/common"
 	"aegis/tracing"
 	"aegis/utils"
@@ -59,7 +58,7 @@ func (p *algoJobCreationParams) toK8sJobConfig(envVars []corev1.EnvVar, initCont
 }
 
 // executeAlgorithm handles the execution of an algorithm task
-func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
+func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask, deps RuntimeDeps) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		span := trace.SpanFromContext(childCtx)
 		span.AddEvent(fmt.Sprintf("Starting algorithm execution attempt %d", task.ReStartNum+1))
@@ -67,8 +66,19 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 			"task_id":  task.TaskID,
 			"trace_id": task.TraceID,
 		})
+		k8sGateway := deps.K8sGateway
+		if k8sGateway == nil {
+			return handleExecutionError(span, logEntry, "k8s gateway not initialized", fmt.Errorf("k8s gateway not initialized"))
+		}
+		redisGateway := deps.RedisGateway
+		if redisGateway == nil {
+			return handleExecutionError(span, logEntry, "redis gateway not initialized", fmt.Errorf("redis gateway not initialized"))
+		}
 
-		rateLimiter := GetAlgoExecutionRateLimiter()
+		rateLimiter := deps.AlgorithmRateLimiter
+		if rateLimiter == nil {
+			return handleExecutionError(span, logEntry, "algorithm execution rate limiter not initialized", fmt.Errorf("algorithm execution rate limiter not initialized"))
+		}
 		acquired, err := rateLimiter.AcquireToken(childCtx, task.TaskID, task.TraceID)
 		if err != nil {
 			return handleExecutionError(span, logEntry, "failed to acquire rate limit token", err)
@@ -84,7 +94,7 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 			}
 
 			if !acquired {
-				if err := rescheduleAlgoExecutionTask(childCtx, task, "failed to acquire algorithm execution token within timeout, retrying later"); err != nil {
+				if err := rescheduleAlgoExecutionTask(childCtx, deps.DB, redisGateway, task, "failed to acquire algorithm execution token within timeout, retrying later"); err != nil {
 					return err
 				}
 				return nil
@@ -96,7 +106,7 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 			return handleExecutionError(span, logEntry, "failed to parse execution payload", err)
 		}
 
-		executionID, err := createExecution(task.TaskID, payload.algorithm.ID, payload.datapack.ID, payload.datasetVersionID, payload.labels)
+		executionID, err := createExecution(childCtx, deps, task.TaskID, payload.algorithm.ID, payload.datapack.ID, payload.datasetVersionID, payload.labels)
 		if err != nil {
 			return handleExecutionError(span, logEntry, "failed to create execution result", err)
 		}
@@ -136,7 +146,7 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 			executionID: executionID,
 			payload:     payload,
 		}
-		if err := createAlgoJob(childCtx, params); err != nil {
+		if err := createAlgoJob(childCtx, k8sGateway, params); err != nil {
 			return err
 		}
 
@@ -145,7 +155,7 @@ func executeAlgorithm(ctx context.Context, task *dto.UnifiedTask) error {
 }
 
 // rescheduleAlgoExecutionTask reschedules a algorithm execution task with a random delay between 1 to 5 minutes
-func rescheduleAlgoExecutionTask(ctx context.Context, task *dto.UnifiedTask, reason string) error {
+func rescheduleAlgoExecutionTask(ctx context.Context, db *gorm.DB, redisGateway *redis.Gateway, task *dto.UnifiedTask, reason string) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		span := trace.SpanFromContext(childCtx)
 
@@ -169,11 +179,11 @@ func rescheduleAlgoExecutionTask(ctx context.Context, task *dto.UnifiedTask, rea
 				consts.TaskTypeRunAlgorithm,
 				consts.TaskRescheduled,
 				reason,
-			).withEvent(consts.EventNoTokenAvailable, executeTime.String()),
+			).withEvent(consts.EventNoTokenAvailable, executeTime.String()).withDB(db).withRedis(redisGateway),
 		)
 
 		task.Reschedule(executeTime)
-		if err := common.SubmitTask(childCtx, task); err != nil {
+		if err := common.SubmitTaskWithDB(childCtx, db, redisGateway, task); err != nil {
 			span.RecordError(err)
 			span.AddEvent("failed to submit rescheduled task")
 			return fmt.Errorf("failed to submit rescheduled algorithm execution task: %w", err)
@@ -216,7 +226,7 @@ func parseExecutionPayload(payload map[string]any) (*executionPayload, error) {
 }
 
 // createAlgoJob creates and submits a Kubernetes job for algorithm execution
-func createAlgoJob(ctx context.Context, params *algoJobCreationParams) error {
+func createAlgoJob(ctx context.Context, gateway *k8s.Gateway, params *algoJobCreationParams) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		span := trace.SpanFromContext(childCtx)
 		logEntry := logrus.WithFields(logrus.Fields{
@@ -224,7 +234,7 @@ func createAlgoJob(ctx context.Context, params *algoJobCreationParams) error {
 			"execution_id": params.executionID,
 		})
 
-		volumeMountConfigs, err := getRequiredVolumeMountConfigs([]consts.VolumeMountName{
+		volumeMountConfigs, err := getRequiredVolumeMountConfigs(gateway, []consts.VolumeMountName{
 			consts.VolumeMountDataset,
 			consts.VolumeMountExperimentStorage,
 		})
@@ -262,7 +272,7 @@ func createAlgoJob(ctx context.Context, params *algoJobCreationParams) error {
 			},
 		}
 
-		return k8s.CreateJob(childCtx, params.toK8sJobConfig(jobEnvVars, initContainers, volumeMountConfigs))
+		return gateway.CreateJob(childCtx, params.toK8sJobConfig(jobEnvVars, initContainers, volumeMountConfigs))
 	})
 }
 
@@ -331,48 +341,15 @@ func getAlgoJobEnvVars(taskID string, executionID int, datapackPathPrefix, expPa
 }
 
 // createExecution creates a new execution record with associated labels
-func createExecution(taskID string, algorithmVersionID, datapackID int, datasetVersionID *int, labelItems []dto.LabelItem) (int, error) {
-	var createdExecutionID int
-
-	err := database.DB.Transaction(func(tx *gorm.DB) error {
-		execution := &database.Execution{
-			TaskID:             &taskID,
-			AlgorithmVersionID: algorithmVersionID,
-			DatapackID:         datapackID,
-			DatasetVersionID:   datasetVersionID,
-			State:              consts.ExecutionInitial,
-			Status:             consts.CommonEnabled,
-		}
-
-		if err := repository.CreateExecution(tx, execution); err != nil {
-			if errors.Is(err, gorm.ErrDuplicatedKey) {
-				return fmt.Errorf("%w: execution with algorithm_version_id %d and datapack_id %d already exists", consts.ErrAlreadyExists, algorithmVersionID, datapackID)
-			}
-			return fmt.Errorf("failed to create execution: %w", err)
-		}
-
-		if len(labelItems) > 0 {
-			labels, err := common.CreateOrUpdateLabelsFromItems(tx, labelItems, consts.ExecutionCategory)
-			if err != nil {
-				return fmt.Errorf("failed to create or update labels: %w", err)
-			}
-
-			labelIDs := make([]int, 0, len(labels))
-			for _, label := range labels {
-				labelIDs = append(labelIDs, label.ID)
-			}
-
-			if err := repository.AddExecutionLabels(tx, execution.ID, labelIDs); err != nil {
-				return fmt.Errorf("failed to add execution labels: %w", err)
-			}
-		}
-
-		createdExecutionID = execution.ID
-		return nil
-	})
-	if err != nil {
-		return 0, err
+func createExecution(ctx context.Context, deps RuntimeDeps, taskID string, algorithmVersionID, datapackID int, datasetVersionID *int, labelItems []dto.LabelItem) (int, error) {
+	if deps.ExecutionOwner == nil {
+		return 0, fmt.Errorf("execution owner service is nil")
 	}
-
-	return createdExecutionID, nil
+	return deps.ExecutionOwner.CreateExecution(ctx, &execution.RuntimeCreateExecutionReq{
+		TaskID:             taskID,
+		AlgorithmVersionID: algorithmVersionID,
+		DatapackID:         datapackID,
+		DatasetVersionID:   datasetVersionID,
+		Labels:             labelItems,
+	})
 }

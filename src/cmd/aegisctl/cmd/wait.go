@@ -121,11 +121,6 @@ func detectResourceType(c *client.Client, id string) (string, error) {
 	return "", fmt.Errorf("lookup trace %s: %w", id, err)
 }
 
-// stateResponse is a minimal struct to extract the state field from API responses.
-type stateResponse struct {
-	State string `json:"state"`
-}
-
 // pollState fetches the current state and full data for the given resource.
 func pollState(c *client.Client, resourceType, id string) (string, any, error) {
 	var path string

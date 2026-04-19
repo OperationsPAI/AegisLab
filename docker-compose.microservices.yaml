@@ -1,0 +1,109 @@
+name: aegislab-microservices
+services:
+  iam-service:
+    image: golang:1.24-bookworm
+    working_dir: /workspace/src
+    command: ["go", "run", "./cmd/iam-service", "-conf", "/workspace/src/config.dev.toml"]
+    volumes:
+      - ./:/workspace
+    environment:
+      GOPROXY: https://proxy.golang.org,direct
+    ports:
+      - "9091:9091"
+    depends_on:
+      redis:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+
+  orchestrator-service:
+    image: golang:1.24-bookworm
+    working_dir: /workspace/src
+    command: ["go", "run", "./cmd/orchestrator-service", "-conf", "/workspace/src/config.dev.toml"]
+    volumes:
+      - ./:/workspace
+    environment:
+      GOPROXY: https://proxy.golang.org,direct
+    ports:
+      - "9092:9092"
+    depends_on:
+      redis:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+
+  resource-service:
+    image: golang:1.24-bookworm
+    working_dir: /workspace/src
+    command: ["go", "run", "./cmd/resource-service", "-conf", "/workspace/src/config.dev.toml"]
+    volumes:
+      - ./:/workspace
+    environment:
+      GOPROXY: https://proxy.golang.org,direct
+    ports:
+      - "9093:9093"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      orchestrator-service:
+        condition: service_started
+
+  runtime-worker-service:
+    image: golang:1.24-bookworm
+    working_dir: /workspace/src
+    command: ["go", "run", "./cmd/runtime-worker-service", "-conf", "/workspace/src/config.dev.toml"]
+    volumes:
+      - ./:/workspace
+    environment:
+      GOPROXY: https://proxy.golang.org,direct
+    ports:
+      - "9094:9094"
+    depends_on:
+      redis:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+      etcd:
+        condition: service_started
+      orchestrator-service:
+        condition: service_started
+
+  system-service:
+    image: golang:1.24-bookworm
+    working_dir: /workspace/src
+    command: ["go", "run", "./cmd/system-service", "-conf", "/workspace/src/config.dev.toml"]
+    volumes:
+      - ./:/workspace
+    environment:
+      GOPROXY: https://proxy.golang.org,direct
+    ports:
+      - "9095:9095"
+    depends_on:
+      redis:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+      etcd:
+        condition: service_started
+      runtime-worker-service:
+        condition: service_started
+
+  api-gateway:
+    image: golang:1.24-bookworm
+    working_dir: /workspace/src
+    command: ["go", "run", "./cmd/api-gateway", "-conf", "/workspace/src/config.dev.toml", "-port", "8082"]
+    volumes:
+      - ./:/workspace
+    environment:
+      GOPROXY: https://proxy.golang.org,direct
+    ports:
+      - "8082:8082"
+    depends_on:
+      iam-service:
+        condition: service_started
+      orchestrator-service:
+        condition: service_started
+      resource-service:
+        condition: service_started
+      system-service:
+        condition: service_started

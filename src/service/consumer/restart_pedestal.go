@@ -1,10 +1,11 @@
 package consumer
 
 import (
-	"aegis/client"
 	"aegis/config"
 	"aegis/consts"
 	"aegis/dto"
+	helm "aegis/infra/helm"
+	redis "aegis/infra/redis"
 	"aegis/service/common"
 	"aegis/tracing"
 	"aegis/utils"
@@ -18,6 +19,7 @@ import (
 	chaos "github.com/OperationsPAI/chaos-experiment/handler"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/trace"
+	"gorm.io/gorm"
 )
 
 type restartPayload struct {
@@ -28,7 +30,7 @@ type restartPayload struct {
 }
 
 // executeRestartPedestal handles the execution of a restart pedestal task
-func executeRestartPedestal(ctx context.Context, task *dto.UnifiedTask) error {
+func executeRestartPedestal(ctx context.Context, task *dto.UnifiedTask, deps RuntimeDeps) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		span := trace.SpanFromContext(childCtx)
 		span.AddEvent(fmt.Sprintf("Starting restarting pedestal attempt %d", task.ReStartNum+1))
@@ -36,8 +38,19 @@ func executeRestartPedestal(ctx context.Context, task *dto.UnifiedTask) error {
 			"task_id":  task.TaskID,
 			"trace_id": task.TraceID,
 		})
+		helmGateway := deps.HelmGateway
+		if helmGateway == nil {
+			return handleExecutionError(span, logEntry, "helm gateway not initialized", fmt.Errorf("helm gateway not initialized"))
+		}
+		redisGateway := deps.RedisGateway
+		if redisGateway == nil {
+			return handleExecutionError(span, logEntry, "redis gateway not initialized", fmt.Errorf("redis gateway not initialized"))
+		}
 
-		rateLimiter := GetRestartPedestalRateLimiter()
+		rateLimiter := deps.RestartRateLimiter
+		if rateLimiter == nil {
+			return handleExecutionError(span, logEntry, "restart pedestal rate limiter not initialized", errors.New("restart pedestal rate limiter not initialized"))
+		}
 		acquired, err := rateLimiter.AcquireToken(childCtx, task.TaskID, task.TraceID)
 		if err != nil {
 			return handleExecutionError(span, logEntry, "failed to acquire rate limit token", err)
@@ -53,7 +66,7 @@ func executeRestartPedestal(ctx context.Context, task *dto.UnifiedTask) error {
 			}
 
 			if !acquired {
-				if err := rescheduleRestartPedestalTask(childCtx, task, "rate limited, retrying later"); err != nil {
+				if err := rescheduleRestartPedestalTask(childCtx, deps.DB, redisGateway, task, "rate limited, retrying later"); err != nil {
 					return err
 				}
 				return nil
@@ -75,7 +88,7 @@ func executeRestartPedestal(ctx context.Context, task *dto.UnifiedTask) error {
 			return handleExecutionError(span, logEntry, fmt.Sprintf("no configuration found for system type: %s", system), fmt.Errorf("no configuration found for system type: %s", system))
 		}
 
-		monitor := GetMonitor()
+		monitor := deps.Monitor
 		if monitor == nil {
 			return handleExecutionError(span, logEntry, "monitor not initialized", errors.New("monitor not initialized"))
 		}
@@ -109,7 +122,7 @@ func executeRestartPedestal(ctx context.Context, task *dto.UnifiedTask) error {
 			}
 
 			acquired = false
-			if err := rescheduleRestartPedestalTask(childCtx, task, "failed to acquire lock for namespace, retrying"); err != nil {
+			if err := rescheduleRestartPedestalTask(childCtx, deps.DB, redisGateway, task, "failed to acquire lock for namespace, retrying"); err != nil {
 				return err
 			}
 
@@ -132,12 +145,12 @@ func executeRestartPedestal(ctx context.Context, task *dto.UnifiedTask) error {
 				consts.TaskTypeRestartPedestal,
 				consts.TaskRunning,
 				fmt.Sprintf("Restarting pedestal in namespace %s", namespace),
-			).withSimpleEvent(consts.EventRestartPedestalStarted),
+			).withSimpleEvent(consts.EventRestartPedestalStarted).withDB(deps.DB).withRedis(redisGateway),
 		)
 
 		if payload.pedestal.Extra == nil {
 			toReleased = true
-			publishEvent(childCtx, fmt.Sprintf(consts.StreamTraceLogKey, task.TraceID), dto.TraceStreamEvent{
+			publishEvent(redisGateway, childCtx, fmt.Sprintf(consts.StreamTraceLogKey, task.TraceID), dto.TraceStreamEvent{
 				TaskID:    task.TaskID,
 				TaskType:  consts.TaskTypeRestartPedestal,
 				EventName: consts.EventRestartPedestalFailed,
@@ -147,9 +160,9 @@ func executeRestartPedestal(ctx context.Context, task *dto.UnifiedTask) error {
 			return handleExecutionError(span, logEntry, "missing extra info in pedestal item", fmt.Errorf("missing extra info in pedestal item"))
 		}
 
-		if err := installPedestal(childCtx, namespace, index, payload.pedestal.Extra); err != nil {
+		if err := installPedestal(childCtx, helmGateway, namespace, index, payload.pedestal.Extra); err != nil {
 			toReleased = true
-			publishEvent(childCtx, fmt.Sprintf(consts.StreamTraceLogKey, task.TraceID), dto.TraceStreamEvent{
+			publishEvent(redisGateway, childCtx, fmt.Sprintf(consts.StreamTraceLogKey, task.TraceID), dto.TraceStreamEvent{
 				TaskID:    task.TaskID,
 				TaskType:  consts.TaskTypeRestartPedestal,
 				EventName: consts.EventRestartPedestalFailed,
@@ -167,7 +180,7 @@ func executeRestartPedestal(ctx context.Context, task *dto.UnifiedTask) error {
 				consts.TaskTypeRestartPedestal,
 				consts.TaskCompleted,
 				message,
-			).withEvent(consts.EventRestartPedestalCompleted, message),
+			).withEvent(consts.EventRestartPedestalCompleted, message).withDB(deps.DB).withRedis(redisGateway),
 		)
 
 		tracing.SetSpanAttribute(childCtx, consts.TaskStateKey, consts.GetTaskStateName(consts.TaskCompleted))
@@ -176,7 +189,7 @@ func executeRestartPedestal(ctx context.Context, task *dto.UnifiedTask) error {
 		payload.injectPayload[consts.InjectPedestal] = system
 		payload.injectPayload[consts.InjectPedestalID] = payload.pedestal.ID
 
-		if err := common.ProduceFaultInjectionTasks(childCtx, task, injectTime, payload.injectPayload); err != nil {
+		if err := common.ProduceFaultInjectionTasksWithDB(childCtx, deps.DB, deps.RedisGateway, task, injectTime, payload.injectPayload); err != nil {
 			toReleased = true
 			return handleExecutionError(span, logEntry, "failed to submit inject task", err)
 		}
@@ -186,7 +199,7 @@ func executeRestartPedestal(ctx context.Context, task *dto.UnifiedTask) error {
 }
 
 // rescheduleRestartPedestalTask reschedules a pedestal restart task with exponential backoff and jitter
-func rescheduleRestartPedestalTask(ctx context.Context, task *dto.UnifiedTask, reason string) error {
+func rescheduleRestartPedestalTask(ctx context.Context, db *gorm.DB, redisGateway *redis.Gateway, task *dto.UnifiedTask, reason string) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		span := trace.SpanFromContext(ctx)
 
@@ -211,11 +224,11 @@ func rescheduleRestartPedestalTask(ctx context.Context, task *dto.UnifiedTask, r
 				consts.TaskTypeRestartPedestal,
 				consts.TaskRescheduled,
 				reason,
-			).withEvent(consts.EventNoNamespaceAvailable, executeTime.String()),
+			).withEvent(consts.EventNoNamespaceAvailable, executeTime.String()).withDB(db).withRedis(redisGateway),
 		)
 
 		task.Reschedule(executeTime)
-		if err := common.SubmitTask(ctx, task); err != nil {
+		if err := common.SubmitTaskWithDB(ctx, db, redisGateway, task); err != nil {
 			span.RecordError(err)
 			span.AddEvent("failed to submit rescheduled task")
 			return fmt.Errorf("failed to submit rescheduled restart task: %w", err)
@@ -261,7 +274,7 @@ func parseRestartPayload(payload map[string]any) (*restartPayload, error) {
 
 // installPedestal installs or upgrades the pedestal using Helm
 // Priority: Remote (if configured) -> Local fallback (if remote fails and LocalPath is set)
-func installPedestal(ctx context.Context, releaseName string, namespaceIdx int, item *dto.HelmConfigItem) error {
+func installPedestal(ctx context.Context, gateway *helm.Gateway, releaseName string, namespaceIdx int, item *dto.HelmConfigItem) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
 		span := trace.SpanFromContext(childCtx)
 		logEntry := logrus.WithFields(logrus.Fields{
@@ -271,11 +284,6 @@ func installPedestal(ctx context.Context, releaseName string, namespaceIdx int, 
 
 		if item == nil {
 			return handleExecutionError(span, logEntry, "missing helm config in container extra info", fmt.Errorf("missing helm config in container extra info"))
-		}
-
-		helmClient, err := client.NewHelmClient(releaseName)
-		if err != nil {
-			return handleExecutionError(span, logEntry, "failed to create Helm client", err)
 		}
 
 		paramItems := item.DynamicValues
@@ -296,10 +304,10 @@ func installPedestal(ctx context.Context, releaseName string, namespaceIdx int, 
 		if hasRemote {
 			logEntry.Infof("Attempting to install chart from remote repository: %s/%s", item.RepoName, item.ChartName)
 
-			if err := helmClient.AddRepo(item.RepoName, item.RepoURL); err != nil {
+			if err := gateway.AddRepo(releaseName, item.RepoName, item.RepoURL); err != nil {
 				logEntry.Warnf("Failed to add repository: %v", err)
 				installErr = err
-			} else if err := helmClient.UpdateRepo(item.RepoName); err != nil {
+			} else if err := gateway.UpdateRepo(releaseName, item.RepoName); err != nil {
 				logEntry.Warnf("Failed to update repository: %v", err)
 				installErr = err
 			} else {
@@ -312,7 +320,8 @@ func installPedestal(ctx context.Context, releaseName string, namespaceIdx int, 
 					"namespace":    releaseName,
 				}).Infof("Installing Helm chart from remote with parameters: %+v", helmValues)
 
-				if err := helmClient.Install(ctx,
+				if err := gateway.Install(ctx,
+					releaseName,
 					releaseName,
 					fullChart,
 					item.Version,
@@ -343,7 +352,8 @@ func installPedestal(ctx context.Context, releaseName string, namespaceIdx int, 
 				"namespace":    releaseName,
 			}).Infof("Installing Helm chart from local path with parameters: %+v", helmValues)
 
-			if err := helmClient.Install(ctx,
+			if err := gateway.Install(ctx,
+				releaseName,
 				releaseName,
 				item.LocalPath,
 				item.Version,

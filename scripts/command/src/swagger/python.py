@@ -8,10 +8,10 @@ from python_on_whales import docker
 
 from src.common.common import PROJECT_ROOT, ScopeType, console, settings
 from src.formatter import PythonFormatter
-from src.swagger.common import SWAGGER_ROOT, Generator
+from src.swagger.common import SWAGGER_ROOT
 
 
-class PythonSDK(Generator):
+class PythonSDK:
     """Class to generate Python SDK from Swagger JSON using OpenAPI Generator."""
 
     PYTHON_SDK_DIR = PROJECT_ROOT / "sdk" / "python"
@@ -20,6 +20,10 @@ class PythonSDK(Generator):
 
     def __init__(self, version: str) -> None:
         self.version = version
+
+    @property
+    def package_settings(self):
+        return settings.sdk.python
 
     def _update_version(self) -> None:
         """
@@ -69,7 +73,7 @@ class PythonSDK(Generator):
 
         self.PYTHON_SDK_GEN_DIR.mkdir(parents=True)
 
-        volume_path = Path("/local")
+        volume_path = Path(settings.openapi.generator_volume_root)
         relative_swagger = SWAGGER_ROOT.relative_to(PROJECT_ROOT)
         relative_sdk_gen = self.PYTHON_SDK_GEN_DIR.relative_to(PROJECT_ROOT)
         relative_generator_config = self.PYTHON_GENERATOR_CONFIG_DIR.relative_to(
@@ -89,6 +93,7 @@ class PythonSDK(Generator):
         current_user = os.getuid()
         current_group = os.getgid()
 
+        package_settings = self.package_settings
         try:
             docker.run(
                 settings.generator_image,
@@ -105,11 +110,11 @@ class PythonSDK(Generator):
                     "-t",
                     container_templates_path.as_posix(),
                     "--git-host",
-                    "github.com",
+                    package_settings.git_host,
                     "--git-repo-id",
-                    "AegisLab",
+                    package_settings.git_repo_id,
                     "--git-user-id",
-                    "OperationsPAI",
+                    package_settings.git_user_id,
                 ],
                 volumes=[(PROJECT_ROOT, volume_path)],
                 user=f"{current_user}:{current_group}",
@@ -168,7 +173,9 @@ class PythonSDK(Generator):
         console.print(
             "[bold blue]Step 3: Formatting post-processed Python SDK...[/bold blue]"
         )
-        formatter = PythonFormatter(scope=ScopeType.SDK)
+        formatter = PythonFormatter(
+            scope=ScopeType.SDK, sdk_dir=self.PYTHON_SDK_DIR.as_posix()
+        )
         formatter.run()
 
         # 5. Update version information in project files

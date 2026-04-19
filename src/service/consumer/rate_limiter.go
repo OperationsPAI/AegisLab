@@ -2,15 +2,13 @@ package consumer
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
-	"aegis/client"
 	"aegis/config"
 	"aegis/consts"
+	redis "aegis/infra/redis"
 
-	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -26,12 +24,21 @@ type RateLimiterConfig struct {
 
 // TokenBucketRateLimiter token bucket rate limiter
 type TokenBucketRateLimiter struct {
-	redisClient *redis.Client
 	bucketKey   string
+	store       tokenBucketStore
 	mu          sync.RWMutex
 	maxTokens   int
 	waitTimeout time.Duration
 	serviceName string
+}
+
+type RateLimiterSnapshot struct {
+	ServiceName        string
+	BucketKey          string
+	MaxTokens          int
+	WaitTimeout        time.Duration
+	InUseTokens        int64
+	InUseTokensLoadErr error
 }
 
 // GetConfig returns the current configuration
@@ -39,6 +46,20 @@ func (r *TokenBucketRateLimiter) GetConfig() (maxTokens int, waitTimeout time.Du
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return r.maxTokens, r.waitTimeout
+}
+
+func (r *TokenBucketRateLimiter) Snapshot(ctx context.Context) RateLimiterSnapshot {
+	maxTokens, waitTimeout := r.GetConfig()
+	inUseTokens, err := r.store.inUse(ctx)
+
+	return RateLimiterSnapshot{
+		ServiceName:        r.serviceName,
+		BucketKey:          r.bucketKey,
+		MaxTokens:          maxTokens,
+		WaitTimeout:        waitTimeout,
+		InUseTokens:        inUseTokens,
+		InUseTokensLoadErr: err,
+	}
 }
 
 // UpdateConfig dynamically updates the rate limiter configuration
@@ -75,34 +96,11 @@ func (r *TokenBucketRateLimiter) AcquireToken(ctx context.Context, taskID, trace
 	maxTokens := r.maxTokens
 	r.mu.RUnlock()
 
-	script := redis.NewScript(`
-		local bucket_key = KEYS[1]
-		local max_tokens = tonumber(ARGV[1])
-		local task_id = ARGV[2]
-		local trace_id = ARGV[3]
-		local expire_time = tonumber(ARGV[4])
-		
-		local current_tokens = redis.call('SCARD', bucket_key)
-		
-		if current_tokens < max_tokens then
-			redis.call('SADD', bucket_key, task_id)
-			redis.call('EXPIRE', bucket_key, expire_time)
-			return 1
-		else
-			return 0
-		end
-	`)
-
-	expireTime := 10 * 60
-
-	result, err := script.Run(ctx, r.redisClient, []string{r.bucketKey},
-		maxTokens, taskID, traceID, expireTime).Result()
+	acquired, err := r.store.acquire(ctx, maxTokens, taskID, traceID)
 	if err != nil {
 		span.RecordError(err)
-		return false, fmt.Errorf("failed to acquire token: %v", err)
+		return false, err
 	}
-
-	acquired := result.(int64) == 1
 	if acquired {
 		span.AddEvent("token acquired successfully")
 		logrus.WithFields(logrus.Fields{
@@ -120,10 +118,10 @@ func (r *TokenBucketRateLimiter) AcquireToken(ctx context.Context, taskID, trace
 func (r *TokenBucketRateLimiter) ReleaseToken(ctx context.Context, taskID, traceID string) error {
 	span := trace.SpanFromContext(ctx)
 
-	result, err := r.redisClient.SRem(ctx, r.bucketKey, taskID).Result()
+	result, err := r.store.release(ctx, taskID)
 	if err != nil {
 		span.RecordError(err)
-		return fmt.Errorf("failed to release token: %v", err)
+		return err
 	}
 
 	if result > 0 {
@@ -178,50 +176,28 @@ func (r *TokenBucketRateLimiter) WaitForToken(ctx context.Context, taskID, trace
 	}
 }
 
-var (
-	restartPedestalRateLimiter *TokenBucketRateLimiter
-	buildContainerRateLimiter  *TokenBucketRateLimiter
-	algoExecutionRateLimiter   *TokenBucketRateLimiter
-	rateLimiterOnce            sync.Once
-)
-
-// GetRestartPedestalRateLimiter returns the singleton restart pedestal rate limiter
-func GetRestartPedestalRateLimiter() *TokenBucketRateLimiter {
-	rateLimiterOnce.Do(initRateLimiters)
-	return restartPedestalRateLimiter
-}
-
-// GetBuildContainerRateLimiter returns the singleton build container rate limiter
-func GetBuildContainerRateLimiter() *TokenBucketRateLimiter {
-	rateLimiterOnce.Do(initRateLimiters)
-	return buildContainerRateLimiter
-}
-
-// GetAlgoExecutionRateLimiter returns the singleton algorithm execution rate limiter
-func GetAlgoExecutionRateLimiter() *TokenBucketRateLimiter {
-	rateLimiterOnce.Do(initRateLimiters)
-	return algoExecutionRateLimiter
-}
-
-// initRateLimiters initializes all rate limiters
-func initRateLimiters() {
-	restartPedestalRateLimiter = newTokenBucketRateLimiter(RateLimiterConfig{
+func NewRestartPedestalRateLimiter(gateway *redis.Gateway) *TokenBucketRateLimiter {
+	return newTokenBucketRateLimiter(gateway, RateLimiterConfig{
 		TokenBucketKey:   consts.RestartPedestalTokenBucket,
 		MaxTokensKey:     consts.MaxTokensKeyRestartPedestal,
 		DefaultMaxTokens: consts.MaxConcurrentRestartPedestal,
 		DefaultTimeout:   consts.TokenWaitTimeout,
 		ServiceName:      consts.RestartPedestalServiceName,
 	})
+}
 
-	buildContainerRateLimiter = newTokenBucketRateLimiter(RateLimiterConfig{
+func NewBuildContainerRateLimiter(gateway *redis.Gateway) *TokenBucketRateLimiter {
+	return newTokenBucketRateLimiter(gateway, RateLimiterConfig{
 		TokenBucketKey:   consts.BuildContainerTokenBucket,
 		MaxTokensKey:     consts.MaxTokensKeyBuildContainer,
 		DefaultMaxTokens: consts.MaxConcurrentBuildContainer,
 		DefaultTimeout:   consts.TokenWaitTimeout,
 		ServiceName:      consts.BuildContainerServiceName,
 	})
+}
 
-	algoExecutionRateLimiter = newTokenBucketRateLimiter(RateLimiterConfig{
+func NewAlgoExecutionRateLimiter(gateway *redis.Gateway) *TokenBucketRateLimiter {
+	return newTokenBucketRateLimiter(gateway, RateLimiterConfig{
 		TokenBucketKey:   consts.AlgoExecutionTokenBucket,
 		MaxTokensKey:     consts.MaxTokensKeyAlgoExecution,
 		DefaultMaxTokens: consts.MaxConcurrentAlgoExecution,
@@ -231,7 +207,7 @@ func initRateLimiters() {
 }
 
 // newTokenBucketRateLimiter creates a new token bucket rate limiter
-func newTokenBucketRateLimiter(cfg RateLimiterConfig) *TokenBucketRateLimiter {
+func newTokenBucketRateLimiter(gateway *redis.Gateway, cfg RateLimiterConfig) *TokenBucketRateLimiter {
 	maxTokens := config.GetInt(cfg.MaxTokensKey)
 	if maxTokens <= 0 {
 		maxTokens = cfg.DefaultMaxTokens
@@ -243,8 +219,8 @@ func newTokenBucketRateLimiter(cfg RateLimiterConfig) *TokenBucketRateLimiter {
 	}
 
 	return &TokenBucketRateLimiter{
-		redisClient: client.GetRedisClient(),
 		bucketKey:   cfg.TokenBucketKey,
+		store:       newTokenBucketStore(gateway, cfg.TokenBucketKey),
 		maxTokens:   maxTokens,
 		waitTimeout: time.Duration(waitTimeout) * time.Second,
 		serviceName: cfg.ServiceName,

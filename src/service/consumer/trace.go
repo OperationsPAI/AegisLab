@@ -1,16 +1,17 @@
 package consumer
 
 import (
-	"aegis/client"
 	"aegis/consts"
-	"aegis/database"
 	"aegis/dto"
-	"aegis/repository"
+	redis "aegis/infra/redis"
+	"aegis/model"
+	group "aegis/module/group"
 	"context"
 	"fmt"
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"gorm.io/gorm"
 )
 
 // levelStatistics holds statistics for a specific level in the task tree
@@ -81,15 +82,14 @@ func getEventTypeByTask(taskType consts.TaskType, taskState consts.TaskState) co
 
 // updateTraceState updates trace state based on task state change
 // This function is called after task state is persisted to ensure real-time sync
-func updateTraceState(traceID, taskID string, newState consts.TaskState, event *dto.TraceStreamEvent) error {
+func updateTraceState(redisGateway *redis.Gateway, db *gorm.DB, traceID, taskID string, newState consts.TaskState, event *dto.TraceStreamEvent) error {
 	logEntry := logrus.WithField("trace_id", traceID).WithField("task_id", taskID)
 
 	// Update trace state asynchronously to avoid blocking task processing
 	go func() {
-		// Use background context since this is async
-		ctx := context.Background()
+		ctx := consumerDetachedContext()
 
-		if err := performTraceStateUpdate(ctx, traceID, taskID, newState, event); err != nil {
+		if err := performTraceStateUpdate(redisGateway, ctx, db, traceID, taskID, newState, event); err != nil {
 			logEntry.Errorf("failed to update trace state: %v", err)
 		}
 	}()
@@ -98,12 +98,12 @@ func updateTraceState(traceID, taskID string, newState consts.TaskState, event *
 }
 
 // performTraceStateUpdate performs the actual trace state update with retry logic
-func performTraceStateUpdate(ctx context.Context, traceID, taskID string, newState consts.TaskState, event *dto.TraceStreamEvent) error {
+func performTraceStateUpdate(redisGateway *redis.Gateway, ctx context.Context, db *gorm.DB, traceID, taskID string, newState consts.TaskState, event *dto.TraceStreamEvent) error {
 	const maxRetries = 3
 	logEntry := logrus.WithField("trace_id", traceID)
 
 	for attempt := range maxRetries {
-		err := tryUpdateTraceStateCore(ctx, traceID, taskID, newState, event)
+		err := tryUpdateTraceStateCore(redisGateway, ctx, db, traceID, taskID, newState, event)
 		if err == nil {
 			return nil
 		}
@@ -122,11 +122,15 @@ func performTraceStateUpdate(ctx context.Context, traceID, taskID string, newSta
 }
 
 // tryUpdateTraceStateCore attempts to update trace state once
-func tryUpdateTraceStateCore(ctx context.Context, traceID, taskID string, newState consts.TaskState, streamEvent *dto.TraceStreamEvent) error {
+func tryUpdateTraceStateCore(redisGateway *redis.Gateway, ctx context.Context, db *gorm.DB, traceID, taskID string, newState consts.TaskState, streamEvent *dto.TraceStreamEvent) error {
+	if db == nil {
+		return fmt.Errorf("trace state update db is nil")
+	}
+
 	logEntry := logrus.WithField("trace_id", traceID)
 
 	// 1. Fetch trace with all tasks (including the just-updated task)
-	trace, err := repository.GetTraceByID(database.DB, traceID)
+	trace, err := getTraceByID(db, traceID)
 	if err != nil {
 		return fmt.Errorf("failed to get trace: %w", err)
 	}
@@ -135,7 +139,7 @@ func tryUpdateTraceStateCore(ctx context.Context, traceID, taskID string, newSta
 	originalUpdatedAt := trace.UpdatedAt
 
 	// 2. Find the task that was just updated
-	var updatedTask *database.Task
+	var updatedTask *model.Task
 	for i := range trace.Tasks {
 		if trace.Tasks[i].ID == taskID {
 			updatedTask = &trace.Tasks[i]
@@ -194,12 +198,12 @@ func tryUpdateTraceStateCore(ctx context.Context, traceID, taskID string, newSta
 
 		// Publish to group-level stream for real-time group progress SSE
 		if trace.GroupID != "" {
-			publishGroupStreamEvent(ctx, trace.GroupID, traceID, inferredState, inferredEventType)
+			publishGroupStreamEvent(redisGateway, ctx, trace.GroupID, traceID, inferredState, inferredEventType)
 		}
 	}
 
 	// 6. Execute optimistic locking update
-	result := database.DB.Model(&database.Trace{}).
+	result := db.Model(&model.Trace{}).
 		Where("id = ? AND updated_at = ?", traceID, originalUpdatedAt).
 		Updates(updates)
 
@@ -220,7 +224,7 @@ func tryUpdateTraceStateCore(ctx context.Context, traceID, taskID string, newSta
 }
 
 // buildLevelStatistics constructs level statistics from task list
-func buildLevelStatistics(tasks []database.Task, treeHeight int) map[int]*levelStatistics {
+func buildLevelStatistics(tasks []model.Task, treeHeight int) map[int]*levelStatistics {
 	stats := make(map[int]*levelStatistics)
 
 	// Initialize statistics for each level
@@ -255,7 +259,7 @@ func buildLevelStatistics(tasks []database.Task, treeHeight int) map[int]*levelS
 
 // hasEarlyTerminationEvent checks if any CollectResult task has completed with early termination events
 // Now also checks the streamEvent to accurately determine if it's truly an early termination
-func hasEarlyTerminationEvent(tasks []database.Task, streamEvent *dto.TraceStreamEvent) bool {
+func hasEarlyTerminationEvent(tasks []model.Task, streamEvent *dto.TraceStreamEvent) bool {
 	// Priority 1: Check if streamEvent explicitly indicates early termination
 	if streamEvent != nil && streamEvent.EventName != "" {
 		// These events indicate early termination - no further processing needed
@@ -297,7 +301,7 @@ func hasEarlyTerminationEvent(tasks []database.Task, streamEvent *dto.TraceStrea
 
 // findEarlyTerminationEvent finds and returns the early termination event from completed CollectResult tasks
 // Now uses streamEvent to accurately return the correct event type
-func findEarlyTerminationEvent(tasks []database.Task, streamEvent *dto.TraceStreamEvent) consts.EventType {
+func findEarlyTerminationEvent(tasks []model.Task, streamEvent *dto.TraceStreamEvent) consts.EventType {
 	// Priority 1: If streamEvent is provided with early termination events, use it directly
 	if streamEvent != nil && streamEvent.EventName != "" {
 		if streamEvent.EventName == consts.EventDatapackNoAnomaly ||
@@ -335,7 +339,7 @@ func findEarlyTerminationEvent(tasks []database.Task, streamEvent *dto.TraceStre
 }
 
 // selectBestLastEvent selects the most appropriate last event from completed leaf tasks
-func selectBestLastEvent(tasks []database.Task, leafLevel int, streamEvent *dto.TraceStreamEvent) consts.EventType {
+func selectBestLastEvent(tasks []model.Task, leafLevel int, streamEvent *dto.TraceStreamEvent) consts.EventType {
 	// Event priority map: higher value = higher priority
 	eventPriority := map[consts.EventType]int{
 		consts.EventFaultInjectionCompleted:  80,
@@ -387,7 +391,7 @@ func selectBestLastEvent(tasks []database.Task, leafLevel int, streamEvent *dto.
 
 // inferTraceState infers trace state and last event from all tasks
 // streamEvent parameter helps distinguish between early termination vs continuation scenarios
-func inferTraceState(trace *database.Trace, tasks []database.Task, streamEvent *dto.TraceStreamEvent) (consts.TraceState, consts.EventType) {
+func inferTraceState(trace *model.Trace, tasks []model.Task, streamEvent *dto.TraceStreamEvent) (consts.TraceState, consts.EventType) {
 	treeHeight := traceTypeHeightMap[trace.Type]
 	stats := buildLevelStatistics(tasks, treeHeight)
 
@@ -493,6 +497,20 @@ func inferTraceState(trace *database.Trace, tasks []database.Task, streamEvent *
 	return consts.TracePending, consts.EventTaskStateUpdate
 }
 
+func getTraceByID(db *gorm.DB, traceID string) (*model.Trace, error) {
+	var trace model.Trace
+	if err := db.Model(&model.Trace{}).
+		Preload("Project").
+		Preload("Tasks", func(db *gorm.DB) *gorm.DB {
+			return db.Order("level ASC, sequence ASC")
+		}).
+		Where("id = ? AND status != ?", traceID, consts.CommonDeleted).
+		First(&trace).Error; err != nil {
+		return nil, err
+	}
+	return &trace, nil
+}
+
 // isOptimisticLockError checks if an error is due to optimistic lock failure
 func isOptimisticLockError(err error) bool {
 	return err != nil && err.Error() == "optimistic lock conflict: trace was modified by another job"
@@ -501,17 +519,17 @@ func isOptimisticLockError(err error) bool {
 // publishGroupStreamEvent publishes a lightweight event to the group-level Redis stream
 // when a trace reaches a terminal state (Completed/Failed).
 // This enables real-time SSE updates for group progress tracking on the frontend.
-func publishGroupStreamEvent(ctx context.Context, groupID, traceID string, state consts.TraceState, lastEvent consts.EventType) {
+func publishGroupStreamEvent(redisGateway *redis.Gateway, ctx context.Context, groupID, traceID string, state consts.TraceState, lastEvent consts.EventType) {
 	streamKey := fmt.Sprintf(consts.StreamGroupLogKey, groupID)
 	logEntry := logrus.WithField("group_id", groupID).WithField("trace_id", traceID)
 
-	event := &dto.GroupStreamEvent{
+	event := &group.GroupStreamEvent{
 		TraceID:   traceID,
 		State:     state,
 		LastEvent: lastEvent,
 	}
 
-	if err := client.RedisXAdd(ctx, streamKey, event.ToRedisStream()); err != nil {
+	if err := publishRedisStreamEvent(redisGateway, ctx, streamKey, event); err != nil {
 		logEntry.Errorf("failed to publish group stream event: %v", err)
 		return
 	}

@@ -1,0 +1,248 @@
+syntax = "proto3";
+
+package iam.v1;
+
+option go_package = "aegis/proto/iam/v1;iamv1";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/struct.proto";
+
+service IAMService {
+  rpc VerifyToken(VerifyTokenRequest) returns (VerifyTokenResponse);
+  rpc CheckPermission(CheckPermissionRequest) returns (CheckPermissionResponse);
+  rpc Login(MutationRequest) returns (StructResponse);
+  rpc Register(MutationRequest) returns (StructResponse);
+  rpc RefreshToken(MutationRequest) returns (StructResponse);
+  rpc Logout(LogoutRequest) returns (google.protobuf.Empty);
+  rpc ChangePassword(UserBodyRequest) returns (google.protobuf.Empty);
+  rpc GetProfile(UserIDRequest) returns (StructResponse);
+  rpc CreateAPIKey(UserBodyRequest) returns (StructResponse);
+  rpc ListAPIKeys(UserQueryRequest) returns (StructResponse);
+  rpc GetAPIKey(UserScopedIDRequest) returns (StructResponse);
+  rpc DeleteAPIKey(UserScopedIDRequest) returns (google.protobuf.Empty);
+  rpc DisableAPIKey(UserScopedIDRequest) returns (google.protobuf.Empty);
+  rpc EnableAPIKey(UserScopedIDRequest) returns (google.protobuf.Empty);
+  rpc RevokeAPIKey(UserScopedIDRequest) returns (google.protobuf.Empty);
+  rpc RotateAPIKey(UserScopedIDRequest) returns (StructResponse);
+  rpc IsUserTeamAdmin(UserTeamRequest) returns (BoolResponse);
+  rpc IsUserInTeam(UserTeamRequest) returns (BoolResponse);
+  rpc IsTeamPublic(TeamRequest) returns (BoolResponse);
+  rpc IsUserProjectAdmin(UserProjectRequest) returns (BoolResponse);
+  rpc IsUserInProject(UserProjectRequest) returns (BoolResponse);
+  rpc ExchangeAPIKeyToken(ExchangeAPIKeyTokenRequest) returns (ExchangeAPIKeyTokenResponse);
+  rpc CreateUser(MutationRequest) returns (StructResponse);
+  rpc DeleteUser(IDRequest) returns (google.protobuf.Empty);
+  rpc GetUser(IDRequest) returns (StructResponse);
+  rpc ListUsers(QueryRequest) returns (StructResponse);
+  rpc UpdateUser(UpdateByIDRequest) returns (StructResponse);
+  rpc AssignUserRole(UserRoleBindingRequest) returns (google.protobuf.Empty);
+  rpc RemoveUserRole(UserRoleBindingRequest) returns (google.protobuf.Empty);
+  rpc AssignUserPermissions(UserBodyRequest) returns (google.protobuf.Empty);
+  rpc RemoveUserPermissions(UserBodyRequest) returns (google.protobuf.Empty);
+  rpc AssignUserContainer(UserResourceBindingRequest) returns (google.protobuf.Empty);
+  rpc RemoveUserContainer(UserScopedIDRequest) returns (google.protobuf.Empty);
+  rpc AssignUserDataset(UserResourceBindingRequest) returns (google.protobuf.Empty);
+  rpc RemoveUserDataset(UserScopedIDRequest) returns (google.protobuf.Empty);
+  rpc AssignUserProject(UserResourceBindingRequest) returns (google.protobuf.Empty);
+  rpc RemoveUserProject(UserScopedIDRequest) returns (google.protobuf.Empty);
+  rpc CreateRole(MutationRequest) returns (StructResponse);
+  rpc DeleteRole(IDRequest) returns (google.protobuf.Empty);
+  rpc GetRole(IDRequest) returns (StructResponse);
+  rpc ListRoles(QueryRequest) returns (StructResponse);
+  rpc UpdateRole(UpdateByIDRequest) returns (StructResponse);
+  rpc AssignRolePermissions(RolePermissionsRequest) returns (google.protobuf.Empty);
+  rpc RemoveRolePermissions(RolePermissionsRequest) returns (google.protobuf.Empty);
+  rpc ListUsersFromRole(IDRequest) returns (StructResponse);
+  rpc GetPermission(IDRequest) returns (StructResponse);
+  rpc ListPermissions(QueryRequest) returns (StructResponse);
+  rpc ListRolesFromPermission(IDRequest) returns (StructResponse);
+  rpc GetResource(IDRequest) returns (StructResponse);
+  rpc ListResources(QueryRequest) returns (StructResponse);
+  rpc ListResourcePermissions(IDRequest) returns (StructResponse);
+  rpc CreateTeam(CreateTeamRequest) returns (StructResponse);
+  rpc DeleteTeam(TeamRequest) returns (google.protobuf.Empty);
+  rpc GetTeam(TeamRequest) returns (StructResponse);
+  rpc ListTeams(ListTeamsRequest) returns (StructResponse);
+  rpc UpdateTeam(UpdateTeamRequest) returns (StructResponse);
+  rpc ListTeamProjects(ListTeamProjectsRequest) returns (StructResponse);
+  rpc AddTeamMember(AddTeamMemberRequest) returns (google.protobuf.Empty);
+  rpc RemoveTeamMember(RemoveTeamMemberRequest) returns (google.protobuf.Empty);
+  rpc UpdateTeamMemberRole(UpdateTeamMemberRoleRequest) returns (google.protobuf.Empty);
+  rpc ListTeamMembers(ListTeamMembersRequest) returns (StructResponse);
+}
+
+message VerifyTokenRequest {
+  string token = 1;
+}
+
+message VerifyTokenResponse {
+  bool valid = 1;
+  string token_type = 2;
+  int64 user_id = 3;
+  string username = 4;
+  string email = 5;
+  bool is_active = 6;
+  bool is_admin = 7;
+  repeated string roles = 8;
+  int64 expires_at_unix = 9;
+  string auth_type = 10;
+  int64 key_id = 11;
+  string task_id = 12;
+  repeated string api_key_scopes = 13;
+}
+
+message CheckPermissionRequest {
+  int64 user_id = 1;
+  string action = 2;
+  string scope = 3;
+  string resource_name = 4;
+  int64 team_id = 5;
+  int64 project_id = 6;
+  int64 container_id = 7;
+  int64 dataset_id = 8;
+}
+
+message CheckPermissionResponse {
+  bool allowed = 1;
+}
+
+message UserTeamRequest {
+  int64 user_id = 1;
+  int64 team_id = 2;
+}
+
+message TeamRequest {
+  int64 team_id = 1;
+}
+
+message UserProjectRequest {
+  int64 user_id = 1;
+  int64 project_id = 2;
+}
+
+message BoolResponse {
+  bool value = 1;
+}
+
+message ExchangeAPIKeyTokenRequest {
+  string key_id = 1;
+  string timestamp = 2;
+  string nonce = 3;
+  string signature = 4;
+  string method = 5;
+  string path = 6;
+}
+
+message ExchangeAPIKeyTokenResponse {
+  string token = 1;
+  string token_type = 2;
+  int64 expires_at_unix = 3;
+  string auth_type = 4;
+  string key_id = 5;
+}
+
+message MutationRequest {
+  google.protobuf.Struct body = 1;
+}
+
+message QueryRequest {
+  google.protobuf.Struct query = 1;
+}
+
+message IDRequest {
+  int64 id = 1;
+}
+
+message UpdateByIDRequest {
+  int64 id = 1;
+  google.protobuf.Struct body = 2;
+}
+
+message UserIDRequest {
+  int64 user_id = 1;
+}
+
+message UserQueryRequest {
+  int64 user_id = 1;
+  google.protobuf.Struct query = 2;
+}
+
+message UserBodyRequest {
+  int64 user_id = 1;
+  google.protobuf.Struct body = 2;
+}
+
+message UserScopedIDRequest {
+  int64 user_id = 1;
+  int64 id = 2;
+}
+
+message UserRoleBindingRequest {
+  int64 user_id = 1;
+  int64 role_id = 2;
+}
+
+message UserResourceBindingRequest {
+  int64 user_id = 1;
+  int64 resource_id = 2;
+  int64 role_id = 3;
+}
+
+message LogoutRequest {
+  int64 user_id = 1;
+  string token_id = 2;
+  int64 expires_at_unix = 3;
+}
+
+message RolePermissionsRequest {
+  int64 role_id = 1;
+  repeated int64 permission_ids = 2;
+}
+
+message CreateTeamRequest {
+  int64 user_id = 1;
+  google.protobuf.Struct body = 2;
+}
+
+message ListTeamsRequest {
+  int64 user_id = 1;
+  bool is_admin = 2;
+  google.protobuf.Struct query = 3;
+}
+
+message UpdateTeamRequest {
+  int64 team_id = 1;
+  google.protobuf.Struct body = 2;
+}
+
+message ListTeamProjectsRequest {
+  int64 team_id = 1;
+  google.protobuf.Struct query = 2;
+}
+
+message AddTeamMemberRequest {
+  int64 team_id = 1;
+  google.protobuf.Struct body = 2;
+}
+
+message RemoveTeamMemberRequest {
+  int64 team_id = 1;
+  int64 current_user_id = 2;
+  int64 target_user_id = 3;
+}
+
+message UpdateTeamMemberRoleRequest {
+  int64 team_id = 1;
+  int64 target_user_id = 2;
+  int64 current_user_id = 3;
+  google.protobuf.Struct body = 4;
+}
+
+message ListTeamMembersRequest {
+  int64 team_id = 1;
+  google.protobuf.Struct query = 2;
+}
+
+message StructResponse {
+  google.protobuf.Struct data = 1;
+}

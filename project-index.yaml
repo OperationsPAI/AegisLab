@@ -1614,7 +1614,7 @@ requirements:
     priority: P1
     status: implemented
     confidence: inferred
-    source: "sdk/python/, scripts/command/src/swagger.py"
+    source: "sdk/python/, scripts/command/src/swagger/python.py, scripts/command/src/cli/sdk.py"
 
     code:
       - path: sdk/python/src/rcabench/client
@@ -1635,7 +1635,7 @@ requirements:
 
     depends_on: [REQ-602]
     conflicts: []
-    notes: "Generated via 'make generate-python-sdk'"
+    notes: "Generated via 'just generate-python-sdk <version>'; consumes src/docs/converted/sdk.json"
 
   - id: REQ-601
     title: TypeScript SDK (Auto-generated)
@@ -1646,7 +1646,7 @@ requirements:
     priority: P1
     status: implemented
     confidence: inferred
-    source: "CLAUDE.md"
+    source: "scripts/command/src/swagger/typescript.py, scripts/command/src/cli/sdk.py"
 
     code: []
 
@@ -1667,23 +1667,24 @@ requirements:
 
     depends_on: [REQ-602]
     conflicts: []
-    notes: "Generated via 'make generate-typescript-sdk SDK_VERSION=x.x.x'; sdk/typescript/ directory"
+    notes: "Generated via 'just generate-portal <version>' / 'just generate-admin <version>'; output in sdk/typescript/{portal,admin}; generator config lives in .openapi-generator/typescript/*"
 
   - id: REQ-602
     title: Swagger/OpenAPI Documentation
     description: >
       API documentation via Swagger annotations on all handler functions.
-      APIs marked with @x-api-type {"sdk":"true"} are included in generated SDKs.
+      Generated audience specs are extracted from OpenAPI3 x-api-type extensions
+      (sdk / portal / admin) and then fed into the language-specific generators.
       Generated via swag init with dependency parsing.
       Backend-only tooling.
     priority: P1
     status: implemented
     confidence: confirmed
-    source: "src/handlers/v2/*.go"
+    source: "src/docs/openapi3/openapi.json, scripts/command/src/swagger/init.py"
 
     code:
-      - path: src/handlers/v2/auth.go
-        description: "Example of Swagger annotations with @x-api-type SDK marking"
+      - path: src/handlers/docs.go
+        description: "Swagger annotation example carrying x-api-type audience metadata"
 
     frontend: []
     has_mock: false
@@ -1700,7 +1701,7 @@ requirements:
 
     depends_on: []
     conflicts: []
-    notes: "scripts/command/src/swagger.py filters APIs by x-api-type.sdk field"
+    notes: "scripts/command/src/swagger/init.py extracts sdk / portal / admin audience specs from OpenAPI3 x-api-type metadata and writes converted artifacts under src/docs/converted/"
 
   # ===========================================================================
   # REQ-7xx: Deployment & Infrastructure (Backend)

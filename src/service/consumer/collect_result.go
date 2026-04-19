@@ -4,18 +4,18 @@ import (
 	"context"
 	"fmt"
 
-	"aegis/client"
 	"aegis/config"
 	"aegis/consts"
-	"aegis/database"
 	"aegis/dto"
-	"aegis/repository"
+	redis "aegis/infra/redis"
+	execution "aegis/module/execution"
 	"aegis/service/common"
 	"aegis/tracing"
 	"aegis/utils"
 
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/trace"
+	"gorm.io/gorm"
 )
 
 type collectionPayload struct {
@@ -24,8 +24,17 @@ type collectionPayload struct {
 	executionID int
 }
 
-func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
+func executeCollectResult(ctx context.Context, task *dto.UnifiedTask, deps RuntimeDeps) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
+		db := deps.DB
+		if db == nil {
+			return fmt.Errorf("consumer runtime db is nil")
+		}
+		redisGateway := deps.RedisGateway
+		if redisGateway == nil {
+			return fmt.Errorf("consumer redis gateway is nil")
+		}
+
 		logEntry := logrus.WithField("task_id", task.TaskID)
 		span := trace.SpanFromContext(childCtx)
 
@@ -38,7 +47,7 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 		}
 
 		if collectPayload.algorithm.ContainerName == config.GetDetectorName() {
-			results, err := repository.ListDetectorResultsByExecutionID(database.DB, collectPayload.executionID)
+			results, err := loadDetectorResults(childCtx, deps, db, collectPayload.executionID)
 			if err != nil {
 				logEntry.Errorf("failed to get detector results by execution ID: %v", err)
 				span.AddEvent("failed to get detector results by execution ID")
@@ -72,17 +81,19 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 				span.AddEvent(message)
 			}
 
-			updateTaskState(childCtx, taskCompletedWithEvent(task, eventName, results))
+			updateTaskState(childCtx, taskCompletedWithEvent(task, eventName, results).withDB(db).withRedis(redisGateway))
 
 			logEntry.Info("Collect detector result task completed successfully")
 
-			if hasIssues && client.CheckCachedField(childCtx, consts.InjectionAlgorithmsKey, task.GroupID) {
-				var algorithms []dto.ContainerVersionItem
-				err := client.GetHashField(childCtx, consts.InjectionAlgorithmsKey, task.GroupID, &algorithms)
+			if hasIssues {
+				algorithms, cached, err := loadCachedInjectionAlgorithms(redisGateway, childCtx, task.GroupID)
 				if err != nil {
 					span.AddEvent("failed to get algorithms from redis")
 					span.RecordError(err)
 					return fmt.Errorf("failed to get algorithms from redis: %w", err)
+				}
+				if !cached {
+					return nil
 				}
 
 				for idx, algorithm := range algorithms {
@@ -91,7 +102,7 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 						consts.ExecuteDatapack:  collectPayload.datapack,
 					}
 
-					if err := produceAlgorithmExeuctionTask(childCtx, task, payload, idx); err != nil {
+					if err := produceAlgorithmExeuctionTask(childCtx, db, deps.RedisGateway, task, payload, idx); err != nil {
 						span.AddEvent("failed to submit algorithm execution task")
 						span.RecordError(err)
 						return fmt.Errorf("failed to submit algorithm execution task: %w", err)
@@ -104,7 +115,7 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 			return nil
 		}
 
-		results, err := repository.ListGranularityResultsByExecutionID(database.DB, collectPayload.executionID)
+		results, err := loadGranularityResults(childCtx, deps, db, collectPayload.executionID)
 		if err != nil {
 			span.AddEvent("failed to get detector results by execution ID")
 			span.RecordError(err)
@@ -119,11 +130,33 @@ func executeCollectResult(ctx context.Context, task *dto.UnifiedTask) error {
 			span.AddEvent(message)
 		}
 
-		updateTaskState(childCtx, taskCompletedWithEvent(task, eventName, results))
+		updateTaskState(childCtx, taskCompletedWithEvent(task, eventName, results).withDB(db).withRedis(redisGateway))
 
 		logEntry.Info("Collect algorithm result task completed successfully")
 		return nil
 	})
+}
+
+func loadDetectorResults(ctx context.Context, deps RuntimeDeps, _ *gorm.DB, executionID int) ([]execution.DetectorResultItem, error) {
+	if deps.ExecutionOwner == nil {
+		return nil, fmt.Errorf("execution owner service is nil")
+	}
+	resp, err := deps.ExecutionOwner.GetExecution(ctx, executionID)
+	if err != nil {
+		return nil, err
+	}
+	return resp.DetectorResults, nil
+}
+
+func loadGranularityResults(ctx context.Context, deps RuntimeDeps, _ *gorm.DB, executionID int) ([]execution.GranularityResultItem, error) {
+	if deps.ExecutionOwner == nil {
+		return nil, fmt.Errorf("execution owner service is nil")
+	}
+	resp, err := deps.ExecutionOwner.GetExecution(ctx, executionID)
+	if err != nil {
+		return nil, err
+	}
+	return resp.GranularityResults, nil
 }
 
 // parseCollectPayload parses the payload for collect result tasks
@@ -152,7 +185,7 @@ func parseCollectPayload(payload map[string]any) (*collectionPayload, error) {
 }
 
 // produceAlgorithmExeuctionTask produces an algorithm execution task into Redis
-func produceAlgorithmExeuctionTask(ctx context.Context, task *dto.UnifiedTask, payload map[string]any, index int) error {
+func produceAlgorithmExeuctionTask(ctx context.Context, db *gorm.DB, redisGateway *redis.Gateway, task *dto.UnifiedTask, payload map[string]any, index int) error {
 	newTask := &dto.UnifiedTask{
 		Type:         consts.TaskTypeRunAlgorithm,
 		Immediate:    true,
@@ -166,7 +199,7 @@ func produceAlgorithmExeuctionTask(ctx context.Context, task *dto.UnifiedTask, p
 		State:        consts.TaskPending,
 		TraceCarrier: task.TraceCarrier,
 	}
-	err := common.SubmitTask(ctx, newTask)
+	err := common.SubmitTaskWithDB(ctx, db, redisGateway, newTask)
 	if err != nil {
 		return fmt.Errorf("failed to submit algorithm exectuion task: %w", err)
 	}

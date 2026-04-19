@@ -1,16 +1,18 @@
 package initialization
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"path/filepath"
 
 	"aegis/config"
 	"aegis/consts"
-	"aegis/database"
-	"aegis/repository"
-	producer "aegis/service/producer"
+	redis "aegis/infra/redis"
+	"aegis/model"
+	container "aegis/module/container"
+	dataset "aegis/module/dataset"
+	label "aegis/module/label"
+	"aegis/service/common"
 	"aegis/utils"
 
 	"github.com/sirupsen/logrus"
@@ -30,17 +32,16 @@ func (r permMeta) String() string {
 	return fmt.Sprintf("%v %v %v", r.action, r.resourceScope, r.resourceName)
 }
 
-var producerData *configData
-
-var resourceIDMap map[consts.ResourceName]int
-
-func InitializeProducer(ctx context.Context) {
-	producerData = newConfigData(consts.ConfigScopeProducer)
+func InitializeProducer(db *gorm.DB, publisher *redis.Gateway, listener *common.ConfigUpdateListener) error {
+	producerData, err := newConfigDataWithDB(db, consts.ConfigScopeProducer)
+	if err != nil {
+		return fmt.Errorf("failed to load producer config metadata: %w", err)
+	}
 
 	if len(producerData.configs) == 0 {
 		logrus.Info("Seeding initial system data for producer...")
-		if err := initializeProducer(); err != nil {
-			logrus.Fatalf("Failed to initialize system data for producer: %v", err)
+		if err := initializeProducer(db); err != nil {
+			return fmt.Errorf("failed to initialize system data for producer: %w", err)
 		}
 		logrus.Info("Successfully seeded initial system data for producer")
 	} else {
@@ -48,12 +49,18 @@ func InitializeProducer(ctx context.Context) {
 	}
 
 	// Initialize systems (seed builtins, register with chaos-experiment, set MetadataStore)
-	InitializeSystems()
+	if err := InitializeSystems(db); err != nil {
+		return fmt.Errorf("failed to initialize systems: %w", err)
+	}
+	common.RegisterGlobalHandlers(publisher)
+	if err := activateConfigScope(producerData.scope, listener); err != nil {
+		return err
+	}
 
-	registerHandlers(ctx, producerData.scope, nil)
+	return nil
 }
 
-func initializeProducer() error {
+func initializeProducer(db *gorm.DB) error {
 	dataPath := config.GetString("initialization.data_path")
 	filePath := filepath.Join(dataPath, consts.InitialFilename)
 	initialData, err := loadInitialDataFromFile(filePath)
@@ -62,7 +69,7 @@ func initializeProducer() error {
 	}
 
 	// System resources (following the order in system.go)
-	resources := []database.Resource{
+	resources := []model.Resource{
 		{Name: consts.ResourceSystem, Type: consts.ResourceTypeSystem, Category: consts.ResourceCategorySystem},
 		{Name: consts.ResourceAudit, Type: consts.ResourceTypeTable, Category: consts.ResourceCategorySystem},
 		{Name: consts.ResourceConfiguration, Type: consts.ResourceTypeTable, Category: consts.ResourceCategorySystem},
@@ -86,9 +93,9 @@ func initializeProducer() error {
 		resources[i].DisplayName = consts.GetResourceDisplayName(resources[i].Name)
 	}
 
-	systemRoles := make([]database.Role, 0)
+	systemRoles := make([]model.Role, 0)
 	for role, displayName := range consts.SystemRoleDisplayNames {
-		systemRoles = append(systemRoles, database.Role{
+		systemRoles = append(systemRoles, model.Role{
 			Name:        role.String(),
 			DisplayName: displayName,
 			IsSystem:    true,
@@ -96,9 +103,11 @@ func initializeProducer() error {
 		})
 	}
 
-	return withOptimizedDBSettings(func() error {
-		return database.DB.Transaction(func(tx *gorm.DB) error {
-			if err := repository.BatchUpsertResources(tx, resources); err != nil {
+	return withOptimizedDBSettings(db, func() error {
+		return db.Transaction(func(tx *gorm.DB) error {
+			txStore := newBootstrapStore(tx)
+
+			if err := txStore.upsertResources(resources); err != nil {
 				return fmt.Errorf("failed to create system resources: %w", err)
 			}
 
@@ -107,7 +116,7 @@ func initializeProducer() error {
 				resourceNames = append(resourceNames, res.Name)
 			}
 
-			allResourcesInDB, err := repository.ListResourcesByNames(tx, resourceNames)
+			allResourcesInDB, err := txStore.listResourcesByNames(resourceNames)
 			if err != nil {
 				return fmt.Errorf("failed to get system resources from database: %w", err)
 			}
@@ -116,8 +125,8 @@ func initializeProducer() error {
 				return fmt.Errorf("mismatch in number of resources created and fetched")
 			}
 
-			resourceMap := make(map[consts.ResourceName]*database.Resource, len(allResourcesInDB))
-			resourceIDMap = make(map[consts.ResourceName]int, len(allResourcesInDB))
+			resourceMap := make(map[consts.ResourceName]*model.Resource, len(allResourcesInDB))
+			resourceIDMap := make(map[consts.ResourceName]int, len(allResourcesInDB))
 			for _, res := range allResourcesInDB {
 				resourceIDMap[res.Name] = res.ID
 				resourceMap[res.Name] = &res
@@ -126,12 +135,12 @@ func initializeProducer() error {
 			resourceMap[consts.ResourceContainerVersion].ParentID = utils.IntPtr(resourceIDMap[consts.ResourceContainer])
 			resourceMap[consts.ResourceDatasetVersion].ParentID = utils.IntPtr(resourceIDMap[consts.ResourceDataset])
 
-			toUpdatedResources := []database.Resource{
+			toUpdatedResources := []model.Resource{
 				*resourceMap[consts.ResourceContainerVersion],
 				*resourceMap[consts.ResourceDatasetVersion],
 			}
 
-			if err := repository.BatchUpsertResources(tx, toUpdatedResources); err != nil {
+			if err := txStore.upsertResources(toUpdatedResources); err != nil {
 				return fmt.Errorf("failed to update resource parent IDs: %w", err)
 			}
 
@@ -157,7 +166,7 @@ func initializeProducer() error {
 				}
 			}
 
-			var permissionsToCreate []database.Permission
+			var permissionsToCreate []model.Permission
 			for permName, permData := range uniquePermissions {
 				resource, ok := resourceMap[permData.resourceName]
 				if !ok {
@@ -172,7 +181,7 @@ func initializeProducer() error {
 					}
 				}
 
-				permission := database.Permission{
+				permission := model.Permission{
 					Name:        permName,
 					DisplayName: permData.String(),
 					Action:      permData.action,
@@ -184,28 +193,28 @@ func initializeProducer() error {
 				permissionsToCreate = append(permissionsToCreate, permission)
 			}
 
-			if err := repository.BatchUpsertPermissions(tx, permissionsToCreate); err != nil {
+			if err := txStore.upsertPermissions(permissionsToCreate); err != nil {
 				return fmt.Errorf("failed to create system permissions: %w", err)
 			}
 
-			if err := repository.BatchUpsertRoles(tx, systemRoles); err != nil {
+			if err := txStore.upsertRoles(systemRoles); err != nil {
 				return fmt.Errorf("failed to create system roles: %w", err)
 			}
 
-			if err := assignSystemRolePermissions(tx); err != nil {
+			if err := assignSystemRolePermissions(txStore); err != nil {
 				return fmt.Errorf("failed to assign system role permissions: %w", err)
 			}
 
-			adminUser, err := initializeAdminUser(tx, initialData)
+			adminUser, err := initializeAdminUser(txStore, initialData)
 			if err != nil {
 				return fmt.Errorf("failed to initialize admin user: %w", err)
 			}
 
-			if err := initializeProjectsAndTeams(tx, initialData); err != nil {
+			if err := initializeProjectsAndTeams(txStore, initialData); err != nil {
 				return fmt.Errorf("failed to initialize admin user, projects and teams: %w", err)
 			}
 
-			if err := initializeUsers(tx, initialData); err != nil {
+			if err := initializeUsers(txStore, initialData); err != nil {
 				return fmt.Errorf("failed to initialize users: %w", err)
 			}
 
@@ -226,9 +235,9 @@ func initializeProducer() error {
 	})
 }
 
-func assignSystemRolePermissions(tx *gorm.DB) error {
+func assignSystemRolePermissions(store *bootstrapStore) error {
 	for roleName, permissionRules := range consts.SystemRolePermissions {
-		role, err := repository.GetRoleByName(tx, roleName.String())
+		role, err := store.getRoleByName(roleName.String())
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return fmt.Errorf("role %s not found", roleName)
@@ -237,20 +246,20 @@ func assignSystemRolePermissions(tx *gorm.DB) error {
 		}
 
 		if roleName == consts.RoleSuperAdmin {
-			permissions, err := repository.ListSystemPermissions(tx)
+			permissions, err := store.listSystemPermissions()
 			if err != nil {
 				return fmt.Errorf("failed to list system permissions: %w", err)
 			}
 
-			var rolePermissions []database.RolePermission
+			var rolePermissions []model.RolePermission
 			for _, perm := range permissions {
-				rolePermissions = append(rolePermissions, database.RolePermission{
+				rolePermissions = append(rolePermissions, model.RolePermission{
 					RoleID:       role.ID,
 					PermissionID: perm.ID,
 				})
 			}
 
-			if err := repository.BatchCreateRolePermissions(tx, rolePermissions); err != nil {
+			if err := store.createRolePermissions(rolePermissions); err != nil {
 				return fmt.Errorf("failed to assign all permissions to super admin role: %w", err)
 			}
 		} else {
@@ -259,20 +268,20 @@ func assignSystemRolePermissions(tx *gorm.DB) error {
 				permissionStrs = append(permissionStrs, rule.String())
 			}
 
-			permissions, err := repository.ListPermissionsByNames(tx, permissionStrs)
+			permissions, err := store.listPermissionsByNames(permissionStrs)
 			if err != nil {
 				return fmt.Errorf("failed to list permissions for role %s: %w", roleName, err)
 			}
 
-			var rolePermissions []database.RolePermission
+			var rolePermissions []model.RolePermission
 			for _, perm := range permissions {
-				rolePermissions = append(rolePermissions, database.RolePermission{
+				rolePermissions = append(rolePermissions, model.RolePermission{
 					RoleID:       role.ID,
 					PermissionID: perm.ID,
 				})
 			}
 
-			if err := repository.BatchCreateRolePermissions(tx, rolePermissions); err != nil {
+			if err := store.createRolePermissions(rolePermissions); err != nil {
 				return fmt.Errorf("failed to assign permissions to role %s: %w", roleName, err)
 			}
 		}
@@ -281,16 +290,16 @@ func assignSystemRolePermissions(tx *gorm.DB) error {
 	return nil
 }
 
-func initializeAdminUser(tx *gorm.DB, data *InitialData) (*database.User, error) {
+func initializeAdminUser(store *bootstrapStore, data *InitialData) (*model.User, error) {
 	adminUser := data.AdminUser.ConvertToDBUser()
-	if err := repository.CreateUser(tx, adminUser); err != nil {
+	if err := store.createUser(adminUser); err != nil {
 		if errors.Is(err, consts.ErrAlreadyExists) {
 			return nil, fmt.Errorf("admin user already exists")
 		}
 		return nil, fmt.Errorf("failed to create admin user: %w", err)
 	}
 
-	superAdminRole, err := repository.GetRoleByName(tx, "super_admin")
+	superAdminRole, err := store.getRoleByName("super_admin")
 	if err != nil {
 		if errors.Is(err, consts.ErrNotFound) {
 			return nil, fmt.Errorf("super_admin role not found, ensure system roles are initialized first")
@@ -298,11 +307,11 @@ func initializeAdminUser(tx *gorm.DB, data *InitialData) (*database.User, error)
 		return nil, fmt.Errorf("failed to get super_admin role: %w", err)
 	}
 
-	userRole := database.UserRole{
+	userRole := model.UserRole{
 		UserID: adminUser.ID,
 		RoleID: superAdminRole.ID,
 	}
-	if err := repository.CreateUserRole(tx, &userRole); err != nil {
+	if err := store.createUserRole(&userRole); err != nil {
 		if errors.Is(err, consts.ErrAlreadyExists) {
 			return nil, fmt.Errorf("admin user already has super_admin role")
 		}
@@ -312,10 +321,10 @@ func initializeAdminUser(tx *gorm.DB, data *InitialData) (*database.User, error)
 	return adminUser, nil
 }
 
-func initializeProjectsAndTeams(tx *gorm.DB, data *InitialData) error {
+func initializeProjectsAndTeams(store *bootstrapStore, data *InitialData) error {
 	for _, teamData := range data.Teams {
 		team := teamData.ConvertToDBTeam()
-		if err := repository.CreateTeam(tx, team); err != nil {
+		if err := store.createTeam(team); err != nil {
 			if errors.Is(err, consts.ErrAlreadyExists) {
 				return fmt.Errorf("team %s already exists", team.Name)
 			}
@@ -325,7 +334,7 @@ func initializeProjectsAndTeams(tx *gorm.DB, data *InitialData) error {
 
 	for _, projectData := range data.Projects {
 		project := projectData.ConvertToDBProject()
-		if err := repository.CreateProject(tx, project); err != nil {
+		if err := store.createProject(project); err != nil {
 			if errors.Is(err, consts.ErrAlreadyExists) {
 				return fmt.Errorf("project %s already exists", project.Name)
 			}
@@ -340,20 +349,20 @@ func initializeContainers(tx *gorm.DB, data *InitialData, userID int) error {
 	dataPath := config.GetString("initialization.data_path")
 
 	for _, containerData := range data.Containers {
-		container := containerData.ConvertToDBContainer()
-		if container.Type == consts.ContainerTypePedestal {
-			system := chaos.SystemType(container.Name)
+		containerModel := containerData.ConvertToDBContainer()
+		if containerModel.Type == consts.ContainerTypePedestal {
+			system := chaos.SystemType(containerModel.Name)
 			if !system.IsValid() {
-				return fmt.Errorf("invalid pedestal name: %s", container.Name)
+				return fmt.Errorf("invalid pedestal name: %s", containerModel.Name)
 			}
 		}
 
-		versions := make([]database.ContainerVersion, 0, len(containerData.Versions))
+		versions := make([]model.ContainerVersion, 0, len(containerData.Versions))
 		for _, versionData := range containerData.Versions {
 			version := versionData.ConvertToDBContainerVersion()
 
 			if len(versionData.EnvVars) > 0 {
-				params := make([]database.ParameterConfig, 0, len(versionData.EnvVars))
+				params := make([]model.ParameterConfig, 0, len(versionData.EnvVars))
 				for _, paramData := range versionData.EnvVars {
 					param := paramData.ConvertToDBParameterConfig()
 					params = append(params, *param)
@@ -364,7 +373,7 @@ func initializeContainers(tx *gorm.DB, data *InitialData, userID int) error {
 			if versionData.HelmConfig != nil {
 				helmConfig := versionData.HelmConfig.ConvertToDBHelmConfig()
 				if len(versionData.HelmConfig.Values) > 0 {
-					params := make([]database.ParameterConfig, 0, len(versionData.HelmConfig.Values))
+					params := make([]model.ParameterConfig, 0, len(versionData.HelmConfig.Values))
 					for _, paramData := range versionData.HelmConfig.Values {
 						param := paramData.ConvertToDBParameterConfig()
 						params = append(params, *param)
@@ -378,19 +387,17 @@ func initializeContainers(tx *gorm.DB, data *InitialData, userID int) error {
 			versions = append(versions, *version)
 		}
 
-		container.Versions = versions
+		containerModel.Versions = versions
 
-		createdContainer, err := producer.CreateContainerCore(tx, container, userID)
+		createdContainer, err := container.NewRepository(tx).CreateContainerCore(containerModel, userID)
 		if err != nil {
 			return fmt.Errorf("failed to create container %s: %w", containerData.Name, err)
 		}
 
 		if createdContainer.Type == consts.ContainerTypePedestal {
-			if err := producer.UploadHemlValueFileCore(
-				tx,
+			if err := container.NewRepository(tx).UploadHelmValueFileFromPath(
 				containerData.Name,
-				container.Versions[0].HelmConfig,
-				nil,
+				containerModel.Versions[0].HelmConfig,
 				filepath.Join(dataPath, fmt.Sprintf("%s.yaml", createdContainer.Name)),
 			); err != nil {
 				return fmt.Errorf("failed to upload helm value file for container %s: %w", containerData.Name, err)
@@ -403,15 +410,15 @@ func initializeContainers(tx *gorm.DB, data *InitialData, userID int) error {
 
 func initializeDatasets(tx *gorm.DB, data *InitialData, userID int) error {
 	for _, datasetData := range data.Datasets {
-		dataset := datasetData.ConvertToDBDataset()
+		datasetModel := datasetData.ConvertToDBDataset()
 
-		versions := make([]database.DatasetVersion, 0, len(datasetData.Versions))
+		versions := make([]model.DatasetVersion, 0, len(datasetData.Versions))
 		for _, versionData := range datasetData.Versions {
 			version := versionData.ConvertToDBDatasetVersion()
 			versions = append(versions, *version)
 		}
 
-		_, err := producer.CreateDatasetCore(tx, dataset, versions, userID)
+		_, err := dataset.NewRepository(tx).CreateDatasetCore(datasetModel, versions, userID)
 		if err != nil {
 			return fmt.Errorf("failed to create dataset %s: %w", datasetData.Name, err)
 		}
@@ -430,7 +437,7 @@ func initializeExecutionLabels(tx *gorm.DB) error {
 	}
 
 	for _, labelInfo := range sourceLabels {
-		_, err := producer.CreateLabelCore(tx, &database.Label{
+		_, err := label.NewRepository(tx).CreateLabelCore(tx, &model.Label{
 			Key:         consts.ExecutionLabelSource,
 			Value:       labelInfo.value,
 			Category:    consts.ExecutionCategory,
@@ -445,12 +452,12 @@ func initializeExecutionLabels(tx *gorm.DB) error {
 	return nil
 }
 
-func initializeUsers(tx *gorm.DB, data *InitialData) error {
+func initializeUsers(store *bootstrapStore, data *InitialData) error {
 	if len(data.Users) == 0 {
 		return nil
 	}
 
-	role, err := repository.GetRoleByName(tx, consts.RoleUser.String())
+	role, err := store.getRoleByName(consts.RoleUser.String())
 	if err != nil {
 		if errors.Is(err, consts.ErrNotFound) {
 			return fmt.Errorf("user role not found, ensure system roles are initialized first")
@@ -461,7 +468,7 @@ func initializeUsers(tx *gorm.DB, data *InitialData) error {
 	for _, userData := range data.Users {
 		user := userData.ConvertToDBUser()
 
-		if err := repository.CreateUser(tx, user); err != nil {
+		if err := store.createUser(user); err != nil {
 			if errors.Is(err, consts.ErrAlreadyExists) {
 				logrus.Warnf("User %s already exists, skipping", user.Username)
 				continue
@@ -469,7 +476,7 @@ func initializeUsers(tx *gorm.DB, data *InitialData) error {
 			return fmt.Errorf("failed to create user %s: %w", user.Username, err)
 		}
 
-		if err := repository.CreateUserRole(tx, &database.UserRole{
+		if err := store.createUserRole(&model.UserRole{
 			UserID: user.ID,
 			RoleID: role.ID,
 		}); err != nil {
@@ -480,7 +487,7 @@ func initializeUsers(tx *gorm.DB, data *InitialData) error {
 		if len(userData.Teams) > 0 {
 			for _, teamBinding := range userData.Teams {
 				// Get team by name
-				team, err := repository.GetTeamByName(tx, teamBinding.Name)
+				team, err := store.getTeamByName(teamBinding.Name)
 				if err != nil {
 					if errors.Is(err, gorm.ErrRecordNotFound) {
 						return fmt.Errorf("team %s not found for user %s", teamBinding.Name, user.Username)
@@ -489,7 +496,7 @@ func initializeUsers(tx *gorm.DB, data *InitialData) error {
 				}
 
 				// Get role by name for user-team binding
-				teamRole, err := repository.GetRoleByName(tx, teamBinding.Role)
+				teamRole, err := store.getRoleByName(teamBinding.Role)
 				if err != nil {
 					if errors.Is(err, consts.ErrNotFound) {
 						return fmt.Errorf("role %s not found for user %s in team %s", teamBinding.Role, user.Username, teamBinding.Name)
@@ -498,21 +505,19 @@ func initializeUsers(tx *gorm.DB, data *InitialData) error {
 				}
 
 				// Bind user to team with role
-				if err := repository.CreateUserTeam(tx, &database.UserTeam{
+				if err := store.createUserTeam(&model.UserTeam{
 					UserID: user.ID,
 					TeamID: team.ID,
 					RoleID: teamRole.ID,
 					Status: consts.CommonEnabled,
 				}); err != nil {
-					if !errors.Is(err, consts.ErrAlreadyExists) {
-						return fmt.Errorf("failed to bind user %s to team %s with role %s: %w", user.Username, teamBinding.Name, teamBinding.Role, err)
-					}
+					return fmt.Errorf("failed to bind user %s to team %s with role %s: %w", user.Username, teamBinding.Name, teamBinding.Role, err)
 				}
 
 				// Bind projects to this team and user if specified
 				if len(teamBinding.Projects) > 0 {
 					for _, projectBinding := range teamBinding.Projects {
-						project, err := repository.GetProjectByName(tx, projectBinding.Name)
+						project, err := store.getProjectByName(projectBinding.Name)
 						if err != nil {
 							if errors.Is(err, gorm.ErrRecordNotFound) {
 								return fmt.Errorf("project %s not found for team %s", projectBinding.Name, teamBinding.Name)
@@ -522,14 +527,14 @@ func initializeUsers(tx *gorm.DB, data *InitialData) error {
 
 						// Update project's team_id to bind project to team
 						project.TeamID = &team.ID
-						if err := repository.UpdateProject(tx, project); err != nil {
+						if err := store.saveProject(project); err != nil {
 							return fmt.Errorf("failed to bind project %s to team %s: %w", projectBinding.Name, teamBinding.Name, err)
 						}
 
 						logrus.Infof("Bound project %s to team %s", projectBinding.Name, teamBinding.Name)
 
 						// Get role for user-project binding
-						projectRole, err := repository.GetRoleByName(tx, projectBinding.Role)
+						projectRole, err := store.getRoleByName(projectBinding.Role)
 						if err != nil {
 							if errors.Is(err, consts.ErrNotFound) {
 								return fmt.Errorf("role %s not found for user %s in project %s", projectBinding.Role, user.Username, projectBinding.Name)
@@ -538,15 +543,13 @@ func initializeUsers(tx *gorm.DB, data *InitialData) error {
 						}
 
 						// Bind user to project with role
-						if err := repository.CreateUserProject(tx, &database.UserProject{
+						if err := store.createUserProject(&model.UserProject{
 							UserID:    user.ID,
 							ProjectID: project.ID,
 							RoleID:    projectRole.ID,
 							Status:    consts.CommonEnabled,
 						}); err != nil {
-							if !errors.Is(err, consts.ErrAlreadyExists) {
-								return fmt.Errorf("failed to bind user %s to project %s with role %s: %w", user.Username, projectBinding.Name, projectBinding.Role, err)
-							}
+							return fmt.Errorf("failed to bind user %s to project %s with role %s: %w", user.Username, projectBinding.Name, projectBinding.Role, err)
 						}
 					}
 				}
@@ -559,7 +562,7 @@ func initializeUsers(tx *gorm.DB, data *InitialData) error {
 		if len(userData.Projects) > 0 {
 			for _, projectBinding := range userData.Projects {
 				// Get project by name
-				project, err := repository.GetProjectByName(tx, projectBinding.Name)
+				project, err := store.getProjectByName(projectBinding.Name)
 				if err != nil {
 					if errors.Is(err, gorm.ErrRecordNotFound) {
 						return fmt.Errorf("project %s not found for user %s", projectBinding.Name, user.Username)
@@ -568,7 +571,7 @@ func initializeUsers(tx *gorm.DB, data *InitialData) error {
 				}
 
 				// Get role by name
-				projectRole, err := repository.GetRoleByName(tx, projectBinding.Role)
+				projectRole, err := store.getRoleByName(projectBinding.Role)
 				if err != nil {
 					if errors.Is(err, consts.ErrNotFound) {
 						return fmt.Errorf("role %s not found for user %s in project %s", projectBinding.Role, user.Username, projectBinding.Name)
@@ -577,15 +580,13 @@ func initializeUsers(tx *gorm.DB, data *InitialData) error {
 				}
 
 				// Bind user to project with role
-				if err := repository.CreateUserProject(tx, &database.UserProject{
+				if err := store.createUserProject(&model.UserProject{
 					UserID:    user.ID,
 					ProjectID: project.ID,
 					RoleID:    projectRole.ID,
 					Status:    consts.CommonEnabled,
 				}); err != nil {
-					if !errors.Is(err, consts.ErrAlreadyExists) {
-						return fmt.Errorf("failed to bind user %s to project %s with role %s: %w", user.Username, projectBinding.Name, projectBinding.Role, err)
-					}
+					return fmt.Errorf("failed to bind user %s to project %s with role %s: %w", user.Username, projectBinding.Name, projectBinding.Role, err)
 				}
 			}
 		}

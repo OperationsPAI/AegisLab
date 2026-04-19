@@ -147,7 +147,7 @@ initialization:
 configmap:
   name: "rcabench"
   version: "1.0.0"
-  port: 8080
+  port: 8082
   workspace: "/app"
   system:
     env_mode: "prod"
@@ -192,6 +192,29 @@ configmap:
   otlp:
     port: 4319
     max_request_size: 5242880
+
+microservices:
+  apiGateway:
+    replicaCount: 1
+    service:
+      type: ClusterIP
+      nodePort: 32082
+    httpPort: 8082
+  iamService:
+    replicaCount: 1
+    grpcPort: 9091
+  orchestratorService:
+    replicaCount: 1
+    grpcPort: 9092
+  resourceService:
+    replicaCount: 1
+    grpcPort: 9093
+  runtimeWorkerService:
+    replicaCount: 1
+    grpcPort: 9094
+  systemService:
+    replicaCount: 1
+    grpcPort: 9095
 
 persistence:
   # Global storage type setting - applies to containers, logs, and juicefs sections

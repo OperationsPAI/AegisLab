@@ -9,10 +9,9 @@ import (
 	"time"
 
 	"aegis/consts"
-	"aegis/database"
 	"aegis/dto"
-	"aegis/repository"
-	"aegis/service/common"
+	"aegis/model"
+	injection "aegis/module/injection"
 	"aegis/tracing"
 	"aegis/utils"
 
@@ -20,7 +19,6 @@ import (
 	"github.com/OperationsPAI/chaos-experiment/pkg/guidedcli"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/trace"
-	"gorm.io/gorm"
 )
 
 // injectionPayload contains all necessary data for executing a fault injection batch
@@ -29,8 +27,7 @@ type injectionPayload struct {
 	preDuration int
 	nodes       []chaos.Node
 	// guidedConfigs is populated when the inject task came from the guided-cli
-	// path (chaos_type-bearing specs). Mutually exclusive with nodes. The
-	// executor calls guidedcli.BuildInjection to produce InjectionConf.
+	// path. Mutually exclusive with nodes.
 	guidedConfigs []guidedcli.GuidedConfig
 	namespace     string
 	pedestal      chaos.SystemType
@@ -39,41 +36,33 @@ type injectionPayload struct {
 	system        chaos.SystemType
 }
 
-type batchManager struct {
+type FaultBatchManager struct {
 	mu              sync.RWMutex
 	batchCounts     map[string]int
 	batchInjections map[string][]string
 }
 
-var (
-	batchManagerInstance *batchManager
-	batchManagerOnce     sync.Once
-)
-
-func getBatchManager() *batchManager {
-	batchManagerOnce.Do(func() {
-		batchManagerInstance = &batchManager{
-			batchCounts:     make(map[string]int),
-			batchInjections: make(map[string][]string),
-		}
-	})
-	return batchManagerInstance
+func NewFaultBatchManager() *FaultBatchManager {
+	return &FaultBatchManager{
+		batchCounts:     make(map[string]int),
+		batchInjections: make(map[string][]string),
+	}
 }
 
-func (bm *batchManager) deleteBatch(batchID string) {
+func (bm *FaultBatchManager) deleteBatch(batchID string) {
 	bm.mu.Lock()
 	defer bm.mu.Unlock()
 	delete(bm.batchCounts, batchID)
 	delete(bm.batchInjections, batchID)
 }
 
-func (bm *batchManager) incrementBatchCount(batchID string) {
+func (bm *FaultBatchManager) incrementBatchCount(batchID string) {
 	bm.mu.Lock()
 	defer bm.mu.Unlock()
 	bm.batchCounts[batchID]++
 }
 
-func (bm *batchManager) isFinished(batchID string) bool {
+func (bm *FaultBatchManager) isFinished(batchID string) bool {
 	bm.mu.RLock()
 	defer bm.mu.RUnlock()
 
@@ -89,7 +78,7 @@ func (bm *batchManager) isFinished(batchID string) bool {
 	return count >= len(injectionNames)
 }
 
-func (bm *batchManager) setBatchInjections(batchID string, injectionNames []string) {
+func (bm *FaultBatchManager) setBatchInjections(batchID string, injectionNames []string) {
 	bm.mu.Lock()
 	defer bm.mu.Unlock()
 	bm.batchCounts[batchID] = 0
@@ -108,8 +97,13 @@ func (bm *batchManager) setBatchInjections(batchID string, injectionNames []stri
 // Storage format:
 //   - engine_config: JSON array of all chaos.Node objects
 //   - display_config: JSON array of display maps for each fault
-func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
+func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask, deps RuntimeDeps) error {
 	return tracing.WithSpan(ctx, func(childCtx context.Context) error {
+		batchManager := deps.FaultBatchManager
+		if batchManager == nil {
+			return fmt.Errorf("fault batch manager is nil")
+		}
+
 		span := trace.SpanFromContext(childCtx)
 		logEntry := logrus.WithFields(logrus.Fields{
 			"task_id":  task.TaskID,
@@ -121,7 +115,10 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 			return handleExecutionError(span, logEntry, "failed to parse injection payload", err)
 		}
 
-		monitor := GetMonitor()
+		monitor := deps.Monitor
+		if monitor == nil {
+			return handleExecutionError(span, logEntry, "monitor not initialized", fmt.Errorf("monitor not initialized"))
+		}
 		toReleased := false
 		if err := monitor.CheckNamespaceToInject(payload.namespace, time.Now(), task.TraceID); err != nil {
 			toReleased = true
@@ -140,55 +137,53 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 		}()
 
 		// Process all faults in the batch. Guided and legacy paths converge on
-		// []InjectionConf; only the upstream conversion differs. The engine
-		// config we persist differs too: guided path stores the GuidedConfig
-		// slice (human-auditable), legacy path stores the Node slice.
+		// []InjectionConf; only the upstream conversion differs.
 		batchLen := len(payload.nodes)
 		if len(payload.guidedConfigs) > 0 {
 			batchLen = len(payload.guidedConfigs)
 		}
 		injectionConfs := make([]chaos.InjectionConf, 0, batchLen)
 		displayMaps := make([]map[string]any, 0, batchLen)
-		groundtruths := make([]database.Groundtruth, 0, batchLen)
+		groundtruths := make([]model.Groundtruth, 0, batchLen)
 
 		if len(payload.guidedConfigs) > 0 {
 			for i, cfg := range payload.guidedConfigs {
-				conf, _, err := guidedcli.BuildInjection(childCtx, cfg)
+				conf, _, err := guidedcli.BuildInjection(ctx, cfg)
 				if err != nil {
 					return handleExecutionError(span, logEntry, fmt.Sprintf("failed to build guided injection %d", i), err)
 				}
-				displayMap, err := conf.GetDisplayConfig(childCtx)
+				displayMap, err := conf.GetDisplayConfig(ctx)
 				if err != nil {
 					return handleExecutionError(span, logEntry, fmt.Sprintf("failed to get display config for guided config %d", i), err)
 				}
-				chaosGroundtruth, err := conf.GetGroundtruth(childCtx)
+				chaosGroundtruth, err := conf.GetGroundtruth(ctx)
 				if err != nil {
 					return handleExecutionError(span, logEntry, fmt.Sprintf("failed to get groundtruth for guided config %d", i), err)
 				}
 				injectionConfs = append(injectionConfs, conf)
 				displayMaps = append(displayMaps, displayMap)
-				groundtruths = append(groundtruths, *database.NewDBGroundtruth(&chaosGroundtruth))
+				groundtruths = append(groundtruths, *model.NewDBGroundtruth(&chaosGroundtruth))
 			}
 		} else {
 			for i, node := range payload.nodes {
-				injectionConf, err := chaos.NodeToStruct[chaos.InjectionConf](childCtx, &node)
+				injectionConf, err := chaos.NodeToStruct[chaos.InjectionConf](ctx, &node)
 				if err != nil {
 					return handleExecutionError(span, logEntry, fmt.Sprintf("failed to convert node %d to injection conf", i), err)
 				}
 
-				displayMap, err := injectionConf.GetDisplayConfig(childCtx)
+				displayMap, err := injectionConf.GetDisplayConfig(ctx)
 				if err != nil {
 					return handleExecutionError(span, logEntry, fmt.Sprintf("failed to get display config for node %d", i), err)
 				}
 
-				chaosGroundtruth, err := injectionConf.GetGroundtruth(childCtx)
+				chaosGroundtruth, err := injectionConf.GetGroundtruth(ctx)
 				if err != nil {
 					return handleExecutionError(span, logEntry, fmt.Sprintf("failed to get groundtruth for node %d", i), err)
 				}
 
 				injectionConfs = append(injectionConfs, *injectionConf)
 				displayMaps = append(displayMaps, displayMap)
-				groundtruths = append(groundtruths, *database.NewDBGroundtruth(&chaosGroundtruth))
+				groundtruths = append(groundtruths, *model.NewDBGroundtruth(&chaosGroundtruth))
 			}
 		}
 
@@ -198,8 +193,8 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 			return handleExecutionError(span, logEntry, "failed to marshal injection specs to display config", err)
 		}
 
-		// Marshal engine config as array — the raw user-facing form of each
-		// injection. Guided path: GuidedConfig slice. Legacy path: Node slice.
+		// Marshal engine config as array — guided path stores GuidedConfigs
+		// (human-auditable); legacy stores Nodes.
 		var engineData []byte
 		if len(payload.guidedConfigs) > 0 {
 			engineData, err = json.Marshal(payload.guidedConfigs)
@@ -244,7 +239,7 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 		if len(names) > 1 {
 			name = batchID
 			faultType = consts.Hybrid
-			getBatchManager().setBatchInjections(batchID, names)
+			batchManager.setBatchInjections(batchID, names)
 		} else {
 			name = names[0]
 			switch {
@@ -259,44 +254,30 @@ func executeFaultInjection(ctx context.Context, task *dto.UnifiedTask) error {
 			}
 		}
 
-		return database.DB.Transaction(func(tx *gorm.DB) error {
-			injection := &database.FaultInjection{
-				Name:              name,
-				FaultType:         faultType,
-				Category:          payload.pedestal,
-				Description:       fmt.Sprintf("Fault batch for task %s (%d faults)", task.TaskID, len(injectionConfs)),
-				DisplayConfig:     utils.StringPtr(string(displayData)),
-				EngineConfig:      string(engineData),
-				Groundtruths:      groundtruths,
-				GroundtruthSource: consts.GroundtruthSourceAuto,
-				PreDuration:       payload.preDuration,
-				State:             consts.DatapackInitial,
-				Status:            consts.CommonEnabled,
-				TaskID:            &task.TaskID,
-				BenchmarkID:       utils.IntPtr(payload.benchmark.ID),
-				PedestalID:        utils.IntPtr(payload.pedestalID),
-			}
+		if deps.InjectionOwner == nil {
+			return handleExecutionError(span, logEntry, "injection owner service is nil", fmt.Errorf("missing injection owner service"))
+		}
 
-			if err = repository.CreateInjection(database.DB, injection); err != nil {
-				return handleExecutionError(span, logEntry, "failed to write fault injection schedule to database", err)
-			}
-
-			labels, err := common.CreateOrUpdateLabelsFromItems(tx, payload.labels, consts.InjectionCategory)
-			if err != nil {
-				return handleExecutionError(span, logEntry, "failed to create or update labels", err)
-			}
-
-			labelIDs := make([]int, 0, len(labels))
-			for _, label := range labels {
-				labelIDs = append(labelIDs, label.ID)
-			}
-
-			if err := repository.AddInjectionLabels(tx, injection.ID, labelIDs); err != nil {
-				return handleExecutionError(span, logEntry, "failed to associate labels with injection", err)
-			}
-
-			return nil
+		_, err = deps.InjectionOwner.CreateInjection(childCtx, &injection.RuntimeCreateInjectionReq{
+			Name:              name,
+			FaultType:         faultType,
+			Category:          payload.pedestal,
+			Description:       fmt.Sprintf("Fault batch for task %s (%d faults)", task.TaskID, len(payload.nodes)),
+			DisplayConfig:     string(displayData),
+			EngineConfig:      string(engineData),
+			Groundtruths:      groundtruths,
+			GroundtruthSource: consts.GroundtruthSourceAuto,
+			PreDuration:       payload.preDuration,
+			TaskID:            task.TaskID,
+			BenchmarkID:       utils.IntPtr(payload.benchmark.ID),
+			PedestalID:        utils.IntPtr(payload.pedestalID),
+			Labels:            payload.labels,
+			State:             consts.DatapackInitial,
 		})
+		if err != nil {
+			return handleExecutionError(span, logEntry, "failed to write fault injection schedule to owner service", err)
+		}
+		return nil
 	})
 }
 
@@ -337,12 +318,10 @@ func parseInjectionPayload(payload map[string]any) (*injectionPayload, error) {
 			return nil, fmt.Errorf("at least one guided config is required in %s", consts.InjectGuidedConfigs)
 		}
 	} else {
-		// Parse nodes array - now supports multiple fault nodes
 		nodes, err = utils.ConvertToType[[]chaos.Node](payload[consts.InjectNodes])
 		if err != nil {
 			return nil, fmt.Errorf(message, consts.InjectNodes)
 		}
-
 		if len(nodes) == 0 {
 			return nil, fmt.Errorf("at least one fault node is required in %s", consts.InjectNodes)
 		}

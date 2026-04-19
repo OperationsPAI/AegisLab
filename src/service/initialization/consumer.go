@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"aegis/client/k8s"
 	"aegis/config"
 	"aegis/consts"
-	"aegis/database"
-	"aegis/repository"
+	k8s "aegis/infra/k8s"
+	redis "aegis/infra/redis"
+	"aegis/model"
+	ratelimiter "aegis/module/ratelimiter"
 	"aegis/service/common"
 	"aegis/service/consumer"
 
@@ -17,35 +18,60 @@ import (
 	"gorm.io/gorm"
 )
 
-var consumerData *configData
-
-func InitConcurrencyLock(ctx context.Context) {
-	if err := repository.InitConcurrencyLock(ctx); err != nil {
-		logrus.Fatalf("error setting concurrency lock to 0: %v", err)
+func InitializeConsumer(
+	ctx context.Context,
+	db *gorm.DB,
+	controller *k8s.Controller,
+	monitor consumer.NamespaceMonitor,
+	publisher *redis.Gateway,
+	listener *common.ConfigUpdateListener,
+	restartLimiter *consumer.TokenBucketRateLimiter,
+	buildLimiter *consumer.TokenBucketRateLimiter,
+	algoLimiter *consumer.TokenBucketRateLimiter,
+) error {
+	consumerData, err := newConfigDataWithDB(db, consts.ConfigScopeConsumer)
+	if err != nil {
+		return fmt.Errorf("failed to load consumer config metadata: %w", err)
 	}
-}
-
-func InitializeConsumer(ctx context.Context) {
-	consumerData = newConfigData(consts.ConfigScopeConsumer)
 
 	if len(consumerData.configs) == 0 {
 		logrus.Info("Seeding initial system data for consumer...")
-		if err := initializeConsumer(); err != nil {
-			logrus.Fatalf("Failed to initialize system data for consumer: %v", err)
+		if err := initializeConsumer(db); err != nil {
+			return fmt.Errorf("failed to initialize system data for consumer: %w", err)
 		}
 		logrus.Info("Successfully seeded initial system data for consumer")
 	} else {
 		logrus.Info("Initial system data for consumer already seeded, skipping initialization")
 	}
 
-	registerHandlers(ctx, consumerData.scope, consumer.RegisterConsumerHandlers)
+	common.RegisterGlobalHandlers(publisher)
+	consumer.RegisterConsumerHandlers(controller, monitor, publisher, restartLimiter, buildLimiter, algoLimiter)
+	if err := activateConfigScope(consumerData.scope, listener); err != nil {
+		return err
+	}
 
-	// Initialize namespaces on startup - critical after restart to re-initialize CRD informers
-	logrus.Info("Initializing namespaces on startup...")
-	monitor := consumer.GetMonitor()
+	// Auto-GC leaked rate-limiter tokens on startup (OperationsPAI/aegis#21).
+	rlSvc := ratelimiter.NewService(publisher, db)
+	if released, buckets, err := rlSvc.GC(ctx); err != nil {
+		logrus.WithError(err).Warn("rate-limiter startup GC failed")
+	} else if released > 0 {
+		logrus.WithFields(logrus.Fields{"released": released, "buckets": buckets}).
+			Info("rate-limiter startup GC completed")
+	}
+
+	// Namespace/bootstrap informer initialization can take noticeably longer than
+	// the Fx startup deadline when the local cluster is cold or slow. Run it in
+	// the background so consumer/both startup does not fail with
+	// "context deadline exceeded" during local debugging.
 	if monitor == nil {
 		logrus.Warn("Monitor not initialized, skipping namespace initialization")
-	} else {
+		return nil
+	}
+
+	monitor.SetContext(ctx)
+	go func() {
+		logrus.Info("Initializing namespaces on startup...")
+
 		initialized, err := monitor.InitializeNamespaces()
 		if err != nil {
 			logrus.Errorf("Failed to initialize namespaces: %v", err)
@@ -58,14 +84,15 @@ func InitializeConsumer(ctx context.Context) {
 		}
 
 		logrus.Infof("Initialized namespaces on startup: %v", initialized)
-		if err := consumer.UpdateK8sController(k8s.GetK8sController(), initialized, []string{}); err != nil {
+		if err := consumer.UpdateK8sController(controller, initialized, []string{}); err != nil {
 			logrus.Errorf("Failed to update k8s controller: %v", err)
-			return
 		}
-	}
+	}()
+
+	return nil
 }
 
-func initializeConsumer() error {
+func initializeConsumer(db *gorm.DB) error {
 	dataPath := config.GetString("initialization.data_path")
 	filePath := filepath.Join(dataPath, consts.InitialFilename)
 	initialData, err := loadInitialDataFromFile(filePath)
@@ -73,9 +100,9 @@ func initializeConsumer() error {
 		return fmt.Errorf("failed to load initial data from file: %w", err)
 	}
 
-	return withOptimizedDBSettings(func() error {
-		err := database.DB.Transaction(func(tx *gorm.DB) error {
-			if err := initializeDynamicConfigs(tx, initialData); err != nil {
+	return withOptimizedDBSettings(db, func() error {
+		err := db.Transaction(func(tx *gorm.DB) error {
+			if _, err := initializeDynamicConfigs(tx, initialData); err != nil {
 				return fmt.Errorf("failed to initialize dynamic configs for consumer: %w", err)
 			}
 			return nil
@@ -88,21 +115,20 @@ func initializeConsumer() error {
 	})
 }
 
-func initializeDynamicConfigs(tx *gorm.DB, data *InitialData) error {
-	var configs []database.DynamicConfig
+func initializeDynamicConfigs(tx *gorm.DB, data *InitialData) ([]model.DynamicConfig, error) {
+	var configs []model.DynamicConfig
 	for _, configData := range data.DynamicConfigs {
 		cfg := configData.ConvertToDBDynamicConfig()
 		if err := common.ValidateConfigMetadataConstraints(cfg); err != nil {
-			return fmt.Errorf("invalid config value for key %s: %w", configData.Key, err)
+			return nil, fmt.Errorf("invalid config value for key %s: %w", configData.Key, err)
 		}
 
 		if err := common.CreateConfig(tx, cfg); err != nil {
-			return fmt.Errorf("failed to create dynamic config %s: %w", configData.Key, err)
+			return nil, fmt.Errorf("failed to create dynamic config %s: %w", configData.Key, err)
 		}
 
 		configs = append(configs, *cfg)
 	}
 
-	consumerData.configs = configs
-	return nil
+	return configs, nil
 }
