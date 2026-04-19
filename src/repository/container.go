@@ -201,7 +201,7 @@ func CheckContainerExistsWithDifferentType(db *gorm.DB, containerName string, re
 	var container database.Container
 
 	query := db.Table("containers").
-		Where("name = ? AND type != ? AND status = ?", containerName, requestedType, consts.CommonEnabled)
+		Where("containers.name = ? AND containers.type != ? AND containers.status = ?", containerName, requestedType, consts.CommonEnabled)
 
 	if userID > 0 {
 		query = query.Joins(

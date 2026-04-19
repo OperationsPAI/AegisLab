@@ -23,6 +23,7 @@ import (
 	"time"
 
 	chaos "github.com/OperationsPAI/chaos-experiment/handler"
+	"github.com/OperationsPAI/chaos-experiment/pkg/guidedcli"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -31,8 +32,12 @@ import (
 type injectionProcessItem struct {
 	index         int          // Batch index in the original request
 	faultDuration int          // Maximum duration among all faults in this batch
-	nodes         []chaos.Node // Multiple fault nodes to be injected in parallel
-	executeTime   time.Time    // Execution time for this batch
+	nodes         []chaos.Node // Multiple fault nodes to be injected in parallel (legacy path)
+	// guidedConfigs holds chaos-experiment guided configs when the submission
+	// was routed through pkg/guidedcli (PR 2). Mutually exclusive with nodes:
+	// exactly one of the two slices is populated for a given item.
+	guidedConfigs []guidedcli.GuidedConfig
+	executeTime   time.Time // Execution time for this batch
 }
 
 // BatchDeleteInjectionsByIDs deletes fault injections based on their IDs
@@ -862,25 +867,41 @@ func ProduceRestartPedestalTasks(ctx context.Context, req *dto.SubmitInjectionRe
 
 	benchmarkVersionItem.EnvVars = envVars
 
-	// Use ResolvedSpecs (populated by handler-level ResolveSpecs call) instead of raw Specs
-	specs := req.ResolvedSpecs
-	if len(specs) == 0 {
+	// Use resolved fields (populated by handler-level ResolveSpecs call) instead of raw Specs.
+	// Exactly one of ResolvedSpecs or ResolvedGuidedConfigs is populated.
+	legacySpecs := req.ResolvedSpecs
+	guidedSpecs := req.ResolvedGuidedConfigs
+	if len(legacySpecs) == 0 && len(guidedSpecs) == 0 {
 		return nil, fmt.Errorf("no resolved specs available; call ResolveSpecs before ProduceRestartPedestalTasks")
 	}
 
-	// Parse each batch and collect items
-	processedItems := make([]injectionProcessItem, 0, len(specs))
+	// Parse each batch and collect items — dispatch on which resolved path is populated.
+	processedItems := make([]injectionProcessItem, 0, max(len(legacySpecs), len(guidedSpecs)))
 	var parseWarnings []string
-	for i := range specs {
-		item, warning, err := parseBatchInjectionSpecs(ctx, pedestalItem.ContainerName, i, specs[i])
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse injection spec batch %d: %w", i, err)
+	if len(guidedSpecs) > 0 {
+		for i := range guidedSpecs {
+			item, warning, err := parseBatchGuidedSpecs(ctx, pedestalItem.ContainerName, i, guidedSpecs[i])
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse guided spec batch %d: %w", i, err)
+			}
+			if warning != "" {
+				parseWarnings = append(parseWarnings, warning)
+			} else {
+				processedItems = append(processedItems, *item)
+			}
 		}
+	} else {
+		for i := range legacySpecs {
+			item, warning, err := parseBatchInjectionSpecs(ctx, pedestalItem.ContainerName, i, legacySpecs[i])
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse injection spec batch %d: %w", i, err)
+			}
 
-		if warning != "" {
-			parseWarnings = append(parseWarnings, warning)
-		} else {
-			processedItems = append(processedItems, *item)
+			if warning != "" {
+				parseWarnings = append(parseWarnings, warning)
+			} else {
+				processedItems = append(processedItems, *item)
+			}
 		}
 	}
 
@@ -938,18 +959,26 @@ func ProduceRestartPedestalTasks(ctx context.Context, req *dto.SubmitInjectionRe
 
 	injectionItems := make([]dto.SubmitInjectionItem, 0, len(uniqueItems))
 	for _, item := range uniqueItems {
+		injectPayload := map[string]any{
+			consts.InjectBenchmark:   benchmarkVersionItem,
+			consts.InjectPreDuration: req.PreDuration,
+			consts.InjectLabels:      req.Labels,
+			consts.InjectSystem:      chaos.SystemType(pedestalItem.ContainerName),
+		}
+		// Exactly one of nodes / guidedConfigs is populated on item. The
+		// consumer side (parseInjectionPayload) dispatches on which key is
+		// present — guided_configs wins if both happen to be set.
+		if len(item.guidedConfigs) > 0 {
+			injectPayload[consts.InjectGuidedConfigs] = item.guidedConfigs
+		} else {
+			injectPayload[consts.InjectNodes] = item.nodes
+		}
 		payload := map[string]any{
 			consts.RestartPedestal:      pedestalItem,
 			consts.RestartHelmConfig:    helmConfig,
 			consts.RestartIntarval:      req.Interval,
 			consts.RestartFaultDuration: item.faultDuration,
-			consts.RestartInjectPayload: map[string]any{
-				consts.InjectBenchmark:   benchmarkVersionItem,
-				consts.InjectPreDuration: req.PreDuration,
-				consts.InjectNodes:       item.nodes,
-				consts.InjectLabels:      req.Labels,
-				consts.InjectSystem:      chaos.SystemType(pedestalItem.ContainerName),
-			},
+			consts.RestartInjectPayload: injectPayload,
 		}
 
 		task := &dto.UnifiedTask{
@@ -1197,6 +1226,69 @@ func parseBatchInjectionSpecs(ctx context.Context, pedestal string, batchIndex i
 	}, warning, nil
 }
 
+// parseBatchGuidedSpecs parses a single batch of GuidedConfig specs for
+// parallel execution. Mirrors parseBatchInjectionSpecs but skips the chaos.Node
+// round-trip: each GuidedConfig is resolved to an InjectionConf via
+// guidedcli.BuildInjection solely to compute duration, system-type sanity
+// check, and groundtruth-service dedup warnings. The returned item carries the
+// original GuidedConfigs; the actual BuildInjection call at execute-time lives
+// in the consumer so we only pay for it once in the hot path.
+func parseBatchGuidedSpecs(ctx context.Context, pedestal string, batchIndex int, configs []guidedcli.GuidedConfig) (*injectionProcessItem, string, error) {
+	if len(configs) == 0 {
+		return nil, "", fmt.Errorf("empty guided fault batch at index %d", batchIndex)
+	}
+
+	maxDuration := 0
+	uniqueServices := make(map[string]int, len(configs))
+	var duplicateServiceWarnings []string
+
+	for idx, cfg := range configs {
+		conf, systemType, err := guidedcli.BuildInjection(ctx, cfg)
+		if err != nil {
+			return nil, "", fmt.Errorf("failed to build injection from guided config at index %d: %w", idx, err)
+		}
+		if pedestal != systemType.String() {
+			return nil, "", fmt.Errorf("mismatched system type %s for pedestal %s at index %d", systemType.String(), pedestal, idx)
+		}
+
+		duration := 0
+		if cfg.Duration != nil {
+			duration = *cfg.Duration
+		}
+		if duration > maxDuration {
+			maxDuration = duration
+		}
+
+		groundtruth, err := conf.GetGroundtruth(ctx)
+		if err != nil {
+			return nil, "", fmt.Errorf("failed to get groundtruth from guided config at index %d: %w", idx, err)
+		}
+		for _, service := range groundtruth.Service {
+			if service == "" {
+				continue
+			}
+			if oldIdx, exists := uniqueServices[service]; exists {
+				duplicateServiceWarnings = append(duplicateServiceWarnings,
+					fmt.Sprintf("service '%s' at positions %d and %d", service, oldIdx, idx))
+				continue
+			}
+			uniqueServices[service] = idx
+		}
+	}
+
+	var warning string
+	if len(duplicateServiceWarnings) > 0 {
+		warning = fmt.Sprintf("Batch %d contains duplicate service injections: %s",
+			batchIndex, strings.Join(duplicateServiceWarnings, "; "))
+	}
+
+	return &injectionProcessItem{
+		index:         batchIndex,
+		faultDuration: maxDuration,
+		guidedConfigs: configs,
+	}, warning, nil
+}
+
 // flattenYAMLToParameters converts nested YAML map to flat parameter specs
 func flattenYAMLToParameters(data map[string]any, prefix string) []dto.ParameterSpec {
 	var params []dto.ParameterSpec
@@ -1238,13 +1330,19 @@ func flattenYAMLToParameters(data map[string]any, prefix string) []dto.Parameter
 func removeDuplicated(items []injectionProcessItem) ([]injectionProcessItem, []int, []int, error) {
 	engineConfigStrs := make([]string, len(items))
 	for i, item := range items {
-		if len(item.nodes) == 0 {
+		var payload any
+		switch {
+		case len(item.guidedConfigs) > 0:
+			payload = item.guidedConfigs
+		case len(item.nodes) > 0:
+			payload = item.nodes
+		default:
 			engineConfigStrs[i] = ""
 			continue
 		}
 
-		// Marshal the entire batch of nodes as the engine config
-		b, err := json.Marshal(item.nodes)
+		// Marshal the entire batch as the engine config key
+		b, err := json.Marshal(payload)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("failed to marshal engine config at batch index %d: %w", i, err)
 		}

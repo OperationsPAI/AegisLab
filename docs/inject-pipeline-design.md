@@ -1,152 +1,106 @@
-# Fault Injection Pipeline — Design Decision (2026-04-18)
+# Fault Injection Pipeline — Design (2026-04-18)
 
-This document captures why the inject pipeline uses `chaoscli.Spec` end-to-end
-instead of the older Node-tree + translate round-trip design. It is implicit
-business knowledge that isn't obvious from the code alone.
+**Supersedes** the retired `chaoscli.Spec` end-to-end design (same file,
+same date). The `chaoscli` package was deleted; `pkg/guidedcli` is now the
+canonical data model.
 
-## The two designs
+## Wire format
 
-**Old (pre-refactor, now deprecated):**
+`POST /api/v2/projects/{id}/injections/inject` body is `dto.SubmitInjectionReq`:
+
+- `pedestal`, `benchmark`, `interval`, `pre_duration`, `algorithms`
+- `Specs [][]json.RawMessage` — outer = batches, inner = homogeneous specs
+
+Each raw-message element is one of three shapes:
+
+| Shape | Identified by | Status |
+|---|---|---|
+| **Guided** | `chaos_type` field present | preferred (new) |
+| **Node DSL** | chaos-experiment Node tree (int-indexed children) | legacy |
+| **FriendlyFaultSpec** | `type` + `target` + `params` strings | legacy |
+
+See `src/dto/injection.go` (`SubmitInjectionReq`, `ResolveSpecs`).
+
+## Flow
 
 ```
-aegisctl → FaultSpec YAML
-    ↓ POST /api/v2/injections/translate
-    ← Backend returns chaos-experiment Node tree (int-indexed, field-name-keyed children)
-    ↓ POST /api/v2/projects/:id/injections/inject (payload = Node tree)
-Handler parseBatchInjectionSpecs:
-    Expects spec.Children[strconv.Itoa(spec.Value)]  (keyed by chaos type int "17")
-Consumer fault_injection:
-    chaos.NodeToStruct[chaos.InjectionConf](ctx, &node)
-    injectionConf.GetDisplayConfig(ctx) / GetGroundtruth(ctx)
-    controllers.CreateXxxChaos(...)
+HTTP POST /injections/inject
+    │
+    ▼
+SubmitInjectionReq.ResolveSpecs            (three-way dispatch by chaos_type probe)
+    │                         │
+    │ guided                  │ legacy (Node | Friendly)
+    ▼                         ▼
+ResolvedGuidedConfigs         resolved Node trees
+    │                         │
+    └──────────┬──────────────┘
+               ▼
+       RestartPedestal task (Redis task:delayed)
+               │
+               ▼
+       FaultInjection subtask
+               │
+    ┌──────────┴─────────────┐
+    │ guided_configs in      │ node payload
+    │ payload                │
+    ▼                        ▼
+guidedcli.BuildInjection    chaos.NodeToStruct[handler.InjectionConf]
+    │                        │
+    └──────────┬─────────────┘
+               ▼
+       handler.BatchCreate
+               │
+               ▼
+       Chaos Mesh CRD (PodChaos / NetworkChaos / …)
 ```
 
-**New (current):**
+## File map
 
-```
-aegisctl → chaoscli.Spec (human-readable: type / namespace / target / duration / params)
-    ↓ POST /api/v2/projects/:id/injections/inject (payload = Spec)
-Handler:
-    Validates interval/pre_duration, pedestal/benchmark containers, dedup
-    Submits task with JSON-marshaled []chaoscli.Spec as payload
-Consumer fault_injection:
-    Deserializes payload as []chaoscli.Spec
-    chaoscli.NewDirectSubmitter(k8sClient, nil).Submit(ctx, spec)
-    ↑ chaos-experiment library internally builds CRD
-```
+- `pkg/guidedcli/` (chaos-experiment, public) — `GuidedConfig`, `Resolve`,
+  `BuildInjection(ctx, cfg) (handler.InjectionConf, handler.SystemType, error)`
+- `src/dto/injection.go` — `SubmitInjectionReq`, `ResolveSpecs` (three-way),
+  `ResolvedGuidedConfigs [][]guidedcli.GuidedConfig`
+- `src/consts/` — `InjectGuidedConfigs = "guided_configs"` payload key
+- `src/service/consumer/fault_injection.go` — `parseInjectionPayload`
+  branches guided vs. legacy; guided path calls
+  `guidedcli.BuildInjection`, legacy calls `chaos.NodeToStruct`
+- `src/cmd/aegisctl/cmd/inject.go` — `aegisctl inject guided` subcommand
+  (mirrors `cmd/chaos-exp/main.go` loop; wraps `GuidedConfig` in
+  `SubmitInjectionReq` on `--apply`)
+- `src/handlers/v2/injections.go` — `POST /translate` and
+  `GET /injections/metadata` return **410 Gone** (routes kept)
 
-## Why the old design was wrong
+## Landmines
 
-1. **Round-trip for no reason.** CLI → translate → CLI → inject is two hops
-   where one suffices. Backend is authoritative; CLI doesn't need the Node tree.
+1. **`chaos_type` probe is the dispatch key.** If a new spec shape adds a
+   field named `chaos_type` unintentionally, it will be routed to the
+   guided branch. Keep that field name guided-only.
+2. **Batches must be homogeneous.** `ResolveSpecs` does not support mixing
+   guided + legacy within one inner `[]json.RawMessage`.
+3. **Legacy still compiles and runs.** `dto.FaultSpec`,
+   `dto.FriendlyFaultSpec`, `producer.FriendlySpecToNode`,
+   `parseBatchInjectionSpecs` are kept alive for frontend back-compat.
+   Do not extend them — new work goes on the guided path.
+4. **No Node round-trip on the guided path.** There is no
+   `InjectionConfToNode`; `BuildInjection` builds `handler.InjectionConf`
+   directly from live cluster state. idx drift between submit and
+   consume time is therefore a non-issue — the consumer always resolves
+   against its current view.
+5. **`/translate` + `GET /metadata` return 410.** Routes exist but refuse
+   to serve; frontend migration is deferred but the endpoints signal
+   deprecation loudly.
 
-2. **Schema drift was baked into the design.** The Node tree was generated by
-   one chaos-experiment version and consumed by another. Fields in
-   `NetworkDelaySpec` (int-indexed: `Namespace int`, `NetworkPairIdx int`,
-   `Direction int`) required a server-side metadata store to populate. When
-   the library evolved, translate output and inject parser diverged silently:
-   one keyed children by field name ("Latency", "Direction"), the other
-   expected keying by chaos type ID string ("17"). Result: every version
-   bump of chaos-experiment risked 500 errors at inject time.
+## Migration status (2026-04-18)
 
-3. **metadata store coupling.** Resolving `target_service: "currency"` to
-   a `NetworkPairIdx int` required access to `DBMetadataStore` +
-   `GetNetworkPairs(system)` — which meant the CLI couldn't construct specs
-   standalone. Every friendly name required a backend round-trip even if
-   the CLI already knew which namespace/service to target.
+- [x] PR 1 (chaos-experiment): `pkg/guidedcli` exported, `pkg/chaoscli`
+      deleted, `cmd/chaos-exp/main.go` restored, `BuildInjection` added
+- [x] PR 2 (AegisLab): `aegisctl inject guided`, three-way
+      `ResolveSpecs`, consumer branch, 410 on deprecated endpoints
+- [ ] Frontend migration off `/translate` and `GET /metadata`
+- [ ] Delete `FriendlyFaultSpec` / `FriendlySpecToNode` /
+      `parseBatchInjectionSpecs` (after frontend cuts over)
 
-4. **Two display formats.** `GetDisplayConfig()` returned one view of the
-   spec; the ClickHouse `otel_traces` attributes encoded another; frontend
-   parsed a third. Three sources of truth for "what got injected."
+## Related
 
-5. **Dead code & complexity.** `parseBatchInjectionSpecs` was ~300 lines of
-   tree-walk + validation that replicated what chaos-experiment already does
-   internally. Easy to break, hard to reason about.
-
-## Why chaoscli.Spec is the right shape
-
-The canonical definition, in chaos-experiment at
-`pkg/chaoscli/submitter.go`:
-
-```go
-type Spec struct {
-    Type      string         // "NetworkDelay", "HTTPRequestAbort", "JVMLatency", ...
-    Namespace string
-    Target    string         // source app label
-    Duration  string         // "1m", "30s"
-    Params    map[string]any // type-specific
-}
-```
-
-And `DirectSubmitter.Submit(ctx, spec)` at `pkg/chaoscli/direct_submitter.go`
-contains a type switch covering every chaos type supported by chaos-experiment,
-each branch building the corresponding CRD via
-`controllers.CreateXxxChaos(...)`. No int indices, no metadata store lookups,
-no Node trees. Strings in → CRDs out.
-
-**This means:**
-
-- CLI can construct Spec from command-line flags with zero backend knowledge
-- Backend handler's only job is validation + enqueue (no parsing)
-- Consumer's only job is deserialize + call DirectSubmitter
-- chaos-experiment library owns the knowledge of "how a NetworkDelay CRD gets
-  built" — exactly where that knowledge belongs
-- New fault types added to chaos-experiment work automatically for AegisLab
-  with zero code changes on the AegisLab side
-
-## The "implicit" knowledge this captures
-
-Things a new contributor would not know from reading the code:
-
-1. **The old path still compiles and superficially runs.** `parseBatchInjectionSpecs`
-   is marked `// Deprecated` but wasn't deleted to avoid breaking frontend. If
-   you see Node-tree code, it's legacy — don't extend it. All new inject
-   features should use Spec.
-
-2. **`/api/v2/injections/translate` and `GET /api/v2/injections/metadata` are
-   deprecated.** They're kept alive for frontend compat; the frontend will be
-   migrated in a follow-up. Any new frontend code should construct Spec
-   directly.
-
-3. **Spec.Target is the source app**, not the destination. The destination
-   (when applicable, e.g. NetworkDelay with direction=to) goes in
-   `params.target_service`. This mirrors chaos-experiment's convention and
-   the Chaos Mesh CRD model (selector = source, action's peer = destination).
-
-4. **Groundtruth for Spec-based injections is reconstructed in the consumer,
-   not carried by the Spec.** `chaoscli.Spec` doesn't have a groundtruth
-   field by design — groundtruth is a post-hoc query ("which services/pods
-   did this fault actually affect") answered at consumption time using the
-   Spec + live cluster state. The old `InjectionConf.GetGroundtruth()`
-   conflated spec and groundtruth; we keep them separate now.
-
-5. **Consumer still reads from Redis `task:delayed` sorted set.** The
-   pipeline change does NOT touch the queue model — only the shape of the
-   payload serialized into the task. `aegisctl task expedite` (#18) and
-   `aegisctl rate-limiter gc` (#21) work on Spec-payload tasks identically
-   to the legacy Node-tree payload tasks.
-
-6. **Spec JSON is the source of truth in ClickHouse `otel_traces` attributes.**
-   When the consumer emits `fault.injection.started`, the Spec JSON goes
-   into the span attribute `aegis.injection.spec`. Anything rendering
-   "what was injected" should read that attribute, not reconstruct from
-   ground-truth or display maps.
-
-## Migration status (as of 2026-04-18)
-
-- [x] Backend handler `/inject` accepts Spec payload
-- [x] Consumer `fault_injection.go` uses DirectSubmitter
-- [x] `aegisctl inject submit` sends Spec directly (no translate call)
-- [ ] Frontend fault injection form migrated to Spec (deferred — issue TBD)
-- [ ] `/translate` endpoint removal (6-month deprecation window starts 2026-04-18)
-- [ ] `GET /metadata` endpoint removal (same window)
-
-## Related work
-
-- The chaos-experiment `v0.1.0` / v1.0.1 API changes (adding `ctx` arguments,
-  `GetRuntimeMutatorTargets`) were part of the migration to the cleaner
-  Spec-based API. Post-refactor, AegisLab only depends on `pkg/chaoscli` and
-  `controllers`, not the deeper `handler.InjectionConf` / `NodeToStruct`
-  machinery.
-- OperationsPAI/aegis issue #23 tracks this refactor. The commit that
-  implemented it is referenced in the issue.
+- Troubleshooting runbook: `aegis/docs/troubleshooting/e2e-cluster-bootstrap.md`
+- OperationsPAI/aegis#23 (original refactor), #36–#40 (this migration)

@@ -127,52 +127,7 @@ func GetInjection(c *gin.Context) {
 //	@Router			/api/v2/injections/metadata [get]
 //	@x-api-type		{"sdk":"true"}
 func GetInjectionMetadata(c *gin.Context) {
-	systemStr := c.Query("system")
-
-	ctx := context.Background()
-	system := chaos.SystemType(systemStr)
-
-	// Config-node introspection is superseded by `aegisctl inject submit --spec`
-	// with FaultSpec auto-detection. This deprecated endpoint returns nil for
-	// Config; frontend should migrate to sending FaultSpec directly.
-	_ = ctx
-	_ = system
-	var confNode *chaos.Node
-
-	faultResourceMap, err := chaos.GetChaosTypeResourceMappings()
-	if err != nil {
-		handlers.HandleServiceError(c, err)
-		return
-	}
-
-	resourceMap, err := chaos.GetSystemResourceMap(ctx)
-	if err != nil {
-		// Some systems may not be deployed in the current environment
-		logrus.Warnf("Failed to get system resource map: %v, using empty map", err)
-		resourceMap = make(map[chaos.SystemType]chaos.SystemResource)
-	}
-
-	resource := resourceMap[system]
-
-	// Build extended metadata fields
-	systemMap := utils.BuildSystemIndexMap(chaos.GetAllSystemTypes())
-
-	reverseTypeMap := make(map[string]int, len(chaos.ChaosTypeMap))
-	for ct, name := range chaos.ChaosTypeMap {
-		reverseTypeMap[name] = int(ct)
-	}
-
-	fieldDescriptions := utils.ExtractFieldDescriptions(chaos.SpecMap)
-
-	dto.SuccessResponse(c, &dto.InjectionMetadataResp{
-		Config:                 confNode,
-		FaultTypeMap:           chaos.ChaosTypeMap,
-		FaultResourceMap:       faultResourceMap,
-		SystemResource:         resource,
-		SystemMap:              systemMap,
-		FaultTypeReverseMap:    reverseTypeMap,
-		FaultFieldDescriptions: fieldDescriptions,
-	})
+	c.JSON(http.StatusGone, gin.H{"error": "endpoint removed; migrate to /inject with GuidedConfig"})
 }
 
 // ListInjections handles listing injections with pagination and filtering
@@ -719,52 +674,7 @@ func GetSystemMapping(c *gin.Context) {
 //	@Failure		500		{object}	dto.GenericResponse[any]							"Internal server error"
 //	@Router			/api/v2/injections/translate [post]
 func TranslateFaultSpecs(c *gin.Context) {
-	var req dto.TranslateFaultSpecsReq
-	if err := c.ShouldBindJSON(&req); err != nil {
-		dto.ErrorResponse(c, http.StatusBadRequest, "Invalid request: "+err.Error())
-		return
-	}
-
-	if len(req.Specs) == 0 {
-		dto.ErrorResponse(c, http.StatusBadRequest, "specs must not be empty")
-		return
-	}
-
-	reverseTypeMap := utils.BuildReverseTypeMap(chaos.ChaosTypeMap)
-	systemIndexMap := utils.BuildSystemIndexMap(chaos.GetAllSystemTypes())
-
-	var allWarnings []string
-	nodes := make([][]chaos.Node, 0, len(req.Specs))
-
-	for batchIdx, batch := range req.Specs {
-		batchNodes := make([]chaos.Node, 0, len(batch))
-		for specIdx, spec := range batch {
-			// Convert dto.FaultSpecInput to utils.FaultSpecInput
-			uSpec := utils.FaultSpecInput{
-				Type:      spec.Type,
-				Namespace: spec.Namespace,
-				Target:    spec.Target,
-				Duration:  spec.Duration,
-				Extra:     spec.Extra,
-			}
-			node, warnings, err := utils.TranslateFaultSpec(uSpec, reverseTypeMap, systemIndexMap)
-			if err != nil {
-				dto.ErrorResponse(c, http.StatusBadRequest,
-					fmt.Sprintf("batch[%d][%d]: %v", batchIdx, specIdx, err))
-				return
-			}
-			for _, w := range warnings {
-				allWarnings = append(allWarnings, fmt.Sprintf("batch[%d][%d]: %s", batchIdx, specIdx, w))
-			}
-			batchNodes = append(batchNodes, *node)
-		}
-		nodes = append(nodes, batchNodes)
-	}
-
-	dto.SuccessResponse(c, &dto.TranslateFaultSpecsResp{
-		Nodes:    nodes,
-		Warnings: allWarnings,
-	})
+	c.JSON(http.StatusGone, gin.H{"error": "endpoint removed; migrate to /inject with GuidedConfig"})
 }
 
 // ===================== Private Helper Functions =====================

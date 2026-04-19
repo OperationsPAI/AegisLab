@@ -12,6 +12,7 @@ import (
 	"aegis/utils"
 
 	chaos "github.com/OperationsPAI/chaos-experiment/handler"
+	"github.com/OperationsPAI/chaos-experiment/pkg/guidedcli"
 )
 
 type InjectionItem struct {
@@ -384,13 +385,68 @@ type SubmitInjectionReq struct {
 
 	// ResolvedSpecs holds the converted [][]chaos.Node after calling ResolveSpecs().
 	// Not serialized — populated server-side only.
+	// Mutually exclusive with ResolvedGuidedConfigs; legacy Node/Friendly path only.
 	ResolvedSpecs [][]chaos.Node `json:"-"`
+
+	// ResolvedGuidedConfigs holds the parsed GuidedConfig specs when the request
+	// carries chaos-experiment guided configs (detected by top-level chaos_type).
+	// Mutually exclusive with ResolvedSpecs; when non-empty the producer skips
+	// the legacy Node/Friendly conversion and forwards GuidedConfigs to the
+	// consumer, which calls guidedcli.BuildInjection to obtain InjectionConf.
+	ResolvedGuidedConfigs [][]guidedcli.GuidedConfig `json:"-"`
 }
 
-// ResolveSpecs detects the format of each spec element (chaos.Node DSL vs FriendlyFaultSpec)
-// and converts all to [][]chaos.Node, storing the result in req.ResolvedSpecs.
-// The converter function handles FriendlyFaultSpec→Node conversion.
+// ResolveSpecs auto-detects the format of each spec element and routes it to
+// one of three handlers:
+//  1. Top-level "chaos_type" string present → guidedcli.GuidedConfig (PR 2).
+//  2. "value" + "children" present → chaos.Node DSL (legacy).
+//  3. Otherwise "type" present → FriendlyFaultSpec, converted via the
+//     converter callback.
+//
+// A single request batches must be homogeneous in shape: if any spec in the
+// request is a GuidedConfig, all specs must be GuidedConfigs (mixing with
+// legacy Node/Friendly is rejected). The two populated fields are mutually
+// exclusive: either req.ResolvedSpecs or req.ResolvedGuidedConfigs, never both.
 func (req *SubmitInjectionReq) ResolveSpecs(converter func(*FriendlyFaultSpec) (chaos.Node, error)) error {
+	// First pass: detect whether the request is guided-only.
+	guidedCount := 0
+	legacyCount := 0
+	for i, batch := range req.Specs {
+		for j, raw := range batch {
+			var probe map[string]json.RawMessage
+			if err := json.Unmarshal(raw, &probe); err != nil {
+				return fmt.Errorf("specs[%d][%d]: invalid JSON: %w", i, j, err)
+			}
+			if _, hasChaosType := probe["chaos_type"]; hasChaosType {
+				guidedCount++
+			} else {
+				legacyCount++
+			}
+		}
+	}
+	if guidedCount > 0 && legacyCount > 0 {
+		return fmt.Errorf("specs mix guided (chaos_type) and legacy (type/value) entries; please submit them in separate requests")
+	}
+
+	if guidedCount > 0 {
+		result := make([][]guidedcli.GuidedConfig, len(req.Specs))
+		for i, batch := range req.Specs {
+			cfgs := make([]guidedcli.GuidedConfig, len(batch))
+			for j, raw := range batch {
+				var cfg guidedcli.GuidedConfig
+				if err := json.Unmarshal(raw, &cfg); err != nil {
+					return fmt.Errorf("specs[%d][%d]: failed to parse guided config: %w", i, j, err)
+				}
+				cfgs[j] = cfg
+			}
+			result[i] = cfgs
+		}
+		req.ResolvedGuidedConfigs = result
+		req.ResolvedSpecs = nil
+		return nil
+	}
+
+	// Legacy path: friendly spec (string "type") or chaos.Node DSL (value+children).
 	result := make([][]chaos.Node, len(req.Specs))
 	for i, batch := range req.Specs {
 		nodes := make([]chaos.Node, len(batch))
@@ -428,6 +484,7 @@ func (req *SubmitInjectionReq) ResolveSpecs(converter func(*FriendlyFaultSpec) (
 		result[i] = nodes
 	}
 	req.ResolvedSpecs = result
+	req.ResolvedGuidedConfigs = nil
 	return nil
 }
 
